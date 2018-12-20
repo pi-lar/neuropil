@@ -62,7 +62,7 @@ void _np_sysinfo_init_cache(np_state_t* context)
     }
 }
 
-void _np_sysinfo_client_send_cb(np_state_t* context, np_jobargs_t args) {	
+void _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_jobargs_t args) {
     
     _np_sysinfo_init_cache(context);
 
@@ -182,7 +182,7 @@ void np_sysinfo_enable_server(np_state_t* context) {
     np_add_receive_listener(context, _np_in_sysinforeply, NULL, _NP_SYSINFO_REPLY);
 }
 
-bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+bool _np_in_sysinfo(np_context* ac, NP_UNUSED const np_message_t* const msg, np_tree_t* body, NP_UNUSED void* localdata) {
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: bool _np_in_sysinfo(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, NP_UNUSED np_tree_t* body) {");
     log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo request");
@@ -256,7 +256,7 @@ bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* bo
     return true;
 }
 
-bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, NP_UNUSED void* localdata) {
     np_ctx_cast(ac);
 
     log_trace_msg(LOG_TRACE, "start: bool _np_in_sysinforeply(NP_UNUSED const np_message_t* const msg, np_tree_t* properties, np_tree_t* body) {");
@@ -356,7 +356,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
 
     // build routing list
     np_sll_t(np_key_ptr, routing_table) = _np_route_get_table(context);
-
+    
     np_tree_t* routes = np_tree_create();
     uint32_t routes_counter = 0;
     if (NULL != routing_table && 0 < routing_table->size) {
@@ -366,13 +366,19 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context) {
             if (current->node) {
                 np_tree_t* route = np_tree_create();
                 _np_node_encode_to_jrb(route, current, true);
-                np_tree_replace_str( 
-                    route, 
+                np_tree_replace_str(
+                    route,
                     NP_SERIALISATION_NODE_PROTOCOL,
                     np_treeval_new_s(_np_network_get_protocol_string(context, current->node->protocol))
                 );
-                np_tree_insert_int( routes, routes_counter++, 
-                    np_treeval_new_tree(route));
+                np_tree_replace_str(
+                    route,
+                    "np.node.route.idx",
+                    np_treeval_new_ul(routes_counter)
+                );
+                np_tree_insert_int( routes, routes_counter++,
+                    np_treeval_new_tree(route)
+                );
                 np_tree_free( route);
                 np_unref_obj(np_key_t, current,"_np_route_get_table");
             }
@@ -417,9 +423,8 @@ void _np_sysinfo_request(np_state_t* context, const char* const hash_of_target) 
 //		np_tree_insert_str( properties, _NP_SYSINFO_TARGET,
 //				np_treeval_new_s(hash_of_target));
 
-        np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
-
-        //np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
+        // np_dhkey_t target_dhkey = np_dhkey_create_from_hash(hash_of_target);
+        // np_send_msg(_NP_SYSINFO_REQUEST, properties, body, &target_dhkey);
 
     } else {
         log_msg(LOG_WARN | LOG_SYSINFO,
@@ -534,8 +539,8 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context) {
     np_tree_insert_int( ret, count++, np_treeval_new_tree(tmp));
     np_tree_free( tmp);
 
-    np_sll_t(np_key_ptr, routing_table) = NULL;
-    np_sll_t(np_key_ptr, neighbours_table) = NULL;
+    // np_sll_t(np_key_ptr, routing_table) = NULL;
+    // np_sll_t(np_key_ptr, neighbours_table) = NULL;
 
     np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "usage");	
 

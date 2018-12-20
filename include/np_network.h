@@ -47,7 +47,7 @@ enum socket_type {
     IPv6    	   = 0x002,
     UDP     	   = 0x010, // UDP protocol - default
     TCP     	   = 0x020, // TCP protocol
-    //RAW     	   = 0x040, // pure IP protocol - no ports
+    // RAW     	   = 0x040, // pure IP protocol - no ports
     PASSIVE		   = 0x100,
     MASK_PROTOCOLL = 0x0FF,
     MASK_OPTION    = 0xF00,
@@ -145,9 +145,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
-char* np_network_get_ip(np_key_t * container);
+char* np_network_get_desc(np_key_t * container, char* buffer);
 NP_API_INTERN
-char* np_network_get_port(np_key_t * container);
+char* np_network_get_port(np_key_t * container, char* buffer);
+NP_API_INTERN
+char* np_network_get_ip(np_key_t * container, char* buffer);
 NP_API_INTERN
 bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool response_handshake, char* response_uuid);
 NP_API_INTERN

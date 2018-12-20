@@ -21,7 +21,7 @@ int8_t __np_cmp_np_text_exchange_ptr(np_text_exchange_ptr const te, np_text_exch
 	return memcmp(&te->id, &te_id->id, sizeof(np_id));
 }
 
-bool __np_text_receiver(np_context* ac, struct np_message* message) {
+bool __np_text_receiver(NP_UNUSED np_context* ac, struct np_message* message) {
 	struct np_text_exchange_s te_s = {0};
 	
 	memcpy(&te_s.id ,&message->subject, sizeof(te_s));
@@ -72,6 +72,6 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 }
 
 DEPRECATED
-void np_send_text(np_context* ac, char* subject, char* buffer, uint32_t seq, np_id target) {
+void np_send_text(np_context* ac, char* subject, char* buffer, NP_UNUSED uint32_t seq, np_id target) {
 	np_send_to(ac, subject, (uint8_t*)buffer, strlen(buffer)+1, target); // ignoring encoding etc for now
 }

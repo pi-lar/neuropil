@@ -54,7 +54,7 @@
     np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);									\
     if (np_module(events)->__loop_##LOOPNAME == false) {											 					\
         fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");								 					\
-        exit(EXIT_FAILURE);														   					 					\
+        abort();														   					 							\
     }																			   					 					\
     ev_set_userdata (np_module(events)->__loop_##LOOPNAME, context);													\
     ev_idle_init (&np_module(events)->__idle_##LOOPNAME, _np_events_idle_##LOOPNAME);                      				\
@@ -121,6 +121,9 @@
         NP_PERFORMANCE_POINT_START(event_resume_##LOOPNAME);															\
         _np_threads_mutex_unlock(context, &np_module(events)->__loop_##LOOPNAME##_process_protector);					\
         NP_PERFORMANCE_POINT_END(event_resume_##LOOPNAME);																\
+    }																													\
+    void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context) {													\
+        ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__async_##LOOPNAME);					\
     }																													\
     struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context) {												\
         return (np_module(events)->__loop_##LOOPNAME);																	\

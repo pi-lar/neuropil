@@ -63,7 +63,7 @@ void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
     }
 }
 
-void np_shutdown_check(np_state_t* context, np_jobargs_t args) {
+void np_shutdown_check(np_state_t* context, NP_UNUSED np_jobargs_t args) {
 
     bool do_the_shutdown = false;
     if (np_module(shutdown)->invoke) {
@@ -149,7 +149,7 @@ void np_shutdown_notify_others(np_state_t* context) {
                 msgs_is_out = true;
             }
             else {
-                np_time_sleep(NP_PI/300);
+                np_run(context, NP_PI/300);
             }
         }
 

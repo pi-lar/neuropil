@@ -7,37 +7,17 @@
    If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
 */
 #include <assert.h>
-#include <errno.h>
-#include <pthread.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <unistd.h>
+#include <signal.h>
 
-#include "sodium.h"
-
+#include "neuropil.h"
 #include "np_legacy.h"
 #include "np_log.h"
-#include "np_types.h"
-#include "np_tree.h"
-#include "np_shutdown.h"
-#include "np_sysinfo.h"
-#include "np_node.h"
-#include "np_keycache.h"
-#include "np_key.h"
-#include "np_memory.h"
-
-#include "np_util.h"
 #include "np_list.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 #include "example_helper.c"
 

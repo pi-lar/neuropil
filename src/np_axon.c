@@ -135,6 +135,7 @@ void _np_out_ack(np_state_t* context, np_jobargs_t args)
 void _np_out(np_state_t* context, np_jobargs_t args)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_jobargs_t args){");
+    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 1");
 
     uint32_t seq = 0;
     np_message_t* msg_out = args.msg;
@@ -179,20 +180,24 @@ void _np_out(np_state_t* context, np_jobargs_t args)
     np_ref_obj(np_key_t, target, FUNC); // usage ref
 
 
+    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 2");
     // now we can try to send the msg
     np_waitref_obj(np_key_t, context->my_node_key, my_key,"np_waitref_key");
     {
+        log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 3");
         np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
         {
+            log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 4");
             uuid = msg_out->uuid;
 
             // check ack indicator if this is a resend of a message
             if (true == is_resend && prop->ack_mode != ACK_NONE)
             {
                 bool skip = false;
-
+                log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 5");
                 _LOCK_ACCESS(&my_network->waiting_lock)
                 {
+                    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 6");
                     // first find the uuid
                     np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
                     if (NULL == uuid_ele)
@@ -285,8 +290,11 @@ void _np_out(np_state_t* context, np_jobargs_t args)
             np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
             if (!is_resend)
             {
+                log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 7");
                 _LOCK_ACCESS(&my_network->access_lock)
-                {	/* get/set sequence number to keep increasing sequence numbers per node */
+                {
+                    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 8");
+                    /* get/set sequence number to keep increasing sequence numbers per node */
                     seq = my_network->seqend;
                     np_tree_replace_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
                     my_network->seqend++;
@@ -366,9 +374,10 @@ void _np_out(np_state_t* context, np_jobargs_t args)
                     __np_cleanup__:
                         {}
 #endif
-
+                    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 9");
                     _LOCK_ACCESS(&my_network->waiting_lock)
                     {
+                        log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 10");
                         np_tree_insert_str( my_network->waiting, uuid, np_treeval_new_v(responsecontainer));
                     }
                     // log_msg(LOG_ERROR, "ACK_HANDLING ack handling requested for msg uuid: %s/%s", uuid, args.properties->msg_subject);
@@ -422,8 +431,9 @@ void _np_out(np_state_t* context, np_jobargs_t args)
             np_unref_obj(np_network_t, my_network, "np_waitref_network");
         }
         np_unref_obj(np_key_t, target, FUNC);
-        np_unref_obj(np_key_t, my_key, "np_waitref_key");
+        np_unref_obj(np_key_t, my_key, "np_waitref_key");		
     }
+    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
 }
 
 void _np_out_handshake(np_state_t* context, np_jobargs_t args)
@@ -490,12 +500,8 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
                             );
                             if (false == args.target->network->initialized)
                             {
-                                np_unref_obj(np_message_t, hs_message, ref_obj_creation);
                                 np_unref_obj(np_network_t, args.target->network, ref_key_network);
                                 args.target->network = NULL;
-                                //log_debug_msg(LOG_DEBUG, "Setting handshake unknown");
-                                //args.target->node->is_handshake_send = HANDSHAKE_UNKNOWN;
-                                _np_threads_unlock_module(context, np_handshake_t_lock);
                                 network_error = true;
                             }
                             else {

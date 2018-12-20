@@ -117,6 +117,8 @@ struct np_token np_new_identity(np_context* ac, double expires_at, const uint8_t
 NP_API_EXPORT
 enum np_error	np_use_identity(np_context* ac, struct np_token identity);
 
+NP_API_EXPORT
+enum np_error	np_token_fingerprint(struct np_token identity, bool include_attributes, np_id id);
 
 
 NP_API_EXPORT

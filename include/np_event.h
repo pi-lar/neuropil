@@ -23,6 +23,8 @@ void* _np_event_##LOOPNAME##_run(void* np_thread_ptr);					\
 NP_API_INTERN															\
 void _np_event_suspend_loop_##LOOPNAME(np_state_t *context);			\
 NP_API_INTERN															\
+void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context); 		\
+NP_API_INTERN															\
 void _np_event_resume_loop_##LOOPNAME(np_state_t *context);						
 
 NP_EVENT_EVLOOP_PROTOTYPE(in)

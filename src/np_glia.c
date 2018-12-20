@@ -162,6 +162,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
     np_key_t *tmp_node_key = NULL;
     
     sll_iterator(np_key_ptr) iter_keys = sll_first(connections);
+    np_ctx_decl(NULL); // WARNING: context is NULL!
     while (iter_keys != NULL)
     {
         tmp_node_key = iter_keys->val;		
@@ -172,8 +173,8 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
             (np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
             tmp_node_key->node->_handshake_status == np_handshake_status_Connected
             )
-        {
-            np_ctx_memory(tmp_node_key);
+        {			
+            if(context == NULL) context = np_ctx_by_memory(tmp_node_key);
 
             log_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
                                 _np_key_as_str(tmp_node_key),
@@ -537,16 +538,19 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
 
     np_sll_t(np_key_ptr, sll_of_keys) = NULL;
     /* send one row of our routing table back to joiner #host# */
-
+    
+    char* source_sll_of_keys;
     sll_of_keys = _np_route_row_lookup(target_key);
-    char* source_sll_of_keys = "_np_route_row_lookup";
+    source_sll_of_keys = "_np_route_row_lookup";
+    //sll_of_keys = _np_route_get_table(context);
+    //source_sll_of_keys = "_np_route_get_table";
     
     
-    if (sll_size(sll_of_keys) <= 1)
+    if (sll_size(sll_of_keys) <= 5)
     {
         // nothing found, send leafset to exchange some data at least
         // prevents small clusters from not exchanging all data
-        np_key_unref_list(sll_of_keys, "_np_route_row_lookup"); // only for completion
+        np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
         sll_free(np_key_ptr, sll_of_keys);
         sll_of_keys = _np_route_neighbors(context);
         source_sll_of_keys = "_np_route_neighbors";

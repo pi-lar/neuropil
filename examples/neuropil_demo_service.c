@@ -23,23 +23,12 @@
 
 #include "event/ev.h"
 
+#include "neuropil.h"
+
 #include "np_log.h"
-#include "np_types.h"
-#include "np_list.h"
-#include "np_util.h"
-#include "np_memory.h"
-#include "np_message.h"
-#include "np_msgproperty.h"
-#include "np_keycache.h"
-#include "np_tree.h"
-#include "np_route.h"
-#include "np_key.h"
-#include "np_sysinfo.h"
-
-
-#include "np_legacy.h"
 #include "example_helper.c"
- 
+
+
 bool receive_echo_message(np_context* context, struct np_message* message) {
 	np_example_print(context, stdout, "Echoing msg %s", message->uuid);
 	np_send_to(context, "echo", message->data, message->data_length, message->from);
@@ -93,7 +82,6 @@ int main(int argc, char **argv) {
 	echo_props.ackmode = NP_MX_ACK_NONE;
 	echo_props.message_ttl = 20.0;
 	np_set_mx_properties(context, "echo", echo_props);
-	np_statistics_add_watch(context, "echo");
 
 	if (np_ok != np_run(context, 0)) {
 		np_example_print(context, stderr, "ERROR: Node could not start");

@@ -426,15 +426,8 @@ void _np_job_yield(np_state_t * context, const double delay)
     }
 }
 
-static int8_t __np_job_cmp(np_job_ptr first, np_job_ptr second)
-{
-    int8_t ret = 1;
-    if (first == second)
-        ret = 0;
-    return ret;
-}
 /*
-  @return the recomended time before calling this function again
+  @return the recommended time before calling this function again
 */
 double __np_jobqueue_run_jobs_once(np_state_t * context) {
 
@@ -498,7 +491,7 @@ void* __np_jobqueue_run_jobs(void* np_thread_ptr_self)
 
     double sleep = 0.0;
     enum np_status tmp_status;
-    while ((tmp_status=np_get_status(context)) != np_shutdown)
+    while ((tmp_status = np_get_status(context)) != np_shutdown)
     {
         if (tmp_status == np_running) {
             sleep = __np_jobqueue_run_jobs_once(context);
@@ -767,7 +760,6 @@ void* __np_jobqueue_run_worker(void* self)
     _np_threads_set_self(self);
     np_thread_t* my_thread = self;
     enum np_status tmp_status;
-
     while ((tmp_status=np_get_status(context)) != np_shutdown)
     {
         if (tmp_status == np_running) {

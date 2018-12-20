@@ -85,7 +85,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
 
 np_context* np_new_context(struct np_settings * settings_in) {
     enum np_error status = np_ok;
-    np_state_t* context= NULL;
+    np_state_t* context = NULL;
 
     struct np_settings * settings = settings_in;
 
@@ -95,72 +95,67 @@ np_context* np_new_context(struct np_settings * settings_in) {
 
     //TODO: check settings for bad configuration
 
-    context= (np_state_t *)calloc(1, sizeof(np_state_t));
+    context = (np_state_t *)calloc(1, sizeof(np_state_t));
     CHECK_MALLOC(context);
-    if (context == NULL)
+
+    context->settings = settings;
+
+    _np_log_init(context, settings->log_file, settings->log_level);
+
+    if (sodium_init() == -1) {
+        log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
+        status = np_startup;
+    }
+    else if (_np_threads_init(context) == false) {
+        log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
+        status = np_startup;
+    }
+    else if (_np_statistics_init(context) == false) {
+        log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
+        status = np_startup;
+    }
+    else if (_np_memory_init(context) == false) {
+        log_msg(LOG_ERROR, "neuropil_init: could not init memory");
+        status = np_startup;
+    }
+    else if (_np_msgproperty_init(context) == false)
     {
-        debugf("neuropil_init: state module not created: %s", strerror(errno));
+        log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed");
+        status = np_startup;
     }
-    else {	
-
-        context->settings = settings;
-
-        _np_log_init(context, settings->log_file, settings->log_level);
-
-        if (sodium_init() == -1) {
-            log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
-            status = np_startup;
-        }
-        else if (_np_threads_init(context) == false) {
-            log_msg(LOG_ERROR, "neuropil_init: could not init threding mutexes");
-            status = np_startup;
-        }
-        else  if (_np_statistics_init(context) == false) {
-            log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
-            status = np_startup;
-        }
-        else if (_np_memory_init(context) == false) {
-            log_msg(LOG_ERROR, "neuropil_init: could not init memory");
-            status = np_startup;
-        }
-        else if (_np_msgproperty_init(context) == false)
-        {
-            log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed");
-            status = np_startup;
-        }
-        else if (_np_event_init(context) == false)
-        {
-            log_msg(LOG_ERROR, "neuropil_init: could not init event system");
-            status = np_startup;
-        }
-        else if (_np_dhkey_init(context) == false)
-        {
-            log_msg(LOG_ERROR, "neuropil_init: could not init distributed hash table");
-            status = np_startup;
-        }
-        else if (_np_keycache_init(context) == false)
-        {
-            log_msg(LOG_ERROR, "neuropil_init: could not init keycache");
-            status = np_startup;
-        }
-        else {
-            np_thread_t * new_thread =
-                __np_createThread(context, 0, NULL, false, np_thread_type_main);
-            new_thread->id = (unsigned long) getpid();
-
-            // set default aaa functions
-            np_set_authorize_cb(context, _np_default_authorizefunc);
-            np_set_authenticate_cb(context, _np_default_authenticatefunc);
-            np_set_accounting_cb(context, _np_default_accountingfunc);
-
-            context->enable_realm_client = false;
-            context->enable_realm_server = false;
-
-            _np_log_rotate(context, true);
-        }
+    else if (_np_event_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: could not init event system");
+        status = np_startup;
     }
+    else if (_np_dhkey_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: could not init distributed hash table");
+        status = np_startup;
+    }
+    else if (_np_keycache_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: could not init keycache");
+        status = np_startup;
+    }
+    else {
+        np_thread_t * new_thread =
+            __np_createThread(context, 0, NULL, false, np_thread_type_main);
+        new_thread->id = (unsigned long)getpid();
+
+        // set default aaa functions
+        np_set_authorize_cb(context, _np_default_authorizefunc);
+        np_set_accounting_cb(context, _np_default_accountingfunc);
+        np_set_authenticate_cb(context, _np_default_authenticatefunc);
+
+        context->enable_realm_client = false;
+        context->enable_realm_server = false;
+
+        _np_log_rotate(context, true);
+    }
+
     TSP_INITD(context->status, np_uninitialized);
-    if(status == np_ok){
+    if (status == np_ok) {
         TSP_SET(context->status, np_stopped);
     }
     else  if (context->status != np_error) {
@@ -173,8 +168,14 @@ enum np_error np_listen(np_context* ac, const char* protocol, const char* host, 
     enum np_error ret = np_ok;
     np_ctx_cast(ac);
 
+    TSP_GET(enum np_status, context->status, context_status);
+
     if (context->my_node_key != NULL && context->my_node_key->network != NULL) {
         log_msg(LOG_ERROR, "node listens already and cannot get a second listener");
+        ret = np_invalid_operation;
+    }
+    else if (context_status != np_stopped) {
+        log_msg(LOG_ERROR, "node is not in stopped state and cannot start propertly");
         ret = np_invalid_operation;
     }
     else {
@@ -311,11 +312,28 @@ struct np_token np_new_identity(np_context* ac, double expires_at, const uint8_t
     np_aaatoken4user(&ret, new_token);
 #ifdef DEBUG
     char tmp[65] = { 0 };
-    np_dhkey_t d = np_aaatoken_get_fingerprint(new_token);
+    np_dhkey_t d = np_aaatoken_get_fingerprint(new_token, false);
     np_id_str(tmp, *(np_id*)&d);
     log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
 #endif
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
+
+    return ret;
+}
+
+enum np_error np_token_fingerprint(struct np_token identity, bool include_attributes, np_id id)
+{
+    enum np_error ret = np_ok;
+    if(id == NULL) {
+        ret = np_invalid_argument;
+    }
+    else {
+        np_ident_private_token_t imported_token = { 0 };
+        np_user4aaatoken(&imported_token, &identity);
+
+        np_dhkey_t fp = np_aaatoken_get_fingerprint(&imported_token, include_attributes);
+        memcpy(id, &fp , NP_FINGERPRINT_BYTES);
+    }
 
     return ret;
 }
