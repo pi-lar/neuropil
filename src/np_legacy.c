@@ -310,7 +310,7 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, DEFAULT_MODE, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, subject);
 
     if (NULL == msg_prop)
     {
@@ -352,11 +352,18 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
 
     if (NULL == msg_prop)
     {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND creation of msgproperty %s", subject);	
         // create a default set of properties for listening to messages
         np_new_obj(np_msgproperty_t, msg_prop);
         msg_prop->msg_subject = strndup(subject, 255);
         msg_prop->mode_type |= OUTBOUND;
         np_msgproperty_register(msg_prop);
+    }
+    if(!FLAG_CMP(msg_prop->mode_type, OUTBOUND))
+    {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND configuration of msgproperty %s", subject);	
+        msg_prop->mode_type |= OUTBOUND;
+        _np_msgproperty_update_disovery(context,msg_prop);
     }
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
@@ -483,7 +490,7 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     np_message_t* ret = NULL;
     np_new_obj(np_message_t, ret);
 
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, DEFAULT_MODE, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
     
     if (NULL == msg_prop)
     {	
@@ -492,7 +499,6 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
 
         // set correct subject 		
         msg_prop->msg_subject = strndup(subject, 255);
-
         msg_prop->mode_type |= OUTBOUND;
         msg_prop->mep_type = ANY_TO_ANY;        
 
@@ -744,7 +750,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
         //START Build our wildcard connection string
         np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
         char wildcard_dhkey_str[65];
-        np_id2str((np_id_ptr )&wildcard_dhkey, wildcard_dhkey_str);
+        _np_dhkey2str(&wildcard_dhkey, wildcard_dhkey_str);
         asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
         //END Build our wildcard connection string
 

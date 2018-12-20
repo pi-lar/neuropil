@@ -692,8 +692,8 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            | LOG_VERBOSE
-            | LOG_TRACE
+            //| LOG_VERBOSE
+            //| LOG_TRACE
             //| LOG_MUTEX
             | LOG_ROUTING
             //| LOG_HTTP

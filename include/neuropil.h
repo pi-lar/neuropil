@@ -112,7 +112,7 @@ extern "C" {
 
     typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
     typedef unsigned char* np_id_ptr;
-    
+        
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
@@ -163,7 +163,10 @@ extern "C" {
     enum np_error   np_use_identity(np_context* ac, struct np_token identity);
 
     NP_API_EXPORT
-    enum np_error   np_token_fingerprint(struct np_token identity, bool include_attributes, np_id* id);
+    enum np_error   np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id_ptr id);
+    
+    NP_API_EXPORT
+    enum np_error   np_node_fingerprint(np_context* ac, np_id_ptr id);
 
     NP_API_EXPORT
     enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
@@ -204,7 +207,7 @@ extern "C" {
     enum np_mx_ackmode      { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } NP_ENUM;
 
     struct np_mx_properties {
-        char reply_subject[255];
+        char reply_subject[255] NP_PACKED(1);
         enum np_mx_ackmode ackmode;
         //enum np_mx_pattern pattern;  will be added later on
         enum np_mx_cache_policy cache_policy;
@@ -224,7 +227,7 @@ extern "C" {
     
 
     NP_API_EXPORT
-        enum np_error np_send_to(np_context* ac, char* subject, unsigned char* message, size_t length, np_id_ptr target);
+        enum np_error np_send_to(np_context* ac, char* subject, unsigned char* message, size_t length, np_id target);
     NP_API_EXPORT
         bool np_has_joined(np_context * ac);		
     NP_API_EXPORT
@@ -232,7 +235,7 @@ extern "C" {
     NP_API_EXPORT
         bool np_has_receiver_for(np_context*ac, char * subject);	
     NP_API_EXPORT
-        void np_id2str(const np_id_ptr k, char* key_string);
+        void np_id2str(const np_id k, char* key_string);
     NP_API_EXPORT
         void np_str2id(const char* key_string, np_id_ptr k);
 

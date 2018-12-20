@@ -198,7 +198,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
 
             ret = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
 
-            char tmp[255];
+            char tmp[255]={0};
             if (ret == false) {				
                 if(is_decryption_successful == true) {
                     log_msg(LOG_ERROR,
@@ -228,7 +228,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
             CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-            np_id2str((np_id_ptr )&msg_from.value.dhkey, str_msg_from);
+            _np_dhkey2str(&msg_from.value.dhkey, str_msg_from);
             str_msg_subject = msg_subject.value.s;
 
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
@@ -269,7 +269,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
                 CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
 
-                np_id2str((np_id_ptr )&msg_to.value.dhkey, str_msg_to);
+                _np_dhkey2str(&msg_to.value.dhkey, str_msg_to);
 
                 log_debug_msg(LOG_ROUTING | LOG_DEBUG,
                     "msg (%s) target of message for subject: %s from: %s is: %s",
@@ -802,8 +802,8 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
             // ident fingerprint must match partner fp from node token
 #ifdef DEBUG
             char fp_j[65], fp_p[65];
-            np_id2str((np_id_ptr )&join_node_dhkey, fp_j);
-            np_id2str((np_id_ptr )&partner_of_ident_dhkey, fp_p);
+            _np_dhkey2str(&join_node_dhkey, fp_j);
+            _np_dhkey2str(&partner_of_ident_dhkey, fp_p);
             log_debug_msg(LOG_ROUTING | LOG_VERBOSE,
                 "JOIN request: node fingerprint must match partner fp from ident token. (node: %s / partner: %s)",
                 fp_j, fp_p
@@ -855,7 +855,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
     struct np_token tmp_user_token = { 0 };
     if (NULL != join_ident_key)
     {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (ident) authentication of token");
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
         bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
 
@@ -867,7 +867,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
         }
     }
     else {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (node) authentication of token");
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/node) authentication of token");
         bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
         if (false == context->enable_realm_client &&
@@ -1460,6 +1460,7 @@ void _np_dendrit_propagate_list(np_msgproperty_t* subject_property, np_dhkey_t t
         tmp_token_issuer = _np_aaatoken_get_issuer(tmp_token);
 
         // do not send the msgtoken to its own issuer (remove clutter)
+        // TODO: Correctly add the own token and then add this line again
         if (_np_dhkey_cmp(&target, &tmp_token_issuer) != 0)
         {
             available_data = np_tree_create();
@@ -1564,13 +1565,22 @@ void _np_in_available_sender(np_state_t* context, np_jobargs_t args)
     np_dhkey_t to_key = msg_to.value.dhkey;
 
     if ( _np_dhkey_equal(&to_key, &state->my_node_key->dhkey) )
-    {
-        struct  np_token tmp;
-        if (true == state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token)))
-            msg_token->state |= AAA_AUTHENTICATED;
+    {        
+        struct np_token tmp;
+        log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authentication of token");
+        bool authenticate = state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token));
+        log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authentication: %"PRIu8, authenticate);
 
-        if (true == state->authorize_func(context, np_aaatoken4user(&tmp, msg_token)))
-            msg_token->state |= AAA_AUTHORIZED;
+        if (authenticate) {
+            msg_token->state |= AAA_AUTHENTICATED;
+    
+            log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authorization of token");
+            bool authorize = state->authorize_func(context, np_aaatoken4user(&tmp, msg_token));
+            log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authorization: %"PRIu8, authorize);
+
+            if (authorize)
+                msg_token->state |= AAA_AUTHORIZED;
+        }
     }
 
     // check if some messages are left in the cache
@@ -1595,15 +1605,13 @@ void _np_in_discover_receiver(np_state_t* context, np_jobargs_t args)
     np_message_intent_public_token_t* msg_token = NULL;
     np_message_t *msg_in = args.msg;
 
-    np_tryref_obj(np_message_t, msg_in, msg_exists);
-    if(msg_exists) {
         CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_reply_to);
         np_dhkey_t reply_to_key = msg_reply_to.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str((np_id_ptr )&reply_to_key, reply_to_dhkey_as_str);
+        _np_dhkey2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
+        log_debug_msg(LOG_ROUTING, "reply key: %s", reply_to_dhkey_as_str );
 
         // extract e2e encryption details for sender
         msg_token = np_token_factory_read_from_tree(context, msg_in->body);
@@ -1612,7 +1620,9 @@ void _np_in_discover_receiver(np_state_t* context, np_jobargs_t args)
         if (false == _np_aaatoken_is_valid(msg_token, np_aaatoken_type_message_intent))
         {
             if(msg_token != NULL){
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token %s will not receive the available receivers.", msg_token->uuid);
+                log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "token %s will not receive the available receivers.", msg_token->uuid);
+            }else{
+                log_warn(LOG_ROUTING | LOG_AAATOKEN, "DISCOVER.RECEIVER msg does not contain token");
             }
             goto __np_cleanup__;
         }
@@ -1626,9 +1636,8 @@ void _np_in_discover_receiver(np_state_t* context, np_jobargs_t args)
         np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 
     __np_cleanup__:
-        np_unref_obj(np_message_t, msg_in, FUNC);
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
-    }
+    
     // __np_return__:
     return;
 }
@@ -1710,7 +1719,7 @@ void _np_in_authenticate(np_state_t* context, np_jobargs_t args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str((np_id_ptr )&reply_to_key, reply_to_dhkey_as_str);
+        _np_dhkey2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1891,7 +1900,7 @@ void _np_in_authorize(np_state_t* context, np_jobargs_t args)
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
-        np_id2str((np_id_ptr )&reply_to_key, reply_to_dhkey_as_str);
+        _np_dhkey2str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -1917,7 +1926,7 @@ void _np_in_authorize(np_state_t* context, np_jobargs_t args)
         goto __np_cleanup__;
     }
 
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking authorization of token");
+    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (remote) authorization of token");
     struct np_token tmp;
     bool authorize = context->authorize_func(context, np_aaatoken4user(&tmp, authorization_token));
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authorize of token: %"PRIu8, authorize);
@@ -2077,7 +2086,7 @@ void _np_in_account(np_state_t* context, np_jobargs_t args)
 
     accounting_token  = np_token_factory_read_from_tree(context, args.msg->body);
     if (accounting_token != NULL) {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking accounting of token");
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (remote) accounting of token");
         struct np_token tmp;
         bool accounting = context->accounting_func(context, np_aaatoken4user(&tmp, accounting_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "accounting of token: %"PRIu8, accounting);
@@ -2118,7 +2127,7 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
 
         // store the handshake data in the node cache,
         np_dhkey_t search_key = { 0 };
-        np_str2id(handshake_token->issuer, (np_id_ptr )&search_key);
+        _np_str2dhkey(handshake_token->issuer, &search_key);
 
         if (_np_dhkey_cmp(&context->my_node_key->dhkey, &search_key) == 0) {
             log_msg(LOG_ERROR, "Cannot perform a handshake with myself!");

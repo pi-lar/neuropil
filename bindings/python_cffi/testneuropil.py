@@ -16,7 +16,7 @@ except ImportError:
         if 'LD_LIBRARY_PATH' not in os.environ or path_lib not in os.environ['LD_LIBRARY_PATH']:
             os.environ['LD_LIBRARY_PATH'] = f'{path_lib}:$LD_LIBRARY_PATH'
             try:        
-                print('Restarting executable to add LD_LIBRARY_PATH')
+                print(f'Restarting executable to add LD_LIBRARY_PATH {path_lib}')
                 os.execl(sys.executable, 'python', __file__, *sys.argv[1:])
             except Exception as exc:
                 print( 'Failed re-exec:', exc)
@@ -32,16 +32,16 @@ except ImportError:
 
     
 
-def my_authn_cb(token:np_token):    
-    print("{type} {token}".format(type="authn", token=token.subject))
+def my_authn_cb(self:NeuropilNode, token:np_token):    
+    print("{node}: {type}: {token} {id}".format(node=self.get_fingerprint(), type="authn", token=token.subject, id=token.get_fingerprint()))
     return True
 
-def my_authz_cb(token:np_token):
-    print("{type} {token}".format(type="authz", token=token.subject))
+def my_authz_cb(self:NeuropilNode,token:np_token):
+    print("{node}: {type}: {token} {id}".format(node=self.get_fingerprint(),type="authz", token=token.subject, id=token.get_fingerprint()))
     return True
 
 class NeuropilListener(NeuropilNode):    
-    def __init__(self, port, host = b'localhost', proto= b'udp4', auto_run=True, **settings):        
+    def __init__(self, port, host = b'localhost', proto= b'tcp4', auto_run=True, **settings):        
         super().__init__(port, host, proto, auto_run, **settings)
         self.set_authenticate_cb(my_authn_cb)
         self.set_accounting_cb(self.my_acc_cb)
@@ -62,16 +62,16 @@ class NeuropilListener(NeuropilNode):
         self.set_receive_cb(b'tock', self.test_tock_callback)
     
     def my_acc_cb(self, token:np_token):
-        print("{type} {token}".format(type="authz", token=token.subject))
+        print("{node}: {type}: {token}".format(node=self.get_fingerprint(), type="acc", token=token.subject))
         return True
 
     def test_tick_callback(self, message:np_message):        
-        print("{type}: {data}".format(type="tick", data=message.raw()))
+        print("{node}: {type}: {data}".format(node=self.get_fingerprint(), type="tick", data=message.raw()))
         self.send('tock', bytes('tock data (bytes)', encoding='utf_8'))
         return True
     
     def test_tock_callback(self, message:np_message):
-        print("{type}: {data}".format(type="tock", data=message.raw()))
+        print("{node}: {type}: {data}".format(node=self.get_fingerprint(), type="tock", data=message.raw()))
         self.send('tick', b'tick data (str)')
         return True
 
@@ -81,7 +81,7 @@ def main():
     
     np_1 = NeuropilListener(4444, no_threads=3, log_file="np_1.log")
     np_2 = NeuropilListener(5555, log_file="np_2.log")
-    np_c = NeuropilCluster(3,port_range=4000)
+    #np_c = NeuropilCluster(3,port_range=4000)
 
     # connect to a node in the internet
     #internet = '*:udp4:demo.neuropil.io:31418'
@@ -89,11 +89,13 @@ def main():
     #np_1.join(internet)
 
     np1_addr = np_1.get_address()
+    np2_addr = np_2.get_address()
     print(f"Others nodes connect to node 1 (aka: {np1_addr})")
+    print(f"node 2 (aka: {np2_addr})")
     np_2.join(np1_addr)
-    np_c.join(np1_addr)
+    #np_c.join(np1_addr)
 
-    t1 = time.time()    
+    t1 = time.time()
     np_1.send('tick', b'some data') 
     invoked = 1
     while True:
@@ -114,7 +116,7 @@ def main():
     print('neuropil shutdown!')
     np_1.shutdown()
     np_2.shutdown()
-    np_c.shutdown()
+    #np_c.shutdown()
 
 if __name__ == "__main__":
     main()

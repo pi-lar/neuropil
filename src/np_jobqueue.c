@@ -468,12 +468,11 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
 {
     double now = np_time_now();
     double end = now + duration;
-    double sleep = 0.0;
+    double sleep;
 
-    while (end >now)
+    do
     {
-        sleep = __np_jobqueue_run_jobs_once(context);
-        now   = np_time_now();
+        sleep = __np_jobqueue_run_jobs_once(context);        
         if (sleep > 0.0) {
 
             _LOCK_MODULE(np_jobqueue_t)
@@ -481,7 +480,8 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
                 _np_threads_module_condition_timedwait(context, &np_module(jobqueue)->__cond_job_queue, np_jobqueue_t_lock, sleep);
             }
         }
-    }
+        now   = np_time_now();
+    }while (end > now);
 }
 
 void* __np_jobqueue_run_jobs(void* np_thread_ptr_self)

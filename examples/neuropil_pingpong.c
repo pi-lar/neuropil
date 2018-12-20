@@ -48,13 +48,15 @@ bool receive_ping(np_context *context, struct np_message* msg)
 
 	sscanf ((char*) msg->data, "%s %"PRIu32, in_text, &i);
 	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", i, in_text);
-
-	log_msg(LOG_INFO, "SENDING: %d -> %s", _pong_count++, "pong");
+	
+	
+	np_time_sleep(0.01);			
+	
+	fprintf(stdout, "SENDING: %d -> %s\n", _pong_count++, "pong");
 
 	char* out_text;
 	asprintf(&out_text, "%s %"PRIu32, "pong", _pong_count);
-	np_send(context, "pong", (uint8_t*) out_text, strlen(out_text));
+	np_send(context, "pong", (uint8_t*) out_text, strlen(out_text)+1);
 	free(out_text);
 
 	fflush(stdout);
@@ -78,14 +80,15 @@ bool receive_pong(np_context *context, struct np_message* msg)
 	uint32_t i = 0;
 
 	sscanf ((char*) msg->data, "%s %"PRIu32, in_text, &i);
-	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);
-	log_msg(LOG_INFO, "RECEIVED: %d -> %s", i, in_text);
+	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);	
 
-	log_msg(LOG_INFO, "SENDING: %d -> %s", _ping_count++, "ping");
+	np_time_sleep(0.01);			
+	
+	fprintf(stdout, "SENDING: %d -> %s\n", _ping_count++, "ping");
 
 	char* out_text;
 	asprintf(&out_text, "%s %"PRIu32, "ping", _ping_count);
-	np_send(context, "ping", (uint8_t*) out_text, strlen(out_text));
+	np_send(context, "ping", (uint8_t*) out_text, strlen(out_text)+1);
 	free(out_text);
 
 	fflush(stdout);
@@ -226,6 +229,7 @@ int main(int argc, char **argv)
 		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string(context));
 	}
 
+	fprintf(stdout, "Wait for node to connect.\n");
 	while ( np_has_joined(context) == false )
 	{
 		np_run(context, 1.0);
@@ -234,6 +238,13 @@ int main(int argc, char **argv)
 	/**
 	   \endcode
 	*/
+
+	fprintf(stdout, "Search for pingable nodes.\n");
+	while ( np_has_receiver_for(context, "ping") == false )
+	{
+		np_run(context, 1.0);		
+	}
+	fprintf(stdout, "Pingable node found.\n");
 
 	/**
 	.. NOTE::
@@ -246,7 +257,7 @@ int main(int argc, char **argv)
 	// send an initial ping
 	char* out_text;
 	asprintf(&out_text, "%s %"PRIu32, "ping", 0);
-	np_send(context, "ping", (uint8_t*)out_text, strlen(out_text));
+	np_send(context, "ping", (uint8_t*) out_text, strlen(out_text)+1);
 	free(out_text);
 
 	/**
@@ -260,7 +271,8 @@ int main(int argc, char **argv)
 	{
 		// __np_example_helper_loop(context); // for the fancy ncurse display
 		np_run(context, 1.0);
-		np_time_sleep(0.01);
+		np_time_sleep(0.01);			
+
 	}
 	/**
 	   \endcode

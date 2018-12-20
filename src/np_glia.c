@@ -331,7 +331,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED  np_jo
             np_msgproperty_t* msg_prop = NULL;
 
             np_dhkey_t target_dhkey = { 0 };
-            np_str2id( context->my_identity->aaa_token->realm, (np_id_ptr )&target_dhkey);
+            _np_str2dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
 
             np_key_t* target = NULL;
             target = _np_keycache_find_or_create(context, target_dhkey);
@@ -626,7 +626,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
         {
             target_node_str = tmp_token->issuer;
         }
-        np_str2id(target_node_str, (np_id_ptr )&receiver_dhkey);
+        _np_str2dhkey(target_node_str, &receiver_dhkey);
 
         if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
         {
