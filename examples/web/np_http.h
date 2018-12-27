@@ -5,11 +5,10 @@
 #ifndef _NP_HTTP_H_
 #define _NP_HTTP_H_
 
-#include "http/htparse.h"
-
 #include "np_memory.h"
-
 #include "np_types.h"
+
+#include "http/htparse.h"
 
 #ifdef __cplusplus
 extern "C" {
