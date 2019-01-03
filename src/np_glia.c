@@ -128,7 +128,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
         np_msgproperty_t* prop = np_msgproperty_get(context, INBOUND, msg_subject);
         if(prop != NULL) {
             _np_job_submit_msgin_event(0.0, prop, my_key, args.msg, NULL);
-        }	
+        }
     } else {
         /* hand it over to the np_axon sending unit */
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) forward routing for subject '%s'", msg_in->uuid, msg_subject);
@@ -331,7 +331,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED  np_jo
             np_msgproperty_t* msg_prop = NULL;
 
             np_dhkey_t target_dhkey = { 0 };
-            np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
+            _np_str2dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
 
             np_key_t* target = NULL;
             target = _np_keycache_find_or_create(context, target_dhkey);
@@ -584,6 +584,7 @@ void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type 
             np_tree_insert_str( context->msg_tokens, subject, np_treeval_new_v(NULL));
 
             np_msgproperty_t* msg_prop = np_msgproperty_get(context, mode_type, subject);
+            assert(msg_prop!=NULL);
             msg_prop->mode_type |= TRANSFORM;
             if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
                 sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
@@ -626,7 +627,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
         {
             target_node_str = tmp_token->issuer;
         }
-        np_str2id(target_node_str, (np_id*)&receiver_dhkey);
+        _np_str2dhkey(target_node_str, &receiver_dhkey);
 
         if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
         {
@@ -649,7 +650,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
             _np_job_submit_route_event(context, 0.0, out_prop, NULL, msg);
 
             if (NULL != msg_prop->rep_subject &&
-                STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
+                FLAG_CMP(msg_prop->mep_type, STICKY_REPLY))
             {
 
                 np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);

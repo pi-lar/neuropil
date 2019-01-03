@@ -116,14 +116,6 @@ struct np_state_s
 } NP_API_INTERN;
 
 
-/**
-.. c:function:: np_state_t* np_destroy()
-
-   stops the internal neuropil event loop and shuts down the thread pool.
-
-*/
-NP_API_EXPORT
-void np_destroy(np_context*ac, bool gracefully);
 
 /**
 .. c:function:: void np_enable_realm_server()

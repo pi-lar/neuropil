@@ -310,17 +310,22 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get(context, DEFAULT_MODE, subject);
 
     if (NULL == msg_prop)
     {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect INBOUND creation of msgproperty %s", subject);	
         // create a default set of properties for listening to messages
         np_new_obj(np_msgproperty_t, msg_prop);
         msg_prop->msg_subject = strndup(subject, 255);
         msg_prop->mode_type |= INBOUND;
         np_msgproperty_register(msg_prop);
-    } else {
+    } 
+    if(!FLAG_CMP(msg_prop->mode_type, INBOUND))
+    {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect INBOUND configuration of msgproperty %s", subject);	
         msg_prop->mode_type |= INBOUND;
+        _np_msgproperty_update_disovery(context,msg_prop);
     }
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
@@ -347,11 +352,18 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
 
     if (NULL == msg_prop)
     {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND creation of msgproperty %s", subject);	
         // create a default set of properties for listening to messages
         np_new_obj(np_msgproperty_t, msg_prop);
         msg_prop->msg_subject = strndup(subject, 255);
         msg_prop->mode_type |= OUTBOUND;
         np_msgproperty_register(msg_prop);
+    }
+    if(!FLAG_CMP(msg_prop->mode_type, OUTBOUND))
+    {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND configuration of msgproperty %s", subject);	
+        msg_prop->mode_type |= OUTBOUND;
+        _np_msgproperty_update_disovery(context,msg_prop);
     }
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
@@ -479,19 +491,24 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     np_new_obj(np_message_t, ret);
 
     np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
+    
     if (NULL == msg_prop)
-    {		
+    {	
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND creation of msgproperty %s", subject);	
         np_new_obj(np_msgproperty_t, msg_prop);
 
         // set correct subject 		
         msg_prop->msg_subject = strndup(subject, 255);
-
-        msg_prop->mep_type = ANY_TO_ANY;
         msg_prop->mode_type |= OUTBOUND;
+        msg_prop->mep_type = ANY_TO_ANY;        
 
         np_msgproperty_register(msg_prop);
     }
-
+    if(!FLAG_CMP(msg_prop->mode_type, OUTBOUND)){
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND configuration of msgproperty %s", subject);
+        msg_prop->mode_type |= OUTBOUND;        
+        _np_msgproperty_update_disovery(context,msg_prop);
+    }
     np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
     ret->msg_property = msg_prop;
 
@@ -512,6 +529,8 @@ void np_send_msg(np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* targ
     np_ctx_cast(ac);
     np_message_t* msg = _np_prepare_msg(context, subject, body, target_key);
 
+    log_msg(LOG_INFO, "(msg: %s) initial send. Subject \"%s\"", msg->uuid, subject);
+
     _np_send_msg(subject, msg, msg->msg_property, target_key);
 
     np_unref_obj(np_message_t, msg, ref_obj_creation);
@@ -527,31 +546,6 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body
     _np_send_msg(msg->msg_property->msg_subject, msg, msg->msg_property, sender);
 
     np_unref_obj(np_message_t, msg, ref_obj_creation);
-}
-
-/**
- ** np_destroy:
- ** destroys the neuropil data structures and cleans memory that has been used
- **/
-void np_destroy(np_context*ac, bool gracefully)
-{
-    np_ctx_cast(ac);
-
-    _np_shutdown_run_callbacks(context);
-
-    if(gracefully)
-        np_shutdown_notify_others(context);
-    // TODO: implement me ...
-    /*
-    _np_threads_init()
-    sodium_init()
-    np_mem_init
-    _np_dhkey_init
-
-    __global_state = state
-    */
-
-    TSP_SET(context->status, np_shutdown);
 }
 
 void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
@@ -756,7 +750,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
         //START Build our wildcard connection string
         np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
         char wildcard_dhkey_str[65];
-        np_id2str((np_id*)&wildcard_dhkey, wildcard_dhkey_str);
+        _np_dhkey2str(&wildcard_dhkey, wildcard_dhkey_str);
         asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
         //END Build our wildcard connection string
 

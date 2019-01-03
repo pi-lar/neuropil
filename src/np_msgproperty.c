@@ -125,38 +125,39 @@ np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type mode_
     return RB_FIND(rbt_msgproperty,np_module(msgproperties)->__msgproperty_table, &prop);
 }
 
-int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2)
+int16_t _np_msgproperty_comp(const np_msgproperty_t* const search_filter, const np_msgproperty_t* const prop2)
 {
     int16_t ret = -1;
     // TODO: check how to use bitmasks with red-black-tree efficiently	
 
-    assert(!(prop1 == NULL || prop1->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL)); //"Comparing properties where one is NULL");	
+    assert(!( search_filter == NULL ||  search_filter->msg_subject == NULL || prop2 == NULL || prop2->msg_subject == NULL)); //"Comparing properties where one is NULL");	
 
-    int16_t i = strncmp(prop1->msg_subject, prop2->msg_subject, 255);
+    int16_t i = strncmp( search_filter->msg_subject, prop2->msg_subject, 255);
     
     if (0 != i) ret = i;
-    else if (prop1->mode_type == prop2->mode_type) ret =  (0);		// Is it the same bitmask ?
-    else if (0 < (prop1->mode_type & prop2->mode_type)) ret = (0);	// for searching: Are some test bits set ?
-    else if (prop1->mode_type > prop2->mode_type)  ret = ( 1);		// for sorting / inserting different entries
-    else if (prop1->mode_type < prop2->mode_type)  ret = (-1);
+    else if (0 ==  search_filter->mode_type) ret =  (0);		// Ignore bitmask ?
+    else if ( search_filter->mode_type == prop2->mode_type) ret =  (0);		// Is it the same bitmask ?
+    else if (0 < ( search_filter->mode_type & prop2->mode_type)) ret = (0);	// for searching: Are some test bits set ?
+    else if ( search_filter->mode_type > prop2->mode_type)  ret = ( 1);		// for sorting / inserting different entries
+    else if ( search_filter->mode_type < prop2->mode_type)  ret = (-1);
 
     return ret;
 }
 
 void _np_msgproperty_register_job(np_state_t * context, np_jobargs_t args) {
-    np_msgproperty_t* msgprops = args.custom_data;
-
-    np_message_intent_public_token_t* token = _np_msgproperty_upsert_token(msgprops);
-    if ((msgprops->mode_type & OUTBOUND) == OUTBOUND) {
-        np_aaatoken_t* old_token = _np_aaatoken_add_sender(msgprops->msg_subject, token);
+    _np_msgproperty_update_disovery(context, (np_msgproperty_t*)args.custom_data);
+}
+void _np_msgproperty_update_disovery(np_state_t * context, np_msgproperty_t* msgprop) {
+    np_message_intent_public_token_t* token = _np_msgproperty_upsert_token(msgprop);
+    if (FLAG_CMP(msgprop->mode_type, OUTBOUND)) {
+        np_aaatoken_t* old_token = _np_aaatoken_add_sender(msgprop->msg_subject, token);
         np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
-        _np_send_subject_discovery_messages(context, OUTBOUND, msgprops->msg_subject);
+        _np_send_subject_discovery_messages(context, OUTBOUND, msgprop->msg_subject);
     }
-
-    if ((msgprops->mode_type & INBOUND) == INBOUND) {
-        np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msgprops->msg_subject, token);
+    if (FLAG_CMP(msgprop->mode_type, INBOUND)) {
+        np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msgprop->msg_subject, token);
         np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
-        _np_send_subject_discovery_messages(context, INBOUND, msgprops->msg_subject);
+        _np_send_subject_discovery_messages(context, INBOUND, msgprop->msg_subject);
 
     }
     np_unref_obj(np_aaatoken_t, token, "_np_msgproperty_upsert_token");
@@ -165,10 +166,10 @@ void _np_msgproperty_register_job(np_state_t * context, np_jobargs_t args) {
 void np_msgproperty_register(np_msgproperty_t* msgprops)
 {
     np_ctx_memory(msgprops);
-    log_trace_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){");
-    log_debug_msg(LOG_DEBUG, "registering user property: %s", msgprops->msg_subject);
+    log_trace_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){ ");
+    log_debug_msg(LOG_DEBUG, "registering user property: %s ", msgprops->msg_subject);
 
-    np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty);
+    np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty); 
     RB_INSERT(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table, msgprops);
 
     np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_msgproperty_register_job, msgprops, "_np_msgproperty_register_job");
@@ -656,16 +657,21 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
     }
 }
 
-void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src) {
-
-
+void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src) {
+    assert(context != NULL);
+    assert(src != NULL);
+    assert(dest != NULL);
     dest->token_max_ttl = src->intent_ttl;
     dest->token_min_ttl = src->intent_update_after ;
     dest->msg_ttl = src->message_ttl;
 
-    if (src->reply_subject[0] != 0 &&  strcmp(dest->rep_subject, src->reply_subject) != 0)
+    if (src->reply_subject[0] != '\0' && (dest->rep_subject == NULL || strncmp(dest->rep_subject, src->reply_subject, 255) != 0))
     {
-        dest->rep_subject = strdup(src->reply_subject );
+        char* old = dest->rep_subject;
+        dest->rep_subject = strndup(src->reply_subject, 255);
+        if(old) free(old);
+    } else {
+         dest->rep_subject = NULL;
     }
 
     // ackmode conversion

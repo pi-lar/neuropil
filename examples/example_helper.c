@@ -22,6 +22,7 @@
 #include <ncurses.h>
 
 #include "sodium.h"
+#include "event/ev.h"
 
 #include "../examples/example_helper.h"
 
@@ -31,7 +32,10 @@
 #include "np_key.h"
 #include "np_legacy.h"
 #include "np_list.h"
+#include "np_sysinfo.h"
+#include "np_threads.h"
 #include "np_log.h"
+#include "np_event.h"
 #include "np_memory.h"
 #include "np_messagepart.h"
 #include "np_performance.h"
@@ -690,8 +694,8 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            | LOG_VERBOSE
-            | LOG_TRACE
+            //| LOG_VERBOSE
+            //| LOG_TRACE
             //| LOG_MUTEX
             | LOG_ROUTING
             //| LOG_HTTP

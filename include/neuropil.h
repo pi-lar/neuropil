@@ -29,19 +29,21 @@ extern "C" {
 
     //
     // int __attribute__((overloadable)) square(int);
-
-#if defined(__APPLE__) && defined(__MACH__)
-    #define NP_ENUM __attribute__ ((flag_enum))
-#else
-    #define NP_ENUM 
+#ifndef NP_ENUM
+    #if defined(__APPLE__) && defined(__MACH__)
+        #define NP_ENUM __attribute__ ((flag_enum))
+    #else
+        #define NP_ENUM 
+    #endif
 #endif
 
 #define NP_CONST __attribute__ ((const))
 #define NP_PURE  __attribute__ ((pure))
 
-#define NP_PACKED(x)  __attribute__ ((packed(x)))
+#ifndef NP_PACKED
+#define NP_PACKED(x)  __attribute__ ((packed, aligned(x)))
+#endif
 #define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
-
 
 
 #if defined(TEST_COMPILE) || defined(DEBUG)
@@ -68,18 +70,18 @@ extern "C" {
 #define NP_API_EXPORT __attribute__ ((visibility ("default")))
 #endif
 
-
     // Protocol constants
     enum {
-        NP_SECRET_KEY_BYTES = 32U + 32U,
-        NP_PUBLIC_KEY_BYTES = 32U,
-        NP_FINGERPRINT_BYTES = 32U,
-        NP_UUID_BYTES = 37U
-    } NP_ENUM;
+        NP_SECRET_KEY_BYTES = 64,
+        NP_PUBLIC_KEY_BYTES = 32,
+        NP_FINGERPRINT_BYTES = 32,
+        NP_UUID_BYTES = 37
+    };
 
     // Implementation defined limits
-    #define NP_EXTENSION_BYTES (10*1024)
-    #define NP_EXTENSION_MAX (NP_EXTENSION_BYTES-1)
+    enum {
+         NP_EXTENSION_BYTES = 10240
+    };
 
     enum np_status {
         np_error = 0,
@@ -96,9 +98,7 @@ extern "C" {
         np_invalid_argument,
         np_invalid_operation,
         np_startup
-        // ...
-    } NP_ENUM;
-
+    } NP_ENUM;    
     static const char* np_error_str[] = {
         "",
         "operation is not implemented",
@@ -108,15 +108,15 @@ extern "C" {
         "insufficient memory",
         "startup error. See log for more details"
     };
-    
     typedef void np_context;    
 
-    typedef uint8_t np_id[NP_FINGERPRINT_BYTES];
-    
+    typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
+    typedef unsigned char* np_id_ptr;
+        
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
-    void np_get_id(np_context * context, np_id* id, char* string, size_t length);
+    void np_get_id(np_context * context, np_id_ptr id, char* string, size_t length);
 
     struct np_token {
         char uuid[NP_UUID_BYTES];
@@ -125,28 +125,29 @@ extern "C" {
         char realm[255]; // todo: has to be np_id		
         char audience[255]; // todo: has to be np_id		
 
-        double issued_at, not_before, expires_at;
-        uint8_t extensions[NP_EXTENSION_BYTES];
-        size_t extension_length;
-        uint8_t public_key[NP_PUBLIC_KEY_BYTES],
-            secret_key[NP_SECRET_KEY_BYTES];
-    } __attribute__((packed, aligned(1)));
+        double  issued_at, not_before, expires_at;
+
+        unsigned char extensions[NP_EXTENSION_BYTES];
+        size_t  extension_length;
+        unsigned char public_key[NP_PUBLIC_KEY_BYTES],
+                secret_key[NP_SECRET_KEY_BYTES];
+    } NP_PACKED(1);
     
     struct np_message {
         char uuid[NP_UUID_BYTES];
         np_id from; 
         np_id subject;		
         double received_at;
-        uint8_t * data;
+        unsigned char * data;
         size_t data_length;
-    };
+    } NP_PACKED(1);
         
     struct np_settings {
         uint32_t n_threads;
         char log_file[256];
         uint32_t log_level;
         // ...
-    };
+    } NP_PACKED(1);
 
     NP_API_EXPORT
     struct np_settings * np_default_settings(struct np_settings *settings);
@@ -156,15 +157,16 @@ extern "C" {
 
     // secret_key is nullable
     NP_API_EXPORT
-    struct np_token np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]));
+    struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char* secret_key[NP_SECRET_KEY_BYTES]);
 
     NP_API_EXPORT
     enum np_error   np_use_identity(np_context* ac, struct np_token identity);
 
     NP_API_EXPORT
-    enum np_error   np_token_fingerprint(struct np_token identity, bool include_attributes, np_id* id);
-
-
+    enum np_error   np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id_ptr id);
+    
+    NP_API_EXPORT
+    enum np_error   np_node_fingerprint(np_context* ac, np_id_ptr id);
 
     NP_API_EXPORT
     enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
@@ -178,7 +180,7 @@ extern "C" {
     enum np_error np_join(np_context* ac, char* address);
 
     NP_API_EXPORT
-    enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length);
+    enum np_error np_send(np_context* ac, char* subject, unsigned char* message, size_t length);
     
     typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
@@ -205,14 +207,14 @@ extern "C" {
     enum np_mx_ackmode      { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } NP_ENUM;
 
     struct np_mx_properties {
-        char reply_subject[255];
+        char reply_subject[255] NP_PACKED(1);
         enum np_mx_ackmode ackmode;
         //enum np_mx_pattern pattern;  will be added later on
         enum np_mx_cache_policy cache_policy;
         uint32_t max_parallel, max_retry;
         double intent_ttl, intent_update_after;
         double message_ttl;
-    };
+    } NP_PACKED(1);
 
     NP_API_EXPORT
     struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject);
@@ -225,7 +227,7 @@ extern "C" {
     
 
     NP_API_EXPORT
-        enum np_error np_send_to(np_context* ac, char* subject, uint8_t* message, size_t length, np_id * target);
+        enum np_error np_send_to(np_context* ac, char* subject, unsigned char* message, size_t length, np_id target);
     NP_API_EXPORT
         bool np_has_joined(np_context * ac);		
     NP_API_EXPORT
@@ -233,10 +235,12 @@ extern "C" {
     NP_API_EXPORT
         bool np_has_receiver_for(np_context*ac, char * subject);	
     NP_API_EXPORT
-        void np_id2str(const np_id* k, char* key_string);
+        void np_id2str(const np_id k, char* key_string);
     NP_API_EXPORT
-        void np_str2id(const char* key_string, np_id* k);
+        void np_str2id(const char* key_string, np_id_ptr k);
 
+    NP_API_EXPORT
+    void np_destroy(np_context*ac, bool gracefully);
 
 #ifdef __cplusplus
 }
@@ -301,7 +305,7 @@ Initialization
 Identity management
 ------------------
 
-.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
+.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, unsigned char* (secret_key[NP_SECRET_KEY_BYTES]))
 
    Creates a new neuropil identity.
 
@@ -405,7 +409,7 @@ Starting up
 Sending and receiving messages
 ------------------------------
 
-.. c:function:: enum np_error np_send(np_context* ac, char* subject, uint8_t* message, size_t length)
+.. c:function:: enum np_error np_send(np_context* ac, char* subject, unsigned char* message, size_t length)
 
    Sends a message on a given subject.
 
@@ -468,7 +472,7 @@ Sending and receiving messages
    Structure that holds a received message and some metadata about that
    message.
 
-.. c:member:: uint8_t *data
+.. c:member:: unsigned char *data
 
    A pointer to a buffer that contains the received message.
 
@@ -682,14 +686,14 @@ Tokens
    in seconds that denote issue date and validity duration of the token. These
    validity periods are validated by neuropil.
 
-.. c:member:: uint8_t[] extensions
+.. c:member:: unsigned char[] extensions
 .. c:member:: size_t extension_length
 
    A buffer of extension data of :c:member:`extension_length` bytes represented
    as a `MessagePack <https://msgpack.org/>`_ encoded map.
 
-.. c:member:: uint8_t[NP_PUBLIC_KEY_BYTES] public_key
-.. c:member:: uint8_t[NP_SECRET_KEY_BYTES] secret_key
+.. c:member:: unsigned char[NP_PUBLIC_KEY_BYTES] public_key
+.. c:member:: unsigned char[NP_SECRET_KEY_BYTES] secret_key
 
    The key pair associated with the token. Foreign tokens have the
    :c:member:`secret_key` unset (all zero).
@@ -698,7 +702,7 @@ Tokens
 Fingerprints
 ------------
 
-.. c:function:: void np_get_id(np_id* id, char* string, size_t length)
+.. c:function:: void np_get_id(np_id_ptr id, char* string, size_t length)
 
    Computes the fingerprint (or overlay address) of a serialized object.
 
@@ -716,7 +720,7 @@ Fingerprints
    but no party is able to forge an object that hashes to a particular
    fingerprint.
 
-.. c:type:: uint8_t[NP_FINGERPRINT_BYTES] np_id
+.. c:type:: unsigned char[NP_FINGERPRINT_BYTES] np_id
 
    The type :c:type:`np_id` denotes both a fingerprint and a virtual address in
    the overlay network implemented by neuropil. It is represented as a
@@ -762,6 +766,17 @@ Detecting errors
    In order to accurately interpret error codes refer to the documentation of
    the specific function in question.
 
+
+    
+.. c:function:: void np_destroy(np_context*ac, bool gracefully)
+
+   stops the internal neuropil event loop, shuts down the thread pool and cleans the used memory.
+
+   :param ac:
+       a neuropil application context.
+   :param gracefully:
+       To send a Leave Message to the connected nodes. May delay the function return for a few seconds
+    
 ---------
 Constants
 ---------

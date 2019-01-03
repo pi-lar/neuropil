@@ -105,15 +105,6 @@ void log_rotation(np_state_t* context)
         free(np_module(log)->__logger);
         np_module(log)->__logger = NULL;
     }
-    else
-    {
-        EV_P = _np_event_get_loop_io(context);
-        ev_periodic_stop(EV_A_ &np_module(log)->__logger->watcher);
-        ev_periodic_init (&np_module(log)->__logger->watcher, _np_log_evflush, 0., NP_PI/200, NULL);
-        // ev_io_init(&np_module(log)->__logger->watcher, _np_log_evflush, np_module(log)->__logger->fp, EV_WRITE);
-        ev_set_userdata(EV_A_ context);
-        ev_periodic_start(EV_A_ &np_module(log)->__logger->watcher);
-    }
 
     if (np_module(log)->__logger->log_count > LOG_ROTATE_COUNT) {
         log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, np_module(log)->__logger->log_count / LOG_ROTATE_COUNT);
@@ -269,7 +260,7 @@ void _np_log_fflush(np_state_t* context, bool force)
                 if (flush_status < 0) {
                     flush_status = (force == true || sll_size(np_module(log)->__logger->logentries_l) > 100) ? 0 : 1;
                 }
-                if(flush_status == 0){
+                if(flush_status == 0) {
                     entry = sll_head(char_ptr, np_module(log)->__logger->logentries_l);
                     if (NULL != entry) {
                         np_module(log)->__logger->log_size += strlen(entry);
@@ -320,9 +311,10 @@ void np_log_setlevel(np_state_t* context, uint32_t level)
     np_module(log)->__logger->level = level;
 }
 
+
 void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 {
-    if (!np_module_initiated(log)) {
+    if (!np_module_initiated(log)) {        
         np_module_malloc(log);		 
         pthread_mutex_init(&_module->__log_mutex, NULL);
 
@@ -330,14 +322,14 @@ void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
         pthread_mutexattr_settype(&_module->__log_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
         pthread_mutex_init(&_module->__log_mutex, &_module->__log_mutex_attr);
 
-        _module->__logger = (np_log_t *)calloc(1, sizeof(np_log_t));
-        CHECK_MALLOC(_module->__logger);
+        np_log_t* __logger = (np_log_t *)calloc(1, sizeof(np_log_t));
+        CHECK_MALLOC(__logger);
 
         // init logsystem
-        _module->__logger->level = level;
-        _module->__logger->log_count = 0;
-        _module->__logger->log_size = UINT32_MAX; // for initial log_rotation start
-        _module->__logger->log_rotate = LOG_ROTATE_ENABLE;
+        __logger->level = level;
+        __logger->log_count = 0;
+        __logger->log_size = UINT32_MAX; // for initial log_rotation start
+        __logger->log_rotate = LOG_ROTATE_ENABLE;
 
         // detect filename_ext from filename (. symbol)
         char* parsed_filename = filename;
@@ -346,25 +338,25 @@ void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
             if (strncmp((parsed_filename + i), ".", 1) == 0)
             {
                 // found extension
-                snprintf(_module->__logger->filename_ext, len_f - i + 1, "%s", parsed_filename + i);
+                snprintf(__logger->filename_ext, len_f - i + 1, "%s", parsed_filename + i);
                 parsed_filename = strndup(parsed_filename, i);
                 break;
             }
         }
 
-        if (strncmp(_module->__logger->filename_ext, "", 1) == 0)
+        if (strncmp(__logger->filename_ext, "", 1) == 0)
         {
-            snprintf(_module->__logger->filename_ext, 15, ".log");
+            snprintf(__logger->filename_ext, 15, ".log");
         }
 
-        snprintf(_module->__logger->original_filename, 255, "%s", parsed_filename);
-        snprintf(_module->__logger->filename, 255, "%s%s", parsed_filename, _module->__logger->filename_ext);
+        snprintf(__logger->original_filename, 255, "%s", parsed_filename);
+        snprintf(__logger->filename, 255, "%s%s", parsed_filename, __logger->filename_ext);
         free(parsed_filename);
 
-        sll_init(char_ptr, _module->__logger->logentries_l);
-        // log_rotation(context);
-        
-        log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", _module->__logger, _module->__logger->filename, _module->__logger->level);
+        sll_init(char_ptr, __logger->logentries_l);        
+        _module->__logger = __logger;
+        log_rotation(context);
+        log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
     }
 }
 

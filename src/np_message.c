@@ -906,17 +906,6 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
     np_tree_free(old);
 };
 
-//		if (-1 == _np_messagepart_decrypt(context, newmsg->instructions,
-//										  enc_nonce->val.value.bin,
-//										  session_token->session_key, NULL))
-//		{
-//			log_msg(LOG_ERROR,
-//				"incorrect decryption of message instructions (send from %s:%hd)",
-//				ipstr, port);
-//			job_submit_event(state->jobq, np_network_read);
-//			return;
-//		}
-
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
     np_ctx_memory(msg);
