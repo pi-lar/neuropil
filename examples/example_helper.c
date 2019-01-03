@@ -20,31 +20,33 @@
 
 #include <curses.h>
 #include <ncurses.h>
+
 #include "sodium.h"
 #include "event/ev.h"
 
 #include "../examples/example_helper.h"
 
-
-#include "np_legacy.h"
-#include "np_types.h"
-#include "np_statistics.h"
-#include "np_memory.h"
-#include "np_threads.h"
-#include "np_util.h"
+#include "np_conversion.c"
+#include "np_event.h"
+#include "np_jobqueue.h"
 #include "np_key.h"
+#include "np_legacy.h"
 #include "np_list.h"
 #include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_log.h"
 #include "np_event.h"
+#include "np_memory.h"
 #include "np_messagepart.h"
-#include "np_jobqueue.h"
 #include "np_performance.h"
-#include "web/np_http.h"
 #include "np_statistics.h"
+#include "np_sysinfo.h"
+#include "np_threads.h"
+#include "np_types.h"
+#include "np_util.h"
 
-#include "np_conversion.c"
+#include "web/np_http.h"
+
 
 const char* logo =
 "MMWKkxxdoollcdKMMMMMMMMMMMMWOollolloOWMM\n"

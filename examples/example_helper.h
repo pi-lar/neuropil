@@ -2,10 +2,11 @@
 // neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+#include "ncurses.h"
+
+#include "np_threads.h"
 
 #include "web/np_http.h"
-#include "np_threads.h"
-#include "ncurses.h"
 
 #ifndef _NP_EXAMPLE_HELPER_H_
 #define _NP_EXAMPLE_HELPER_H_
