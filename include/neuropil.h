@@ -240,8 +240,9 @@ extern "C" {
         void np_str2id(const char* key_string, np_id_ptr k);
 
     NP_API_EXPORT
-    void np_destroy(np_context*ac, bool gracefully);
-
+        void np_destroy(np_context*ac, bool gracefully);
+    NP_API_EXPORT
+        bool np_id_equals(np_id* first, np_id* second);
 #ifdef __cplusplus
 }
 #endif
