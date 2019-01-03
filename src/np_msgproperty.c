@@ -124,7 +124,28 @@ np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type mode_
     np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
     return RB_FIND(rbt_msgproperty,np_module(msgproperties)->__msgproperty_table, &prop);
 }
+np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_type mode_type, const char* subject)
+{
+    np_msgproperty_t* ret = np_msgproperty_get(context, DEFAULT_MODE, subject);
 
+    if (NULL == ret)
+    {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect %"PRIu8" creation of msgproperty %s", mode_type, subject);	
+        // create a default set of properties for listening to messages
+        np_new_obj(np_msgproperty_t, ret);
+        ret->msg_subject = strndup(subject, 255);
+        ret->mode_type |= mode_type;
+        ret->mep_type = ANY_TO_ANY;
+        np_msgproperty_register(ret);
+    } 
+    if(!FLAG_CMP(ret->mode_type, mode_type))
+    {
+        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect %"PRIu8" configuration of msgproperty %s", mode_type, subject);	
+        ret->mode_type |= mode_type;
+        _np_msgproperty_update_disovery(context,ret);
+    }
+    return ret;
+}
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const search_filter, const np_msgproperty_t* const prop2)
 {
     int16_t ret = -1;

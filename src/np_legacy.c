@@ -310,32 +310,19 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, DEFAULT_MODE, subject);
-
-    if (NULL == msg_prop)
-    {
-        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect INBOUND creation of msgproperty %s", subject);	
-        // create a default set of properties for listening to messages
-        np_new_obj(np_msgproperty_t, msg_prop);
-        msg_prop->msg_subject = strndup(subject, 255);
-        msg_prop->mode_type |= INBOUND;
-        np_msgproperty_register(msg_prop);
-    } 
-    if(!FLAG_CMP(msg_prop->mode_type, INBOUND))
-    {
-        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect INBOUND configuration of msgproperty %s", subject);	
-        msg_prop->mode_type |= INBOUND;
-        _np_msgproperty_update_disovery(context,msg_prop);
-    }
+    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, INBOUND, subject);
+    
+    log_debug(LOG_MISC, "Adding receive listener on subject %s / property %p", subject, msg_prop);
+    
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
     msg_handler->fn = msg_handler_fn;
 
+    sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
+
     if (false == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
         sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
     }
-
-    sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
 }
 
 /**
@@ -348,23 +335,8 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, OUTBOUND, subject);
 
-    if (NULL == msg_prop)
-    {
-        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND creation of msgproperty %s", subject);	
-        // create a default set of properties for listening to messages
-        np_new_obj(np_msgproperty_t, msg_prop);
-        msg_prop->msg_subject = strndup(subject, 255);
-        msg_prop->mode_type |= OUTBOUND;
-        np_msgproperty_register(msg_prop);
-    }
-    if(!FLAG_CMP(msg_prop->mode_type, OUTBOUND))
-    {
-        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND configuration of msgproperty %s", subject);	
-        msg_prop->mode_type |= OUTBOUND;
-        _np_msgproperty_update_disovery(context,msg_prop);
-    }
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
     msg_handler->fn = msg_handler_fn;
@@ -490,25 +462,8 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     np_message_t* ret = NULL;
     np_new_obj(np_message_t, ret);
 
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, OUTBOUND, subject);
     
-    if (NULL == msg_prop)
-    {	
-        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND creation of msgproperty %s", subject);	
-        np_new_obj(np_msgproperty_t, msg_prop);
-
-        // set correct subject 		
-        msg_prop->msg_subject = strndup(subject, 255);
-        msg_prop->mode_type |= OUTBOUND;
-        msg_prop->mep_type = ANY_TO_ANY;        
-
-        np_msgproperty_register(msg_prop);
-    }
-    if(!FLAG_CMP(msg_prop->mode_type, OUTBOUND)){
-        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect OUTBOUND configuration of msgproperty %s", subject);
-        msg_prop->mode_type |= OUTBOUND;        
-        _np_msgproperty_update_disovery(context,msg_prop);
-    }
     np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
     ret->msg_property = msg_prop;
 

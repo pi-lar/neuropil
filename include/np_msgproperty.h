@@ -272,7 +272,7 @@ struct np_msgproperty_s
     np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
     np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
-    np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outnound
+    np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
 
     // The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
     uint32_t token_max_ttl;
@@ -344,8 +344,12 @@ return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
 :returns: np_msgproperty_t structure of NULL if none found
 
 */
-NP_API_EXPORT
+NP_API_INTERN
 np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type msg_mode, const char* subject);
+
+NP_API_INTERN
+np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_type mode_type, const char* subject);
+
 
 
 

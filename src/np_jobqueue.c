@@ -639,8 +639,39 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
 {	
     // sanity checks if the job list really returned an element
     // if (NULL == job_to_execute) return;
-    if (NULL == job_to_execute.processorFuncs) return;
-    if (sll_size(((job_to_execute.processorFuncs))) <= 0) return;
+    if (NULL == job_to_execute.processorFuncs) {
+        #ifdef NP_THREADS_CHECK_THREADING	
+            np_thread_t * self = _np_threads_get_self(context);
+            log_warn(LOG_JOBS,
+                "thread-->%15"PRIu64" job remaining jobs: %"PRIu32") func_count--> NO FN LIST AVAILABLE args-->%15p prio:%10.2f not before: %15.10f jobname: %s",
+                self->id,
+                np_jobqueue_count(context),                
+                &job_to_execute.args,
+                job_to_execute.priority,
+                job_to_execute.exec_not_before_tstamp,
+                job_to_execute.ident
+            );
+        #endif
+        return;
+    }
+    if (sll_size(((job_to_execute.processorFuncs))) <= 0) {
+        #ifdef NP_THREADS_CHECK_THREADING	
+            np_thread_t * self = _np_threads_get_self(context);
+            log_warn(LOG_JOBS,
+                "thread-->%15"PRIu64" job remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs--> EMPTY FN LIST %p args-->%15p (prop: %p ) prio:%10.2f not before: %15.10f jobname: %s",
+                self->id,
+                np_jobqueue_count(context),      
+                sll_size((job_to_execute.processorFuncs)),          
+                job_to_execute.processorFuncs,
+                &job_to_execute.args,
+                job_to_execute.args.properties,
+                job_to_execute.priority,
+                job_to_execute.exec_not_before_tstamp,
+                job_to_execute.ident
+            );
+        #endif
+        return;
+    }
     NP_PERFORMANCE_POINT_START(jobqueue_run);
 
     double started_at = np_time_now();

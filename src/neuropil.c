@@ -62,7 +62,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
     ret->log_level |= LOG_INFO;
     ret->log_level |= LOG_DEBUG;    
     ret->log_level |= LOG_VERBOSE;    
-    ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_JOBS;
+    ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_JOBS|LOG_MISC;
 #endif
 
     return ret;
@@ -466,6 +466,9 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
 
 enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback) {
     enum np_error ret = np_ok;
+    np_ctx_cast(ac);
+    log_debug(LOG_MISC, "np_add_receive_cb %s", subject);
+
     char* safe_subject = strndup(subject,255);
     np_add_receive_listener(ac, __np_receive_callback_converter, callback, safe_subject);
     free(safe_subject);
@@ -501,26 +504,11 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
     np_ctx_cast(ac);    
     struct np_mx_properties ret = { 0 };
     bool exisits = false;
-    char* safe_subject = strndup(subject,255);
-
-    np_msgproperty_t* property = np_msgproperty_get(context, DEFAULT_MODE, safe_subject);
-    if (property == NULL)
-    {
-        np_new_obj(np_msgproperty_t, property, FUNC);
-        property->msg_subject = safe_subject;
-        exisits = false;
-    }
-    else {
-        exisits = true;
-        free(safe_subject);
-    }
-
+ 
+    np_msgproperty_t* property = np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
+    
     np_msgproperty4user(&ret, property);
 
-    if (exisits == false) {
-        np_unref_obj(np_msgproperty_t, property, FUNC);             																									\
-    }
-    
     return ret;
 }
 enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
@@ -531,24 +519,10 @@ enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_p
     // todo: validate user_property
     struct np_mx_properties safe_user_property = user_property;
     safe_user_property.reply_subject[254] = 0;
-    char* safe_subject = strndup(subject,255);    
+ 
+    np_msgproperty_t* property = np_msgproperty_get_or_create(context, DEFAULT_MODE,  subject);
 
-    np_msgproperty_t* property = np_msgproperty_get(context, DEFAULT_MODE,  safe_subject);
-    if (property == NULL)
-    {
-        np_new_obj(np_msgproperty_t, property);
-        property->msg_subject =  safe_subject;
-        exisited = false;
-    }else{
-        free(safe_subject);
-    }
     np_msgproperty_from_user(context, property, &safe_user_property);
-    if (exisited) {
-        _np_msgproperty_update_disovery(context, property);
-    }else{
-        np_msgproperty_register(property);
-        np_unref_obj(np_msgproperty_t, property, ref_obj_creation);
-    }
 
     return ret;
 }
