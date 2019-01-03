@@ -148,14 +148,17 @@ np_context* np_new_context(struct np_settings * settings_in) {
     }
     return ((np_context*)context);
 }
-
+bool __np_is_already_listening(np_state_t* context){
+    bool ret = context->my_node_key != NULL && context->my_node_key->network != NULL;
+    return ret;
+}
 enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port) {
     enum np_error ret = np_ok;
     np_ctx_cast(ac);
 
     TSP_GET(enum np_status, context->status, context_status);
 
-    if (context->my_node_key != NULL && context->my_node_key->network != NULL) {
+    if (__np_is_already_listening(context)) {
         log_msg(LOG_ERROR, "node listens already and cannot get a second listener");
         ret = np_invalid_operation;
     }
@@ -531,13 +534,18 @@ enum np_error np_run(np_context* ac, double duration) {
     np_ctx_cast(ac);
     enum np_error ret = np_ok;
     
-    if (duration <= 0) {        
-        __np_jobqueue_run_jobs_once(context);
-    }
-    else {
-        np_jobqueue_run_jobs_for(context, duration);
+    if (!__np_is_already_listening(context)) {
+        ret = np_listen(ac, _np_network_get_protocol_string(context, PASSIVE | IPv4), "localhost", 3333);
     }
 
+    if(ret == np_ok) {
+        if (duration <= 0) {        
+            __np_jobqueue_run_jobs_once(context);
+        }
+        else {
+            np_jobqueue_run_jobs_for(context, duration);
+        }
+    }
     return ret;
 }
 
