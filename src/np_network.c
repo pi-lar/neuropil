@@ -1383,7 +1383,6 @@ char* np_network_get_ip(np_key_t * container, char* buffer) {
     }
     else if (container->parent_key != NULL && container->parent_key->network != NULL && container->parent_key->network->initialized && strncmp(container->parent_key->network->port, "", 1) != 0) {
         ip = container->parent_key->network->ip;
-
     }
     else if (container->node != NULL && container->node->port != NULL) {
         ip = container->node->dns_name;

@@ -28,6 +28,7 @@ extern "C" {
 #define debugf(s, ...)
 #endif
 	
+#define ARRAY_SIZE(array) ((int)( sizeof(array) / sizeof(array[0])))
 
 #define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))
 
@@ -159,6 +160,7 @@ NP_API_EXPORT
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]);
 NP_API_EXPORT
 char* np_util_string_trim_left(char* target);
+
 
 
 #ifdef __cplusplus

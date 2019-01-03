@@ -12,6 +12,8 @@ except:
 
 rx = re.compile("#define NEUROPIL_RELEASE	[\"'](.*)[\"']")
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
 def sign_file(filepath,pw):
     data = {
         'pw':pw,
@@ -25,9 +27,8 @@ def sign_file(filepath,pw):
     for cmd in cmds:
         subprocess.check_call(cmd)
 
-def sign_folder(folder,pw):
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    for root, dirs, files in os.walk("%s/%s"%(dir_path, folder)):
+def sign_folder(folder,pw):    
+    for root, dirs, files in os.walk(os.path.join(dir_path, folder)):
         for file in files:
             if not file.endswith(".sig"):
                 sign_file("%s/%s%s"%(dir_path,folder,file ), pw)
@@ -35,8 +36,7 @@ def sign_folder(folder,pw):
 
 def get_version():
     version = "could_not_detect_version"
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    with open("%s/include/neuropil.h"%(dir_path)) as f:
+    with open(os.path.join(dir_path,"include","neuropil.h")) as f:
         for line in f:
             ver = rx.search(line)
             if(ver):
@@ -46,7 +46,6 @@ def get_version():
     return version
 
 def get_version_tag():
-    version = "could_not_detect_tag"
     return ("%s_alpha"% (get_version()))
 
 def get_build_name():

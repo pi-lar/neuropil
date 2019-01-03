@@ -6,29 +6,28 @@ import time
 try:
     from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
 except ImportError:
-    # Using the build version of neuropil instad of the installed
-    from glob import glob
-    import platform   
+    print("No installed python binding found. Should we reload from build folder?")
+    reload = str(input("Yes/No (Yes): ")).lower()
+    if reload in ["yes","y",""]:
+        # Using the build version of neuropil instad of the installed
+        from glob import glob
+        import platform   
 
-    path_root = os.path.dirname(__file__) # relative directory path
-    if platform.system() == 'Linux':
-        path_lib = os.path.join(path_root, '..','..','build','lib')        
-        if 'LD_LIBRARY_PATH' not in os.environ or path_lib not in os.environ['LD_LIBRARY_PATH']:
-            os.environ['LD_LIBRARY_PATH'] = f'{path_lib}:$LD_LIBRARY_PATH'
-            try:        
-                print(f'Restarting executable to add LD_LIBRARY_PATH {path_lib}')
-                os.execl(sys.executable, 'python', __file__, *sys.argv[1:])
-            except Exception as exc:
-                print( 'Failed re-exec:', exc)
-                sys.exit(1)
-    
-    for dir in glob(os.path.join(path_root,"build","lib*")):
-        print("appending %s to path"%dir)
-        sys.path.append(dir)
-        break
-            
-    from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
-    print("Using Build Library")
+        path_root = os.path.dirname(__file__) # relative directory path
+        if platform.system() == 'Linux':
+            path_lib = os.path.join(path_root, '..','..','build','lib')        
+            if 'LD_LIBRARY_PATH' not in os.environ or path_lib not in os.environ['LD_LIBRARY_PATH']:
+                os.environ['LD_LIBRARY_PATH'] = f'{path_lib}:$LD_LIBRARY_PATH'
+                try:        
+                    print(f'Restarting executable to add LD_LIBRARY_PATH {path_lib}')
+                    os.execl(sys.executable, 'python', __file__, *sys.argv[1:])
+                except Exception as exc:
+                    print( 'Failed re-exec:', exc)
+                    sys.exit(1)
+                    
+        from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
+        print("Using Build Library")    
+
 
     
 
@@ -51,12 +50,12 @@ class NeuropilListener(NeuropilNode):
         tick.reply_subject = "tock"
         tick.max_parallel  = 100
         tick.max_retry = 0
-        #tick.apply()
+        tick.apply()
         tock = self.get_mx_properties('tock')
         tock.reply_subject = "tick"
         tock.max_parallel  = 100
         tock.max_retry = 0
-        #tock.apply()
+        tock.apply()
 
         self.set_receive_cb(b'tick', self.test_tick_callback)
         self.set_receive_cb(b'tock', self.test_tock_callback)
@@ -84,26 +83,33 @@ def main():
     #np_c = NeuropilCluster(3,port_range=4000)
 
     # connect to a node in the internet
+    internet = ''
     #internet = '*:udp4:demo.neuropil.io:31418'
-    #print(f"Node 1 connects to the internet (aka: {internet})")
-    #np_1.join(internet)
-
+    
     np1_addr = np_1.get_address()
-    np2_addr = np_2.get_address()
-    print(f"Others nodes connect to node 1 (aka: {np1_addr})")
+    np2_addr = np_2.get_address()    
+    print(f"node 1 (aka: {np1_addr})")
     print(f"node 2 (aka: {np2_addr})")
+    print("Others nodes connect to node 1")
+    
+    if internet:
+        print(f"Node 1 connects to the internet (aka: {internet})")
+        np_1.join(internet)
+                
     np_2.join(np1_addr)
     #np_c.join(np1_addr)
 
-    t1 = time.time()
-    np_1.send('tick', b'some data') 
-    invoked = 1
+    t1 = time.time()    
+    invoked = 0
     while True:
         status = [np_1.get_status(),np_2.get_status()]# + [ s for n, s in np_c.get_status()] 
 
         elapsed = int(time.time() - t1)     
-        if invoked < elapsed:
-            invoked += 1
+        if np_1.np_has_receiver_for("tick") and invoked < elapsed:
+            if invoked == 0:
+                invoked = elapsed
+            else:
+                invoked += 1
             print("tick")
             np_1.send('tick', b'some data') 
 

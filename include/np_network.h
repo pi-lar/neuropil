@@ -88,19 +88,7 @@ struct np_network_s
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
-
-typedef struct np_prioq_s np_prioq_t;
-struct np_prioq_s {
-
-    np_key_t* dest_key; // the destination key / next/final hop of the message
-    np_message_t* msg;  // message to send
-
-    uint8_t max_retries; // max number of retries / subject specific
-    uint8_t retry;     // number of retries
-    uint32_t seqnum; // seqnum to identify the packet to be retransmitted
-    double send_at; // this is the time the packet is transmitted (or retransmitted)
-} NP_API_INTERN;
-
+ 
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type
 NP_API_INTERN
 enum socket_type _np_network_parse_protocol_string (const char* protocol_str);

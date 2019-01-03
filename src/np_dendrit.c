@@ -68,6 +68,7 @@ bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_
         msg_in->msg_property = msg_prop;
     }
 
+    log_debug(LOG_MESSAGE, "(msg: %s) Invoking user callbacks", msg_in->uuid);
     // call user callbacks
     sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
     while (iter_usercallbacks != NULL)
@@ -75,7 +76,7 @@ bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_
         ret = iter_usercallbacks->val->fn(context, msg_in, msg_in->body, iter_usercallbacks->val->data) && ret;
         sll_next(iter_usercallbacks);
     }
-
+    log_debug(LOG_MESSAGE | LOG_VERBOSE, "(msg: %s) Invoked user callbacks", msg_in->uuid);
 
     // call msg on_reply if applyable
     np_tree_elem_t* response_uuid = np_tree_find_str(msg_in->instructions, _NP_MSG_INST_RESPONSE_UUID);
@@ -125,7 +126,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
 
             if (NULL == raw_msg)
             {
-                    goto __np_cleanup__;
+                goto __np_cleanup__;
             }
 
             np_new_obj(np_message_t, msg_in);
@@ -442,8 +443,8 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
         }
 
         if (event_accepted) {
-            log_msg(LOG_INFO, "handling   message (%s) for subject: %s (%d)",
-                    msg_to_submit->uuid, handler->msg_subject, allow_destination_ack);
+            log_info(LOG_MESSAGE, "handling   message (%s) for subject: %s (%d) with function %p",
+                    msg_to_submit->uuid, handler->msg_subject, allow_destination_ack, handler->clb_inbound);
 
             _np_message_trace_info("accepted", msg_to_submit);
 
@@ -622,12 +623,15 @@ void _np_in_signal_np_receive (np_state_t* context, np_jobargs_t args)
 void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
+
     np_aaatoken_t* sender_token = NULL;
     np_message_t* msg_in = args.msg;
     bool free_msg_subject = false;
     char* msg_subject;
-    if (args.properties != NULL && args.properties->is_internal)
+    log_debug(LOG_MESSAGE, "(msg: %s) start callback wrapper",msg_in->uuid);
+     if (args.properties != NULL && args.properties->is_internal)
     {
+        log_debug(LOG_VERBOSE|LOG_MESSAGE, "(msg: %s) handeling internal msg",msg_in->uuid);
         _np_in_invoke_user_receive_callbacks(msg_in, args.properties);
         goto __np_cleanup__;
     }
@@ -641,7 +645,7 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
         goto __np_cleanup__;
     }
 
-    CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_ele);
+    CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_ele);    
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
     CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
 
@@ -1460,7 +1464,6 @@ void _np_dendrit_propagate_list(np_msgproperty_t* subject_property, np_dhkey_t t
         tmp_token_issuer = _np_aaatoken_get_issuer(tmp_token);
 
         // do not send the msgtoken to its own issuer (remove clutter)
-        // TODO: Correctly add the own token and then add this line again
         if (_np_dhkey_cmp(&target, &tmp_token_issuer) != 0)
         {
             available_data = np_tree_create();

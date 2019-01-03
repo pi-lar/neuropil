@@ -665,7 +665,7 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     dest->token_min_ttl = src->intent_update_after ;
     dest->msg_ttl = src->message_ttl;
 
-    if (src->reply_subject[0] != 0 &&  strncmp(dest->rep_subject, src->reply_subject, 255) != 0)
+    if (src->reply_subject[0] != '\0' && (dest->rep_subject == NULL || strncmp(dest->rep_subject, src->reply_subject, 255) != 0))
     {
         char* old = dest->rep_subject;
         dest->rep_subject = strndup(src->reply_subject, 255);
@@ -708,5 +708,4 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
 
     // mep type conversion	
     dest->mep_type= ONE_WAY;
-    _np_msgproperty_update_disovery(context, dest);
 }

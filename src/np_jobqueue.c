@@ -260,11 +260,10 @@ void _np_job_submit_route_event(np_state_t * context, double delay, np_msgproper
     }
 }
 
+
 bool __np_job_submit_msgin_event(np_state_t * context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp)
 {
-    // could be NULL if msg is not defined in this node
-    // assert(NULL != prop);
-
+    bool ret = true;
     // create runtime arguments
     np_jobargs_t jargs = _np_job_create_args(context, msg, key, prop, tmp);
     jargs.custom_data = custom_data;
@@ -281,11 +280,10 @@ bool __np_job_submit_msgin_event(np_state_t * context, double delay, np_msgprope
     np_job_t new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN, prop->clb_inbound, "clb_inbound");
 
     if (!_np_job_queue_insert(context, new_job)) {
-        _np_job_free(context, &new_job);
-        // new_job = NULL;
-        return false;
+        _np_job_free(context, &new_job);        
+         ret = false;
     }
-    return true; // (new_job != NULL);
+    return ret;
 }
 
 bool _np_job_submit_transform_event(np_state_t * context, double delay, np_msgproperty_t* prop, np_key_t* key, void* custom_data)
@@ -650,11 +648,12 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
 #ifdef NP_THREADS_CHECK_THREADING	
         np_thread_t * self = _np_threads_get_self(context);
         log_debug_msg(LOG_JOBS | LOG_DEBUG,
-            "thread-->%15"PRIu64" job remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs-->%15p args-->%15p prio:%10.2f not before: %15.10f jobname: %s",
+            "thread-->%15"PRIu64" job remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs-->%15p ([0] == %15p) args-->%15p prio:%10.2f not before: %15.10f jobname: %s",
             self->id,
             np_jobqueue_count(context),
             sll_size((job_to_execute.processorFuncs)),
             (job_to_execute.processorFuncs),
+            sll_first(job_to_execute.processorFuncs),
             &job_to_execute.args,
             job_to_execute.priority,
             job_to_execute.exec_not_before_tstamp,
@@ -707,7 +706,7 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
         double n2 = np_time_now() - n1;
         _np_util_debug_statistics_t * stat = _np_util_debug_statistics_add(context, job_to_execute.ident, n2);
         log_msg(LOG_JOBS | LOG_DEBUG, 
-            "internal job callback functions %-90s(%"PRIu8"), fns: %"PRIu32" duration: %10f, c:%6"PRIu32", %10f / %10f / %10f", 
+            " functions %-90s(%"PRIu8"), fns: %"PRIu32" duration: %10f, c:%6"PRIu32", %10f / %10f / %10f", 
             stat->key, job_to_execute.type, 
             sll_size(job_to_execute.processorFuncs),
             n2, stat->count, stat->max, stat->avg, stat->min);

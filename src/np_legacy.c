@@ -310,7 +310,7 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get(context, DEFAULT_MODE, subject);
 
     if (NULL == msg_prop)
     {

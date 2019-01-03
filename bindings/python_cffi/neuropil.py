@@ -31,15 +31,12 @@ class np_mx_properties(object):
 
 class np_id(object):
     _cdata=None
-    _str=None
     _hex=None
-    def __init__(self, cdata):                
-        self._cdata = cdata
+    def __init__(self, id_cdata):                
+        self._cdata = id_cdata
         s = ffi.new("char[65]", b'\0')
         neuropil.np_id2str(self._cdata, s)
-        self._str = ffi.string(s)
-        self._hex = self._str.decode("utf-8") 
-        
+        self._hex = ffi.string(s).decode("utf-8") 
 
     def __str__(self):
         return self._hex
@@ -48,13 +45,13 @@ class np_id(object):
 class np_token(object):
     _ignore_at_conversion = ["_node"]
     _node=None
-    def __init__(self,node,  **entries):
+    def __init__(self, node,  **entries):
         self._node = node
         self.__dict__.update(entries)
 
     def get_fingerprint(self):
 
-        id = ffi.new("np_id")
+        id = ffi.new("np_id", b'\0')
         ret = neuropil.np_token_fingerprint(self._node._context, _NeuropilHelper.convert_from_python(self), True, ffi.cast("np_id_ptr",id))
         
         if ret is not neuropil.np_ok:
@@ -145,7 +142,7 @@ class NeuropilNode(object):
     
     def get_fingerprint(self):
 
-        id = ffi.new("np_id")
+        id = ffi.new("np_id", b'\0')
         ret = neuropil.np_node_fingerprint(self._context, ffi.cast("np_id_ptr",id))
         
         if ret is not neuropil.np_ok:
@@ -236,16 +233,18 @@ class NeuropilNode(object):
         if secret_key == None:
             secret_key = ffi.NULL
 
-        ret = neuropil.np_new_identity(self._context, expires_at, secret_key)        
-        ret = _NeuropilHelper.convert_to_python(self, ret)
+        ffi_token = neuropil.np_new_identity(self._context, expires_at, secret_key)        
+        ret = _NeuropilHelper.convert_to_python(self, ffi_token)
         return ret
 
     def use_identity(self, identity:np_token):
         if not isinstance(identity, np_token):             
             raise ValueError(f"identity needs to be of type `np_token`")
 
-        token =  _NeuropilHelper.convert_from_python(identity)
-        ret = neuropil.np_use_identity(self._context, token)
+        token_dict =  _NeuropilHelper.convert_from_python(identity)
+        ffi_token = ffi.new("struct np_token", token_dict)
+
+        ret = neuropil.np_use_identity(self._context, ffi_token)
 
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
@@ -290,8 +289,16 @@ class NeuropilNode(object):
     def has_joined(self):
         return neuropil.np_has_joined(self._context)
 
+    def np_has_receiver_for(self, subject:str):
+        subject = _NeuropilHelper.convert_from_python(subject)
+        
+        if not isinstance(subject, bytes):             
+            raise ValueError(f"subject needs to be of type `bytes` or `str`")
+
+        return neuropil.np_has_receiver_for(self._context, subject)
+
     def get_address(self):
-        address = ffi.new("char[255]")
+        address = ffi.new("char[500]",b'\0')
         status = neuropil.np_get_address(self._context, address, 255)
         #no optional exception throwing due to the fact that the return is not the fn status
         if status is not neuropil.np_ok:

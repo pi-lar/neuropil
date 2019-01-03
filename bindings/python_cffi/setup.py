@@ -6,14 +6,18 @@
 """
 setup.py file for neuropil library
 """
-
+import os
 from distutils.core import Extension
 from setuptools import setup 
 
+PATH = os.path.dirname(__file__)
+if PATH:
+    os.chdir(PATH)
+
 setup (name = 'neuropil',
-       version = '0.7.1',
+       version = '0.8.0',
        author      = "pi-lar GmbH",
-       description = """initial neuropil python bindings""",
+       description = """neuropil python bindings""",
        setup_requires=["cffi>=1.0.0"],
        cffi_modules=["neuropil_build.py:ffibuilder"],
        install_requires=["cffi>=1.0.0"],

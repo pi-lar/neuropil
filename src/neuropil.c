@@ -54,14 +54,15 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
     else {
         ret = settings;
     }	
-    ret->n_threads = 3;
+    ret->n_threads = 10;
     snprintf(ret->log_file, 256, "%.0f_neuropil.log",np_time_now()*100);
     ret->log_level = LOG_ERROR;
     ret->log_level |= LOG_WARN;
 #ifdef DEBUG
     ret->log_level |= LOG_INFO;
     ret->log_level |= LOG_DEBUG;    
-    ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_HANDSHAKE|LOG_AAATOKEN|LOG_NETWORK|LOG_MSGPROPERTY;
+    ret->log_level |= LOG_VERBOSE;    
+    ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_JOBS;
 #endif
 
     return ret;
@@ -444,7 +445,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     if (userdata != NULL) {
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
-        np_get_id(context, message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
+        np_get_id(context, message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));        
         
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 
@@ -453,7 +454,12 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         message.data = userdata->val.value.bin;
         message.data_length = userdata->val.size;
 
+        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) conversion into public structs complete.", msg->uuid);
+        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Calling user function.", msg->uuid);        
         callback(context, &message);
+        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Called  user function.", msg->uuid);        
+    }else{
+        log_info(LOG_MESSAGE |LOG_ROUTING,"(msg: %s) contains no userdata", msg->uuid);
     }
     return ret;
 }
