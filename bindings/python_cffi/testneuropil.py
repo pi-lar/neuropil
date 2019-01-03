@@ -40,7 +40,7 @@ def my_authz_cb(self:NeuropilNode,token:np_token):
     return True
 
 class NeuropilListener(NeuropilNode):    
-    def __init__(self, port, host = b'localhost', proto= b'tcp4', auto_run=True, **settings):        
+    def __init__(self, port, host = b'localhost', proto= b'tcp4', auto_run=True, **settings):                
         super().__init__(port, host, proto, auto_run, **settings)
         self.set_authenticate_cb(my_authn_cb)
         self.set_accounting_cb(self.my_acc_cb)

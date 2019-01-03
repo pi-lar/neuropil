@@ -1,19 +1,17 @@
 
 from _neuropil import lib as neuropil, ffi
-import time, copy
-from pprint import pprint
+import time, copy, inspect
 
 class NeuropilException(Exception):
     def __init__(self, message, error):        
         super().__init__(message)
         self.error = error
 
-class np_mx_properties(object):
-    _ignore_at_conversion = ["subject","_node"]
-    subject = None
-    _node = None
+class np_mx_properties(object):    
 
     def __init__(self, node, **entries):                
+        self._ignore_at_conversion = ["subject","_node"]
+        self.subject = None
         self._node = node
         self.__dict__.update(entries)
 
@@ -30,8 +28,7 @@ class np_mx_properties(object):
         return ret
 
 class np_id(object):
-    _cdata=None
-    _hex=None
+    
     def __init__(self, id_cdata):                
         self._cdata = id_cdata
         s = ffi.new("char[65]", b'\0')
@@ -42,10 +39,9 @@ class np_id(object):
         return self._hex
 
 
-class np_token(object):
-    _ignore_at_conversion = ["_node"]
-    _node=None
+class np_token(object):    
     def __init__(self, node,  **entries):
+        self._ignore_at_conversion = ["_node"]        
         self._node = node
         self.__dict__.update(entries)
 
@@ -60,18 +56,21 @@ class np_token(object):
         return np_id(id)
 
 class np_message(object):
-    data = None
-    data_length = 0
-    def __init__(self, **entries):
+    def __init__(self, _raw, **entries):
+        self.data_length = 0        
         self.__dict__.update(entries)    
+        self._raw = bytes(ffi.buffer(_raw['data'], self.data_length))
+
     def raw(self):
-        return ffi.buffer(self.data,self.data_length)
+        return self._raw
 
 class NeuropilCluster(object):    
-    nodes = []
+    
     def __init__(self, count, port_range = 3000, host = b'localhost', proto= b'udp4', auto_run=True, **settings):   
+        self.nodes = []
+
         if count <= 0:
-            raise ValueError("The `count` of a Cluster needs to be of type be greater than 0")
+            raise ValueError("The `count` of a cluster needs to be greater than 0")
 
         if not isinstance(port_range, list):
             port_range = range(port_range, port_range+count)
@@ -99,22 +98,23 @@ class NeuropilCluster(object):
 
 class NeuropilNode(object):    
 
-    # ffi interaction variables
-    _ffi_handle = None
-    _settings = None    
-    _context = None   
-    # python class variables
-    _userdata = None
-    _destroyed = False
-    # default aaa callbacks
-    _user_authn_cb = lambda s,x: True # Default return True 
-    _user_authz_cb = lambda s,x: True # Default return True
-    _user_accou_cb = lambda s,x: True # Default return True
-    # user subject callbacks    
-    __callback_info_dict__ = {}
-
-    
     def __init__(self, port, host = b'localhost', proto= b'udp4', auto_run=True, **settings):        
+        # DEFAULTS START
+        # ffi interaction variables
+        self._ffi_handle = None
+        self._settings = None    
+        self._context = None   
+        # python class variables
+        self._userdata = None
+        self._destroyed = False
+        # default aaa callbacks
+        self._user_authn_cb = lambda s,x: True # Default return True 
+        self._user_authz_cb = lambda s,x: True # Default return True
+        self._user_accou_cb = lambda s,x: True # Default return True
+        # user subject callbacks    
+        self.__callback_info_dict__ = {}
+        # DEFAULTS END
+
         self._ffi_handle = ffi.new_handle(self)        
         self._settings = neuropil.np_default_settings(ffi.NULL)
         setting_type=ffi.typeof(self._settings[0])        
@@ -138,10 +138,8 @@ class NeuropilNode(object):
         if not self._destroyed:
             self._destroyed = True
             neuropil.np_destroy(self._context, True)
-        
-    
+            
     def get_fingerprint(self):
-
         id = ffi.new("np_id", b'\0')
         ret = neuropil.np_node_fingerprint(self._context, ffi.cast("np_id_ptr",id))
         
@@ -155,10 +153,17 @@ class NeuropilNode(object):
     def _py_subject_callback(context, message):        
         ret = True
         myself = _NeuropilHelper.from_context(context)                
-        if myself.__callback_info_dict__[message.subject]:
-            msg = _NeuropilHelper.convert_to_python(myself, message)
-            for user_fn in myself.__callback_info_dict__[message.subject]:
-                ret = bool(user_fn(myself, msg)) and ret
+        msg = _NeuropilHelper.convert_to_python(myself, message)
+    
+        subject_id = ffi.new("char[65]",b'\0')
+        neuropil.np_id2str(msg.subject, subject_id)
+        subject_id = _NeuropilHelper.convert_to_python(myself, subject_id)
+        if myself.__callback_info_dict__[subject_id]:
+            for user_fn in myself.__callback_info_dict__[subject_id]:                                 
+                if len(inspect.signature(user_fn).parameters) == 2:
+                    ret = bool(user_fn(myself, msg)) and ret
+                else:
+                    ret = bool(user_fn(msg)) and ret
         return ret
 
     def set_receive_cb(self, subject:str, recv_callback):
@@ -169,12 +174,20 @@ class NeuropilNode(object):
             raise ValueError(f"Subject needs to be of type `bytes` or `str`")
 
         ret = neuropil.np_ok
-        if subject not in self.__callback_info_dict__:            
-            self.__callback_info_dict__[subject] = []
-            ret = neuropil.np_add_receive_cb(self._context, subject, NeuropilNode._py_subject_callback)            
-        self.__callback_info_dict__[subject].append(recv_callback)                    
+        
+        subject_npid = ffi.new("np_id")
+        subject_id = ffi.new("char[65]",b'\0')
+        neuropil.np_get_id(self._context, subject_npid, subject, 64)
+        neuropil.np_id2str(subject_npid, subject_id)
+        subject_id = _NeuropilHelper.convert_to_python(self, subject_id)
+ 
+        if subject_id not in self.__callback_info_dict__:       
+            self.__callback_info_dict__[subject_id] = []
+            ret = neuropil.np_add_receive_cb(self._context, subject, NeuropilNode._py_subject_callback)                                
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+        else:
+            self.__callback_info_dict__[subject_id].append(recv_callback)                    
         return ret
 
     def listen(self, protocol:str, hostname:str, port:int):        
@@ -360,11 +373,15 @@ class _NeuropilHelper():
             if fieldtype.type.kind == 'primitive':
                 yield (field,getattr( s, field ))
             else:
-                yield (field, _NeuropilHelper.convert_to_python(node,  getattr( s, field ) ))
+                if field == "data" : 
+                    yield (field,getattr( s, field ))
+                else:
+                    yield (field, _NeuropilHelper.convert_to_python(node,  getattr( s, field )))
+
     @staticmethod
     def convert_to_python(node:NeuropilNode, s):
         ret = None        
-        type = None
+        type = None        
         try:
             type = ffi.typeof(s)
         except:
@@ -375,7 +392,7 @@ class _NeuropilHelper():
         elif type.kind == 'struct':
             ret = dict(_NeuropilHelper.__convert_struct_field(node,  s, type.fields))            
             if type.cname == 'struct np_message':
-                ret = np_message(**ret)
+                ret = np_message(ret, **ret)
             elif  type.cname == 'struct np_token':
                 ret = np_token(node, **ret)
             elif  type.cname == 'struct np_mx_properties':
@@ -415,7 +432,7 @@ class _NeuropilHelper():
     def convert_from_python(s):        
         ignore_attr=[]
         if hasattr(s,"_ignore_at_conversion"):
-            ignore_attr = s._ignore_at_conversion+["_ignore_at_conversion"]
+            ignore_attr = s._ignore_at_conversion+["_ignore_at_conversion"]        
 
         if isinstance(s, dict):
             return _NeuropilHelper.__convert_from_python(s, ignore_attr)
