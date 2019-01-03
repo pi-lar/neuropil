@@ -595,3 +595,6 @@ void np_destroy(np_context*ac, bool gracefully)
 
     
 }
+bool np_id_equals(np_id* first, np_id* second) {
+    return memcmp(first,second,sizeof(np_id))==0;
+}
