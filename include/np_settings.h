@@ -227,7 +227,7 @@ extern "C" {
 #endif
 
 #ifndef LOG_ROW_SIZE
-        #define LOG_ROW_SIZE (5000)
+    #define LOG_ROW_SIZE (5000)
 #endif
 
 #ifndef LOG_ROTATE_AFTER_BYTES
@@ -271,8 +271,10 @@ extern "C" {
 /*
     lower value => success avg more on realtime
     higher value => more msgs need to be failed to regard this link as bad
+
+    use a prime number because of modulo division
 */
-#define NP_NODE_SUCCESS_WINDOW 20
+#define NP_NODE_SUCCESS_WINDOW 31
 
 
 #if !(defined(__APPLE__) || defined(__MACH__ ))
@@ -280,7 +282,7 @@ extern "C" {
 #endif
 
 
-#define NP_SLEEP_MIN (0.001)
+#define NP_SLEEP_MIN (NP_PI/1000)
 
 
 #define __MAX_ROW    64 /* length of key*/
