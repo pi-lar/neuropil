@@ -118,7 +118,7 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
     return ret;
 }
 
-np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char* secret_key[NP_SECRET_KEY_BYTES] )
+np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
 {
     np_aaatoken_t* ret = NULL;
     np_new_obj(np_aaatoken_t, ret, FUNC);
@@ -137,7 +137,7 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char
     
     if (secret_key != NULL) {
         np_cryptofactory_by_secret(context, &ret->crypto, secret_key);
-    }
+	}
     else {
         np_cryptofactory_new(context, &ret->crypto);
     }
@@ -158,7 +158,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     np_waitref_obj(np_key_t, context->my_identity, my_identity, "np_waitref_obj");
     np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "np_waitref_obj");
 
-    ret = __np_token_factory_derive(my_identity, np_aaatoken_scope_public);
+    ret = __np_token_factory_derive(my_identity->aaa_token, np_aaatoken_scope_public);
     ret->type = np_aaatoken_type_message_intent;
 
     char msg_id_subject[255];
@@ -324,7 +324,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
     return (ret);
 }
 
-np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at, unsigned char* secret_key[NP_SECRET_KEY_BYTES] )
+np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
 {
     char issuer[64] = { 0 };
     char node_subject[255];

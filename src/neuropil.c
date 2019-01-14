@@ -300,20 +300,21 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
 }
 
 // secret_key is nullable
-struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char* secret_key[NP_SECRET_KEY_BYTES]) {
+struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]) {
     np_ctx_cast(ac); 
     
     struct np_token ret = {0};	
     np_ident_private_token_t* new_token =  np_token_factory_new_identity_token(context, expires_at, secret_key);
     np_aaatoken4user(&ret, new_token);
+
 #ifdef DEBUG
     char tmp[65] = { 0 };
     np_dhkey_t d = np_aaatoken_get_fingerprint(new_token, false);
     _np_dhkey2str(&d, tmp);
     log_debug_msg(LOG_AAATOKEN, "created new ident token %s (fp:%s)", ret.uuid, tmp);
 #endif
-    np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
 
+    np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
     return ret;
 }
 enum np_error   np_node_fingerprint(np_context* ac, np_id_ptr id){
@@ -365,7 +366,8 @@ enum np_error np_use_identity(np_context* ac, struct np_token identity) {
     log_debug_msg(LOG_AAATOKEN, "importing ident token %s", identity.uuid);
 
     enum np_error ret = np_ok;
-    np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key);
+
+    np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key );
     np_user4aaatoken(imported_token, &identity);
 
     _np_set_identity(ac, imported_token);
