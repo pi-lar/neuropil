@@ -798,10 +798,10 @@ void* __np_jobqueue_run_worker(void* self)
                 log_debug_msg(LOG_JOBS, "wait    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
                 my_thread->busy = false;
                 _np_threads_mutex_condition_wait(context, &my_thread->job_lock);
-                my_thread->busy = true;
-
-                log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
-                __np_jobqueue_run_once(context, my_thread->job);
+                if (my_thread->busy == true) {
+                		log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
+                		__np_jobqueue_run_once(context, my_thread->job);
+                }
             }
         }
         else {
