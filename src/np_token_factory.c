@@ -42,7 +42,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
     switch (scope)
     {
     case np_aaatoken_scope_private:
-        ASSERT(source->scope == np_aaatoken_scope_private, "Can only derive a private token from another private token. current token scope: %"PRIu8,source->scope);
+        ASSERT(source->scope == np_aaatoken_scope_private, "Can only derive a private token from another private token. current token scope: %"PRIu8, source->scope);
         ASSERT(
             FLAG_CMP(source->type, np_aaatoken_type_identity) || FLAG_CMP(source->type, np_aaatoken_type_node),
             "Can only derive a private token from a node or identity token. current token type: %"PRIu8, source->type);

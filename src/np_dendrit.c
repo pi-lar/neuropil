@@ -2338,7 +2338,7 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                     process_handshake = now > (alias_key->node->handshake_send_at + msg_prop_handshake->msg_ttl);
                     if (!process_handshake) {
                         log_debug_msg(LOG_HANDSHAKE,
-                            "Stoping handshake %s as the last handshake may still be valid.",
+                            "Stopping handshake %s as the last handshake may still be valid.",
                             args.msg->uuid
                         );
                     }

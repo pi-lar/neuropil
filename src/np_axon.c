@@ -446,7 +446,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
         if (_np_node_check_address_validity(args.target->node))
         {
             // get our node identity from the cache			
-            np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context );
+            np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context);
 
             // create real handshake message ...
             np_message_t* hs_message = NULL;

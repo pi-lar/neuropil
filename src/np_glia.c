@@ -576,7 +576,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
 
 void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type mode_type, const char* subject)
 {
-    //TODO: msg_tokens for either
+    // TODO: msg_tokens for either
     // insert into msg token token renewal queue
     _LOCK_MODULE(np_state_message_tokens_t) {
         if (NULL == np_tree_find_str(context->msg_tokens, subject))
@@ -633,10 +633,16 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
         }
         else
         {
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s ...", msg->uuid, tmp_token->uuid);
+            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s %s...", msg->uuid, tmp_token->uuid, tmp_token->issuer);
 
             // encrypt the relevant message part itself
             _np_message_encrypt_payload(msg, tmp_token);
+
+            char receiver_key_str[65];
+            receiver_key_str[64] = '\0';
+            _np_dhkey2str(&receiver_dhkey, receiver_key_str);
+            char * ctx = np_get_userdata(context);
+            fprintf(stdout, "     (%s): encrypted message (%s) for %s / node: %s\n", ctx, msg->uuid, tmp_token->issuer, receiver_key_str); fflush(stdout);
 
             np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
 

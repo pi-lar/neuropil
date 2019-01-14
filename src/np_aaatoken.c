@@ -42,7 +42,7 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
     log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_t_new(void* token){");
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
 
-    aaa_token->version = 0.60;
+    aaa_token->version = 0.80;
 
     // aaa_token->issuer;
     memset(aaa_token->realm,    0, 255);
@@ -169,13 +169,13 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
     {
         strncpy(token->uuid, np_treeval_to_str(tmp->val, NULL), NP_UUID_BYTES);
     }
-    else { ret = false;/*Mendatory field*/ }
+    else { ret = false;/*Mandatory field*/ }
 
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.type")))
     {
         token->type = tmp->val.value.ush;
     }
-    else { ret = false;/*Mendatory field*/ }
+    else { ret = false;/*Mandatory field*/ }
     
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.r")))
     {
@@ -185,12 +185,12 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
     {
         strncpy(token->issuer,  np_treeval_to_str(tmp->val, NULL), 65);
     }
-    else { ret = false;/*Mendatory field*/ }
+    else { ret = false;/*Mandatory field*/ }
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.s")))
     {
         strncpy(token->subject,  np_treeval_to_str(tmp->val, NULL), 255);
     }
-    else { ret = false;/*Mendatory field*/ }
+    else { ret = false;/*Mandatory field*/ }
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.a")))
     {
         strncpy(token->audience,  np_treeval_to_str(tmp->val, NULL), 255);
@@ -199,16 +199,16 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
     {
         if (NULL == np_cryptofactory_by_public(context, &token->crypto, tmp->val.value.bin)) {
             log_msg(LOG_ERROR, "Could not decode crypto details from token");
-            ret = false;/*Mendatory field*/
+            ret = false;/*Mandatory field*/
         }
     }
-    else { ret = false;/*Mendatory field*/ }
+    else { ret = false;/*Mandatory field*/ }
 
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.ex")))
     {
         token->expires_at = tmp->val.value.d;
     }
-    else { ret = false;/*Mendatory field*/ }
+    else { ret = false;/*Mandatory field*/ }
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.ia")))
     {
         token->issued_at = tmp->val.value.d;
@@ -223,7 +223,7 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
         memcpy(token->signature, tmp->val.value.bin, crypto_sign_BYTES);
         token->is_signature_verified = false;
     }
-    else { ret = false;/*Mendatory field*/ }
+    else { ret = false;/*Mandatory field*/ }
 
     // decode extensions
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.e")))

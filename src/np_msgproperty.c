@@ -679,11 +679,12 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 }
 
 void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src) {
-    assert(context != NULL);
+
+	assert(context != NULL);
     assert(src != NULL);
     assert(dest != NULL);
     dest->token_max_ttl = src->intent_ttl;
-    dest->token_min_ttl = src->intent_update_after ;
+    dest->token_min_ttl = src->intent_update_after;
     dest->msg_ttl = src->message_ttl;
 
     if (src->reply_subject[0] != '\0' && (dest->rep_subject == NULL || strncmp(dest->rep_subject, src->reply_subject, 255) != 0))
