@@ -613,21 +613,15 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
         _np_msgproperty_threshold_increase(msg_prop);
         log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
 
-        //TODO: instead of token threshold a local copy of the value should be increased
+        // TODO: instead of token threshold a local copy of the value should be increased
         np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
 
-        char* target_node_str = NULL;
-        np_dhkey_t receiver_dhkey = { 0 };
-        np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
-        if (NULL != tn_node)
+        np_dhkey_t empty_check = { 0 };
+        np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
+        if (memcmp(&empty_check, &receiver_dhkey, 32) == 0)
         {
-            target_node_str = tn_node->val.value.s;
+            _np_str2dhkey(tmp_token->issuer, &receiver_dhkey);
         }
-        else
-        {
-            target_node_str = tmp_token->issuer;
-        }
-        _np_str2dhkey(target_node_str, &receiver_dhkey);
 
         if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
         {

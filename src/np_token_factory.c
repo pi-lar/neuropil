@@ -118,11 +118,10 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
     return ret;
 }
 
-np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char node_subject[255], double expires_at, uint8_t* (secret_key[NP_SECRET_KEY_BYTES]))
+np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char* secret_key[NP_SECRET_KEY_BYTES] )
 {
     np_aaatoken_t* ret = NULL;
     np_new_obj(np_aaatoken_t, ret, FUNC);
-
 
     // create token
     if (NULL != context->realm_name)
@@ -207,15 +206,13 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
         np_treeval_new_ui(0)); //TODO: correct ?
 
     // TODO: insert value based on msg properties / respect (sticky) reply
-    np_tree_replace_str( ret->extensions,  "target_node",
-        np_treeval_new_s((char*)_np_key_as_str(my_node_key)));
+    np_aaatoken_set_partner_fp(ret, my_node_key->dhkey);
 
     ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 
-    ret->type = np_aaatoken_type_message_intent;
-
     // fingerprinting and signing the token
     _np_aaatoken_set_signature(ret, my_identity->aaa_token);
+	_np_aaatoken_update_extensions_signature(ret,  my_identity->aaa_token);
 
     np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
     np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");

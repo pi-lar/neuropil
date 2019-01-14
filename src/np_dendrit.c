@@ -767,12 +767,12 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
 
     join_node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
     if (join_node_token == NULL ) {
-        // silently exit join protocol for invalid tokens
+        // silently exit join protocol for unknown node tokens
         log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: missing node token");
         goto __np_cleanup__;
     }
     if (!_np_aaatoken_is_valid(join_node_token, np_aaatoken_type_node)) {
-        // silently exit join protocol for invalid tokens
+        // silently exit join protocol for invalid token type
         log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: invalid node token");
         goto __np_cleanup__;
     }
@@ -781,51 +781,43 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
     join_node_dhkey = np_aaatoken_get_fingerprint(join_node_token, false);
 
     np_tree_elem_t* ident_token_ele = np_tree_find_str(args.msg->body, "_np.token.ident");	
+
     if (ident_token_ele != NULL) { // if not selfsigned
-        join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
+
+    		join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
         if (false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) {
-            // silently exit join protocol for invalid tokens
-            log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: invalid token");
+            // silently exit join protocol for invalid identity token
+            log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: invalid identity token");
             goto __np_cleanup__;
         }
         log_debug_msg(LOG_AAATOKEN | LOG_ROUTING, "join token is valid");
         // build a hash to find a place in the dhkey table, not for signing !
         join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token, false);
 
-        np_dhkey_t partner_of_ident_dhkey = { 0 };
-        np_tree_elem_t* partner_fp_of_ident = np_tree_find_str(join_ident_token->extensions, "_np.partner_fp");
-        if (partner_fp_of_ident != NULL) {
-            // check if a identity exists in join
-            partner_of_ident_dhkey = partner_fp_of_ident->val.value.dhkey;
-        }
-        else {
-            log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: node fingerprint has to be available");
-        }
-
-        if (false == _np_dhkey_equal(&join_node_dhkey, &partner_of_ident_dhkey)) {
-            // ident fingerprint must match partner fp from node token
-#ifdef DEBUG
-            char fp_j[65], fp_p[65];
-            _np_dhkey2str(&join_node_dhkey, fp_j);
+        np_dhkey_t zero_dhkey = { 0 };
+        np_dhkey_t partner_of_ident_dhkey = np_aaatoken_get_partner_fp(join_ident_token);
+        if (_np_dhkey_equal(&zero_dhkey,      &partner_of_ident_dhkey) == true ||
+        		_np_dhkey_equal(&join_node_dhkey, &partner_of_ident_dhkey) == false)  {
+            char fp_n[65], fp_p[65];
+            _np_dhkey2str(&join_node_dhkey, fp_n);
             _np_dhkey2str(&partner_of_ident_dhkey, fp_p);
-            log_debug_msg(LOG_ROUTING | LOG_VERBOSE,
-                "JOIN request: node fingerprint must match partner fp from ident token. (node: %s / partner: %s)",
-                fp_j, fp_p
+            log_msg(LOG_WARN,
+                "JOIN request: node fingerprint must match partner fingerprint in identity token. (node: %s / partner: %s)",
+                fp_n, fp_p
             );
-#endif
             goto __np_cleanup__;
         }
-        np_dhkey_t partner_of_node_dhkey = { 0 };
-        np_tree_elem_t* partner_fp_of_node = np_tree_find_str(join_node_token->extensions, "_np.partner_fp");
-        if (partner_fp_of_node == NULL) {
 
-            log_debug_msg(LOG_ROUTING | LOG_VERBOSE | LOG_WARN, "JOIN request: ident fingerprint has to be available");
-            goto __np_cleanup__;
-        }
-        partner_of_node_dhkey = partner_fp_of_node->val.value.dhkey;
-        if (false == _np_dhkey_equal(&join_ident_dhkey, &partner_of_node_dhkey)) {
-            // node fingerprint has to match partner fp from identity token
-            log_debug_msg(LOG_ROUTING | LOG_VERBOSE | LOG_WARN, "JOIN request: ident fingerprint has to match partner fp from node token");
+        np_dhkey_t partner_of_node_dhkey = np_aaatoken_get_partner_fp(join_node_token);
+        if (_np_dhkey_equal(&zero_dhkey,       &partner_of_node_dhkey) == true ||
+        		_np_dhkey_equal(&join_ident_dhkey, &partner_of_node_dhkey) == false)  {
+            char fp_i[65], fp_p[65];
+            _np_dhkey2str(&join_ident_dhkey, fp_i);
+            _np_dhkey2str(&partner_of_node_dhkey, fp_p);
+            log_msg(LOG_WARN,
+                "JOIN request: identity fingerprint must match partner fingerprint in node token. (identity: %s / partner: %s)",
+                fp_i, fp_p
+            );
             goto __np_cleanup__;
         }
         // everything is fine and we can continue

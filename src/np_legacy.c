@@ -217,17 +217,13 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
     _np_route_set_key (new_node_key);
 
     // set and ref additional identity
-    //TODO: use _np_set_identity
-    if (_np_key_cmp(context->my_identity ,context->my_node_key)==0)
+    // TODO: use _np_set_identity
+    if (_np_key_cmp(context->my_identity, context->my_node_key) == 0)
     {
         np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, new_node_key);
     }
-    else
-    {
-        // set target node string for correct routing
-        np_tree_replace_str( context->my_identity->aaa_token->extensions,  "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
-    }
-    context->my_identity->aaa_token->type |= np_aaatoken_type_identity;
+
+    // context->my_identity->aaa_token->type = np_aaatoken_type_identity;
     context->my_node_key = new_node_key;
 
     log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(context->my_node_key));
@@ -539,9 +535,6 @@ void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
         _np_network_remap_network(my_new_node_key, my_old_node_key);
     }
     _np_route_set_key(my_new_node_key);
-    // set target node string for correct routing
-    if(context->my_identity != NULL && context->my_identity != context->my_node_key)
-        np_tree_replace_str(context->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(context->my_node_key)));
 
     np_unref_obj(np_aaatoken_t, auth_token, "_np_token_factory_new_node_token");
     np_unref_obj(np_key_t, my_new_node_key, "_np_keycache_find_or_create");
