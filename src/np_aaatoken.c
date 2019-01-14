@@ -51,8 +51,13 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
     memset(aaa_token->audience, 0, 255);
 
     aaa_token->private_key_is_set = false;
+    aaa_token->crypto.ed25519_secret_key_is_set = false;
+    aaa_token->crypto.ed25519_public_key_is_set = false;
 
     memset(aaa_token->crypto.derived_kx_public_key, 0, crypto_sign_PUBLICKEYBYTES*(sizeof(unsigned char)));
+    memset(aaa_token->crypto.derived_kx_secret_key, 0, crypto_sign_SECRETKEYBYTES*(sizeof(unsigned char)));
+    memset(aaa_token->crypto.ed25519_public_key, 0, crypto_sign_ed25519_PUBLICKEYBYTES*(sizeof(unsigned char)));
+    memset(aaa_token->crypto.ed25519_secret_key, 0, crypto_sign_ed25519_SECRETKEYBYTES*(sizeof(unsigned char)));
 
     memset(aaa_token->signature, 0, crypto_sign_BYTES*(sizeof(unsigned char)));
     aaa_token->is_signature_verified = false;
@@ -262,32 +267,29 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensi
     // np_ctx_memory(self);
     np_dhkey_t ret;
 
-    // if (FLAG_CMP(self->type, np_aaatoken_type_handshake)) {
-    // 	_np_str2dhkey( self->issuer, &ret);
-    // }else{
+	// build a hash to find a place in the dhkey table, not for signing !
+	unsigned char* hash_attributes = _np_aaatoken_get_hash(self);
+	ASSERT(hash_attributes != NULL, "cannot sign NULL hash");
 
-        // build a hash to find a place in the dhkey table, not for signing !
-        unsigned char* hash_attributes = _np_aaatoken_get_hash(self);
-        ASSERT(hash_attributes != NULL, "cannot sign NULL hash");
+	unsigned char hash[crypto_generichash_BYTES] = { 0 };
+	crypto_generichash_state gh_state;
+	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
+	crypto_generichash_update(&gh_state, hash_attributes, crypto_generichash_BYTES);
+	crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
 
-        unsigned char hash[crypto_generichash_BYTES] = { 0 };
-        crypto_generichash_state gh_state;
-        crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
-        crypto_generichash_update(&gh_state, hash_attributes, crypto_generichash_BYTES);
-        crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
+	if (true == include_extensions) {
+		unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
+		crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
+		free(hash);
+	}
+	// TODO: generichash_final already produces the dhkey value, just memcpy it.
+	crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
 
-		if (true == include_extensions) {
-			unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
-			crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
-			free(hash);
-		}
-        crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
+	char key[crypto_generichash_BYTES * 2 + 1];
+	sodium_bin2hex(key, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
+	ret = np_dhkey_create_from_hash(key);
 
-        char key[crypto_generichash_BYTES * 2 + 1];
-        sodium_bin2hex(key, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
-        ret = np_dhkey_create_from_hash(key);
-
-        free(hash_attributes);
+	free(hash_attributes);
     // }
     return ret;
 }
@@ -351,12 +353,16 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
             sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
                 token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
+            char kx_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
+            sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
+            		token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
 
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
                 "(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %"PRId32,
                 token->uuid, ret != 0? " not":"", pk_hex, signature_hex, ret);				
 #endif
             free(hash);
+
             if (ret < 0)
             {
                 log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": checksum verification failed", token->uuid, token->subject);
@@ -1321,28 +1327,41 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 }
 
 void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
-    assert(self != NULL);
+
+	assert(self != NULL);
     np_state_t* context = np_ctx_by_memory(self);
 
     // update public key and issuer fingerprint with data take from signee
     memcpy((char*)self->crypto.derived_kx_public_key, (char*)signee->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
 
+    // create the hash of the core token data
+    unsigned char* hash = _np_aaatoken_get_hash(self);
+    // sign the core token
+    int ret = __np_aaatoken_generate_signature(context, hash, signee->crypto.ed25519_secret_key, self->signature);
+
+    // prevent fingerprint recursion
     if (self != signee) {
-        // prevent fingerprint recursion
-        char my_token_fp_s[65];
-		np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
-        _np_dhkey2str(&my_token_fp, my_token_fp_s);
-        strncpy(self->issuer, my_token_fp_s, 65);
+    		// check issuer field
+        char signee_token_fp[65];
+        signee_token_fp [64] = '\0';
+        np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
+        _np_dhkey2str(&my_token_fp, signee_token_fp);
+
+        assert( 0 == strncmp(signee_token_fp, self->issuer, 64) );
+
+        char signer_pubsig[crypto_sign_PUBLICKEYBYTES+crypto_sign_BYTES];
+        // copy public key
+        memcpy(signer_pubsig, signee->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
+        // add signature of signer to extensions
+        __np_aaatoken_generate_signature(context, self->signature, signee->crypto.ed25519_secret_key, signer_pubsig + crypto_sign_PUBLICKEYBYTES );
+        // insert into extension table
+        np_tree_replace_str(self->extensions, signee_token_fp, np_treeval_new_bin(signer_pubsig, 96));
+
         self->issuer_token = signee;
     }
     else {
         self->issuer_token = self;
     }
-
-    // create the hash of the core token data
-    unsigned char* hash = _np_aaatoken_get_hash(self);
-    // sign the core token
-    int ret = __np_aaatoken_generate_signature(context, hash, signee->crypto.ed25519_secret_key, self->signature);
 
     free(hash);
 
@@ -1358,6 +1377,9 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
     assert(self != NULL);
     ASSERT(signee != NULL, "Cannot sign extensions with empty signee");
+    ASSERT(signee->private_key_is_set == true, "Cannot sign extensions without private key");
+    ASSERT(signee->crypto.ed25519_secret_key_is_set == true, "Cannot sign extensions without private key");
+
     np_ctx_memory(self);
 
     unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
@@ -1510,15 +1532,19 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
     strncpy(dest->audience, src->audience, 255);
     strncpy(dest->subject, src->subject, 255);
 
-    memcpy(dest->crypto.ed25519_public_key, src->public_key, NP_PUBLIC_KEY_BYTES);
-    uint8_t null_secret_key[NP_SECRET_KEY_BYTES] = { 0 };
-    if (memcmp(src->secret_key, null_secret_key, NP_SECRET_KEY_BYTES) != 0) {
-        memcpy(dest->crypto.ed25519_secret_key, src->secret_key, NP_SECRET_KEY_BYTES);
-        dest->private_key_is_set = true;
-    }
-    
-    strncpy(dest->subject, src->subject, 255);
+    // copy public key
+    // memcpy(dest->crypto.ed25519_public_key, src->public_key, NP_PUBLIC_KEY_BYTES);
+    // dest->crypto.ed25519_public_key_is_set = true;
 
+    // copy private key (if not NULL)
+    // uint8_t null_secret_key[NP_SECRET_KEY_BYTES] = { 0 };
+//    if (memcmp(src->secret_key, null_secret_key, NP_SECRET_KEY_BYTES) != 0) {
+//        memcpy(dest->crypto.ed25519_secret_key, src->secret_key, NP_SECRET_KEY_BYTES);
+//
+//        dest->crypto.ed25519_secret_key_is_set = true;
+//        dest->private_key_is_set = true;
+//    }
+    
     cmp_ctx_t cmp;
     _np_obj_buffer_container_t buffer_container;
     buffer_container.buffer = src->extensions;

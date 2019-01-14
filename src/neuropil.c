@@ -298,8 +298,9 @@ enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t por
     free(safe_protocol);
     return ret;
 }
+
 // secret_key is nullable
-struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char* (secret_key[NP_SECRET_KEY_BYTES])) {
+struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char* secret_key[NP_SECRET_KEY_BYTES]) {
     np_ctx_cast(ac); 
     
     struct np_token ret = {0};	
@@ -341,10 +342,15 @@ enum np_error np_token_fingerprint(np_context* ac, struct np_token identity, boo
         np_ident_private_token_t* imported_token=NULL;
         np_new_obj(np_aaatoken_t, imported_token);
         np_user4aaatoken(imported_token, &identity);
-        np_dhkey_t fp = np_aaatoken_get_fingerprint(imported_token, include_attributes);
-        np_unref_obj(np_aaatoken_t, imported_token, ref_obj_creation);
 
-        memcpy(id, &fp , NP_FINGERPRINT_BYTES);
+        _np_aaatoken_set_signature(imported_token, imported_token);
+        if (include_attributes)
+    			_np_aaatoken_update_extensions_signature(imported_token, imported_token);
+
+        np_dhkey_t fp = np_aaatoken_get_fingerprint(imported_token, include_attributes);
+
+		memcpy(id, &fp, NP_FINGERPRINT_BYTES);
+		np_unref_obj(np_aaatoken_t, imported_token, ref_obj_creation);
     }
 
     return ret;
@@ -353,14 +359,18 @@ enum np_error np_token_fingerprint(np_context* ac, struct np_token identity, boo
 enum np_error np_use_identity(np_context* ac, struct np_token identity) {
     np_ctx_cast(ac); 
 
+    TSP_GET(enum np_status, context->status, state);
+    if (state == np_running) return np_invalid_operation;
+
     log_debug_msg(LOG_AAATOKEN, "importing ident token %s", identity.uuid);
 
-    enum np_error ret = np_ok;	
-    np_ident_private_token_t* imported_token=NULL;
-    np_new_obj(np_aaatoken_t, imported_token);
+    enum np_error ret = np_ok;
+    np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key);
     np_user4aaatoken(imported_token, &identity);
+
     _np_set_identity(ac, imported_token);
-    np_unref_obj(np_aaatoken_t, imported_token, ref_obj_creation);
+
+    np_unref_obj(np_aaatoken_t, imported_token, "__np_token_factory_new");
 
     log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
     return ret;

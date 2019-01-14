@@ -51,16 +51,6 @@ np_crypto_t* np_cryptofactory_new(np_context* context, np_crypto_t* buffer) {
 		}
 	}
 	if (ret != NULL) {
-		if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key, ret->ed25519_public_key)) {
-			log_msg(LOG_ERROR, "Could not convert ed25519 public key to session public key!");
-			if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
-			ret = NULL;
-		}
-		else {
-			ret->derived_kx_public_key_is_set = true;
-		}
-	}
-	if (ret != NULL) {
 		if (0 != crypto_sign_ed25519_sk_to_curve25519(ret->derived_kx_secret_key, ret->ed25519_secret_key)) {
 			log_msg(LOG_ERROR, "Could not convert ed25519 secret key to session secret key!");
 			if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
@@ -70,37 +60,40 @@ np_crypto_t* np_cryptofactory_new(np_context* context, np_crypto_t* buffer) {
 			ret->derived_kx_secret_key_is_set = true;
 		}
 	}
+	if (ret != NULL) {
+		if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key, ret->ed25519_public_key)) {
+			log_msg(LOG_ERROR, "Could not convert ed25519 public key to session public key!");
+			if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
+			ret = NULL;
+		}
+		else {
+			ret->derived_kx_public_key_is_set = true;
+		}
+	}
 	return ret;
 }
-np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer, unsigned char ed25519_secret_key[crypto_sign_ed25519_SECRETKEYBYTES]) {
+np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer, unsigned char* ed25519_secret_key[crypto_sign_ed25519_SECRETKEYBYTES]) {
 	np_crypto_t* ret = buffer;
 	if (ret == NULL) {
 		np_new_obj(np_crypto_t, ret, FUNC);
 	}
 
 	if (ret != NULL) {
-		memcpy(ret->ed25519_secret_key, ed25519_secret_key, crypto_sign_ed25519_SECRETKEYBYTES);
+		memcpy(ret->ed25519_secret_key, *ed25519_secret_key, crypto_sign_ed25519_SECRETKEYBYTES);
 		ret->ed25519_secret_key_is_set = true;
+
 		if (0 != crypto_sign_ed25519_sk_to_pk(ret->ed25519_public_key, ret->ed25519_secret_key)) {
-			log_msg(LOG_ERROR, "Cannot convert public key from given secret key");
+			log_msg(LOG_ERROR, "Cannot convert ed25519 public key from given secret key");
+			if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
+			ret = NULL;
 		}
 		else {
 			ret->ed25519_public_key_is_set = true;
 		}
 	}
 	if (ret != NULL) {
-		if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key, ret->ed25519_public_key)) {
-			log_msg(LOG_ERROR, "Could not convert ed25519 public key to session public key!");
-			if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
-			ret = NULL;
-		}
-		else {
-			ret->derived_kx_public_key_is_set = true;
-		}
-	}
-	if (ret != NULL) {
 		if (0 != crypto_sign_ed25519_sk_to_curve25519(ret->derived_kx_secret_key, ret->ed25519_secret_key)) {
-			log_msg(LOG_ERROR, "Could not convert ed25519 secret key to session secret key!");
+			log_msg(LOG_ERROR, "Could not convert ed25519 secret key to curve25519 secret key!");
 			if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
 			ret = NULL;
 		}
@@ -108,16 +101,26 @@ np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer
 			ret->derived_kx_secret_key_is_set = true;
 		}
 	}
+	if (ret != NULL) {
+		if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key, ret->ed25519_public_key)) {
+			log_msg(LOG_ERROR, "Could not convert ed25519 public key to curve25519 public key!");
+			if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
+			ret = NULL;
+		}
+		else {
+			ret->derived_kx_public_key_is_set = true;
+		}
+	}
 	return ret;
 }
-np_crypto_t* np_cryptofactory_by_public(np_context* context, np_crypto_t* buffer, unsigned char ed25519_public_key[crypto_sign_ed25519_PUBLICKEYBYTES]) {
+np_crypto_t* np_cryptofactory_by_public(np_context* context, np_crypto_t* buffer, unsigned char* ed25519_public_key[crypto_sign_ed25519_PUBLICKEYBYTES]) {
 	np_crypto_t* ret = buffer;
 	if (ret == NULL) {
 		np_new_obj(np_crypto_t, ret, FUNC);
 	}
 
 	if (ret != NULL) {
-		memcpy(ret->ed25519_public_key, ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+		memcpy(ret->ed25519_public_key, *ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
 		ret->ed25519_public_key_is_set = true;
 	}
 	if (ret != NULL && ret->ed25519_public_key_is_set) {
