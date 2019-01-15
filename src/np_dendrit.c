@@ -162,7 +162,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
                         alias_key->node->session.session_key_to_read
                 );
                                 
-                log_debug_msg(LOG_DEBUG |LOG_HANDSHAKE,
+                log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
                     "HANDSHAKE SECRET: using shared secret from %s (mem id: %s) (msg: %s)= %"PRIi32" to decrypt data",
                     _np_key_as_str(alias_key), 
                     np_memory_get_id(alias_key), 
@@ -629,7 +629,7 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
     bool free_msg_subject = false;
     char* msg_subject;
     log_debug(LOG_MESSAGE, "(msg: %s) start callback wrapper",msg_in->uuid);
-     if (args.properties != NULL && args.properties->is_internal)
+    if (args.properties != NULL && args.properties->is_internal)
     {
         log_debug(LOG_VERBOSE|LOG_MESSAGE, "(msg: %s) handeling internal msg",msg_in->uuid);
         _np_in_invoke_user_receive_callbacks(msg_in, args.properties);
@@ -655,7 +655,7 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
 
     if (true == _np_message_is_expired(msg_in))
     {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+        log_debug_msg(LOG_DEBUG,
                       "discarding expired message %s / %s ...",
                       msg_prop->msg_subject, msg_in->uuid);
     }
@@ -665,11 +665,11 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
         if (NULL == sender_token)
         {
             _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
-            log_msg(LOG_ROUTING | LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
+            log_msg(LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
         }
         else
         {
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "decrypting message (%s) with sender %s ...", msg_in->uuid, sender_token->uuid);
+            log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
 
             np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
