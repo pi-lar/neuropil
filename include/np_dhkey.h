@@ -39,6 +39,9 @@ NP_API_INTERN
 bool _np_dhkey_init (np_state_t* context);
 
 NP_API_INTERN
+void _np_dhkey_destroy (np_state_t* context);
+
+NP_API_INTERN
 np_dhkey_t np_dhkey_create_from_hash(const char* strOrig);
 NP_API_INTERN
 np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port);

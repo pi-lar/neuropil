@@ -57,6 +57,8 @@ extern "C" {
 
     NP_API_INTERN
         bool _np_statistics_init(np_state_t* context);
+    NP_API_INTERN
+        void _np_statistics_destroy(np_state_t* context);
 
     NP_API_EXPORT
         void np_statistics_add_watch(np_state_t* context, char* subject);

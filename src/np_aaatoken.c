@@ -80,6 +80,8 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
 void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
+
+    
     // clean up extensions
     if (aaa_token->extensions != aaa_token->extensions_local) {
         np_tree_free(aaa_token->extensions_local);
@@ -564,6 +566,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
         {
             log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "creating ledger property for %s", subject);
 
+            bool created = false;
             if(send_prop != NULL) {
                 prop = send_prop;
             } else {
@@ -572,7 +575,8 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
                 } else {
                     np_new_obj(np_msgproperty_t, prop);
                     prop->msg_subject = strndup(subject, 255);
-                    prop->mode_type |= OUTBOUND | INBOUND;
+                    prop->mode_type |= OUTBOUND | INBOUND;                    
+                    created = true;
                 }
             }
 
@@ -581,6 +585,9 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
             }
             if (NULL == subject_key->recv_property) {
                 _np_key_set_recv_property(subject_key, prop);
+            }
+            if(created) {
+                np_unref_obj(np_msgproperty_t, prop, ref_obj_creation);
             }
         }
     }
@@ -1256,7 +1263,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
         np_aaatoken_t *tmp_token = NULL;
 
         // update #1 key specific data
-        np_ref_obj(np_aaatoken_t, token,"local_mx_tokens");
+        np_ref_obj(np_aaatoken_t, token,ref_aaatoken_local_mx_tokens);
         tmp_token = pll_replace(np_aaatoken_ptr, subject_key->local_mx_tokens, token, _np_aaatoken_cmp);
         if (NULL == tmp_token)
         {
@@ -1264,7 +1271,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
         }
         else
         {
-            np_unref_obj(np_aaatoken_t, tmp_token,"local_mx_tokens");
+            np_unref_obj(np_aaatoken_t, tmp_token, ref_aaatoken_local_mx_tokens);
         }
         log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single mx token for message hash %s",
                 _np_key_as_str(subject_key) );
@@ -1285,7 +1292,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
             {
                 log_msg(LOG_INFO, "deleting old / invalid mx msg token %p", tmp_token);
                 pll_remove(np_aaatoken_ptr, subject_key->local_mx_tokens, tmp_token, _np_aaatoken_cmp_exact);
-                np_unref_obj(np_aaatoken_t, tmp_token,"local_mx_tokens");
+                np_unref_obj(np_aaatoken_t, tmp_token,ref_aaatoken_local_mx_tokens);
                 break;
             }
         }

@@ -48,7 +48,20 @@ bool _np_keycache_init(np_state_t* context)
     }
     return ret;
 }
+void _np_keycache_destroy(np_state_t* context){
+    if (np_module_initiated(keycache)) {
+        np_module_var(keycache);
+        np_key_t *iter = NULL;
 
+        while((iter = SPLAY_ROOT(_module->__key_cache)) != NULL)
+        {
+            _np_key_destroy(iter);
+        }
+        free(_module->__key_cache);       
+        
+        np_module_free(keycache);
+    }
+}
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhkey)
 {
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
@@ -129,8 +142,7 @@ np_key_t* _np_keycache_find_by_details(
     {
         SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
-            TSP_GET(bool, iter->in_destroy, in_destroy);
-            if(in_destroy == false){
+            if(iter->in_destroy == false){
                 if(true == search_myself){
                     if (
                         true == _np_dhkey_equal(&iter->dhkey, &my_node_key->dhkey) ||
@@ -199,9 +211,8 @@ np_key_t* _np_keycache_find_deprecated(np_state_t* context)
             }
 
             double now = np_time_now();
-            TSP_GET(bool, iter->in_destroy, in_destroy);
 
-            if ((now - NP_KEYCACHE_DEPRECATION_INTERVAL) > iter->last_update && in_destroy == false)
+            if ((now - NP_KEYCACHE_DEPRECATION_INTERVAL) > iter->last_update && iter->in_destroy == false)
             {
                 np_ref_obj(np_key_t, iter);
                 return_key = iter;
@@ -221,9 +232,7 @@ sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
     {
         SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
-            TSP_GET(bool, iter->in_destroy, in_destroy);
-
-            if (_np_key_cmp(iter->parent_key, forKey) == 0 && in_destroy == false)
+            if (_np_key_cmp(iter->parent_key, forKey) == 0 && iter->in_destroy == false)
             {
                 np_ref_obj(np_key_t, iter);
                 sll_append(np_key_ptr, ret, iter);
@@ -259,6 +268,7 @@ np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t search_dhkey)
         rem_key = SPLAY_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
         if (NULL != rem_key) {
             SPLAY_REMOVE(st_keycache_s, np_module(keycache)->__key_cache, rem_key);
+            rem_key->is_in_keycache = false;
             np_unref_obj(np_key_t, rem_key, ref_keycache);
         }
     }
@@ -275,11 +285,12 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
         np_new_obj(np_key_t, subject_key);
     }
     np_ref_obj(np_key_t, subject_key,ref_keycache);
-
+    
     _LOCK_MODULE(np_keycache_t)
     {
         SPLAY_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
         subject_key->last_update = np_time_now();
+        subject_key->is_in_keycache = true;
     }
     return subject_key;
 }
@@ -297,9 +308,7 @@ np_key_t* _np_keycache_find_closest_key_to (np_state_t* context,  np_sll_t(np_ke
     bool first_run = true;
     while (NULL != iter)
     {
-        TSP_GET(bool, iter->val->in_destroy, in_destroy);
-
-        if(in_destroy == false){
+        if(iter->val->in_destroy == false){
 
             int cmp = _np_dhkey_cmp(key, &(iter->val->dhkey));
             // calculate distance to the left and right

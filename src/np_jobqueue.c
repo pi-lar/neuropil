@@ -32,6 +32,7 @@
 #include "np_settings.h"
 #include "np_constants.h"
 #include "np_heap.h"
+#include "np_threads.h"
 
 int8_t _np_job_compare_job_scheduling(np_job_t job1, np_job_t new_job)
 {
@@ -53,9 +54,7 @@ int8_t _np_job_compare_job_scheduling(np_job_t job1, np_job_t new_job)
 }
 
 bool np_job_t_compare(np_job_t i, np_job_t j) {
-
     return (_np_job_compare_job_scheduling(j, i) == -1);
-
 }
 
 uint16_t np_job_t_binheap_get_priority (np_job_t job) {
@@ -81,7 +80,6 @@ np_module_struct(jobqueue)
     np_dll_t(np_thread_ptr, available_workers);
 
     np_pheap_t(np_job_t, job_list);
-    // np_pll_t(np_job_ptr, job_list);
 };
 
 static np_jobargs_t __null_args = { .msg = NULL, .custom_data = NULL, .is_resend=false, .properties=NULL, .target=NULL };
@@ -127,8 +125,7 @@ np_job_t _np_job_create_job(np_state_t * context, double delay, np_jobargs_t jar
 void _np_job_free(np_state_t* context, np_job_t* n)
 {
     _np_job_free_args(context, n->args);
-    if(n->__del_processorFuncs) sll_free(np_callback_t, n->processorFuncs);
-    // np_unref_obj(np_job_t, n, ref_obj_creation);
+    if(n->__del_processorFuncs) sll_free(np_callback_t, n->processorFuncs);    
 }
 
 np_jobargs_t _np_job_create_args(np_state_t* context, np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, const char* reason_desc)
@@ -154,13 +151,9 @@ np_jobargs_t _np_job_create_args(np_state_t* context, np_message_t* msg, np_key_
 
 void _np_job_free_args(np_state_t* context, np_jobargs_t args)
 {
-    // if (args != NULL) {
     if (args.target)     np_unref_obj(np_key_t, args.target, "_np_job_create_args");
     if (args.msg)        np_unref_obj(np_message_t, args.msg, "_np_job_create_args");
     if (args.properties) np_unref_obj(np_msgproperty_t, args.properties, "_np_job_create_args");
-    // }
-    // np_unref_obj(np_jobargs_t,args,ref_obj_creation);
-    // args = NULL;
 }
 
 bool _np_job_queue_insert(np_state_t* context, np_job_t new_job)
@@ -189,7 +182,7 @@ bool _np_job_queue_insert(np_state_t* context, np_job_t new_job)
             ret = true;
         }
     }
-    if (ret == false) { log_debug_msg(LOG_WARN, "Discarding Job %s", new_job.ident); }
+    if (ret == false) { log_debug(LOG_WARN, "Discarding Job %s", new_job.ident); }
 
     _np_jobqueue_check(context);
 
@@ -366,34 +359,52 @@ bool np_job_submit_event(np_state_t* context, double priority, double delay, np_
 /** job_queue_create
  *  initiate the queue and thread pool, returns a pointer to the initiated queue.
  **/
-bool _np_jobqueue_create(np_state_t * context)
+bool _np_jobqueue_init(np_state_t * context)
 {
     if (!np_module_initiated(jobqueue)) {
         np_module_malloc(jobqueue);
 
         pheap_init(np_job_t, _module->job_list, JOBQUEUE_MAX_SIZE);
-        // pll_init(np_job_ptr, _module->job_list);
+
         dll_init(np_thread_ptr, _module->available_workers);
 
         _np_threads_mutex_init(context, &_module->available_workers_lock, "available_workers_lock");
         _np_threads_condition_init(context, &_module->__cond_job_queue);
-
     }
     return (true);
 }
 
-void _np_job_queue_destroy(np_state_t * context)
-{
-    log_trace_msg(LOG_TRACE, "start: bool _np_job_queue_destroy(){");
+void _np_jobqueue_destroy(np_state_t* context) {
+    if (np_module_initiated(jobqueue)) {
+        np_module_var(jobqueue);
+        
+        _LOCK_MODULE(np_jobqueue_t)
+        {
+            np_job_t head;        
+            uint16_t count = _module->job_list->count;
+            for(uint16_t i=1; i <= count; i++) {
+                head =_module->job_list->elements[i].data;            
+                log_debug(LOG_MISC | LOG_JOBS, "cleanup of job i:%3"PRIu16" of %"PRIu16" %-50s - tstmp:%f sll_fns:%p prio:%7"PRIu16" count_fns%2"PRIu32" first_fn:%p",
+                    i, count, head.ident, 
+                    head.exec_not_before_tstamp, head.processorFuncs, 
+                    _module->job_list->elements[i].priority,
+                    (head.processorFuncs != NULL ? sll_size(head.processorFuncs):0), 
+                    (head.processorFuncs != NULL && sll_size(head.processorFuncs)>0?sll_first(head.processorFuncs):NULL)
+                );
+                _np_job_free(context, &head);
+            }
+            pheap_free(np_job_t, _module->job_list);
+        }
+    
+        dll_free(np_thread_ptr, _module->available_workers);
 
-    pheap_free(np_job_t, np_module(jobqueue)->job_list);
-    dll_free(np_thread_ptr, np_module(jobqueue)->available_workers);
+        _np_threads_mutex_destroy(context, &_module->available_workers_lock);
+        _np_threads_condition_destroy(context, &_module->__cond_job_queue);
 
-    _np_threads_condition_destroy(context, &np_module(jobqueue)->__cond_job_queue);
-    _np_threads_mutex_destroy(context, &np_module(jobqueue)->available_workers_lock);
-
-    free(np_module(jobqueue));
+        np_module_free(jobqueue);
+    }
 }
+ 
 
 void _np_job_yield(np_state_t * context, const double delay)
 {
@@ -427,7 +438,7 @@ void _np_job_yield(np_state_t * context, const double delay)
 /*
   @return the recommended time before calling this function again
 */
-double __np_jobqueue_run_jobs_once(np_state_t * context) {
+double __np_jobqueue_run_jobs_once(np_state_t * context, np_thread_t* my_thread) {
 
     double ret = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
     double now = np_time_now();
@@ -452,6 +463,7 @@ double __np_jobqueue_run_jobs_once(np_state_t * context) {
     }
     
     if (run_next_job == true) {
+        my_thread->job = next_job;
         np_thread_t* self = _np_threads_get_self(context);
         self->busy = true;
         __np_jobqueue_run_once(context, next_job);
@@ -467,10 +479,11 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
     double now = np_time_now();
     double end = now + duration;
     double sleep;
+    np_thread_t * thread = _np_threads_get_self(context);
 
     do
     {
-        sleep = __np_jobqueue_run_jobs_once(context);        
+        sleep = __np_jobqueue_run_jobs_once(context, thread);        
         if (sleep > 0.0) {
 
             _LOCK_MODULE(np_jobqueue_t)
@@ -482,17 +495,14 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
     }while (end > now);
 }
 
-void* __np_jobqueue_run_jobs(void* np_thread_ptr_self)
-{
-    _np_threads_set_self(np_thread_ptr_self);
-    np_ctx_memory(np_thread_ptr_self);
-
+void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
+{    
     double sleep = 0.0;
     enum np_status tmp_status;
     while ((tmp_status = np_get_status(context)) != np_shutdown)
     {
         if (tmp_status == np_running) {
-            sleep = __np_jobqueue_run_jobs_once(context);
+            sleep = __np_jobqueue_run_jobs_once(context, my_thread);
             if (sleep > 0.0) {
                 // only sleep when there is not much to do (around a dozen periodic jobs could be ok)			
                 _LOCK_MODULE(np_jobqueue_t)
@@ -506,19 +516,15 @@ void* __np_jobqueue_run_jobs(void* np_thread_ptr_self)
         }
 
         if (sleep != 0) {
-            log_debug_msg(LOG_JOBS, "Job Thread %"PRIu64" now waits %f seconds", ((np_thread_t*)np_thread_ptr_self)->id, sleep);
+            log_debug_msg(LOG_JOBS, "Job Thread %"PRIu64" now waits %f seconds", my_thread->id, sleep);
 
             np_time_sleep(sleep);
         }
     }
-    return NULL;
 }
 
-void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
-{
-    _np_threads_set_self(np_thread_ptr_self);
-    np_ctx_memory(np_thread_ptr_self);
-
+void __np_jobqueue_run_manager(np_state_t *context, NP_UNUSED np_thread_t* my_thread)
+{    
     double now;
     double sleep = NP_PI/100;
 
@@ -558,19 +564,19 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
 
                         _LOCK_MODULE(np_jobqueue_t)
                         {
-                            next_job = pheap_first(np_job_t, np_module(jobqueue)->job_list); // , &search_key, __np_jobqueue_find_job_by_priority);
-                            // np_job_t next_job = pheap_head(np_job_t, np_module(jobqueue)->job_list); // , next_job, np_job_ptr_pll_compare_type);
-                            // if (next_job != NULL) {
-                            if (next_job.exec_not_before_tstamp <= search_key.search_max_exec_not_before_tstamp &&
-                                (search_key.search_min_priority <= next_job.priority ||
-                                    next_job.priority <= search_key.search_max_priority))
-                            {
-                                next_job = pheap_head(np_job_t, np_module(jobqueue)->job_list); // , next_job, np_job_ptr_pll_compare_type);
-                                new_worker_job = true;
-                            }
-                            else
-                            {
-                                sleep = fmin(sleep, next_job.exec_not_before_tstamp - now);
+                            if(!pheap_is_empty(np_job_t, np_module(jobqueue)->job_list)){
+                                next_job = pheap_first(np_job_t, np_module(jobqueue)->job_list);
+                                if (next_job.exec_not_before_tstamp <= search_key.search_max_exec_not_before_tstamp &&
+                                    (search_key.search_min_priority <= next_job.priority ||
+                                        next_job.priority <= search_key.search_max_priority))
+                                {
+                                    next_job = pheap_head(np_job_t, np_module(jobqueue)->job_list);
+                                    new_worker_job = true;
+                                }
+                                else
+                                {
+                                    sleep = fmin(sleep, next_job.exec_not_before_tstamp - now);
+                                }
                             }
                         }
                         NP_PERFORMANCE_POINT_END(jobqueue_manager_distribute_job);
@@ -608,7 +614,7 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
                 //		log_debug_msg(LOG_JOBS | LOG_VERBOSE, "JobManager waited for %f sec", np_time_now()-now);
                 //	}
                 //}
-                np_time_sleep(0.05);
+                np_time_sleep(0.005);
                 _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
                 {
                     iter_workers = dll_first(np_module(jobqueue)->available_workers);
@@ -617,11 +623,10 @@ void* __np_jobqueue_run_manager(void* np_thread_ptr_self)
             }
         }
         else {
-            np_time_sleep(sleep);
+            np_time_sleep(0.05);
 
         }
     }
-    return NULL;
 }
 
 uint32_t np_jobqueue_count(np_state_t * context)
@@ -709,8 +714,8 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
     // do not process if the target is not available anymore (but do process if no target is required at all)
     bool exec_funcs = true;
     if (job_to_execute.args.target != NULL) {
-        TSP_GET(bool, job_to_execute.args.target->in_destroy, in_destroy);
-        exec_funcs = !in_destroy;
+        
+        exec_funcs = !job_to_execute.args.target->in_destroy;
     }
 
     if (exec_funcs && job_to_execute.processorFuncs != NULL) {
@@ -755,7 +760,6 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
 
         job_to_execute.exec_not_before_tstamp = fmax(started_at + job_to_execute.interval, np_time_now());
         if (!_np_job_queue_insert(context, job_to_execute)) {
-            _np_job_free(context, &job_to_execute);
             abort(); // Catastrophic faliure shuts system down
         }
     } else
@@ -782,13 +786,10 @@ void _np_jobqueue_add_worker_thread(np_thread_t* self)
  * after getting the first job out of queue it will execute the corresponding callback with
  * defined job arguments
  */
-void* __np_jobqueue_run_worker(void* self)
+void __np_jobqueue_run_worker(np_state_t* context, np_thread_t* my_thread)
 {
-    np_ctx_memory(self);
     log_debug_msg(LOG_JOBS | LOG_THREADS | LOG_DEBUG, "job queue thread starting");
-
-    _np_threads_set_self(self);
-    np_thread_t* my_thread = self;
+    
     enum np_status tmp_status;
     while ((tmp_status=np_get_status(context)) != np_shutdown)
     {
@@ -798,17 +799,16 @@ void* __np_jobqueue_run_worker(void* self)
                 log_debug_msg(LOG_JOBS, "wait    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
                 my_thread->busy = false;
                 _np_threads_mutex_condition_wait(context, &my_thread->job_lock);
-                my_thread->busy = true;
-
-                log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
-                __np_jobqueue_run_once(context, my_thread->job);
+                if(my_thread->busy == true) {
+                    log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
+                    __np_jobqueue_run_once(context, my_thread->job);
+                }
             }
         }
         else {
             np_time_sleep(0);
         }
     }
-    return (NULL);
 }
 
 void _np_jobqueue_idle(NP_UNUSED np_state_t* context, NP_UNUSED np_jobargs_t* arg)
@@ -824,6 +824,7 @@ char* np_jobqueue_print(np_state_t * context, bool asOneLine) {
         new_line = "    ";
     }
 #ifdef DEBUG
+
     ret = np_str_concatAndFree(ret,
         "%4s | %-15s | %-8s | %-5s | %-95s"	"%s",
         "No", "Next exec", "Periodic", "Prio", "Name",
@@ -855,3 +856,16 @@ char* np_jobqueue_print(np_state_t * context, bool asOneLine) {
 #endif
     return ret;
 }
+#ifdef DEBUG
+ void _np_jobqueue_print_jobs(np_state_t* context){
+    np_job_t head;        
+      _LOCK_MODULE(np_jobqueue_t) {
+        for(int i=1; i <= np_module(jobqueue)->job_list->count; i++) {
+            if(!np_module(jobqueue)->job_list->elements[i].sentinel) {
+                head = np_module(jobqueue)->job_list->elements[i].data;
+                log_debug(LOG_MISC | LOG_JOBS, "print of job %-50s - @%f ", head.ident, head.exec_not_before_tstamp);            
+            }
+        }
+    }
+} 
+#endif

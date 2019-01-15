@@ -41,7 +41,7 @@ struct np_key_s
 	              // link to memory management and ref counter
 
 	double created_at;
-	TSP(bool, in_destroy);
+	bool in_destroy;
 
 	SPLAY_ENTRY(np_key_s) link; // link for cache management
 
@@ -53,6 +53,7 @@ struct np_key_s
 	double last_update;
 	char*      dhkey_str;
 
+	bool is_in_keycache;
 	/*
 	only available for node key
 	*/

@@ -96,28 +96,61 @@ Test(np_heap, _np_heap_job_t, .description = "test the heap of a np_job_t")
 
     test_element = pheap_first(np_job_t, job_heap);
 
-    cr_assert (  0.0  == test_element.priority, "test whether the first element has the lowest priority");
+    cr_assert (  0.0  == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
     // modifying the returned test element should have no impact on the element in the heap
     test_element.priority = 20.0;
-    cr_assert ( 20.0  == test_element.priority, "test whether the modified element has a changed priority");
+    cr_assert ( 20.0  == test_element.priority, "test whether the modified element has a changed priority (has: %f)", test_element.priority);
 
     test_element = pheap_head(np_job_t, job_heap);
-    cr_assert (  0.0   == test_element.priority, "test whether the first element still has the lowest priority");
-    cr_assert (  9     == job_heap->count, "test that the current count of the job queue has decreased");
+    cr_assert (  0.0   == test_element.priority, "test whether the first element still has the lowest priority (has: %f)", test_element.priority);
+    cr_assert (  9     == job_heap->count, "test that the current count of the job queue has decreased (count is %"PRIu16")",job_heap->count);
 
     test_element = pheap_first(np_job_t, job_heap);
-    cr_assert ( 0.0   != test_element.priority, "test whether the first element is a different element");
-    cr_assert ( 1.0   == test_element.priority, "test whether the first element has the lowest priority");
+    cr_assert ( 1.0   == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
 
     test_element = pheap_remove(np_job_t, job_heap, 29);
-    cr_assert ( 8     == job_heap->count, "test that the current count of the job queue has decreased");
+    cr_assert ( 9     == job_heap->count, "test that the current count of the job queue has not decreased idx 29 is not set (count is %"PRIu16")",job_heap->count);
 
     test_element = pheap_remove(np_job_t, job_heap, 2);
-    cr_assert ( 7     == job_heap->count, "test that the current count of the job queue has decreased");
-    cr_assert ( 3.0   == test_element.priority, "test whether the first element has the lowest priority");
+    cr_assert ( 8     == job_heap->count, "test that the current count of the job queue has decreased (count is %"PRIu16")",job_heap->count);
+    cr_assert ( 3.0   == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
+
+    // same prio tests
+    np_job_t local_job={0};
+    local_job.priority = (double) 1;
+    local_job.exec_not_before_tstamp = 0.0;
+    
+    pheap_insert(np_job_t, job_heap, local_job);
+    cr_assert ( 9     == job_heap->count, "test that the current count of the job queue has increased (count is %"PRIu16")",job_heap->count);
+    
+    local_job.priority = (double) 2;
+    local_job.exec_not_before_tstamp = 0.0;
+    pheap_insert(np_job_t, job_heap, local_job);
+    cr_assert ( 10     == job_heap->count, "test that the current count of the job queue has increased (count is %"PRIu16")",job_heap->count);
+
+    local_job.priority = (double) 1;
+    local_job.exec_not_before_tstamp = 0.0;
+    pheap_insert(np_job_t, job_heap, local_job);
+    cr_assert ( 11     == job_heap->count, "test that the current count of the job queue has increased (count is %"PRIu16")",job_heap->count);
+    
+    local_job.priority = (double) 2;
+    local_job.exec_not_before_tstamp = 0.0;
+    pheap_insert(np_job_t, job_heap, local_job);
+    cr_assert ( 12     == job_heap->count, "test that the current count of the job queue has increased (count is %"PRIu16")",job_heap->count);
+
+    test_element = pheap_head(np_job_t, job_heap);
+    cr_assert ( 1.0   == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
+    test_element = pheap_head(np_job_t, job_heap);
+    cr_assert ( 1.0   == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
+    test_element = pheap_head(np_job_t, job_heap);
+    cr_assert ( 1.0   == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
+    test_element = pheap_head(np_job_t, job_heap);
+    cr_assert ( 2.0   == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
+    test_element = pheap_head(np_job_t, job_heap);
+    cr_assert ( 2.0   == test_element.priority, "test whether the first element has the lowest priority (has: %f)", test_element.priority);
 
     pheap_clear(np_job_t, job_heap);
-    cr_assert ( 0     == job_heap->count, "test that the current count of the job queue is zero");
+    cr_assert ( 0     == job_heap->count, "test that the current count of the job queue is zero (count is %"PRIu16")",job_heap->count);
 
     pheap_free(np_job_t, job_heap);
 }

@@ -19,6 +19,8 @@ extern "C" {
  **/
 NP_API_INTERN
 bool _np_route_init (np_state_t* context, np_key_t* me);
+NP_API_INTERN
+void _np_route_destroy(np_state_t* context);
 
 NP_API_INTERN
 void _np_route_set_key (np_key_t* new_node_key);

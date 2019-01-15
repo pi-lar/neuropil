@@ -844,7 +844,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
         if (data_container->in_msg_len != MSG_CHUNK_SIZE_1024 && data_container->in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40))
         {
             log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", data_container->in_msg_len);
-            // job_submit_event(state->jobq, 0.0, _np_network_read);
+            // job_submit_event(state->job, 0.0, _np_network_read);
             log_debug_msg(LOG_INFO, "Dropping data package due to invalid package size (%"PRIi16")", data_container->in_msg_len);
             np_memory_free(context, data_container->data);
         }
@@ -863,11 +863,10 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
                 np_ref_switch(np_key_t, alias_key->parent_key, ref_key_parent, data_container->key);
 
             }
-            TSP_GET(bool, alias_key->in_destroy, in_destroy);
             
             if(alias_key->network != NULL) alias_key->network->last_received_date = np_time_now();
 
-            if (in_destroy == false) {
+            if (alias_key->in_destroy == false) {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from (%d) %s:%s (size: %hd), insert into alias %s",
                     ng->socket, data_container->ipstr, data_container->port, data_container->in_msg_len, _np_key_as_str(alias_key));
             
@@ -1032,7 +1031,7 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
         {
             _np_network_stop(network, true);
             np_key_t* old_key = (np_key_t*)network->watcher.data;
-            np_unref_obj(np_key_t, old_key, ref_network_watcher);
+            //if(old_key) np_unref_obj(np_key_t, old_key, ref_network_watcher);
             network->watcher.data = NULL;
 
             _LOCK_ACCESS(&network->out_events_lock)
@@ -1419,6 +1418,5 @@ void _np_network_enable(np_network_t* self) {
 }
 
 void _np_network_set_key(np_network_t* self, np_key_t* key) {
-    np_ctx_memory(self);
-    np_ref_switch(np_key_t, self->watcher.data, ref_network_watcher, key);    
+    self->watcher.data = key; 
 }

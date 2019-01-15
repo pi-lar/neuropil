@@ -123,7 +123,9 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     np_tree_free( msg->footer);
 
     _LOCK_ACCESS(&msg->msg_chunks_lock){
-        if (0 < pll_size(msg->msg_chunks))
+
+        
+        if (msg->msg_chunks != NULL)
         {
             pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
             while (NULL != iter)
@@ -132,8 +134,9 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
                 np_unref_obj(np_messagepart_t, current_part, ref_message_messagepart);
                 pll_next(iter);
             }
+            pll_free(np_messagepart_ptr, msg->msg_chunks);
         }
-        pll_free(np_messagepart_ptr, msg->msg_chunks);
+        
 
         np_unref_obj(np_messagepart_t, msg->bin_static, ref_message_bin_static);
         free(msg->bin_body);

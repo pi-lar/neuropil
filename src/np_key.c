@@ -103,11 +103,15 @@ void _np_key_destroy(np_key_t* to_destroy) {
     np_ctx_memory(to_destroy);
     char* keyident = NULL;
 
-    TSP_SET(to_destroy->in_destroy, true);
-    
-    {
-    //	to_destroy->in_destroy = true;
+    bool destroy = false;
 
+    if(!to_destroy->in_destroy)
+    {
+        to_destroy->in_destroy = true;
+        destroy = true;
+    }
+
+    if(destroy) {        
         keyident = _np_key_as_str(to_destroy);
         log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
@@ -120,7 +124,9 @@ void _np_key_destroy(np_key_t* to_destroy) {
         _np_route_update(to_destroy, false, &deleted, &added);
         _np_network_disable(to_destroy->network);
 
-        _np_keycache_remove(context, to_destroy->dhkey);
+        if(to_destroy->is_in_keycache) {
+            _np_keycache_remove(context, to_destroy->dhkey);
+        }
 
         // delete old receive tokens
         if (NULL != to_destroy->recv_tokens)
@@ -157,27 +163,34 @@ void _np_key_destroy(np_key_t* to_destroy) {
                 }
             }
         }
+    
+
+        np_sll_t(np_key_ptr, aliasse) = _np_keycache_find_aliase(to_destroy);
+        sll_iterator(np_key_ptr) iter = sll_first(aliasse);
+
+        while (iter != NULL) {
+            log_debug_msg(LOG_KEY | LOG_DEBUG, "destroy of key %s as identified as alias for %s", _np_key_as_str(iter->val), keyident);
+
+            np_unref_obj(np_key_t, iter->val->parent_key, ref_key_parent);
+            iter->val->parent_key = NULL;
+            np_unref_obj(np_key_t, iter->val, "_np_keycache_find_aliase");
+            sll_next(iter);
+        }
+        sll_free(np_key_ptr, aliasse);
+
+        if (to_destroy->parent_key != NULL) {
+            np_unref_obj(np_key_t, to_destroy->parent_key, ref_key_parent);
+            to_destroy->parent_key = NULL;
+        }
+
+        if(to_destroy->node) np_unref_obj(np_node_t, to_destroy->node, ref_key_node);
+        if(to_destroy->network) {
+            _np_network_set_key(to_destroy->network, NULL);
+            np_unref_obj(np_network_t,  to_destroy->network,    ref_key_network);
+        }
+
+        log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");            
     }
-
-    np_sll_t(np_key_ptr, aliasse) = _np_keycache_find_aliase(to_destroy);
-    sll_iterator(np_key_ptr) iter = sll_first(aliasse);
-
-    while (iter != NULL) {
-        log_debug_msg(LOG_KEY | LOG_DEBUG, "destroy of key %s as identified as alias for %s", _np_key_as_str(iter->val), keyident);
-
-        np_unref_obj(np_key_t, iter->val->parent_key, ref_key_parent);
-        iter->val->parent_key = NULL;
-        np_unref_obj(np_key_t, iter->val, "_np_keycache_find_aliase");
-        sll_next(iter);
-    }
-    sll_free(np_key_ptr, aliasse);
-
-    if (to_destroy->parent_key != NULL) {
-        np_unref_obj(np_key_t, to_destroy->parent_key, ref_key_parent);
-        to_destroy->parent_key = NULL;
-    }
-
-    log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");
 }
 
 void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* key)
@@ -186,7 +199,7 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     np_key_t* new_key = (np_key_t*) key;
 
     new_key->type = np_key_type_unknown;
-    TSP_INITD(new_key->in_destroy, false);
+    new_key->in_destroy = false;
 
     new_key->last_update = np_time_now();
 
@@ -194,6 +207,7 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     new_key->node = NULL;		  // link to a neuropil node if this key represents a node
     new_key->network = NULL;      // link to a neuropil node if this key represents a node
 
+    new_key->is_in_keycache = false;
     new_key->aaa_token = NULL;
 
     // used internally only
@@ -230,13 +244,16 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
 
     np_unref_obj(np_msgproperty_t, 	old_key->recv_property,ref_key_recv_property);
     np_unref_obj(np_msgproperty_t, 	old_key->send_property,ref_key_send_property);
-    np_unref_obj(np_aaatoken_t,		old_key->aaa_token,ref_key_aaa_token);
-    np_unref_obj(np_node_t,     	old_key->node,ref_key_node);
-    np_unref_obj(np_network_t,  	old_key->network,ref_key_network);
+    np_unref_obj(np_aaatoken_t,		old_key->aaa_token, ref_key_aaa_token);
 
-    TSP_DESTROY(old_key->in_destroy);
-
-    if (old_key->local_mx_tokens != NULL) pll_free(np_aaatoken_ptr, old_key->local_mx_tokens);
+    if (old_key->local_mx_tokens != NULL) {
+        pll_iterator(np_aaatoken_ptr) iter = pll_first(old_key->local_mx_tokens);
+        while(iter != NULL){
+            np_unref_obj(np_aaatoken_t, iter->val,ref_aaatoken_local_mx_tokens);
+            pll_next(iter);
+        }
+        pll_free(np_aaatoken_ptr, old_key->local_mx_tokens);
+    }
 }
 
 /**

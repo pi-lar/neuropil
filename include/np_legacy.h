@@ -61,10 +61,16 @@ extern "C" {
 #define np_module_member_name(m) CONCAT(np_module_, m)
 #define np_module_member(m) np_module_type(m) * np_module_member_name(m);
 
+#define np_module_var(m) np_module_struct(m) * _module = np_module(m);
+
 #define np_module_malloc(m) 														\
         np_module_struct(m) * _module = calloc(1, sizeof(np_module_struct(m)));		\
         _module->context = context;													\
         context->np_module_member_name(m) = _module
+
+#define np_module_free(m) 														    \
+        free(context->np_module_member_name(m));                                    \
+        context->np_module_member_name(m) = NULL
 
 #define np_module(m) (context->np_module_member_name(m))
 #define np_module_initiated(m) (context->np_module_member_name(m) != NULL)

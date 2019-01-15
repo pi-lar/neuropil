@@ -789,57 +789,62 @@ bool np_http_init(np_state_t* context, char* domain) {
 void _np_http_destroy(np_state_t* context) {	
     np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
 
-    EV_P = _np_event_get_loop_http(context);
-    _np_event_suspend_loop_http(context);
-    ev_io_stop(EV_A_&__local_http->network->watcher);
+    if(__local_http != NULL) {
+        ((example_user_context*) np_get_userdata(context))->local_http = NULL;
 
-    sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
-    while(iter != NULL){
-        np_http_client_t* client = iter->val;
-        client->status = SHUTDOWN;
+        EV_P = _np_event_get_loop_http(context);
+        _np_event_suspend_loop_http(context);
+        ev_io_stop(EV_A_&__local_http->network->watcher);
 
-        ev_io_stop(EV_A_&client->client_watcher_in);
-        ev_io_stop(EV_A_&client->client_watcher_out);
-        close(iter->val->client_fd);
+        sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
+        while(iter != NULL){
+            np_http_client_t* client = iter->val;
+            client->status = SHUTDOWN;
 
-        if (client->ht_request.ht_body)
-            free(client->ht_request.ht_body);
-        if (client->ht_request.ht_path)
-            free(client->ht_request.ht_path);
-        if (client->ht_request.current_key)
-            free(client->ht_request.current_key);
-        if (client->ht_request.ht_header)
-            np_tree_free( client->ht_request.ht_header);
-        if (client->ht_request.ht_query_args)
-            np_tree_free( client->ht_request.ht_query_args);
+            ev_io_stop(EV_A_&client->client_watcher_in);
+            ev_io_stop(EV_A_&client->client_watcher_out);
+            close(iter->val->client_fd);
 
-        free(client->parser);
-        free(client);
-        sll_next(iter);
+            if (client->ht_request.ht_body)
+                free(client->ht_request.ht_body);
+            if (client->ht_request.ht_path)
+                free(client->ht_request.ht_path);
+            if (client->ht_request.current_key)
+                free(client->ht_request.current_key);
+            if (client->ht_request.ht_header)
+                np_tree_free( client->ht_request.ht_header);
+            if (client->ht_request.ht_query_args)
+                np_tree_free( client->ht_request.ht_query_args);
+
+            free(client->parser);
+            free(client);
+            sll_next(iter);
+        }
+        sll_free(np_http_client_ptr, __local_http->clients);
+
+        _np_event_resume_loop_http(context);
+
+        if (__local_http->user_hooks)
+            np_tree_free( __local_http->user_hooks);
+
+        free(__local_http->hooks);
+
+        __local_http->network->watcher.data = NULL;
+        // _np_network_disable(__local_http->network);
+        np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
+
+        free(__local_http);
+        __local_http = NULL;
     }
-    sll_free(np_http_client_ptr, __local_http->clients);
-
-    _np_event_resume_loop_http(context);
-
-    if (__local_http->user_hooks)
-        np_tree_free( __local_http->user_hooks);
-
-    free(__local_http->hooks);
-
-    __local_http->network->watcher.data = NULL;
-    // _np_network_disable(__local_http->network);
-    np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
-
-    free(__local_http);
-    ((example_user_context*) np_get_userdata(context))->local_http = __local_http = NULL;
 }
 
-void example_http_server_deinit(np_context* context) {
+void example_http_server_destroy(np_context* context) {
     _np_http_destroy(context);
 }
 
 bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
     bool ret = false;
+    bool free_http_domain=false;
     if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
         if (http_domain == NULL) {
             http_domain = calloc(1, sizeof(char) * 255);
@@ -847,6 +852,8 @@ bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo
             if (np_get_local_ip(context, http_domain, 255) == false) {
                 free(http_domain);
                 http_domain = NULL;
+            } else {
+                free_http_domain=true;
             }
         }
         ret = np_http_init(context, http_domain);
@@ -873,6 +880,7 @@ bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo
         np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
         np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
     }
+    if(free_http_domain) free(http_domain);
 
     return ret;
 }

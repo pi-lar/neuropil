@@ -111,7 +111,36 @@ bool _np_msgproperty_init (np_state_t* context)
     }
     return true;
 }
+void _np_msgproperty_destroy (np_state_t* context)
+{
+    if (np_module_initiated(msgproperties)) {
+        np_module_var(msgproperties);
+        
+        
+        np_msgproperty_t* iter_prop = RB_MIN(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table);        
+        while(iter_prop != NULL){            
+            RB_REMOVE(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table,iter_prop);
 
+            sll_iterator(np_message_ptr) iter_prop_msg_cache_in = sll_first(iter_prop->msg_cache_in);
+            while (iter_prop_msg_cache_in != NULL)
+            {
+                np_message_t* old_msg = iter_prop_msg_cache_in->val;                            
+                np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
+                _np_msgproperty_threshold_decrease(iter_prop);                
+            }
+            sll_free(np_message_ptr, iter_prop->msg_cache_in)
+
+            np_unref_obj(np_msgproperty_t, iter_prop, ref_system_msgproperty); 
+            iter_prop = RB_MIN(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table);
+        }
+
+        // ? RB_FREE(_module->__msgproperty_table);
+
+        free(_module->__msgproperty_table);
+
+        np_module_free(msgproperties);
+    }    
+}
 /**
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type
@@ -128,6 +157,7 @@ np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_
 {
     np_msgproperty_t* ret = np_msgproperty_get(context, DEFAULT_MODE, subject);
 
+    bool created= false;
     if (NULL == ret)
     {
         log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect %"PRIu8" creation of msgproperty %s", mode_type, subject);	
@@ -143,6 +173,9 @@ np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_
         log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect %"PRIu8" configuration of msgproperty %s", mode_type, subject);	
         ret->mode_type |= mode_type;
         _np_msgproperty_update_disovery(context,ret);
+    }
+    if(created){
+        np_unref_obj(np_msgproperty_t, ret, ref_obj_creation);
     }
     return ret;
 }
@@ -360,9 +393,28 @@ void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
         if(prop->msg_cache_out != NULL ){
             sll_free(np_message_ptr, prop->msg_cache_out);
         }
+        if(prop->user_receive_clb != NULL) {
+            sll_iterator(np_usercallback_ptr)  iter_user_receive_clb = sll_first(prop->user_receive_clb);
+            while(iter_user_receive_clb != NULL){
+                free(iter_user_receive_clb->val);
+                sll_next(iter_user_receive_clb);
+            }
+            sll_free(np_usercallback_ptr, prop->user_receive_clb);
+        }
+        if(prop->user_send_clb != NULL){
+            sll_iterator(np_usercallback_ptr)  iter_user_send_clb = sll_first(prop->user_send_clb);
+            while(iter_user_send_clb != NULL){
+                free(iter_user_send_clb->val);
+                sll_next(iter_user_send_clb);
+            }
+            sll_free(np_usercallback_ptr, prop->user_send_clb);
+        }
+        _np_threads_mutex_destroy(context, &prop->unique_uuids_lock);
+        np_tree_free(prop->unique_uuids);
+        
+        np_unref_obj(np_aaatoken_t, prop->current_receive_token, ref_msgproperty_current_recieve_token);
+        np_unref_obj(np_aaatoken_t, prop->current_sender_token, ref_msgproperty_current_sender_token);
 
-        sll_free(np_usercallback_ptr, prop->user_receive_clb);
-        sll_free(np_usercallback_ptr, prop->user_send_clb);
 
         sll_free(np_callback_t, prop->clb_transform);
         sll_free(np_callback_t, prop->clb_route);
@@ -376,8 +428,8 @@ void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     _np_threads_mutex_destroy(context, &prop->lock);
     _np_threads_condition_destroy(context, &prop->msg_received);
     _np_threads_mutex_destroy(context, &prop->send_discovery_msgs_lock);
+        
 
-    prop = NULL;
 }
 
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
@@ -712,16 +764,16 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     switch (src->cache_policy)
     {
     case NP_MX_FIFO_REJECT:
-        dest->cache_policy = FIFO & OVERFLOW_REJECT;
+        dest->cache_policy = FIFO | OVERFLOW_REJECT;
         break;
     case NP_MX_FIFO_PURGE:
-        dest->cache_policy = FIFO & OVERFLOW_PURGE;
+        dest->cache_policy = FIFO | OVERFLOW_PURGE;
         break;
     case NP_MX_LIFO_REJECT:
-        dest->cache_policy = LIFO & OVERFLOW_REJECT;
+        dest->cache_policy = LIFO | OVERFLOW_REJECT;
         break;
     case NP_MX_LIFO_PURGE:
-        dest->cache_policy = LIFO & OVERFLOW_PURGE;
+        dest->cache_policy = LIFO | OVERFLOW_PURGE;
         break;
     default:
         break;
