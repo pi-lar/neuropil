@@ -852,7 +852,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
 
 
     struct np_token tmp_user_token = { 0 };
-    if (NULL != join_ident_key)
+    if (NULL != join_ident_key && !IS_AUTHENTICATED(join_ident_key->aaa_token->state) )
     {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
         bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
@@ -1377,10 +1377,16 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
         np_msgproperty_get(context,
             OUTBOUND,
             _NP_MSG_AVAILABLE_RECEIVER);
+
     _np_dendrit_propagate_list(prop_route, target_to_receive_tokens, available_list);
     np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_receiver");
     sll_free(np_aaatoken_ptr, available_list);
 
+    // TODO: deprecated
+    // reason: any system should not be able to inflict traffic on peer nodes by sending message intents.
+    // message intents already bear a danger of being misused for flooding the network
+    // by just returning data to the sender the main conflict will be caused at the initiator of the traffic
+    /*
     if(inform_counterparts){
         available_list = _np_aaatoken_get_all_sender(context, sender_msg_token->subject, sender_msg_token->audience);
 
@@ -1404,6 +1410,7 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
         np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_sender");
         sll_free(np_aaatoken_ptr, available_list);
     }
+    */
 }
 
 void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, bool inform_counterparts) {
@@ -1416,10 +1423,16 @@ void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_messa
         np_msgproperty_get(context,
             OUTBOUND,
             _NP_MSG_AVAILABLE_SENDER);
+
     _np_dendrit_propagate_list(prop_route, target_to_receive_tokens, available_list);
     np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_sender");
     sll_free(np_aaatoken_ptr, available_list);
 
+    // TODO: deprecated
+    // reason: any system should not be able to inflict traffic on peer nodes by sending message intents.
+    // message intents already bear a danger of being misused for flooding the network
+    // by just returning data to the sender the main conflict will be caused at the initiator of the traffic
+    /*
     if (inform_counterparts) {
         available_list = _np_aaatoken_get_all_receiver(context, receiver_msg_token->subject, receiver_msg_token->audience);
 
@@ -1443,6 +1456,7 @@ void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_messa
         np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_receiver");
         sll_free(np_aaatoken_ptr, available_list);
     }
+    */
 }
 
 void _np_dendrit_propagate_list(np_msgproperty_t* subject_property, np_dhkey_t target, np_sll_t(np_aaatoken_ptr, list_to_send)) {
