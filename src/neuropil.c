@@ -281,7 +281,7 @@ enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16
         }
 
         if (ret == np_ok) {
-            TSP_SET(context->status, np_running);
+            TSP_SET(context->status, np_stopped);
         }
         else {
             TSP_SET(context->status, np_error);
@@ -551,6 +551,8 @@ enum np_error np_run(np_context* ac, double duration) {
     }
 
     if(ret == np_ok) {
+        TSP_SET(context->status, np_running);
+
         if (duration <= 0) {        
             __np_jobqueue_run_jobs_once(context);
         }
