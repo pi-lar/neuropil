@@ -821,13 +821,16 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
             goto __np_cleanup__;
         }
         // everything is fine and we can continue
-        join_ident_key = _np_keycache_find_or_create(context, join_ident_dhkey);
-        np_ref_obj(np_aaatoken_t, join_ident_token, ref_key_aaa_token);
-        join_ident_key->aaa_token = join_ident_token;
+        join_ident_key = _np_keycache_find(context, join_ident_dhkey);
+        if (join_ident_key == NULL) {
+            join_ident_key = _np_keycache_find_or_create(context, join_ident_dhkey);
+        		np_ref_obj(np_aaatoken_t, join_ident_token, ref_key_aaa_token);
+        		join_ident_key->aaa_token = join_ident_token;
+        }
     }
     join_node_key = _np_keycache_find(context, join_node_dhkey);
     if (join_node_key == NULL) {
-        // no handshake before join ? exit ...
+        // no handshake before join ? exit join protocol ...
         goto __np_cleanup__;
     }
     else if (
@@ -861,10 +864,13 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
             join_ident_key->aaa_token->state |= AAA_AUTHENTICATED;
             join_node_key->aaa_token->state |= AAA_AUTHENTICATED;
         }
-    }
-    else {
+    } else {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/node) authentication of token");
-        bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
+        bool join_allowed = false;
+		if (!IS_AUTHENTICATED(join_node_key->aaa_token->state))
+			join_allowed = true;
+		else
+			join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
         if (false == context->enable_realm_client &&
             true == join_allowed)
