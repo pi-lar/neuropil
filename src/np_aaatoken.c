@@ -1491,7 +1491,7 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
 
     strncpy(dest->uuid, src->uuid, NP_UUID_BYTES);
 
-    //TODO: convert to np_id
+    // TODO: convert to np_id
     strncpy(dest->issuer, src->issuer, 65);
     strncpy(dest->realm, src->realm, 255);
     strncpy(dest->audience, src->audience, 255);

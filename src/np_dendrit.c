@@ -162,7 +162,7 @@ void _np_in_received(np_state_t* context, np_jobargs_t args)
                         alias_key->node->session.session_key_to_read
                 );
                                 
-                log_debug_msg(LOG_DEBUG |LOG_HANDSHAKE,
+                log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
                     "HANDSHAKE SECRET: using shared secret from %s (mem id: %s) (msg: %s)= %"PRIi32" to decrypt data",
                     _np_key_as_str(alias_key), 
                     np_memory_get_id(alias_key), 
@@ -629,7 +629,7 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
     bool free_msg_subject = false;
     char* msg_subject;
     log_debug(LOG_MESSAGE, "(msg: %s) start callback wrapper",msg_in->uuid);
-     if (args.properties != NULL && args.properties->is_internal)
+    if (args.properties != NULL && args.properties->is_internal)
     {
         log_debug(LOG_VERBOSE|LOG_MESSAGE, "(msg: %s) handeling internal msg",msg_in->uuid);
         _np_in_invoke_user_receive_callbacks(msg_in, args.properties);
@@ -655,7 +655,7 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
 
     if (true == _np_message_is_expired(msg_in))
     {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+        log_debug_msg(LOG_DEBUG,
                       "discarding expired message %s / %s ...",
                       msg_prop->msg_subject, msg_in->uuid);
     }
@@ -665,11 +665,11 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
         if (NULL == sender_token)
         {
             _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
-            log_msg(LOG_ROUTING | LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
+            log_msg(LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
         }
         else
         {
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "decrypting message (%s) with sender %s ...", msg_in->uuid, sender_token->uuid);
+            log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
 
             np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
@@ -852,7 +852,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
 
 
     struct np_token tmp_user_token = { 0 };
-    if (NULL != join_ident_key)
+    if (NULL != join_ident_key && !IS_AUTHENTICATED(join_ident_key->aaa_token->state) )
     {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
         bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
@@ -1377,10 +1377,16 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
         np_msgproperty_get(context,
             OUTBOUND,
             _NP_MSG_AVAILABLE_RECEIVER);
+
     _np_dendrit_propagate_list(prop_route, target_to_receive_tokens, available_list);
     np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_receiver");
     sll_free(np_aaatoken_ptr, available_list);
 
+    // TODO: deprecated
+    // reason: any system should not be able to inflict traffic on peer nodes by sending message intents.
+    // message intents already bear a danger of being misused for flooding the network
+    // by just returning data to the sender the main conflict will be caused at the initiator of the traffic
+    /*
     if(inform_counterparts){
         available_list = _np_aaatoken_get_all_sender(context, sender_msg_token->subject, sender_msg_token->audience);
 
@@ -1404,6 +1410,7 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
         np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_sender");
         sll_free(np_aaatoken_ptr, available_list);
     }
+    */
 }
 
 void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, bool inform_counterparts) {
@@ -1416,10 +1423,16 @@ void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_messa
         np_msgproperty_get(context,
             OUTBOUND,
             _NP_MSG_AVAILABLE_SENDER);
+
     _np_dendrit_propagate_list(prop_route, target_to_receive_tokens, available_list);
     np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_sender");
     sll_free(np_aaatoken_ptr, available_list);
 
+    // TODO: deprecated
+    // reason: any system should not be able to inflict traffic on peer nodes by sending message intents.
+    // message intents already bear a danger of being misused for flooding the network
+    // by just returning data to the sender the main conflict will be caused at the initiator of the traffic
+    /*
     if (inform_counterparts) {
         available_list = _np_aaatoken_get_all_receiver(context, receiver_msg_token->subject, receiver_msg_token->audience);
 
@@ -1443,6 +1456,7 @@ void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_messa
         np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_receiver");
         sll_free(np_aaatoken_ptr, available_list);
     }
+    */
 }
 
 void _np_dendrit_propagate_list(np_msgproperty_t* subject_property, np_dhkey_t target, np_sll_t(np_aaatoken_ptr, list_to_send)) {
