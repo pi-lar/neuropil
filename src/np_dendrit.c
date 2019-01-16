@@ -651,16 +651,23 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
 
     msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
     np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, msg_subject);
-    _np_msgproperty_threshold_increase(msg_prop);
 
     if (true == _np_message_is_expired(msg_in))
     {
         log_debug_msg(LOG_DEBUG,
                       "discarding expired message %s / %s ...",
                       msg_prop->msg_subject, msg_in->uuid);
-    }
-    else
+
+    } else if (_np_messsage_threshold_breached(msg_prop)) {
+        // cleanup of msgs in property receiver msg cache
+        _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
+        log_msg(LOG_INFO,"possible message processing overload - retrying later", msg_in->uuid);
+
+        _np_msgproperty_cleanup_receiver_cache(msg_prop);
+
+    } else
     {
+        _np_msgproperty_threshold_increase(msg_prop);
         sender_token = _np_aaatoken_get_sender_token(context, (char*)msg_subject,  &msg_from.value.dhkey);
         if (NULL == sender_token)
         {
@@ -671,19 +678,16 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
         {
             log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
 
-            np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
+            // np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
 
             bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-            if (false == decrypt_ok)
-            {
-                np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
-            }
-            else
+            if (true == decrypt_ok)
+//             {
+//                 np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
+//             }
+//             else
             {
                 bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
-
-                // CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
-                // log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
 
                 if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (true == result))
                 {
@@ -691,8 +695,8 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
                 }
             }
         }
+        _np_msgproperty_threshold_decrease(msg_prop);
     }
-    _np_msgproperty_threshold_decrease(msg_prop);
 
 __np_cleanup__:
     if (free_msg_subject)free(msg_subject);
