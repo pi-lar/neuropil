@@ -1578,23 +1578,32 @@ void _np_in_available_sender(np_state_t* context, np_jobargs_t args)
     np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 
     np_dhkey_t to_key = msg_to.value.dhkey;
+    if (old_token &&
+    		memcmp(old_token->uuid, msg_token->uuid, NP_UUID_BYTES) == 0 )
+    {
+		msg_token->state = old_token->state;
+    }
 
     if ( _np_dhkey_equal(&to_key, &state->my_node_key->dhkey) )
     {        
-        struct np_token tmp;
-        log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authentication of token");
-        bool authenticate = state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token));
-        log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authentication: %"PRIu8, authenticate);
+		struct np_token tmp;
+    		if (!IS_AUTHENTICATED(msg_token->state)) {
+    			log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authentication of token");
+    			bool authenticated = state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token));
+    			log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authentication: %"PRIu8, authenticated);
 
-        if (authenticate) {
-            msg_token->state |= AAA_AUTHENTICATED;
-    
+    			if (authenticated) {
+    				msg_token->state |= AAA_AUTHENTICATED;
+    			}
+    		}
+
+    		if (!IS_AUTHORIZED(msg_token->state)) {
             log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authorization of token");
-            bool authorize = state->authorize_func(context, np_aaatoken4user(&tmp, msg_token));
-            log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authorization: %"PRIu8, authorize);
-
-            if (authorize)
+            bool authorized = state->authorize_func(context, np_aaatoken4user(&tmp, msg_token));
+            log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authorization: %"PRIu8, authorized);
+            if (authorized) {
                 msg_token->state |= AAA_AUTHORIZED;
+            }
         }
     }
 
