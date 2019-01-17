@@ -526,9 +526,9 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
             np_message_t* old_msg = old_iter->val;
             if (_np_message_is_expired(old_msg)) {
                 sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
-                np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
-                _np_msgproperty_threshold_decrease(msg_prop);
                 log_msg(LOG_WARN,"purging expired message (subj: %s, uuid: %s) from receiver cache ...", msg_prop->msg_subject, old_msg->uuid);
+                np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
+                _np_msgproperty_threshold_decrease(msg_prop);                
             }
         }
     }

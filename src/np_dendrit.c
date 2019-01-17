@@ -1079,7 +1079,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
     /* forward arrival of new node to the nodes with similar hash keys */
     // TODO: check for protected node neighbours ?
     np_sll_t(np_key_ptr, node_keys) = NULL;
-    node_keys = _np_route_lookup(context, join_node_key->dhkey, 6);
+    node_keys = _np_route_lookup(context, join_key->dhkey, 6);
 
     np_key_t* elem = NULL;
     int i = 0;
@@ -2387,7 +2387,7 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                         );
                     }
                     else {
-                        alias_key->node->_handshake_status = np_handshake_status_RemoteInitiated;
+                        np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);                        
                         log_debug_msg(LOG_HANDSHAKE,
                             "Handshake status contradiction. Resetting node to remote initiated. Remote-Prio: %"PRIu32" My-Prio: %"PRIu32" ",
                             remote_hs_prio->val.value.ul, context->my_node_key->node->handshake_priority
@@ -2461,8 +2461,9 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                     }
                 }
                 else if (alias_key->node->_handshake_status == np_handshake_status_Disconnected) {
-                    if (_np_network_send_handshake(context, msg_source_key, true, args.msg->uuid)) {
-                        np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);
+                    np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);
+                    if (_np_network_send_handshake(context, msg_source_key, true, args.msg->uuid)) {                        
+                        np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
                         succ_registerd = true;
                     }
                 }
