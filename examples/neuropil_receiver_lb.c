@@ -27,19 +27,6 @@
     		exit(EXIT_FAILURE); \
     }; \
 
-
-bool authorize (np_context *ac, struct np_token *id)
-{
-//	// TODO: Make sure that id->public_key is the intended recipient!
-//	char pubkey[65];
-//	pubkey[64] = '\0';
-//    char* ctx = (char*) np_get_userdata(ac);
-//	sodium_bin2hex(pubkey, 65, id->public_key, 32U);
-//	fprintf(stdout, "AUTHZ(%s): subj: %s ## pk: %s\n", ctx, id->subject, pubkey);
-//	fflush(stdout);
-	return true;
-}
-
 /**
 first, let's define a callback function that will be called each time
 a message is received by the node that you are currently starting
@@ -86,6 +73,56 @@ the message may get delivered a second time
 */
 
 
+/**
+second, let's define a callback function that will be called each time
+a message intent is received by the node that you are currently running
+you can check and investigate the token and authorize the message exchange
+
+.. code-block:: c
+
+   \code
+*/
+bool authorize (np_context *ac, struct np_token *id)
+{
+/**
+   \endcode
+*/
+
+/**
+	as an example you may check the the fingerprint of the token issuer.
+	This is fine as the token is always authentic (integrity check already done),
+	and you have authenticated this issuer fingerprint in your authentication callback before.
+
+    You could choose arbitrary attributes values in the token attributes as well to authorize data exchange.
+
+.. code-block:: c
+
+   \code
+*/
+	char sender[65]; sender[64] = '\0';
+    char* ctx = (char*) np_get_userdata(ac);
+	sodium_bin2hex(sender, 65, id->issuer, 32U);
+	// fprintf(stdout, "AUTHZ(%s): subj: %s ## pk: %s\n", ctx, id->subject, sender);
+	// fflush (stdout);
+/**
+   \endcode
+*/
+
+/**
+return true to indicate the successful handling of the message. if you return false
+the message may get delivered a second time
+
+.. code-block:: c
+
+   \code
+*/
+	return true;
+}
+/**
+   \endcode
+*/
+
+
 int main(int argc, char **argv)
 {
 	int no_threads = 8;
@@ -114,7 +151,7 @@ int main(int argc, char **argv)
 	}
 	
 	/**
-	in your main program, initialize the logging of neuropil, but this time use the port for the filename
+	in your main program, initialize the two neuropil nodes, but this time use the a single identity on top of both
 
 	.. code-block:: c
 
@@ -124,43 +161,57 @@ int main(int argc, char **argv)
 	struct np_settings *settings_2 = np_default_settings(NULL);
 	settings_1->n_threads = 4;
 	settings_2->n_threads = 4;
-	/**
-	   \endcode
-	*/
 
 	snprintf(settings_1->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_receiver_lb_1", port);
 	snprintf(settings_2->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_receiver_lb_2", port);
 	fprintf(stdout, "logpath: %s\n", settings_1->log_file);
 	fprintf(stdout, "logpath: %s\n", settings_2->log_file);
-	// settings_1->log_level = level;
-	// settings_2->log_level = level;
 
 	np_context* context_1 = np_new_context(settings_1);
 	np_set_userdata(context_1, "context 1");
 	np_context* context_2 = np_new_context(settings_2);
 	np_set_userdata(context_2, "context 2");
+	/**
+	   \endcode
+	*/
 
-	// create a new identity and use it for both nodes
+	/**
+		create a new identity and use it for both nodes
+
+	.. code-block:: c
+
+	   \code
+	*/
 	struct np_token my_id = np_new_identity(context_1, np_time_now() + 3600.0, NULL);
 	strncpy(my_id.subject, "urn:np:id:this.is.a.test.identity", 255);
 
-	np_id fingerprint_id;
-	char fingerprint_str[65];
-	np_token_fingerprint(context_1, my_id, false, (np_id_ptr)&fingerprint_id);
-
-	fingerprint_str[64] = '\0';
-	sodium_bin2hex(fingerprint_str, 65, fingerprint_id, 32U);
-	char pubkey[65];
-	pubkey[64] = '\0';
-	sodium_bin2hex(pubkey, 65, my_id.public_key, 32U);
-	fprintf(stdout, "U: uuid: %s ## subj: %s ## pk: %s ## fp: %s\n", my_id.uuid, my_id.subject, pubkey, fingerprint_str);
-	fflush(stdout);
-
 	np_use_identity(context_1, my_id);
 	np_use_identity(context_2, my_id);
+	/**
+	   \endcode
+	*/
+
+	/**
+	 *.. note::
+	 *   Make sure that you have implemented and registered the appropiate aaa callback functions
+	 *   to control with which nodes you exchange messages. By default everybody is allowed to interact
+	 *   with your node
+	 */
+
+	/**
+	as in the simple example: set the authorization callbacks and listen on a network interface
+
+	.. code-block:: c
+
+	   \code
+	*/
 
 	assert(np_ok == np_set_authorize_cb(context_1, authorize));
 	assert(np_ok == np_set_authorize_cb(context_2, authorize));
+
+	/**
+	   \endcode
+	*/
 
 	if (np_ok != np_listen(context_1, proto, publish_domain, atoi(port) )) {
 		fprintf(stdout, "ERROR: Node could not listen");
@@ -177,24 +228,29 @@ int main(int argc, char **argv)
 	*/
 	   
 
-	/**nnp
-	start up the job queue with 8 concurrent threads competing for job execution.
-	you should start at least 2 threads (network io is non-blocking).
+	/**
+	start up the job queue with and check the error code if the event loop can be processed.
 
 	.. code-block:: c
 
 	   \code
 	*/
 	if (np_ok != np_run(context_1, 0)) {
-		fprintf(stdout, "ERROR: Node could not start");
 		exit(EXIT_FAILURE);
 	}
 	if (np_ok != np_run(context_2, 0)) {
-		fprintf(stdout, "ERROR: Node could not start");
 		exit(EXIT_FAILURE);
 	}
 	/**
 	   \endcode
+	*/
+
+	/**
+	join a network of nodes and wait until both nodes have joined the network
+
+	.. code-block:: c
+
+	   \code
 	*/
 	enum np_error status = np_ok;
 	if (NULL != j_key)
@@ -203,16 +259,7 @@ int main(int argc, char **argv)
 		status |= np_join(context_2, j_key);
 	}
 	NP_CHECK_ERROR(status);
-	fflush(stdout);
 
-	/**
-	use the connect string that is printed to stdout and pass it to the np_controller to send a join message.
-	wait until the node has received a join message before proceeding
-
-	.. code-block:: c
-
-	   \code
-	*/
 	while ( np_has_joined(context_1) && np_has_joined(context_2) && status == np_ok) {
 		status |= np_run(context_1, 0.04);
 		status |= np_run(context_2, 0.04);
@@ -222,16 +269,8 @@ int main(int argc, char **argv)
 	   \endcode
 	*/
 
-
 	/**
-	*.. note::
-	*   Make sure that you have implemented and registered the appropiate aaa callback functions
-	*   to control with which nodes you exchange messages. By default everybody is allowed to interact
-	*   with your node
-	 */
-
-	/**
-	register the listener function to receive data from the sender
+	register the listener function to receive data from the sender for both nodes
 
 	.. code-block:: c
 
@@ -239,19 +278,18 @@ int main(int argc, char **argv)
 	*/
 	status |= np_add_receive_cb(context_1, "urn:np:subj:this.is.a.test",  receive_this_is_a_test);
 	struct np_mx_properties mx_1 = np_get_mx_properties(context_1, "urn:np:subj:this.is.a.test");
-	mx_1.max_parallel = 5;
+	mx_1.max_parallel = 7; // only receive seven messages in parallel
 	status |= np_set_mx_properties(context_1, "urn:np:subj:this.is.a.test", mx_1);
 	NP_CHECK_ERROR(status);
 
 	status |= np_add_receive_cb(context_2, "urn:np:subj:this.is.a.test", receive_this_is_a_test);
 	struct np_mx_properties mx_2 = np_get_mx_properties(context_2, "urn:np:subj:this.is.a.test");
-	mx_2.max_parallel = 5;
+	mx_2.max_parallel = 7;
 	status |= np_set_mx_properties(context_2, "urn:np:subj:this.is.a.test", mx_2);
 	NP_CHECK_ERROR(status);
 	/**
 	   \endcode
 	*/
-
 
 	/**
 	the loopback function will be triggered each time a message is received
@@ -260,7 +298,8 @@ int main(int argc, char **argv)
 	*/
 
 	/**
-	loop (almost) forever, you're done :-)
+	loop (almost) forever, and watch the messages drop in on the different nodes.
+	et voila, identity based loadbalancing ...
 
 	.. code-block:: c
 

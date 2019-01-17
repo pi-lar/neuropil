@@ -292,7 +292,7 @@ extern "C" {
 
 // TODO: change size to match the possible log10(hash key max value)
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
-#define NP_ROUTE_LEAFSET_SIZE  3 /* (must be even) excluding node itself */
+#define NP_ROUTE_LEAFSET_SIZE  8 /* (must be even) excluding node itself */
 
 
 #ifdef __cplusplus
