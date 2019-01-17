@@ -273,7 +273,7 @@ void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t a
     {
         // send a piggy message to the the nodes in our routing table
         np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-        _np_job_submit_transform_event(context, i*NP_PI/10, piggy_prop, iter_keys->val, NULL);
+        _np_job_submit_transform_event(context, i*NP_PI/100, piggy_prop, iter_keys->val, NULL);
 
         i++;
         sll_next(iter_keys);

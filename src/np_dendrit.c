@@ -1076,25 +1076,16 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
                 "received join acknowledgement from node key %s", _np_key_as_str(routing_key));
     }
 
-    /* announce arrival of new node to the nodes in my routing table */
+    /* forward arrival of new node to the nodes with similar hash keys */
     // TODO: check for protected node neighbours ?
     np_sll_t(np_key_ptr, node_keys) = NULL;
-
-    node_keys = _np_route_get_table(context);
-    _np_keycache_sort_keys_cpm(node_keys, &routing_key->dhkey);
+    node_keys = _np_route_lookup(context, join_node_key->dhkey, 6);
 
     np_key_t* elem = NULL;
     int i = 0;
-    int send_to_X_neighbours = 6;
-    while ( i++ <= send_to_X_neighbours && NULL != (elem = sll_head(np_key_ptr, node_keys)))
-    {
-        // send update of new node to all nodes in my routing table
-        if (_np_dhkey_equal(&elem->dhkey, &routing_key->dhkey))
-        {
-            send_to_X_neighbours++; 
-            continue;
-        }
 
+    while ( NULL != (elem = sll_head(np_key_ptr, node_keys)))
+    {
         np_new_obj(np_message_t, msg_out);
 
         // encode informations -> has to be done for each update message new
@@ -1104,12 +1095,12 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
 
         _np_message_create(msg_out, elem->dhkey, my_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
         out_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-        _np_job_submit_route_event(context, i*0.1, out_props, elem, msg_out);
+        _np_job_submit_route_event(context, i*NP_PI/500, out_props, elem, msg_out);
 
         np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-        np_unref_obj(np_key_t, elem,"_np_route_get_table");
+        np_unref_obj(np_key_t, elem,"_np_route_lookup");
     }
-    np_key_unref_list(node_keys, "_np_route_get_table");
+    np_key_unref_list(node_keys, "_np_route_lookup");
     sll_free(np_key_ptr, node_keys);
 
     // remember key for routing table update
