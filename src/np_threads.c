@@ -34,13 +34,13 @@
 #include "np_glia.h"
 #include "np_event.h"
 
+pthread_key_t  __pthread_thread_ptr_key;
 
 np_module_struct(threads) {
     np_state_t* context;
     np_mutex_t __mutexes[PREDEFINED_DUMMY_START];
     bool    __np_threads_threads_initiated;
-    pthread_once_t __thread_init_once;
-    pthread_key_t  __pthread_thread_ptr_key;
+    pthread_once_t __thread_init_once;    
 
     pthread_attr_t attr;
     
@@ -55,7 +55,7 @@ bool _np_threads_init(np_state_t* context)
         np_module_malloc(threads);		
         _module->__np_threads_threads_initiated = false;
         
-        pthread_key_create(&_module->__pthread_thread_ptr_key, NULL);
+        pthread_key_create(&__pthread_thread_ptr_key, NULL);
 
         // init module mutexes
         int t;
@@ -80,7 +80,7 @@ void _np_threads_destroy(np_state_t* context) {
     {        
         np_module_var(threads);
         
-        pthread_key_delete(_module->__pthread_thread_ptr_key);        
+        //pthread_key_delete(_module->__pthread_thread_ptr_key);        
         // init module mutexes
         for (int module_id = 0; module_id < PREDEFINED_DUMMY_START; module_id++) {            
             pthread_mutex_destroy(&_module->__mutexes[module_id].lock);
@@ -500,7 +500,7 @@ NP_DLL_GENERATE_IMPLEMENTATION(np_thread_ptr);
 void _np_threads_set_self(np_thread_t * myThread) {
 
     np_ctx_memory(myThread);
-    int ret = pthread_setspecific(np_module(threads)->__pthread_thread_ptr_key, myThread);
+    int ret = pthread_setspecific(__pthread_thread_ptr_key, myThread);
     log_debug_msg(LOG_DEBUG | LOG_THREADS, "Setting thread data to %p. Result:: %"PRIi32, myThread, ret);
 
     if (ret != 0) {
@@ -510,9 +510,9 @@ void _np_threads_set_self(np_thread_t * myThread) {
 
 np_thread_t*_np_threads_get_self(np_state_t* context)
 {
-    np_thread_t* ret = pthread_getspecific(np_module(threads)->__pthread_thread_ptr_key);
+    np_thread_t* ret = pthread_getspecific(__pthread_thread_ptr_key);
 
-    if (ret == NULL)
+    if (ret == NULL && context != NULL)
     {
         size_t id_to_find = (size_t)pthread_self();
             

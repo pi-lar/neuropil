@@ -58,10 +58,10 @@ extern "C" {
     #define SYSINFO_PROACTIVE_SEND_IN_SEC (1)
 #endif
 #ifndef SYSINFO_MAX_TTL
-    #define SYSINFO_MAX_TTL (SYSINFO_PROACTIVE_SEND_IN_SEC*10)
+    #define SYSINFO_MAX_TTL (MAX(20, SYSINFO_PROACTIVE_SEND_IN_SEC*10))
 #endif
 #ifndef SYSINFO_MIN_TTL
-    #define SYSINFO_MIN_TTL (SYSINFO_MAX_TTL-SYSINFO_PROACTIVE_SEND_IN_SEC)
+    #define SYSINFO_MIN_TTL (MAX(10, SYSINFO_MAX_TTL-SYSINFO_PROACTIVE_SEND_IN_SEC))
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
@@ -290,7 +290,7 @@ extern "C" {
 
 // TODO: change size to match the possible log10(hash key max value)
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
-#define NP_ROUTE_LEAFSET_SIZE  3 /* (must be even) excluding node itself */
+#define NP_ROUTE_LEAFSET_SIZE  8 /* (must be even) excluding node itself */
 
 
 #ifdef __cplusplus

@@ -325,7 +325,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     double now = np_time_now();
     if (now > (token->expires_at))
     {
-        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f). verification failed", token->uuid, token->subject, token->expires_at - now);
+        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed", token->uuid, token->subject, token->expires_at - now,token->expires_at, now);
         token->state &= AAA_INVALID;
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
         return (false);
@@ -736,6 +736,8 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, con
                     // and we actually have a receiver node in the list
                     np_ref_obj(np_aaatoken_t, tmp->val);
                     sll_append(np_aaatoken_ptr, return_list, tmp->val);
+                }else{
+                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
                 }
             }
             pll_next(tmp);
@@ -1074,7 +1076,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, c
         {
             if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
             {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid receiver msg token" );
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver msg token as it is invalid" );
             }
             else
             {
@@ -1092,6 +1094,8 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, c
                     // and the sending threshold is bigger than zero as well
                     // and we actually have a receiver node in the list
                     sll_append(np_aaatoken_ptr, return_list, tmp->val);
+                }else{
+                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
                 }
             }
             pll_next(tmp);

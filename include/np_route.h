@@ -50,7 +50,6 @@ void _np_route_leafset_clear (np_state_t* context);
  **/
 NP_API_INTERN
 sll_return(np_key_ptr) _np_route_lookup (np_state_t* context, np_dhkey_t key, uint8_t count);
-// np_key_t** _np_route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
 /** _np_route_neighbors:
  ** returns an list of neighbor nodes with priority to closer nodes.

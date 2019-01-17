@@ -40,6 +40,7 @@
 #include "np_messagepart.h"
 #include "np_performance.h"
 #include "np_statistics.h"
+#include "np_shutdown.h"
 #include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_types.h"
@@ -72,6 +73,25 @@ const char* logo =
 
 bool __np_terminal_resize_flag = false;
 
+
+void __np_example_deinti_ncurse(np_context * context);
+
+void example_helper_destroy(np_context* context){
+    example_user_context* ud = ((example_user_context*)np_get_userdata(context));
+    if(ud){
+        np_set_userdata(context, NULL);
+        if (ud->_np_httpserver_active) {
+            example_http_server_destroy(context);
+            ud->_np_httpserver_active = false;
+        }
+        __np_example_deinti_ncurse(context);
+
+        _np_threads_mutex_destroy(context, ud->__log_mutex);
+        free(ud->__log_mutex);
+        free(ud->__log_buffer);
+        free(ud);
+    }
+}
 example_user_context* example_new_usercontext() {
 
     example_user_context* user_context = calloc(1, sizeof(example_user_context));
@@ -704,18 +724,18 @@ example_user_context* parse_program_args(
             | LOG_ROUTING
             //| LOG_HTTP
             //| LOG_KEY
-            | LOG_NETWORK
-            | LOG_HANDSHAKE
-            //| LOG_AAATOKEN
+            //| LOG_NETWORK
+            //| LOG_HANDSHAKE
+            | LOG_AAATOKEN
             //| LOG_SYSINFO
             | LOG_MESSAGE
             //| LOG_SERIALIZATION
             //| LOG_SERIALIZATION
-            | LOG_MEMORY
+            //| LOG_MEMORY
             | LOG_MISC
             //| LOG_EVENT
             //| LOG_THREADS
-            | LOG_JOBS
+            //| LOG_JOBS
             //| LOG_GLOBAL
             ;
 
@@ -949,21 +969,12 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
 
     }
 }
-void _np_interactive_quit(np_context* context, char* buffer) {
-    example_user_context* ud = ((example_user_context*)np_get_userdata(context));
 
+void _np_interactive_quit(np_context* context, char* buffer) {
+    
     if (strncmp(buffer, "1", 2) == 0 ||
         strncmp(buffer, "y", 1) == 0 ){
-        if (ud->_np_httpserver_active) {
-            example_http_server_destroy(context);
-            ud->_np_httpserver_active = false;
-        }
-        __np_example_deinti_ncurse(context);
-
-        _np_threads_mutex_destroy(context, ud->__log_mutex);
-        free(ud->__log_mutex);
-        free(ud->__log_buffer);
-        free(ud);
+        
         np_destroy(context, true);
         
         exit(EXIT_SUCCESS);
@@ -1008,6 +1019,8 @@ void __np_example_helper_loop(np_state_t* context) {
     // Runs only once
     if (ud->started_at == 0) {
         ud->started_at = np_time_now();
+
+        np_shutdown_add_callback(context, example_helper_destroy);
 
         if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
             signal(SIGWINCH, resizeHandler);
@@ -1348,6 +1361,7 @@ void __np_example_helper_run_loop(np_context*context) {
 
 void __np_example_helper_run_info_loop(np_context*context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
+    
     double sleep;
     while (np_get_status(context) == np_running)
     {

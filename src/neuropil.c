@@ -586,8 +586,6 @@ void np_destroy(np_context*ac, bool gracefully)
 {
     np_ctx_cast(ac);
 
-    _np_shutdown_run_callbacks(context);
-
     if(gracefully)
         np_shutdown_notify_others(context);
 
@@ -597,6 +595,9 @@ void np_destroy(np_context*ac, bool gracefully)
 
     // verifiy all other threads are stopped
     np_threads_shutdown_workers(context);    
+
+    _np_shutdown_run_callbacks(context);
+
 
     // destroy modules
     _np_sysinfo_destroy_cache(context);

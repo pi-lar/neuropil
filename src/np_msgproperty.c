@@ -212,7 +212,6 @@ void _np_msgproperty_update_disovery(np_state_t * context, np_msgproperty_t* msg
         np_aaatoken_t* old_token = _np_aaatoken_add_receiver(msgprop->msg_subject, token);
         np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
         _np_send_subject_discovery_messages(context, INBOUND, msgprop->msg_subject);
-
     }
     np_unref_obj(np_aaatoken_t, token, "_np_msgproperty_upsert_token");
 }
@@ -226,7 +225,9 @@ void np_msgproperty_register(np_msgproperty_t* msgprops)
     np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty); 
     RB_INSERT(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table, msgprops);
 
-    np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_msgproperty_register_job, msgprops, "_np_msgproperty_register_job");
+    //np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_msgproperty_register_job, msgprops, "_np_msgproperty_register_job");
+    _np_msgproperty_update_disovery(context, msgprops);
+
 }
 
 void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)

@@ -642,10 +642,11 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
     struct sockaddr_storage from;
     socklen_t fromlen = sizeof(from);
 
-    np_http_client_t* new_client = malloc(sizeof(np_http_client_t));
+    np_http_client_t* new_client = calloc(1, sizeof(np_http_client_t));
     CHECK_MALLOC(new_client);
 
     new_client->parser = htparser_new();
+    new_client->ht_request.ht_body = NULL;
     new_client->ht_request.ht_header = NULL;
     new_client->ht_request.ht_query_args = NULL;
     new_client->ht_request.ht_path = NULL;
@@ -787,54 +788,57 @@ bool np_http_init(np_state_t* context, char* domain) {
 }
 
 void _np_http_destroy(np_state_t* context) {	
-    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
+    example_user_context* ud = (example_user_context*)np_get_userdata(context);
+    if(ud){
+        np_http_t* __local_http = ud->local_http;
 
-    if(__local_http != NULL) {
-        ((example_user_context*) np_get_userdata(context))->local_http = NULL;
+        if(__local_http != NULL) {
+            ((example_user_context*) np_get_userdata(context))->local_http = NULL;
 
-        EV_P = _np_event_get_loop_http(context);
-        _np_event_suspend_loop_http(context);
-        ev_io_stop(EV_A_&__local_http->network->watcher);
+            EV_P = _np_event_get_loop_http(context);
+            _np_event_suspend_loop_http(context);
+            ev_io_stop(EV_A_&__local_http->network->watcher);
 
-        sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
-        while(iter != NULL){
-            np_http_client_t* client = iter->val;
-            client->status = SHUTDOWN;
+            sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
+            while(iter != NULL){
+                np_http_client_t* client = iter->val;
+                client->status = SHUTDOWN;
 
-            ev_io_stop(EV_A_&client->client_watcher_in);
-            ev_io_stop(EV_A_&client->client_watcher_out);
-            close(iter->val->client_fd);
+                ev_io_stop(EV_A_&client->client_watcher_in);
+                ev_io_stop(EV_A_&client->client_watcher_out);
+                close(iter->val->client_fd);
 
-            if (client->ht_request.ht_body)
-                free(client->ht_request.ht_body);
-            if (client->ht_request.ht_path)
-                free(client->ht_request.ht_path);
-            if (client->ht_request.current_key)
-                free(client->ht_request.current_key);
-            if (client->ht_request.ht_header)
-                np_tree_free( client->ht_request.ht_header);
-            if (client->ht_request.ht_query_args)
-                np_tree_free( client->ht_request.ht_query_args);
+                if (client->ht_request.ht_body)
+                    free(client->ht_request.ht_body);
+                if (client->ht_request.ht_path)
+                    free(client->ht_request.ht_path);
+                if (client->ht_request.current_key)
+                    free(client->ht_request.current_key);
+                if (client->ht_request.ht_header)
+                    np_tree_free( client->ht_request.ht_header);
+                if (client->ht_request.ht_query_args)
+                    np_tree_free( client->ht_request.ht_query_args);
 
-            free(client->parser);
-            free(client);
-            sll_next(iter);
+                free(client->parser);
+                free(client);
+                sll_next(iter);
+            }
+            sll_free(np_http_client_ptr, __local_http->clients);
+
+            _np_event_resume_loop_http(context);
+
+            if (__local_http->user_hooks)
+                np_tree_free( __local_http->user_hooks);
+
+            free(__local_http->hooks);
+
+            __local_http->network->watcher.data = NULL;
+            // _np_network_disable(__local_http->network);
+            np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
+
+            free(__local_http);
+            __local_http = NULL;
         }
-        sll_free(np_http_client_ptr, __local_http->clients);
-
-        _np_event_resume_loop_http(context);
-
-        if (__local_http->user_hooks)
-            np_tree_free( __local_http->user_hooks);
-
-        free(__local_http->hooks);
-
-        __local_http->network->watcher.data = NULL;
-        // _np_network_disable(__local_http->network);
-        np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
-
-        free(__local_http);
-        __local_http = NULL;
     }
 }
 
