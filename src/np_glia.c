@@ -273,7 +273,7 @@ void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t a
     {
         // send a piggy message to the the nodes in our routing table
         np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-        _np_job_submit_transform_event(context, i*NP_PI/10, piggy_prop, iter_keys->val, NULL);
+        _np_job_submit_transform_event(context, i*NP_PI/100, piggy_prop, iter_keys->val, NULL);
 
         i++;
         sll_next(iter_keys);
@@ -618,12 +618,12 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 
         np_dhkey_t empty_check = { 0 };
         np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
-        if (memcmp(&empty_check, &receiver_dhkey, 32) == 0)
+        if (_np_dhkey_equal(&empty_check, &receiver_dhkey))
         {
             _np_str2dhkey(tmp_token->issuer, &receiver_dhkey);
         }
 
-        if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
+        if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
         {
             np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, msg->msg_property->msg_subject);
             if (handler != NULL)
@@ -638,12 +638,12 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
             // encrypt the relevant message part itself
             _np_message_encrypt_payload(msg, tmp_token);
 
-            char receiver_key_str[65];
+/*            char receiver_key_str[65];
             receiver_key_str[64] = '\0';
             _np_dhkey2str(&receiver_dhkey, receiver_key_str);
             char * ctx = np_get_userdata(context);
             fprintf(stdout, "     (%s): encrypted message (%s) for %s / node: %s\n", ctx, msg->uuid, tmp_token->issuer, receiver_key_str); fflush(stdout);
-
+*/
             np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
 
             np_msgproperty_t* out_prop = np_msgproperty_get(context, OUTBOUND, subject);

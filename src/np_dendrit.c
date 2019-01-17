@@ -651,16 +651,23 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
 
     msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
     np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, msg_subject);
-    _np_msgproperty_threshold_increase(msg_prop);
 
     if (true == _np_message_is_expired(msg_in))
     {
         log_debug_msg(LOG_DEBUG,
                       "discarding expired message %s / %s ...",
                       msg_prop->msg_subject, msg_in->uuid);
-    }
-    else
+
+    } else if (_np_messsage_threshold_breached(msg_prop)) {
+        // cleanup of msgs in property receiver msg cache
+        _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
+        log_msg(LOG_INFO,"possible message processing overload - retrying later", msg_in->uuid);
+
+        _np_msgproperty_cleanup_receiver_cache(msg_prop);
+
+    } else
     {
+        _np_msgproperty_threshold_increase(msg_prop);
         sender_token = _np_aaatoken_get_sender_token(context, (char*)msg_subject,  &msg_from.value.dhkey);
         if (NULL == sender_token)
         {
@@ -671,19 +678,16 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
         {
             log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
 
-            np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
+            // np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
 
             bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-            if (false == decrypt_ok)
-            {
-                np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
-            }
-            else
+            if (true == decrypt_ok)
+//             {
+//                 np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
+//             }
+//             else
             {
                 bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
-
-                // CHECK_STR_FIELD(msg_in->properties, NP_MSG_INST_SEQ, received);
-                // log_msg(LOG_INFO, "handled message %u with result %d ", received.value.ul, result);
 
                 if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (true == result))
                 {
@@ -691,8 +695,8 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
                 }
             }
         }
+        _np_msgproperty_threshold_decrease(msg_prop);
     }
-    _np_msgproperty_threshold_decrease(msg_prop);
 
 __np_cleanup__:
     if (free_msg_subject)free(msg_subject);
@@ -1072,25 +1076,16 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
                 "received join acknowledgement from node key %s", _np_key_as_str(routing_key));
     }
 
-    /* announce arrival of new node to the nodes in my routing table */
+    /* forward arrival of new node to the nodes with similar hash keys */
     // TODO: check for protected node neighbours ?
     np_sll_t(np_key_ptr, node_keys) = NULL;
-
-    node_keys = _np_route_get_table(context);
-    _np_keycache_sort_keys_cpm(node_keys, &routing_key->dhkey);
+    node_keys = _np_route_lookup(context, join_node_key->dhkey, 6);
 
     np_key_t* elem = NULL;
     int i = 0;
-    int send_to_X_neighbours = 6;
-    while ( i++ <= send_to_X_neighbours && NULL != (elem = sll_head(np_key_ptr, node_keys)))
-    {
-        // send update of new node to all nodes in my routing table
-        if (_np_dhkey_equal(&elem->dhkey, &routing_key->dhkey))
-        {
-            send_to_X_neighbours++; 
-            continue;
-        }
 
+    while ( NULL != (elem = sll_head(np_key_ptr, node_keys)))
+    {
         np_new_obj(np_message_t, msg_out);
 
         // encode informations -> has to be done for each update message new
@@ -1100,12 +1095,12 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
 
         _np_message_create(msg_out, elem->dhkey, my_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
         out_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-        _np_job_submit_route_event(context, i*0.1, out_props, elem, msg_out);
+        _np_job_submit_route_event(context, i*NP_PI/500, out_props, elem, msg_out);
 
         np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-        np_unref_obj(np_key_t, elem,"_np_route_get_table");
+        np_unref_obj(np_key_t, elem,"_np_route_lookup");
     }
-    np_key_unref_list(node_keys, "_np_route_get_table");
+    np_key_unref_list(node_keys, "_np_route_lookup");
     sll_free(np_key_ptr, node_keys);
 
     // remember key for routing table update
@@ -1578,23 +1573,32 @@ void _np_in_available_sender(np_state_t* context, np_jobargs_t args)
     np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
 
     np_dhkey_t to_key = msg_to.value.dhkey;
+    if (old_token &&
+    		memcmp(old_token->uuid, msg_token->uuid, NP_UUID_BYTES) == 0 )
+    {
+		msg_token->state = old_token->state;
+    }
 
     if ( _np_dhkey_equal(&to_key, &state->my_node_key->dhkey) )
     {        
-        struct np_token tmp;
-        log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authentication of token");
-        bool authenticate = state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token));
-        log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authentication: %"PRIu8, authenticate);
+		struct np_token tmp;
+    		if (!IS_AUTHENTICATED(msg_token->state)) {
+    			log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authentication of token");
+    			bool authenticated = state->authenticate_func(context, np_aaatoken4user(&tmp, msg_token));
+    			log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authentication: %"PRIu8, authenticated);
 
-        if (authenticate) {
-            msg_token->state |= AAA_AUTHENTICATED;
-    
+    			if (authenticated) {
+    				msg_token->state |= AAA_AUTHENTICATED;
+    			}
+    		}
+
+    		if (!IS_AUTHORIZED(msg_token->state)) {
             log_debug(LOG_ROUTING | LOG_AAATOKEN, "now checking (available sender) authorization of token");
-            bool authorize = state->authorize_func(context, np_aaatoken4user(&tmp, msg_token));
-            log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authorization: %"PRIu8, authorize);
-
-            if (authorize)
+            bool authorized = state->authorize_func(context, np_aaatoken4user(&tmp, msg_token));
+            log_debug(LOG_ROUTING | LOG_AAATOKEN, "result of token authorization: %"PRIu8, authorized);
+            if (authorized) {
                 msg_token->state |= AAA_AUTHORIZED;
+            }
         }
     }
 

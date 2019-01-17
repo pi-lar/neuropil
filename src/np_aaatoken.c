@@ -807,31 +807,36 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
                 continue;
             }
 
-            np_dhkey_t zero_dhkey = { 0 };
-            np_dhkey_t return_token_dhkey = np_aaatoken_get_partner_fp(return_token);
-            if (_np_dhkey_cmp(&zero_dhkey, &return_token_dhkey) != 0)
+            np_dhkey_t partner_token_dhkey = np_aaatoken_get_partner_fp(return_token);
+            /* np_dhkey_t issuer_token_dhkey = { 0 };
+            _np_str2dhkey(return_token->issuer, &issuer_token_dhkey);
+
+            if (_np_dhkey_equal(&issuer_token_dhkey, &partner_token_dhkey))
             {
                 char return_token_dhkey_as_str[65];
+                char return_token_dhkey_as_str[64] = '\0';
                 _np_dhkey2str(sender_dhkey, return_token_dhkey_as_str);
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                              "comparing sender token (%s) for %32X with send_dhkey: %s (target node match)",
-                              return_token->uuid, &return_token_dhkey, sender_dhkey_as_str);
+                log_debug_msg(LOG_DEBUG,
+                              "comparing sender token (%s) for %s with send_dhkey: %s (target node match)",
+                              return_token->uuid, &return_token_dhkey_as_str, sender_dhkey_as_str);
             }
             else
             {
-            		_np_str2dhkey(return_token->issuer, &return_token_dhkey);
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+                log_debug_msg(LOG_DEBUG,
                               "comparing sender token (%s) for %s with send_dhkey: %s (issuer match)",
                               return_token->uuid, return_token->issuer, sender_dhkey_as_str);
             }
+            */
 
             // only pick key from a list if the subject msg_treshold is bigger than zero
             // and we actually have the correct sender node in the list
-            if (false == _np_dhkey_equal(&return_token_dhkey, sender_dhkey))
+            if (false == _np_dhkey_equal(&partner_token_dhkey, sender_dhkey))
             {
+                char partner_token_dhkey_str[65]; partner_token_dhkey_str[64] = '\0';
+                _np_dhkey2str(&partner_token_dhkey, partner_token_dhkey_str);
                 log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                              "ignoring sender token for issuer %s / send_hk: %s (issuer does not match)",
-                              return_token->issuer, sender_dhkey_as_str);
+                              "ignoring sender token for issuer %s (partner node: %s) / send_hk: %s (sender dhkey doesn't match)",
+                              return_token->issuer, partner_token_dhkey_str, sender_dhkey_as_str);
                 return_token = NULL;
                 pll_next(iter);
                 continue;
@@ -841,7 +846,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
             if (IS_AUTHORIZED(return_token->state) && IS_AUTHENTICATED(return_token->state))
             {
                 log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                              "found valid sender token (%s)", return_token->issuer );
+                              "found valid sender token (%s)", return_token->issuer);
                 found_return_token = true;
                 np_ref_obj(np_aaatoken_t, return_token);
             } else {

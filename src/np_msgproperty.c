@@ -528,6 +528,7 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
                 sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
                 np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
                 _np_msgproperty_threshold_decrease(msg_prop);
+                log_msg(LOG_WARN,"purging expired message (subj: %s, uuid: %s) from receiver cache ...", msg_prop->msg_subject, old_msg->uuid);
             }
         }
     }
@@ -539,12 +540,6 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
     np_ctx_memory(msg_prop);
     _LOCK_ACCESS(&msg_prop->lock)
     {
-/*		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
-        {
-            // cleanup of msgs in property receiver msg cache
-            _np_msgproperty_cleanup_receiver_cache(msg_prop);
-        }
-*/
         // cache already full ?
         if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
         {
@@ -591,6 +586,17 @@ void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
             self->msg_threshold++;
         }
     }
+}
+
+bool _np_messsage_threshold_breached(np_msgproperty_t* self) {
+    np_ctx_memory(self);
+    bool ret = false;
+    TSP_SCOPE(self->msg_threshold) {
+        if((self->msg_threshold+1) >= self->max_threshold){
+            ret = true;
+        }
+    }
+    return ret;
 }
 
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
