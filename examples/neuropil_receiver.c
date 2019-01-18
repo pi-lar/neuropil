@@ -53,7 +53,7 @@ int main (void)
 
 	   \code
 	*/
-	enum np_error status;
+	enum np_return status;
 	do status = np_run(ac, 5.0); while (np_ok == status);
 
 	return status;

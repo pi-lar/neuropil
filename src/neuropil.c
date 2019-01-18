@@ -70,7 +70,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
 }
 
 np_context* np_new_context(struct np_settings * settings_in) {
-    enum np_error status = np_ok;
+    enum np_return status = np_ok;
     np_state_t* context = NULL;
 
     struct np_settings * settings = settings_in;
@@ -154,8 +154,8 @@ bool __np_is_already_listening(np_state_t* context){
     bool ret = context->my_node_key != NULL && context->my_node_key->network != NULL;
     return ret;
 }
-enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port) {
-    enum np_error ret = np_ok;
+enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     TSP_GET(enum np_status, context->status, context_status);
@@ -292,10 +292,10 @@ enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16
 
     return ret;
 }
-enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port) {
+enum np_return np_listen(np_context* ac, char* protocol, char* host, uint16_t port) {
     char * safe_protocol = protocol ? strndup(protocol,5) : NULL;
     char * safe_host = host ? strndup(host,200) : NULL;
-    enum np_error ret =  _np_listen_safe(ac, safe_protocol, safe_host,port) ;
+    enum np_return ret =  _np_listen_safe(ac, safe_protocol, safe_host,port) ;
     free(safe_host);
     free(safe_protocol);
     return ret;
@@ -319,9 +319,9 @@ struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
     return ret;
 }
-enum np_error   np_node_fingerprint(np_context* ac, np_id_ptr id){
+enum np_return np_node_fingerprint(np_context* ac, np_id_ptr id){
   np_ctx_cast(ac); 
-    enum np_error ret = np_ok;
+    enum np_return ret = np_ok;
     if(id == NULL) {
         ret = np_invalid_argument;
     }
@@ -334,10 +334,10 @@ enum np_error   np_node_fingerprint(np_context* ac, np_id_ptr id){
     return ret;
  
 }
-enum np_error np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id_ptr id)
+enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id_ptr id)
 {
     np_ctx_cast(ac); 
-    enum np_error ret = np_ok;
+    enum np_return ret = np_ok;
     if(id == NULL) {
         ret = np_invalid_argument;
     }
@@ -359,7 +359,7 @@ enum np_error np_token_fingerprint(np_context* ac, struct np_token identity, boo
     return ret;
 }
 
-enum np_error np_use_identity(np_context* ac, struct np_token identity) {
+enum np_return np_use_identity(np_context* ac, struct np_token identity) {
     np_ctx_cast(ac); 
 
     TSP_GET(enum np_status, context->status, state);
@@ -367,7 +367,7 @@ enum np_error np_use_identity(np_context* ac, struct np_token identity) {
 
     log_debug_msg(LOG_AAATOKEN, "importing ident token %s", identity.uuid);
 
-    enum np_error ret = np_ok;
+    enum np_return ret = np_ok;
 
     np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key );
     np_user4aaatoken(imported_token, &identity);
@@ -380,8 +380,8 @@ enum np_error np_use_identity(np_context* ac, struct np_token identity) {
     return ret;
 }
 
-enum np_error np_get_address(np_context* ac, char* address, uint32_t max) {
-    enum np_error ret = np_ok;
+enum np_return np_get_address(np_context* ac, char* address, uint32_t max) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     char* str = np_get_connection_string_from(context->my_node_key, true);
@@ -427,8 +427,8 @@ bool np_has_receiver_for(np_context*ac, char * subject) {
     return ret;
 }
 
-enum np_error np_join(np_context* ac, char* address) {
-    enum np_error ret = np_ok;
+enum np_return np_join(np_context* ac, char* address) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
     char* safe_address = strndup(address, 500);
 
@@ -436,15 +436,15 @@ enum np_error np_join(np_context* ac, char* address) {
     return ret;
 }
 
-enum np_error np_send(np_context* ac, char* subject, unsigned char* message, size_t length) {
+enum np_return np_send(np_context* ac, char* subject, unsigned char* message, size_t length) {
     char* safe_subject = strndup(subject,255);
-    enum np_error ret = np_send_to(ac, safe_subject, message, length, NULL);
+    enum np_return ret = np_send_to(ac, safe_subject, message, length, NULL);
     free(safe_subject);
     return ret;
 }
 
-enum np_error np_send_to(np_context* ac, char* subject, unsigned char* message, size_t  length, np_id  target) {
-    enum np_error ret = np_ok;
+enum np_return np_send_to(np_context* ac, char* subject, unsigned char* message, size_t  length, np_id  target) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     np_tree_t* body = np_tree_create();
@@ -481,8 +481,8 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     return ret;
 }
 
-enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback) {
-    enum np_error ret = np_ok;
+enum np_return np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
     log_debug(LOG_MISC, "np_add_receive_cb %s", subject);
 
@@ -492,24 +492,24 @@ enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callba
     return ret;
 }
 
-enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback) {
-    enum np_error ret = np_ok;
+enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     context->authenticate_func = callback;
 
     return ret;
 }
-enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
-    enum np_error ret = np_ok;
+enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     context->authorize_func = callback;
 
     return ret;
 }
-enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
-    enum np_error ret = np_ok;
+enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
+    enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     context->accounting_func = callback;
@@ -528,9 +528,9 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
 
     return ret;
 }
-enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
+enum np_return np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
     np_ctx_cast(ac);
-    enum np_error ret = np_ok;
+    enum np_return ret = np_ok;
     bool exisited = true;
     
     // todo: validate user_property
@@ -544,9 +544,9 @@ enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_p
     return ret;
 }
 
-enum np_error np_run(np_context* ac, double duration) {
+enum np_return np_run(np_context* ac, double duration) {
     np_ctx_cast(ac);
-    enum np_error ret = np_ok;
+    enum np_return ret = np_ok;
     np_thread_t * thread = _np_threads_get_self(context);
     if (!__np_is_already_listening(context)) {
         ret = np_listen(ac, _np_network_get_protocol_string(context, PASSIVE | IPv4), "localhost", 3333);

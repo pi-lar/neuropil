@@ -71,7 +71,7 @@ int main (void)
 	*/
 	assert(np_ok == np_set_authenticate_cb(ac, authenticate));
 
-	enum np_error status;
+	enum np_return status;
 	do status = np_run(ac, 5.0); while (np_ok == status);
 
 	return status;

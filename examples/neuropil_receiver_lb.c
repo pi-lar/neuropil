@@ -252,7 +252,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	enum np_error status = np_ok;
+	enum np_return status = np_ok;
 	if (NULL != j_key)
 	{
 		status |= np_join(context_1, j_key);
