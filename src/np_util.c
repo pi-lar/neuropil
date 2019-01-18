@@ -413,6 +413,9 @@ bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
     }
     return ret;
 }
+uint8_t np_util_char_ptr_cmp(char_ptr const a, char_ptr const b) {
+    return (uint8_t) strcmp(a,b);
+} 
 
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
     char * ret = NULL;
@@ -524,6 +527,11 @@ char* __np_util_debug_statistics_print(np_state_t * context) {
     }
     return ret;
 }
+void _np_util_debug_statistics_ele_destroy(np_state_t* context, void* item) {
+     _np_util_debug_statistics_t* ele = (_np_util_debug_statistics_t*)item;
+    _np_threads_mutex_destroy(context, &ele->lock);
+    free(ele);
+}
 _np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context, char* key, double value) {
     _np_util_debug_statistics_t* item = __np_util_debug_statistics_get(context, key);
     if (item == NULL) {
@@ -549,6 +557,15 @@ _np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context,
     }
 
     return item;
+}
+void  _np_util_debug_statistics_destroy(np_state_t * context) {
+    sll_iterator(void_ptr) iter_np_debug_statistics = sll_first(np_module(statistics)->__np_debug_statistics);
+    while (iter_np_debug_statistics != NULL)
+    {
+        _np_util_debug_statistics_ele_destroy(context, (void*)iter_np_debug_statistics->val);
+        sll_next(iter_np_debug_statistics);
+    }
+    sll_free(void_ptr, np_module(statistics)->__np_debug_statistics);
 }
 #endif
 

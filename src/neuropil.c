@@ -37,6 +37,7 @@
 #include "np_log.h"
 #include "np_serialization.h"
 #include "np_token_factory.h"
+#include "np_sysinfo.h"
 
 // split into hash 
 void np_get_id(NP_UNUSED np_context * ac, np_id_ptr id, char* string, NP_UNUSED size_t length) {
@@ -127,6 +128,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
         np_thread_t * new_thread =
             __np_createThread(context, 0, NULL, false, np_thread_type_main);
         new_thread->id = (unsigned long)getpid();
+        _np_threads_set_self(new_thread);
 
         // set default aaa functions
         np_set_authorize_cb(context, _np_default_authorizefunc);
@@ -167,10 +169,10 @@ enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16
         ret = np_invalid_operation;
     }
     else {
-        char* np_service;
+        char np_service[7];
         enum socket_type np_proto = UDP | IPv6;
 
-        asprintf(&np_service, "%"PRIu16, port);
+        sprintf(np_service, "%"PRIu16, port);
 
         if (NULL != protocol)
         {
@@ -247,9 +249,9 @@ enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16
                 }
                 else {
                     // initialize job queue
-                    if (false == _np_jobqueue_create(context))
+                    if (false == _np_jobqueue_init(context))
                     {
-                        log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_create failed: %s", strerror(errno));
+                        log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_init failed: %s", strerror(errno));
                         ret = np_startup;
                     }
                     else if (false == _np_bootstrap_init(context))
@@ -262,7 +264,7 @@ enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16
                         context->msg_tokens     = np_tree_create();
                         context->msg_part_cache = np_tree_create();
 
-                        _np_shutdown_init_auto_notify_others(context);
+                        _np_shutdown_init(context);
 
                         log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
                         if(has_host) _np_network_enable(my_network);
@@ -279,7 +281,7 @@ enum np_error _np_listen_safe(np_context* ac, char* protocol, char* host, uint16
             }
             np_unref_obj(np_network_t, my_network, ref_obj_creation);
         }
-
+        
         if (ret == np_ok) {
             TSP_SET(context->status, np_stopped);
         }
@@ -545,7 +547,7 @@ enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_p
 enum np_error np_run(np_context* ac, double duration) {
     np_ctx_cast(ac);
     enum np_error ret = np_ok;
-    
+    np_thread_t * thread = _np_threads_get_self(context);
     if (!__np_is_already_listening(context)) {
         ret = np_listen(ac, _np_network_get_protocol_string(context, PASSIVE | IPv4), "localhost", 3333);
     }
@@ -554,7 +556,7 @@ enum np_error np_run(np_context* ac, double duration) {
         TSP_SET(context->status, np_running);
 
         if (duration <= 0) {        
-            __np_jobqueue_run_jobs_once(context);
+        __np_jobqueue_run_jobs_once(context, thread);
         }
         else {
             np_jobqueue_run_jobs_for(context, duration);
@@ -598,24 +600,45 @@ void np_destroy(np_context*ac, bool gracefully)
 {
     np_ctx_cast(ac);
 
-    _np_shutdown_run_callbacks(context);
-
     if(gracefully)
         np_shutdown_notify_others(context);
 
     _np_log_fflush(context, true);
-    TSP_SET(context->status, np_shutdown);
-    // TODO: implement me ...
-    /*
-    _np_threads_init()
-    sodium_init()
-    np_mem_init
-    _np_dhkey_init
-
-    __global_state = state
-    */
-
     
+    TSP_SET(context->status, np_shutdown);
+
+    // verifiy all other threads are stopped
+    np_threads_shutdown_workers(context);    
+
+    _np_shutdown_run_callbacks(context);
+
+
+    // destroy modules
+    _np_sysinfo_destroy_cache(context);
+    _np_shutdown_destroy(context);    
+    _np_bootstrap_destroy(context);
+    _np_jobqueue_destroy(context);    
+     
+    //sodium_destroy() /*not available*/
+        
+    _np_network_set_key(context->my_node_key->network, NULL);    
+    np_unref_obj(np_key_t, context->my_node_key, ref_state_nodekey);    
+    np_unref_obj(np_key_t, context->my_identity, ref_state_identitykey);    
+
+    _np_route_destroy(context);
+    _np_keycache_destroy(context);            
+    _np_event_destroy(context);    
+    _np_dhkey_destroy(context);
+    _np_msgproperty_destroy(context);        
+    _np_statistics_destroy(context);            
+    _np_memory_destroy(context);    
+    _np_threads_destroy(context);
+    _np_log_destroy(context);
+
+    np_tree_free(context->msg_part_cache);
+    np_tree_free(context->msg_tokens);
+    TSP_DESTROY(context->status);
+    free(context);
 }
 bool np_id_equals(np_id* first, np_id* second) {
     return memcmp(first,second,sizeof(np_id))==0;

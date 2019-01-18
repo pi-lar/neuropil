@@ -85,6 +85,8 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
 void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
+
+    
     // clean up extensions
     if (aaa_token->extensions != aaa_token->extensions_local) {
         np_tree_free(aaa_token->extensions_local);
@@ -332,7 +334,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     double now = np_time_now();
     if (now > (token->expires_at))
     {
-        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f). verification failed", token->uuid, token->subject, token->expires_at - now);
+        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed", token->uuid, token->subject, token->expires_at - now,token->expires_at, now);
         token->state &= AAA_INVALID;
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
         return (false);
@@ -577,6 +579,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
         {
             log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "creating ledger property for %s", subject);
 
+            bool created = false;
             if(send_prop != NULL) {
                 prop = send_prop;
             } else {
@@ -585,7 +588,8 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
                 } else {
                     np_new_obj(np_msgproperty_t, prop);
                     prop->msg_subject = strndup(subject, 255);
-                    prop->mode_type |= OUTBOUND | INBOUND;
+                    prop->mode_type |= OUTBOUND | INBOUND;                    
+                    created = true;
                 }
             }
 
@@ -594,6 +598,9 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
             }
             if (NULL == subject_key->recv_property) {
                 _np_key_set_recv_property(subject_key, prop);
+            }
+            if(created) {
+                np_unref_obj(np_msgproperty_t, prop, ref_obj_creation);
             }
         }
     }
@@ -742,6 +749,8 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, con
                     // and we actually have a receiver node in the list
                     np_ref_obj(np_aaatoken_t, tmp->val);
                     sll_append(np_aaatoken_ptr, return_list, tmp->val);
+                }else{
+                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
                 }
             }
             pll_next(tmp);
@@ -1079,7 +1088,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, c
         {
             if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
             {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid receiver msg token" );
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver msg token as it is invalid" );
             }
             else
             {
@@ -1097,6 +1106,8 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, c
                     // and the sending threshold is bigger than zero as well
                     // and we actually have a receiver node in the list
                     sll_append(np_aaatoken_ptr, return_list, tmp->val);
+                }else{
+                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
                 }
             }
             pll_next(tmp);
@@ -1268,7 +1279,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
         np_aaatoken_t *tmp_token = NULL;
 
         // update #1 key specific data
-        np_ref_obj(np_aaatoken_t, token,"local_mx_tokens");
+        np_ref_obj(np_aaatoken_t, token,ref_aaatoken_local_mx_tokens);
         tmp_token = pll_replace(np_aaatoken_ptr, subject_key->local_mx_tokens, token, _np_aaatoken_cmp);
         if (NULL == tmp_token)
         {
@@ -1276,7 +1287,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
         }
         else
         {
-            np_unref_obj(np_aaatoken_t, tmp_token,"local_mx_tokens");
+            np_unref_obj(np_aaatoken_t, tmp_token, ref_aaatoken_local_mx_tokens);
         }
         log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single mx token for message hash %s",
                 _np_key_as_str(subject_key) );
@@ -1297,7 +1308,7 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
             {
                 log_msg(LOG_INFO, "deleting old / invalid mx msg token %p", tmp_token);
                 pll_remove(np_aaatoken_ptr, subject_key->local_mx_tokens, tmp_token, _np_aaatoken_cmp_exact);
-                np_unref_obj(np_aaatoken_t, tmp_token,"local_mx_tokens");
+                np_unref_obj(np_aaatoken_t, tmp_token,ref_aaatoken_local_mx_tokens);
                 break;
             }
         }

@@ -46,6 +46,13 @@ extern "C" {
 	}
 #endif
 
+#ifndef MAX
+	#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef MIN
+	#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 
 #define _NP_GENERATE_PROPERTY_SETVALUE(OBJ,PROP_NAME,TYPE)			\
 static const char* PROP_NAME##_str = # PROP_NAME;					\
@@ -64,14 +71,15 @@ inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) {	\
 #define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE)			\
 inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, TYPE value) { \
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, mode_type, subject); \
-	if (NULL == msg_prop)                                 \
-	{                                                     \
-		np_new_obj(np_msgproperty_t, msg_prop);           \
-		msg_prop->mode_type = mode_type;                  \
-		msg_prop->msg_subject = strndup(subject, 255);    \
-		np_message_register_handler(state, msg_prop);     \
-	}                                                     \
-	msg_prop->PROP_NAME = value;                          \
+	if (NULL == msg_prop)                                 				\
+	{                                                     				\
+		np_new_obj(np_msgproperty_t, msg_prop);           				\
+		msg_prop->mode_type = mode_type;                  				\
+		msg_prop->msg_subject = strndup(subject, 255);    				\
+		np_message_register_handler(state, msg_prop);     				\
+		np_unref_obj(np_msgproperty_t, msg_prop, ref_obj_creation);     \
+	}                                                     				\
+	msg_prop->PROP_NAME = value;                          				\
 }
 
 
@@ -127,6 +135,8 @@ NP_API_PROTEC
 bool np_get_local_ip(np_state_t* context, char* buffer, int buffer_size);
 
 NP_API_PROTEC
+uint8_t np_util_char_ptr_cmp(char_ptr const a, char_ptr const b) ;
+NP_API_PROTEC
 char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
@@ -149,6 +159,15 @@ NP_API_INTERN
 _np_util_debug_statistics_t* __np_util_debug_statistics_get(np_state_t * context, char* key);
 NP_API_INTERN
 char* __np_util_debug_statistics_print(np_state_t * context);
+NP_API_INTERN
+void  _np_util_debug_statistics_destroy(np_state_t * context);
+NP_API_INTERN
+void _np_util_debug_statistics_ele_destroy(np_state_t* context, void* item) ;
+#else 
+	#define _np_util_debug_statistics_destroy(context) ;
+	#define _np_util_debug_statistics_ele_destroy(context, item) ;
+NP_API_INTERN
+
 #endif
 
 enum np_util_stringify_e {

@@ -128,7 +128,124 @@ void np_check_magic_no(void * item) {
 }
 #endif
 
+void __np_memory_delete_item(np_state_t* context, np_memory_container_t* container, np_memory_itemconf_t* item_config) {    
+            
+#if NP_MEMORY_CHECK_MEMORY_REFFING
+    if(sll_size( item_config->reasons) > 0) {
+        char * flat = _sll_char_make_flat(context, item_config->reasons);
+        log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
+        free(flat);
+    }
+    sll_free(char_ptr, item_config->reasons);
+#endif 
+    _np_threads_mutex_destroy(context, &item_config->access_lock);
+    free(item_config);
+}
+void _np_memory_container_destroy(np_state_t* context, np_memory_container_t* container ){
+        
+    sll_free(np_memory_itemconf_ptr, container->free_items);
+    _np_threads_mutex_destroy(context, &(container->free_items_lock));
+    
+    sll_free(np_memory_itemconf_ptr, container->refreshed_items);
+    _np_threads_mutex_destroy(context, &(container->refreshed_items_lock));
+    
+    sll_free(np_memory_itemconf_ptr, container->total_items);
+    _np_threads_mutex_destroy(context, &(container->total_items_lock));
+    
+    _np_threads_mutex_destroy(context, &(container->current_in_use_lock));         
+    free(container);
+}
 
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
+bool _np_memory_remove_reason(sll_return(char_ptr) sll, char_ptr cmp_obj){
+    bool ret = false;
+    sll_iterator(char_ptr) iter_reason = sll_first(sll);
+    
+    while (ret == false && iter_reason != NULL)
+    {
+        ret = (0 == strncmp(iter_reason->val, cmp_obj, strlen(cmp_obj))
+            && 0 == strncmp(iter_reason->val + strlen(cmp_obj), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? true : false;
+        if (ret == true) {
+            free(iter_reason->val);
+            sll_delete(char_ptr, sll, iter_reason);
+            break;
+        }
+        sll_next(iter_reason);
+    }
+    return ret;
+}
+#else 
+#define _np_memory_remove_reason(a,b)
+#endif
+void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, bool del_container){
+    np_memory_itemconf_t* item_config = GET_CONF(item);
+    np_memory_container_t* container = item_config->container;
+    
+    _np_memory_remove_reason(item_config->reasons, rm_reason);
+        
+    sll_remove(np_memory_itemconf_ptr, container->free_items, item_config, np_memory_itemconf_ptr_sll_compare_type);
+    sll_remove(np_memory_itemconf_ptr, container->refreshed_items, item_config, np_memory_itemconf_ptr_sll_compare_type);
+    sll_remove(np_memory_itemconf_ptr, container->total_items, item_config, np_memory_itemconf_ptr_sll_compare_type);
+
+    __np_memory_delete_item(context, container, item_config);
+    if(del_container) {
+        if(sll_size(container->total_items) != 0){
+            log_error(LOG_MEMORY, "Still has %"PRIu32" object of type %s in cache", sll_size(container->total_items), np_memory_types_str[container->type]);
+            #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
+            sll_iterator(np_memory_itemconf_ptr) leftover_iter = sll_first(container->total_items);
+            while(leftover_iter != NULL){                    
+                item_config = leftover_iter ->val;
+                char * flat = _sll_char_make_flat(context, item_config->reasons);
+                log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
+                free(flat);
+                sll_next(leftover_iter);
+            }
+            #endif
+        }
+        _np_memory_container_destroy(context, container );
+    }
+}
+
+void _np_memory_destroy(np_state_t* context){
+
+    for(int type =0; type < np_memory_types_MAX_TYPE; type++) {
+
+        log_debug(LOG_MEMORY, "cleanup of memory elements of type %s", np_memory_types_str[type]);
+
+        if(type == np_memory_types_np_thread_t) {
+            // threads will be handled expleciet in np_threads_destroy
+            continue;
+        }
+        np_memory_container_t* container = np_module(memory)->__np_memory_container[type];
+        if (container != NULL) {
+            np_memory_itemconf_t* item_config;
+           
+            while((item_config = sll_head(np_memory_itemconf_ptr, container->total_items)) != NULL)
+            {
+                if (item_config->in_use) {                    
+                    #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
+                        char * flat = _sll_char_make_flat(context, item_config->reasons);
+                        log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[type], item_config->ref_count, item_config->id, flat);		
+                        free(flat);
+                    #else
+                        log_error(LOG_MEMORY, "Still has a object of type %s in cache", np_memory_types_str[type]);
+                    #endif
+
+                    /*
+                    if (container->on_free != NULL){
+                        container->on_free(context, container->type, container->size_per_item, GET_ITEM(item_config));
+                        item_config->in_use = false;
+                    }
+                    */
+                }
+                __np_memory_delete_item(context, container, item_config);
+            }
+            _np_memory_container_destroy(context, container);
+        }
+    }
+
+    np_module_free(memory);
+}
 
 bool _np_memory_init(np_state_t* context) {
     np_module_malloc(memory);
@@ -143,7 +260,7 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
     register_defaultobj(message, 4, 10);
     register_defaultobj(key, 4, 10);
     register_defaultobj(msgproperty, 4, 10);
-    register_defaultobj(thread, 4, 10);
+    register_defaultobj(thread, 1, 1);
     register_defaultobj(node, 4, 10);
     register_defaultobj(network, 4, 10);
     register_defaultobj(responsecontainer, 4, 10);
@@ -171,7 +288,7 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
         np_memory_itemconf_t* conf = malloc(whole_item_size);
         CHECK_MALLOC(conf);
         //debugf("adding obj %p \n", conf);
-
+ 
         // conf init
         conf->container = container;
         conf->in_use = false;
@@ -191,16 +308,12 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
         if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf_lock") != 0) {
             log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
         }
-
         _LOCK_ACCESS(&container->free_items_lock) {
             sll_append(np_memory_itemconf_ptr, container->free_items, conf);
         }
-
         _LOCK_ACCESS(&container->total_items_lock) {
             sll_append(np_memory_itemconf_ptr, container->total_items, conf);
         }
-
-
     }
 }
 
@@ -411,7 +524,6 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
             }
         }
         if (item_config != NULL) {
-            //debugf("removing obj %p \n", item_config);
             _LOCK_ACCESS(&item_config->access_lock) {
                 ASSERT(item_config->in_use == false, "can only delete unused memory objects");
             }
@@ -419,13 +531,7 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
             _LOCK_ACCESS(&container->total_items_lock) {
                 sll_remove(np_memory_itemconf_ptr, container->total_items, item_config, np_memory_itemconf_ptr_sll_compare_type);
             }
-
-#if NP_MEMORY_CHECK_MEMORY_REFFING
-            sll_free(char_ptr, item_config->reasons);
-#endif 
-            _np_threads_mutex_destroy(context, &item_config->access_lock);
-            free(item_config);
-            item_config = NULL;
+          __np_memory_delete_item(context, container, item_config);
         }
         else {
             // removed everything, lists are now empty
@@ -508,6 +614,8 @@ np_state_t* np_memory_get_context(void* item) {
     
     return ret;
 }
+
+
 void np_memory_free(np_state_t*context, void* item) {	
     if (item != NULL) {
         np_check_magic_no(item);
@@ -539,8 +647,7 @@ void np_memory_free(np_state_t*context, void* item) {
                     _LOCK_ACCESS(&container->refreshed_items_lock) {
                         sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
                     }
-                }
-            }
+                }            }
         }
         if (rm) {
             _LOCK_ACCESS(&container->current_in_use_lock) {
@@ -631,6 +738,7 @@ void np_mem_refobj(np_state_t*context, void * item, const char* reason)
     }
 }
 
+
 // decrease ref count
 void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
 {	
@@ -655,19 +763,7 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
             config->ref_count--;
         }
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-        sll_iterator(char_ptr) iter_reason = sll_first(config->reasons);
-        bool foundReason = false;
-        while (foundReason == false && iter_reason != NULL)
-        {
-            foundReason = (0 == strncmp(iter_reason->val, reason, strlen(reason))
-                && 0 == strncmp(iter_reason->val + strlen(reason), _NP_REF_REASON_SEPERATOR_CHAR, _NP_REF_REASON_SEPERATOR_CHAR_LEN)) ? true : false;
-            if (foundReason == true) {
-                free(iter_reason->val);
-                sll_delete(char_ptr, config->reasons, iter_reason);
-                break;
-            }
-            sll_next(iter_reason);
-        }
+        bool foundReason = _np_memory_remove_reason(config->reasons, reason);
         if (false == foundReason) {
             char* flat = _sll_char_make_flat(context, config->reasons);
             log_msg(LOG_ERROR, "reason \"%s\" for dereferencing obj %s (type:%d/%s reasons(%d): %s) was not found. ", reason, config->id, config->container->type, np_memory_types_str[config->container->type], sll_size(config->reasons), flat);

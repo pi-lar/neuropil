@@ -28,6 +28,7 @@ extern "C" {
 #define pheap_remove(TYPE, heap, idx) TYPE##_binheap_remove(heap, idx)
 #define pheap_find(TYPE, heap, id) TYPE##_binheap_find(heap, id)
 #define pheap_head(TYPE, heap) TYPE##_binheap_head(heap)
+#define pheap_is_empty(TYPE, heap) TYPE##_binheap_is_empty(heap)
 #define pheap_first(TYPE, heap) TYPE##_binheap_first(heap)
 #define pheap_clear(TYPE, heap) TYPE##_binheap_clear(heap)
 #define pheap_free(TYPE, heap) TYPE##_binheap_free(heap)
@@ -40,18 +41,18 @@ extern "C" {
  */
 #define NP_BINHEAP_GENERATE_PROTOTYPES(TYPE)                                                                    \
         typedef struct TYPE##_binheap_node_s TYPE##_binheap_node_t;                                             \
-        struct TYPE##_binheap_node_s {                                                                        \
-            uint16_t id;                                                                                      \
-            uint16_t priority;                                                                                \
-            bool sentinel;                                                                                    \
-            TYPE data;                                                                                        \
-        };                                                                  \
+        struct TYPE##_binheap_node_s {                                                                          \
+            uint16_t id;                                                                                        \
+            uint16_t priority;                                                                                  \
+            bool sentinel;                                                                                      \
+            TYPE data;                                                                                          \
+        };                                                                                                      \
         typedef struct TYPE##_binheap_s TYPE##_binheap_t;                                                       \
-        struct TYPE##_binheap_s {                                                              		          \
-            uint16_t count;                                                                                   \
-            uint16_t size;                                                                                    \
-            TYPE##_binheap_node_t* elements;                                                                  \
-        };                                                                       \
+        struct TYPE##_binheap_s {                                                              		            \
+            uint16_t count;                                                                                     \
+            uint16_t size;                                                                                      \
+            TYPE##_binheap_node_t* elements;                                                                    \
+        };                                                                                                      \
         TYPE##_binheap_t*  TYPE##_binheap_init(uint16_t max_nodes);                                             \
         void               TYPE##_binheap_free(TYPE##_binheap_t* heap);                                         \
         void               TYPE##_binheap_clear(TYPE##_binheap_t* heap);                                        \
@@ -59,6 +60,7 @@ extern "C" {
         uint16_t           TYPE##_binheap_find(TYPE##_binheap_t* heap, uint16_t id);                            \
         TYPE               TYPE##_binheap_remove(TYPE##_binheap_t* heap, uint16_t i);                           \
         TYPE               TYPE##_binheap_first(TYPE##_binheap_t* heap);                                        \
+        bool               TYPE##_binheap_is_empty(TYPE##_binheap_t* heap);                                     \
         TYPE               TYPE##_binheap_head(TYPE##_binheap_t* heap);                                         \
         void               TYPE##_binheap_increase_idx_priority(TYPE##_binheap_t* heap, uint16_t i);            \
         void               TYPE##_binheapify(TYPE##_binheap_t* heap, uint16_t i);                               \
@@ -86,22 +88,28 @@ void TYPE##_binheapify(TYPE##_binheap_t* heap, uint16_t i) {                    
 }                                                                                                                      \
 TYPE TYPE##_binheap_first(TYPE##_binheap_t* heap) {                               					                   \
     assert(heap->count > 0); 																		                   \
+    assert(heap->elements[1].sentinel == false);                                                                       \
     return (heap->elements[1].data);                                     							                   \
 }                                                                                                                      \
+bool TYPE##_binheap_is_empty(TYPE##_binheap_t* heap) {                                                                 \
+    bool ret = heap->count <= 0;                                                                                       \
+    return ret;                                                                                                        \
+}                                                                                                                      \
 TYPE TYPE##_binheap_head(TYPE##_binheap_t* heap) {                                                                     \
+    assert(heap->count > 0); 																		                   \
+    assert(heap->elements[1].sentinel == false);                                                                       \
     TYPE ret = {0};                                                                                                    \
-    if (heap->count > 0 && heap->elements[1].sentinel == false) {                                                      \
-        ret                         = heap->elements[1].data;                                                          \
-        heap->elements[1]           = heap->elements[heap->count];                                                     \
-        heap->elements[heap->count] = heap->elements[0];                                                               \
-        heap->count--;                                                                                                 \
-        TYPE##_binheapify(heap,1);                                                                                     \
-    }                                                                                                                  \
+    ret                         = heap->elements[1].data;                                                              \
+    heap->elements[1]           = heap->elements[heap->count];                                                         \
+    heap->elements[heap->count] = heap->elements[0];                                                                   \
+    heap->count--;                                                                                                     \
+    TYPE##_binheapify(heap, 1);                                                                                        \
     return (ret);                                                                                                      \
 }                                                                                                                      \
 void TYPE##_binheap_insert(TYPE##_binheap_t* heap, TYPE element) {                                                     \
     assert(heap->count < heap->size);                                                       	                       \
-    uint16_t i = ++(heap->count);                         											                   \
+    uint16_t i = ++(heap->count);                          											                   \
+    assert(i!=0);                          											                   \
     heap->elements[i].data = element;                        										                   \
     heap->elements[i].sentinel = false;                     										                   \
     heap->elements[i].priority = TYPE##_binheap_get_priority(element);                                                 \
@@ -111,30 +119,27 @@ void TYPE##_binheap_insert(TYPE##_binheap_t* heap, TYPE element) {              
     }                                                                                                                  \
 }                                                                                                                      \
 TYPE TYPE##_binheap_remove(TYPE##_binheap_t* heap, uint16_t i) {                                                       \
-    assert(i <= heap->count || i >= 1);                                                                                \
-    TYPE deleted = { 0 };                                                                                              \
-    if (heap->elements[i].sentinel == false) {                                                                         \
+    TYPE deleted = {0};                                                                                                \
+    if(i <= heap->count && i >= 1){                                                                                    \
         deleted = heap->elements[i].data;                                                                              \
         HEAP_SWAP(TYPE, tmp, heap->elements[i], heap->elements[heap->count]);                                          \
         heap->count--;                                                                                                 \
         TYPE##_binheapify(heap,i);                                                                                     \
-    } else {                                                                                                           \
-    	    deleted = heap->elements[0].data;                                                                              \
     }                                                                                                                  \
     return (deleted);	                                                                                               \
 }                                                                                                                      \
 void TYPE##_binheap_increase_idx_priority(TYPE##_binheap_t* heap, uint16_t i) {                                        \
-    assert(i <= heap->count && i >= 1);                        						         	                     \
-    heap->elements[i].priority = TYPE##_binheap_get_priority(heap->elements[i].data); 				                 \
+    assert(i <= heap->count && i >= 1);                        						         	                       \
+    heap->elements[i].priority = TYPE##_binheap_get_priority(heap->elements[i].data); 				                   \
     HEAP_SWAP(TYPE, tmp, heap->elements[i], heap->elements[(heap->count)]);                                            \
     TYPE##_binheapify(heap, i);                                                                                        \
-}                        																		                     \
-TYPE##_binheap_t* TYPE##_binheap_init(uint16_t max_nodes) {                        		                             \
-    TYPE##_binheap_t* heap = malloc(sizeof(TYPE##_binheap_t));										                 \
-    heap->count = 0;                        														                     \
-    heap->size = max_nodes;                        												                     \
-    heap->elements = (TYPE##_binheap_node_t*) calloc(sizeof(TYPE##_binheap_node_t),((heap->size)+1));                  \
-    heap->elements[0].sentinel = true;                        														 \
+}                        																		                       \
+TYPE##_binheap_t* TYPE##_binheap_init(uint16_t max_nodes) {                        		                               \
+    TYPE##_binheap_t* heap = malloc(sizeof(TYPE##_binheap_t));										                   \
+    heap->count = 0;                        														                   \
+    heap->size = max_nodes;                        												                       \
+    heap->elements = (TYPE##_binheap_node_t*) calloc(heap->size + 1, sizeof(TYPE##_binheap_node_t));                   \
+    heap->elements[0].sentinel = true;                        														   \
     return (heap); 																									 \
 }                        																							 \
 void TYPE##_binheap_free(TYPE##_binheap_t* heap)                        											     \

@@ -167,6 +167,10 @@ bool  _np_dhkey_init (NP_UNUSED np_state_t* context)
 
     return true;
 }
+void _np_dhkey_destroy (np_state_t* context){
+    //nothing to implement for now
+}
+
 
 np_dhkey_t np_dhkey_min(NP_UNUSED np_state_t* context)  {
     log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmin()  {"); return __dhkey_min;  };

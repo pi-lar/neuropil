@@ -159,6 +159,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "np_waitref_obj");
 
     ret = __np_token_factory_derive(my_identity->aaa_token, np_aaatoken_scope_public);
+    ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
     ret->type = np_aaatoken_type_message_intent;
 
     char msg_id_subject[255];

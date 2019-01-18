@@ -404,9 +404,11 @@ void np_set_mx_property(np_context*ac, char* subject, const char* key, np_treeva
     log_trace_msg(LOG_TRACE, "start: void np_set_mx_property(char* subject, const char* key, np_treeval_t value){");
     // TODO: rework key from char to enum
     np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
+    bool created = false;
     if (NULL == msg_prop)
     {
         np_new_obj(np_msgproperty_t, msg_prop);
+        created = true;
         msg_prop->msg_subject = strndup(subject, 255);
 
         if(false == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)){
@@ -443,6 +445,9 @@ void np_set_mx_property(np_context*ac, char* subject, const char* key, np_treeva
     if (0 == strncmp(key, partner_key_str, strlen(partner_key_str)))
     {
         _np_msgproperty_t_set_partner_key(msg_prop, value.value.dhkey);
+    }
+    if(created){
+        np_unref_obj(np_msgproperty_t, msg_prop, ref_obj_creation);
     }
 }
 

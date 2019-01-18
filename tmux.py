@@ -83,10 +83,10 @@ else:
     windowName  = "neuropil bootstraper"
     if start_bootstrapper and not session.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
-        prefix_bootstrap = ('valgrind ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
+        prefix_bootstrap = ('valgrind --leak-check=full ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
         if args.perf:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
-        nb.attached_pane.send_keys(prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> test.log'.format(
+        nb.attached_pane.send_keys(prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> error.log'.format(
             port, threads, port_type_server, loglevel, publish_domain, sysinfo,httpdomain, statistics, autoclose))
         if args.v or args.vs:
             time.sleep(4)

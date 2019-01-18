@@ -85,7 +85,7 @@ extern "C" {
 
 #define __NP_PERFORMANCE_POINT_INIT_CONTAINER(container, NAME)											\
         if (container == NULL) {																		\
-            container = calloc(1,sizeof(np_statistics_performance_point_t));								\
+            container = calloc(1,sizeof(np_statistics_performance_point_t));							\
             container->name = #NAME;																	\
             container->durations_idx = 0;																\
             container->durations_count = 0;																\
@@ -93,6 +93,14 @@ extern "C" {
             _np_threads_mutex_init(context, &container->access, "performance point "#NAME" access");	\
         }																														
 
+#define NP_PERFORMANCE_POINT_DESTROY()											                        \
+    for(int i=0; i < np_statistics_performance_point_END; i++) {                                        \
+        if(np_module(statistics)->performance_points[i] != NULL){                                       \
+            _np_threads_mutex_destroy(context, &np_module(statistics)->performance_points[i]->access);	\
+            free(np_module(statistics)->performance_points[i]);                                         \
+            np_module(statistics)->performance_points[i]=NULL;                                          \
+        }                                                                                               \
+    }
 #define NP_PERFORMANCE_POINT_START(NAME) 																						\
     double t1_##NAME;																											\
     {																															\
@@ -146,6 +154,7 @@ extern "C" {
         ___NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
     }																															
 #else																														
+#define NP_PERFORMANCE_POINT_DESTROY()											                    
 #define NP_PERFORMANCE_POINT_START(name)
 #define NP_PERFORMANCE_POINT_END(name)
 #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\

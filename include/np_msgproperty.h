@@ -408,6 +408,8 @@ bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* ms
  **/
 NP_API_INTERN
 bool _np_msgproperty_init (np_state_t* context);
+NP_API_INTERN
+void _np_msgproperty_destroy (np_state_t* context);
 
 /**
  ** compare two msg properties for rb cache management

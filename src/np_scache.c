@@ -32,7 +32,28 @@ np_simple_cache_table_t* np_cache_init(np_state_t* context) {
 
 	return ret; 
 }
+void np_cache_destroy(np_state_t* context, np_simple_cache_table_t* cache){
 
+	for (uint32_t i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) { 
+		sll_iterator(np_cache_item_ptr) iter_bucket_item = sll_first(cache->buckets[i]);
+		while(iter_bucket_item != NULL) {
+			if(iter_bucket_item->val != NULL ) {
+				if(iter_bucket_item->val->key != NULL) 
+				{
+					free(iter_bucket_item->val->key);				
+				}
+				free(iter_bucket_item->val);
+			}
+			sll_next(iter_bucket_item);
+		}
+
+
+		sll_free(np_cache_item_ptr, cache->buckets[i]);
+	}
+	_np_threads_mutex_destroy(context, &cache->lock);
+
+	free(cache);
+}
 np_cache_item_t* np_simple_cache_get(np_state_t* context, np_simple_cache_table_t *table, const char* const key)
 {
 	log_trace_msg(LOG_TRACE, "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t *table, const char *key){");
@@ -82,13 +103,9 @@ int np_simple_cache_insert(np_state_t* context, np_simple_cache_table_t *table, 
 
 		if(NULL == iter) {
 			item = (np_cache_item_t*) malloc(sizeof (np_cache_item_t));
-			CHECK_MALLOC(item);
-
-			if(item < 0){
-				log_msg(LOG_ERROR, "cannot allocate memory for np_cache_item");
-			}
-			sll_append(np_cache_item_ptr, bucket_list, item);
+			CHECK_MALLOC(item);			
 			item->key = strdup(key);
+			sll_append(np_cache_item_ptr, bucket_list, item);
 		}else{
 			item = iter->val;
 		}

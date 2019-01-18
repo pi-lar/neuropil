@@ -57,17 +57,18 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	struct np_settings *settings = np_default_settings(NULL);
-	settings->n_threads = no_threads;
+	struct np_settings settings;
+	np_default_settings(&settings);
+	settings.n_threads = no_threads;
 
-	snprintf(settings->log_file, 255, "%s%s_%s.log", logpath, "/neuropil_node", port);
-	settings->log_level = level;
+	snprintf(settings.log_file, 255, "%s%s_%s.log", logpath, "/neuropil_node", port);
+	settings.log_level = level;
 
-	np_context * ac = np_new_context(settings);
+	np_context * ac = np_new_context(&settings);
 	np_set_userdata(ac, user_context);
 	np_ctx_cast(ac);
 
-	np_example_print(context, stdout, "logpath: %s\n", settings->log_file);
+	np_example_print(context, stdout, "logpath: %s\n", settings.log_file);
 
 	np_example_save_and_load_identity(context);
 

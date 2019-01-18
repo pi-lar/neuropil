@@ -31,27 +31,20 @@
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
 
-
+#define __NP_SHUTDOWN_SIGNAL SIGINT
 np_module_struct(shutdown) {
     np_state_t* context;
     TSP(sll_return(np_destroycallback_t), on_destroy);
     bool invoke;
+    struct sigaction sigact;
 }; 
 
-struct sigaction sigact;
-np_sll_t(void_ptr, __running_instances) = NULL;
-static int calcelations = 0;
-
 static void __np_shutdown_signal_handler(int sig) {
-    if (sig == SIGINT) {
-        calcelations++;
-        if (calcelations < 10) {
-            np_state_t* context;
-            while ((context = sll_head(void_ptr,__running_instances))!= NULL)
-            {
-                np_module(shutdown)->invoke = true;
-            }
-        }
+    np_thread_t* self = _np_threads_get_self(NULL);
+    np_ctx_memory(self);
+    log_debug(LOG_MISC, "Received signal %d", sig);
+    if (FLAG_CMP(sig, __NP_SHUTDOWN_SIGNAL)) {
+        np_module(shutdown)->invoke = true;
     }
 }
 
@@ -63,46 +56,40 @@ void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
     }
 }
 
-void np_shutdown_check(np_state_t* context, NP_UNUSED np_jobargs_t args) {
-
-    bool do_the_shutdown = false;
-    if (np_module(shutdown)->invoke) {
-        TSP_SCOPE(context->status) {
-            if (context->status == np_shutdown) {
-                do_the_shutdown = true;
-                context->status = np_shutdown;
-            }
-        }
+void np_shutdown_check(np_state_t* context, NP_UNUSED np_jobargs_t args) {    
+    if (np_module(shutdown)->invoke) {     
+        log_warn(LOG_MISC, "Received terminating process signal. Shutdown in progress.");
+        np_destroy(context, false);   
     }
-    if (do_the_shutdown) {
-        log_msg(LOG_WARN, "Received terminating process signal. Shutdown in progress.");
-        np_destroy(context, true);
-    }
-
 }
 
-
-void _np_shutdown_init_auto_notify_others(np_state_t* context) {
+void _np_shutdown_init(np_state_t* context) {
 
     if (!np_module_initiated(shutdown)) {
         np_module_malloc(shutdown);
         TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));
         _module->invoke = false;
 
+        memset(&_module->sigact, 0, sizeof(_module->sigact));
+        _module->sigact.sa_handler = __np_shutdown_signal_handler;
+        sigemptyset(&_module->sigact.sa_mask);
+        _module->sigact.sa_flags = 0;            
+        int res = sigaction(__NP_SHUTDOWN_SIGNAL, &_module->sigact, NULL);
+        log_debug(LOG_MISC, "Init signal %d", res);
 
-        if (__running_instances == NULL) {
-            sll_init(void_ptr, __running_instances);
-
-            sigact.sa_handler = __np_shutdown_signal_handler;
-            sigemptyset(&sigact.sa_mask);
-            sigact.sa_flags = 0;
-            //sigaction(SIGABRT, &sigact, (struct sigaction *)NULL);
-            sigaction(SIGINT, &sigact, (struct sigaction *)NULL);
-            //sigaction(SIGTERM, &sigact, (struct sigaction *)NULL);
-        }
-        np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT, 0.1, 0.1, np_shutdown_check, "np_shutdown_check");
+        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.01, 0.01, np_shutdown_check, "np_shutdown_check");
     }
-    sll_append(void_ptr, __running_instances, context);
+}
+void _np_shutdown_destroy(np_state_t* context) {
+
+    if (np_module_initiated(shutdown)) {
+        np_module_var(shutdown);
+  
+        TSP_DESTROY(_module->on_destroy);
+        sll_free(np_destroycallback_t, _module->on_destroy);
+    
+        np_module_free(shutdown);
+    }    
 }
 
 void _np_shutdown_run_callbacks(np_context*ac) {
@@ -115,10 +102,6 @@ void _np_shutdown_run_callbacks(np_context*ac) {
             clb(context);
         }
     }
-}
-
-void _np_shutdown_deinit() {
-    sigemptyset(&sigact.sa_mask);
 }
 
 void np_shutdown_notify_others(np_state_t* context) {

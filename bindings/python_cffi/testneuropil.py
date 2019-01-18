@@ -120,11 +120,8 @@ def main():
         status = [np_1.get_status(),np_2.get_status()] + [ s for n, s in np_c.get_status()] 
 
         elapsed = int(time.time() - t1)     
-        if np_1.np_has_receiver_for("tick") and invoked < elapsed:
-            if invoked == 0:
-                invoked = elapsed
-            else:
-                invoked += 1
+        if np_1.np_has_receiver_for("tick") and not invoked:            
+            invoked += 1            
             print("invoke")
             #np_1.send('tick', b'some data') 
             np_2.send('ident_check',b'Send from np_2')

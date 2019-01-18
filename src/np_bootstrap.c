@@ -80,11 +80,14 @@ bool _np_bootstrap_init(np_state_t* context)
     }
     return ret;
 }
-void _np_bootstrap_deinit(np_state_t* context)
+void _np_bootstrap_destroy(np_state_t* context)
 {
     if (np_module_initiated(bootstrap)) {
-        
-        np_tree_free(np_module(bootstrap)->bootstrap_points);
+        np_module_var(bootstrap);
+
+        np_tree_free(_module->bootstrap_points);
+        TSP_DESTROY(_module->bootstrap_points);
+        np_module_free(bootstrap);
     }
 }
 void np_bootstrap_add(np_state_t* context, const char* connectionstr) {

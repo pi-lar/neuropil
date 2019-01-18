@@ -126,7 +126,6 @@ extern "C" {
         char audience[255]; // todo: has to be np_id		
 
         double  issued_at, not_before, expires_at;
-
         unsigned char extensions[NP_EXTENSION_BYTES];
         size_t  extension_length;
         unsigned char public_key[NP_PUBLIC_KEY_BYTES],

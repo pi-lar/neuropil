@@ -19,6 +19,9 @@ extern "C" {
 NP_API_INTERN
 void _np_sysinfo_init_cache(np_state_t* context);
 NP_API_INTERN
+void _np_sysinfo_destroy_cache(np_state_t* context);
+
+NP_API_INTERN
 bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;
 NP_API_INTERN
 bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;

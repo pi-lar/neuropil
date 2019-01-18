@@ -17,12 +17,13 @@
 
 enum np_statistic_types_e {
     np_stat_all = 0x000,
-    np_stat_general = 0x001,
-    np_stat_locks = 0x002,
-    np_stat_msgpartcache = 0x004,
-    np_stat_memory = 0x008,
-    np_stat_performance = 0x010,
-    np_stat_jobs = 0x020,
+    np_stat_general         = 0x001,
+    np_stat_locks           = 0x002,
+    np_stat_msgpartcache    = 0x004,
+    np_stat_memory          = 0x008,
+    np_stat_performance     = 0x010,
+    np_stat_jobs            = 0x020,
+    np_stat_threads         = 0x040,
 } typedef np_statistic_types_e;
 
 
@@ -74,6 +75,7 @@ typedef struct example_user_context {
     struct __np_switchwindow_scrollable * __np_switch_log;
     struct __np_switchwindow_scrollable * __np_switch_performance;
     struct __np_switchwindow_scrollable * __np_switch_jobs;
+    struct __np_switchwindow_scrollable * __np_switch_threads;    
     struct __np_switchwindow_scrollable * __np_switch_interactive;
 
     bool is_in_interactive; 
@@ -104,6 +106,8 @@ typedef struct example_user_context {
 
     char* opt_http_domain;
     enum np_sysinfo_opt_e opt_sysinfo_mode;
+
+    bool __shutdown;
 
 }example_user_context;
 

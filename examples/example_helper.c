@@ -40,6 +40,7 @@
 #include "np_messagepart.h"
 #include "np_performance.h"
 #include "np_statistics.h"
+#include "np_shutdown.h"
 #include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_types.h"
@@ -72,6 +73,25 @@ const char* logo =
 
 bool __np_terminal_resize_flag = false;
 
+
+void __np_example_deinti_ncurse(np_context * context);
+
+void example_helper_destroy(np_context* context){
+    example_user_context* ud = ((example_user_context*)np_get_userdata(context));
+    if(ud){        
+        if (ud->_np_httpserver_active) {
+            example_http_server_destroy(context);
+            ud->_np_httpserver_active = false;
+        }
+        __np_example_deinti_ncurse(context);
+        
+        np_set_userdata(context, NULL);
+        _np_threads_mutex_destroy(context, ud->__log_mutex);
+        free(ud->__log_mutex);
+        free(ud->__log_buffer);
+        free(ud);
+    }
+}
 example_user_context* example_new_usercontext() {
 
     example_user_context* user_context = calloc(1, sizeof(example_user_context));
@@ -100,6 +120,8 @@ example_user_context* example_new_usercontext() {
     user_context->__np_switch_log= NULL;
     user_context->__np_switch_performance= NULL;
     user_context->__np_switch_jobs= NULL;
+    user_context->__np_switch_threads= NULL;
+    
     user_context->__np_switch_interactive= NULL;
 
     user_context->is_in_interactive = false; 
@@ -183,7 +205,7 @@ void __np_switchwindow_draw(np_context* context) {
             int displayedRows = 0;
 
             char * buffer = strdup(_current->buffer);
-            char* line = strtok(buffer, "\n");
+            char * line   = strtok(buffer, "\n");
             int y = 0;
             if (line != NULL) {
                 do {
@@ -254,8 +276,9 @@ void __np_switchwindow_scroll(np_context* context, struct __np_switchwindow_scro
 void __np_switchwindow_update_buffer(np_context* context, struct __np_switchwindow_scrollable * target, char* buffer, int scroll_relative) {
 
     _LOCK_ACCESS(&target->access) {
-        free(target->buffer);
+        char* old = target->buffer;        
         target->buffer = strdup(buffer);
+        free(old);
         __np_switchwindow_scroll(context, target, scroll_relative, false);
     }
 
@@ -330,6 +353,7 @@ struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context,
 
 void __np_switchwindow_del(np_context* context, struct __np_switchwindow_scrollable * self) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
+    free(self->buffer);
     _LOCK_ACCESS(&self->access) {
         if (ud->_current == self) ud->_current = NULL;
         delwin(self->win);
@@ -700,15 +724,15 @@ example_user_context* parse_program_args(
             | LOG_ROUTING
             //| LOG_HTTP
             //| LOG_KEY
-            | LOG_NETWORK
-            | LOG_HANDSHAKE
-            //| LOG_AAATOKEN
+            //| LOG_NETWORK
+            //| LOG_HANDSHAKE
+            | LOG_AAATOKEN
             //| LOG_SYSINFO
             | LOG_MESSAGE
             //| LOG_SERIALIZATION
             //| LOG_SERIALIZATION
             //| LOG_MEMORY
-            //| LOG_MISC
+            | LOG_MISC
             //| LOG_EVENT
             //| LOG_THREADS
             //| LOG_JOBS
@@ -762,8 +786,8 @@ example_user_context* parse_program_args(
 
 void __np_example_deinti_ncurse(np_context * context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-
-    if (ud->__np_ncurse_initiated == true) {
+        
+    if (ud != NULL && ud->__np_ncurse_initiated == true) {
         delwin(ud->__np_top_left_win);
         delwin(ud->__np_top_right_win);
         delwin(ud->__np_top_logo_win);
@@ -772,7 +796,10 @@ void __np_example_deinti_ncurse(np_context * context) {
         __np_switchwindow_del(context, ud->__np_switch_memory_ext);
         __np_switchwindow_del(context, ud->__np_switch_log);
         __np_switchwindow_del(context, ud->__np_switch_msgpartcache);
-        __np_switchwindow_del(context, ud->__np_switch_performance);
+        __np_switchwindow_del(context, ud->__np_switch_performance);        
+        __np_switchwindow_del(context, ud->__np_switch_jobs);
+        __np_switchwindow_del(context, ud->__np_switch_threads);        
+        __np_switchwindow_del(context, ud->__np_switch_interactive);
 
         endwin();
         ud->__np_ncurse_initiated = false;
@@ -785,7 +812,7 @@ void __np_example_print_help(example_user_context* ud) {
     if (ud->_current != NULL) werase(ud->_current->win);
 
     mvwprintw(ud->__np_bottom_win_help, 0, 0,
-        "(P)erformance / Message(c)ache / Extended (M)emory / (L)og / J(o)bs "
+        "(P)erformance / Message(c)ache / Extended (M)emory / (L)og / J(o)bs / (T)hreads /"
         "| R(e)paint "
         "| Log: (F)ollow / (U)p / dow(N) "
         "| (Q)uit | (H)TTP | (S)ysInfo | (J)oin"
@@ -796,6 +823,8 @@ void __np_example_print_help(example_user_context* ud) {
     else if (ud->_current == ud->__np_switch_memory_ext) pos = 43;
     else if (ud->_current == ud->__np_switch_log) pos = 54;
     else if (ud->_current == ud->__np_switch_jobs) pos = 64;
+    else if (ud->_current == ud->__np_switch_threads) pos = 71;
+    
     mvwchgat(ud->__np_bottom_win_help, 0, pos, 1, A_UNDERLINE, 4, NULL);
     wrefresh(ud->__np_bottom_win_help);
 
@@ -873,11 +902,8 @@ void __np_example_inti_ncurse(np_context* context) {
 #endif
             // switchable windows
             {
-
                 if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_msgpartcache) == np_stat_msgpartcache) {
-
                     ud->__np_switch_msgpartcache = __np_switchwindow_new(context, COLOR_PAIR(5), term_current_width, term_height_top_left);
-
                 }
                 if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_memory) == np_stat_memory) {
                     ud->__np_switch_memory_ext = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
@@ -888,11 +914,15 @@ void __np_example_inti_ncurse(np_context* context) {
                 if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_jobs) == np_stat_jobs) {
                     ud->__np_switch_jobs = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
                 }
-                ud->__np_switch_interactive = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);;
+                if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_threads) == np_stat_threads) {
+                    ud->__np_switch_threads = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
+                }
+                ud->__np_switch_interactive = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
                 ud->__np_switch_log = __np_switchwindow_new(context, COLOR_PAIR(6), term_current_width, term_height_top_left);
                 __np_switchwindow_show(context, ud->__np_switch_log);
-                if (ud->__log_buffer != NULL)
+                if (ud->__log_buffer != NULL) {
                     __np_switchwindow_update_buffer(context, ud->__np_switch_log, ud->__log_buffer, -999999);
+                }
             }
 
             ud->__np_bottom_win_help = newwin(term_height_help, term_current_width, term_current_height - term_height_help, 0);
@@ -918,13 +948,13 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
 
     if (strncmp(buffer, "0", 2) == 0 || strncmp(buffer, "Off", 4) == 0) {
         if (ud->_np_httpserver_active) {
-            example_http_server_deinit(context);
+            example_http_server_destroy(context);
             ud->_np_httpserver_active = false;
         }
     }
     else if (strncmp(buffer, "1", 2) == 0 || strncmp(buffer, "On", 3) == 0) {
         if (ud->_np_httpserver_active) {
-            example_http_server_deinit(context);
+            example_http_server_destroy(context);
         }
         ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
     }
@@ -933,23 +963,20 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
         free(ud->opt_http_domain);
         ud->opt_http_domain = strdup(buffer);
         if (ud->_np_httpserver_active) {
-            example_http_server_deinit(context);
+            example_http_server_destroy(context);
         }
         ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
 
     }
 }
-void _np_interactive_quit(np_context* context, char* buffer) {
-    example_user_context* ud = ((example_user_context*)np_get_userdata(context));
 
+void _np_interactive_quit(np_context* context, char* buffer) {
+    
     if (strncmp(buffer, "1", 2) == 0 ||
         strncmp(buffer, "y", 1) == 0 ){
-        if (ud->_np_httpserver_active) {
-            example_http_server_deinit(context);
-            ud->_np_httpserver_active = false;
-        }
-        __np_example_deinti_ncurse(context);
+        
         np_destroy(context, true);
+        
         exit(EXIT_SUCCESS);
     }
 }
@@ -972,7 +999,7 @@ void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
         ud->opt_sysinfo_mode = atoi(buffer);
         if (ud->_np_httpserver_active) {
             np_example_print(context, stdout, "Restarting HTTP server.");
-            example_http_server_deinit(context);
+            example_http_server_destroy(context);
             ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);        
 
         }        
@@ -993,9 +1020,11 @@ void __np_example_helper_loop(np_state_t* context) {
     if (ud->started_at == 0) {
         ud->started_at = np_time_now();
 
+        np_shutdown_add_callback(context, example_helper_destroy);
+
         if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
             signal(SIGWINCH, resizeHandler);
-            __np_example_inti_ncurse(context);
+            __np_example_reset_ncurse(context);
         }
 
         np_print_startup(context);
@@ -1095,7 +1124,29 @@ void __np_example_helper_loop(np_state_t* context) {
             }
 
             if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
-                memory_str = np_jobqueue_print(context, true);
+                memory_str = np_threads_print(context, true);
+                if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+                free(memory_str);
+            }
+        }
+        if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_threads) == np_stat_threads) {
+            if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
+                if (ud->_current == ud->__np_switch_threads) {
+                    memory_str = np_threads_print(context, false);
+                    if (memory_str != NULL) {
+                        __np_switchwindow_update_buffer(context, ud->__np_switch_threads, memory_str, 0);
+                    }
+                    free(memory_str);
+                }
+            }
+            if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
+                memory_str = np_threads_print(context, false);
+                if (memory_str != NULL) np_example_print(context, stdout, memory_str);
+                free(memory_str);
+            }
+
+            if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
+                memory_str = np_threads_print(context, true);
                 if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
                 free(memory_str);
             }
@@ -1126,7 +1177,7 @@ void __np_example_helper_loop(np_state_t* context) {
 #ifdef DEBUG
         if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) {
             if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console)) {
-                memory_str = np_threads_printpool(context, false);
+                memory_str = np_threads_print_locks(context, false);
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)){
                         mvwprintw(ud->__np_top_right_win, 0, 0, "%s", memory_str);
@@ -1138,7 +1189,7 @@ void __np_example_helper_loop(np_state_t* context) {
                 free(memory_str);
             }
             if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
-                memory_str = np_threads_printpool(context, true);
+                memory_str = np_threads_print_locks(context, true);
                 if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
                 free(memory_str);
             }
@@ -1169,7 +1220,7 @@ void __np_example_helper_loop(np_state_t* context) {
 #else
                             "NON DEBUG and NON RELEASE"                            
 #endif
-                            " (%s)(EV:%s)\n%s ", time, NEUROPIL_RELEASE, ev_polls, memory_str
+                            " (%s)(EV:%s)(FPS: %4.0f / RT: %2.0fms)\n%s ", time, NEUROPIL_RELEASE, ev_polls, (1/ud->output_intervall_sec),ud->input_intervall_sec*1000, memory_str
                         );                            
                     }
                     if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
@@ -1203,6 +1254,14 @@ void __np_example_helper_loop(np_state_t* context) {
             }
             else {
                 switch (key) {
+                case 45: // -
+                    ud->output_intervall_sec = MAX(0.001, ud->output_intervall_sec - 0.001);
+                    ud->input_intervall_sec = ud->output_intervall_sec / 10;
+                    break;
+                case 43: // +
+                    ud->output_intervall_sec = MIN(5, ud->output_intervall_sec + 0.001);
+                    ud->input_intervall_sec = ud->output_intervall_sec / 10;
+                    break;
                 case KEY_RESIZE:
                 case 101:	// e
                 case 69:	// E
@@ -1227,6 +1286,10 @@ void __np_example_helper_loop(np_state_t* context) {
                 case 111:	// o
                 case 79:	// O
                     __np_switchwindow_show(context, ud->__np_switch_jobs);
+                    break;
+                case 116:	// t
+                case 84:	// T
+                    __np_switchwindow_show(context, ud->__np_switch_threads);
                     break;
                 case 102:	// f
                 case 70:	// F
@@ -1283,12 +1346,13 @@ void __np_example_helper_loop(np_state_t* context) {
         }
     }
 }
-
+ 
 void __np_example_helper_run_loop(np_context*context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    double sleep = ud->input_intervall_sec;
-    while (true)
+    double sleep;
+    while (np_get_status(context) == np_running)
     {
+        sleep = ud->input_intervall_sec;
         if(((np_state_t*)context)->settings->n_threads == 0)
             sleep = fmin(ud->input_intervall_sec, np_run(context,0));
         np_time_sleep(sleep);
@@ -1297,9 +1361,11 @@ void __np_example_helper_run_loop(np_context*context) {
 
 void __np_example_helper_run_info_loop(np_context*context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    double sleep = ud->input_intervall_sec;
-    while (true)
+    
+    double sleep;
+    while (np_get_status(context) == np_running)
     {
+        sleep = ud->input_intervall_sec;
         __np_example_helper_loop(context);
         if (((np_state_t*)context)->settings->n_threads == 0)
             sleep = fmin(ud->input_intervall_sec, np_run(context,0));

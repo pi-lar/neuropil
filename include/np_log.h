@@ -72,14 +72,14 @@ enum np_log_e
 NP_API_EXPORT
 void _np_log_init (np_state_t* context, const char* filename, uint32_t level);
 
+NP_API_EXPORT
+void _np_log_destroy(np_state_t* context);
+
 NP_API_INTERN
 void _np_log_rotate(np_state_t* context, bool force);
 
 NP_API_EXPORT
 void np_log_setlevel(np_state_t* context, uint32_t level);
-
-NP_API_EXPORT
-void np_log_destroy (np_state_t* context);
 
 NP_API_INTERN
 void _np_log_fflush(np_state_t* context, bool force);
