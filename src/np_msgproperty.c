@@ -353,11 +353,11 @@ void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
             prop->rep_subject = NULL;
         }
 
-        if(prop->msg_cache_in != NULL ){
+        if(prop->msg_cache_in != NULL ) {
             sll_free(np_message_ptr, prop->msg_cache_in);
         }
 
-        if(prop->msg_cache_out != NULL ){
+        if(prop->msg_cache_out != NULL ) {
             sll_free(np_message_ptr, prop->msg_cache_out);
         }
 
@@ -413,13 +413,15 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
             msg_available = sll_size(send_prop->msg_cache_out);
         }
 
-        if(NULL != msg_out){
+        if(NULL != msg_out) {
             _np_msgproperty_threshold_decrease(send_prop);
             sending_ok = _np_send_msg(send_prop->msg_subject, msg_out, send_prop, NULL);
             np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
 
             log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
                     "message in cache found and re-send initialized");
+        }  else {
+        		break;
         }
     }
 }
@@ -432,15 +434,15 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
             recv_prop->msg_cache_in, sll_size(recv_prop->msg_cache_in));
     // get message from cache (maybe only for one way mep ?!)
     uint16_t msg_available = 0;
+
     _LOCK_ACCESS(&recv_prop->lock)
     {
         msg_available = sll_size(recv_prop->msg_cache_in);
     }
 
-    while (0 < msg_available)
+    while ( 0 < msg_available )
     {
         np_message_t* msg_in = NULL;
-
         _LOCK_ACCESS(&recv_prop->lock)
         {
             // if messages are available in cache, try to decode them !
@@ -458,7 +460,12 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
             _np_msgproperty_threshold_decrease(recv_prop);
             _np_job_submit_msgin_event(0.0, recv_prop, context->my_node_key, msg_in, NULL);
             np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
+        } else {
+        		break;
         }
+
+        TSP_GET(uint16_t, recv_prop->msg_threshold, current_threshold);
+        if (current_threshold > recv_prop->max_threshold) break;
     }
 }
 
@@ -518,6 +525,7 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop) {
             sll_next(iter_prop_msg_cache_in); // we need to iterate before we delete the old iter
             np_message_t* old_msg = old_iter->val;
             if (_np_message_is_expired(old_msg)) {
+                log_msg(LOG_WARN,"purging expired message (subj: %s, uuid: %s) from receiver cache ...", msg_prop->msg_subject, old_msg->uuid);
                 sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
                 np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
                 _np_msgproperty_threshold_decrease(msg_prop);
@@ -532,12 +540,6 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
     np_ctx_memory(msg_prop);
     _LOCK_ACCESS(&msg_prop->lock)
     {
-/*		if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
-        {
-            // cleanup of msgs in property receiver msg cache
-            _np_msgproperty_cleanup_receiver_cache(msg_prop);
-        }
-*/
         // cache already full ?
         if (msg_prop->max_threshold <= sll_size(msg_prop->msg_cache_in))
         {
@@ -584,6 +586,17 @@ void _np_msgproperty_threshold_increase(np_msgproperty_t* self) {
             self->msg_threshold++;
         }
     }
+}
+
+bool _np_messsage_threshold_breached(np_msgproperty_t* self) {
+    np_ctx_memory(self);
+    bool ret = false;
+    TSP_SCOPE(self->msg_threshold) {
+        if((self->msg_threshold+1) >= self->max_threshold){
+            ret = true;
+        }
+    }
+    return ret;
 }
 
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self) {
@@ -679,11 +692,12 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 }
 
 void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src) {
-    assert(context != NULL);
+
+	assert(context != NULL);
     assert(src != NULL);
     assert(dest != NULL);
     dest->token_max_ttl = src->intent_ttl;
-    dest->token_min_ttl = src->intent_update_after ;
+    dest->token_min_ttl = src->intent_update_after;
     dest->msg_ttl = src->message_ttl;
 
     if (src->reply_subject[0] != '\0' && (dest->rep_subject == NULL || strncmp(dest->rep_subject, src->reply_subject, 255) != 0))
@@ -712,21 +726,21 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     switch (src->cache_policy)
     {
     case NP_MX_FIFO_REJECT:
-        dest->cache_policy = FIFO & OVERFLOW_REJECT;
+        dest->cache_policy = FIFO | OVERFLOW_REJECT;
         break;
     case NP_MX_FIFO_PURGE:
-        dest->cache_policy = FIFO & OVERFLOW_PURGE;
+        dest->cache_policy = FIFO | OVERFLOW_PURGE;
         break;
     case NP_MX_LIFO_REJECT:
-        dest->cache_policy = LIFO & OVERFLOW_REJECT;
+        dest->cache_policy = LIFO | OVERFLOW_REJECT;
         break;
     case NP_MX_LIFO_PURGE:
-        dest->cache_policy = LIFO & OVERFLOW_PURGE;
+        dest->cache_policy = LIFO | OVERFLOW_PURGE;
         break;
     default:
         break;
     }
 
     // mep type conversion	
-    dest->mep_type= ONE_WAY;
+    dest->mep_type= ANY_TO_ANY;
 }

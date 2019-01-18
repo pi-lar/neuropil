@@ -78,7 +78,7 @@ class NeuropilCluster(object):
             proto = [proto]*count
 
         for c in range(0,count):
-            node = NeuropilNode(port_range[c],host,proto[c],auto_run,**settings)
+            node = NeuropilNode(port=port_range[c],host=host,proto=proto[c],auto_run=auto_run,**settings)
             self.nodes.append(node)        
 
     def __getattr__ (self, name):
@@ -238,7 +238,7 @@ class NeuropilNode(object):
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
         return ret
 
-    def new_identity(self, expires_at:float=time.time(), secret_key:bytes=None):
+    def new_identity(self, expires_at:float=time.time()+(60*60*24), secret_key:bytes=None):
         if not isinstance(expires_at, float):             
             raise ValueError(f"expires_at needs to be of type `float`")
         if not isinstance(secret_key, bytes) and secret_key != None:
@@ -255,9 +255,9 @@ class NeuropilNode(object):
             raise ValueError(f"identity needs to be of type `np_token`")
 
         token_dict =  _NeuropilHelper.convert_from_python(identity)
-        ffi_token = ffi.new("struct np_token", token_dict)
+        #ffi_token = ffi.new("struct np_token", token_dict)
 
-        ret = neuropil.np_use_identity(self._context, ffi_token)
+        ret = neuropil.np_use_identity(self._context, token_dict)
 
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)

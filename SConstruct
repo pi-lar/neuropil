@@ -317,6 +317,7 @@ programs = [
     ('receiver',       ['neuropil']),
     ('sender',         ['neuropil']),
     ('node',           ['neuropil','ncurses','sodium']),
+    ('receiver_lb',     ['neuropil','ncurses','sodium']),
     ('cloud',          ['neuropil','ncurses','sodium']),
     ('hydra',          ['neuropil','ncurses','sodium']),
     ('receiver_cb',    ['neuropil','ncurses','sodium']),

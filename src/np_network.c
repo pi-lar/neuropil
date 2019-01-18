@@ -808,7 +808,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     
 
 void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
-    log_debug_msg(LOG_DEBUG , "_np_network_handle_incomming_data");
+    log_debug_msg(LOG_TRACE, "_np_network_handle_incomming_data");
 
     struct __np_network_data * data_container = args.custom_data;
     np_network_t* ng = data_container->key->network;

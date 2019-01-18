@@ -35,7 +35,7 @@ void _np_ping_send(np_state_t *context, np_key_t* key)
     _np_message_create(out_msg, key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
     np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_PING_REQUEST);
-    _np_job_submit_msgout_event(context, 0.0, prop, key, out_msg);
+    _np_job_submit_msgout_event(context, NP_PI/500, prop, key, out_msg);
 
     log_debug_msg(LOG_INFO, "sending ping message (%s) to  %s:%s / %s", out_msg->uuid, key->node->dns_name, key->node->port, _np_key_as_str(key) );
 

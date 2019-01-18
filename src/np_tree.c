@@ -1253,7 +1253,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 				// TODO: check if the complete buffer was read (byte count match)
 				value->value.tree = subtree;
 				value->size = subtree->byte_size;
-				log_debug_msg(LOG_DEBUG, "read:  buffer size for subtree %u (%hd %u)", value->size, value->value.tree->size, subtree->byte_size);
+				log_debug_msg(LOG_TRACE, "read:  buffer size for subtree %u (%hd %u)", value->size, value->value.tree->size, subtree->byte_size);
 			}
 			else if (obj->as.ext.type == np_treeval_type_dhkey)
 			{
