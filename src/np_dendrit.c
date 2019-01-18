@@ -973,7 +973,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
         if (IS_AUTHENTICATED(join_node_key->aaa_token->state)) {
             np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
             // add a small delay to prevent the arrival of the piggy message before the join ack
-            _np_job_submit_transform_event(context, NP_PI / 1000, piggy_prop, join_node_key, NULL);
+            _np_job_submit_transform_event(context, NP_PI/500, piggy_prop, join_node_key, NULL);
         }
     }
 

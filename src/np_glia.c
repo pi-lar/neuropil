@@ -238,7 +238,6 @@ void _np_glia_send_pings(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
             if(node_exists) {
                 if (node->joined_network) {
                     _np_ping_send(context, iter->val);
-                    np_time_sleep(NP_PI/1000);
                 }
                 np_unref_obj(np_node_t, node, FUNC);
             }
@@ -273,7 +272,7 @@ void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t a
     {
         // send a piggy message to the the nodes in our routing table
         np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-        _np_job_submit_transform_event(context, i*NP_PI/100, piggy_prop, iter_keys->val, NULL);
+        _np_job_submit_transform_event(context, 0.0, piggy_prop, iter_keys->val, NULL);
 
         i++;
         sll_next(iter_keys);
@@ -566,7 +565,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out);
         _np_message_create(msg_out, target_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PIGGY_REQUEST, msg_body);
-        _np_job_submit_msgout_event(context, 0.0, outprop, target_key, msg_out);
+        _np_job_submit_msgout_event(context, NP_PI/500, outprop, target_key, msg_out);
         np_unref_obj(np_message_t, msg_out, ref_obj_creation);
     }
 
