@@ -1,5 +1,6 @@
+=======
 License
-*******
+=======
 
 .. _neuropil_license:
 
@@ -13,13 +14,16 @@ Licensed under the Open Software License (OSL 3.0), please see LICENSE file for 
 
 Contributions
 *************
+
+.. _neuropil_contributions:
+
 This library would not be possible without the work of other packages / libraries / snippets
 which are used 'as is' in neuropil
 
-================================== ========== ======= 
-name                               author     license 
-================================== ========== ======= 
-tree.h (splay/red-black trees)     N. Provos  `BSD`_  
+================================== ========== =======
+name                               author     license
+================================== ========== =======
+tree.h (splay/red-black trees)     N. Provos  `BSD`_
 `c msgpack`_                       C. Gunyon  `MIT`_
 `libev`_                           M. Lehmann `BSD`_
 `parson`_                          K. Gabis   `MIT`_
@@ -28,18 +32,18 @@ tree.h (splay/red-black trees)     N. Provos  `BSD`_
 
 in addition we are using the following libraries / packages to build / test our coude:
 
-================================== ========== ======= 
-name                               author     license 
-================================== ========== ======= 
-`criterion`_                       F. Mathieu `MIT`_  
+================================== ========== =======
+name                               author     license
+================================== ========== =======
+`criterion`_                       F. Mathieu `MIT`_
 `sodium crypto library`_           F. Denis   `ISC`_
 `chimera`_                         B. Zhao    `GPL2`_
 ================================== ========== =======
 
 If we have stated one of these libraries incorrectly please drop us a note.
 
-For the `chimera`_ library we received the information that the project has been dormant since 2006 
-and that we can feel free to use any of the code as we wish. Please have a look at the KnowHow section and Tapestry. 
+For the `chimera`_ library we received the information that the project has been dormant since 2006
+and that we can feel free to use any of the code as we wish. Please have a look at the KnowHow section and Tapestry.
 
 
 .. _c msgpack: https://github.com/camgunz/cmp
