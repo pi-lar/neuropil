@@ -116,7 +116,7 @@ extern "C" {
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
-    void np_get_id(np_context * context, np_id_ptr id, char* string, size_t length);
+    void np_get_id(np_id_ptr id, char* string, size_t length);
 
     struct np_token {
         char uuid[NP_UUID_BYTES];

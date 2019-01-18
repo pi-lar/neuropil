@@ -177,7 +177,7 @@ class NeuropilNode(object):
         
         subject_npid = ffi.new("np_id")
         subject_id = ffi.new("char[65]",b'\0')
-        neuropil.np_get_id(self._context, subject_npid, subject, 64)
+        neuropil.np_get_id(subject_npid, subject, 64)
         neuropil.np_id2str(subject_npid, subject_id)
         subject_id = _NeuropilHelper.convert_to_python(self, subject_id)
  

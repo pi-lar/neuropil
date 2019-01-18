@@ -40,7 +40,7 @@
 #include "np_sysinfo.h"
 
 // split into hash 
-void np_get_id(NP_UNUSED np_context * ac, np_id_ptr id, char* string, NP_UNUSED size_t length) {
+void np_get_id(np_id_ptr id, char* string, NP_UNUSED size_t length) {
     // np_ctx_cast(ac);
      
     np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
@@ -462,7 +462,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     if (userdata != NULL) {
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
-        np_get_id(context, message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));        
+        np_get_id(message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));        
         
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 
