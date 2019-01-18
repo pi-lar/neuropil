@@ -624,11 +624,12 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
             }
         }
         _np_msgproperty_threshold_increase(msg_prop);
+        np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
         sll_prepend(np_message_ptr, msg_prop->msg_cache_in, msg_in);
 
         log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "added message to the recv msgcache (%p / %d) ...",
                       msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
-        np_ref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
+        
     }
 }
 
