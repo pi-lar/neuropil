@@ -217,17 +217,13 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
     _np_route_set_key (new_node_key);
 
     // set and ref additional identity
-    //TODO: use _np_set_identity
-    if (_np_key_cmp(context->my_identity ,context->my_node_key)==0)
+    // TODO: use _np_set_identity
+    if (_np_key_cmp(context->my_identity, context->my_node_key) == 0)
     {
         np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, new_node_key);
     }
-    else
-    {
-        // set target node string for correct routing
-        np_tree_replace_str( context->my_identity->aaa_token->extensions,  "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
-    }
-    context->my_identity->aaa_token->type |= np_aaatoken_type_identity;
+
+    // context->my_identity->aaa_token->type = np_aaatoken_type_identity;
     context->my_node_key = new_node_key;
 
     log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(context->my_node_key));
@@ -352,33 +348,46 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: void _np_set_identity(np_aaatoken_t* identity){");
 
- 
+	_np_aaatoken_set_signature(identity, identity);
+	_np_aaatoken_update_extensions_signature(identity, identity);
+
     // build a hash to find a place in the dhkey table, not for signing !
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
+
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
-    
     np_key_t* old_ident = context->my_identity;
 
     identity->type |= np_aaatoken_type_identity;
     np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
 
-    if (old_ident != NULL && old_ident->aaa_token != NULL && identity != old_ident->aaa_token) {
-        old_ident->aaa_token->type &= ~np_aaatoken_type_identity;
-    }
+	//    if (old_ident != NULL && old_ident->aaa_token != NULL && identity != old_ident->aaa_token) {
+	//        old_ident->aaa_token->type &= ~np_aaatoken_type_identity;
+	//    }
     np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, my_identity_key);
-            
+
     if (_np_key_cmp(my_identity_key, context->my_node_key) != 0) {
+/*
         if (context->my_node_key != NULL && context->my_node_key->node != NULL) {
             np_node_t* tmp_node = NULL;
             np_new_obj(np_node_t, tmp_node);
             _np_node_update(tmp_node, _np_network_parse_protocol_string("pas4"), "localhost", "3333");
             _np_context_create_new_nodekey(context, tmp_node);
             np_unref_obj(np_node_t, tmp_node, ref_obj_creation);
-        }
-        _np_aaatoken_set_signature(identity, identity);
-        _np_aaatoken_update_extensions_signature(identity, identity);
+          }
+*/
     }
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
+
+    #ifdef DEBUG
+    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+
+    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+
+    log_debug_msg(LOG_DEBUG, "     identity token: my cu pk: %s ### my ed pk: %s\n", curve25519_pk, ed25519_pk);
+#endif
+
 }
 
 /**
@@ -531,9 +540,6 @@ void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
         _np_network_remap_network(my_new_node_key, my_old_node_key);
     }
     _np_route_set_key(my_new_node_key);
-    // set target node string for correct routing
-    if(context->my_identity != NULL && context->my_identity != context->my_node_key)
-        np_tree_replace_str(context->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(context->my_node_key)));
 
     np_unref_obj(np_aaatoken_t, auth_token, "_np_token_factory_new_node_token");
     np_unref_obj(np_key_t, my_new_node_key, "_np_keycache_find_or_create");
@@ -588,16 +594,17 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
     assert(target!= NULL);
     np_state_t* context = np_ctx_by_memory(target);
 
-    np_tree_t* jrb_data = np_tree_create();
-    np_tree_t* jrb_my_node = np_tree_create();
+    np_tree_t* jrb_data     = np_tree_create();
+    np_tree_t* jrb_my_node  = np_tree_create();
+    np_tree_t* jrb_my_ident = NULL;
+
     np_aaatoken_encode(jrb_my_node, context->my_node_key->aaa_token);
     np_tree_insert_str( jrb_data, "_np.token.node", np_treeval_new_tree(jrb_my_node));
 
-
     if(_np_key_cmp(context->my_identity, context->my_node_key) != 0){
-        np_tree_t* jrb_my_ident = np_tree_create();
+        jrb_my_ident = np_tree_create();
         np_aaatoken_encode(jrb_my_ident, context->my_identity->aaa_token);
-        np_tree_insert_str( jrb_data, "_np.token.ident", np_treeval_new_tree(jrb_my_ident));
+        np_tree_insert_str(jrb_data, "_np.token.ident", np_treeval_new_tree(jrb_my_ident));
     }
 
     np_message_t* msg_out = NULL;
@@ -609,6 +616,7 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
     _np_job_submit_msgout_event(context, 0.0, prop, target, msg_out);
 
     np_tree_free(jrb_my_node);
+    if (NULL != jrb_my_ident) np_tree_free(jrb_my_ident);
 
     return msg_out;	
 }

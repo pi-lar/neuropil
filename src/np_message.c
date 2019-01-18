@@ -928,20 +928,28 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     _np_messagepart_encrypt(context, msg->body, nonce, sym_key, NULL);
 
     // now encrypt the encryption key using public key crypto stuff
-    unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+    // unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
     unsigned char ciphertext[crypto_box_MACBYTES + crypto_secretbox_KEYBYTES];
 
     // convert our own sign key to an encryption key
-    crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                                                   context->my_identity->aaa_token->crypto.ed25519_secret_key);
+    // crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+    //                                                context->my_identity->aaa_token->crypto.ed25519_secret_key);
 
     // convert our partner key to an encryption key
-    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-    crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
+    // unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
+    // crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
+
+#ifdef DEBUG
+    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1];
+    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES*2+1];
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) encrypt: pa pk: %s ### my pk: %s\n", msg->uuid, partner_key, curve25519_pk);
+#endif
 
     // finally encrypt
     crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
-                              partner_key, curve25519_sk);
+    		                      tmp_token->crypto.derived_kx_public_key, context->my_identity->aaa_token->crypto.derived_kx_secret_key);
     if (0 > crypto)
     {
         log_msg(LOG_ERROR, "encryption of message payload failed");
@@ -1015,24 +1023,35 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                 unsigned char sym_key[crypto_secretbox_KEYBYTES];
 
                 // convert own secret to encryption key
-                unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-                crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                    context->my_identity->aaa_token->crypto.ed25519_secret_key);
+                // unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+                // crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+                // context->my_identity->aaa_token->crypto.ed25519_secret_key);
 
                 // convert partner public key to signature key
-                unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-                int crypto_ret = 0;
+                // unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
 
-                crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
-                if (0 > crypto_ret)
-                {
-                    log_msg(LOG_ERROR, "decryption of message payload (%s) failed", msg->uuid);
-                    ret = false;
-                }
+                // crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
+                // if (0 > crypto_ret)
+                // {
+                //     log_msg(LOG_ERROR, "decryption of message payload (%s) failed", msg->uuid);
+                //     ret = false;
+                // }
+#ifdef DEBUG
 
-                crypto_ret += crypto_box_open_easy(sym_key, enc_sym_key,
+    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES*2+1]; partner_key[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+
+    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, context->my_identity->aaa_token->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+
+    log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) decrypt: my cu pk: %s ### my ed pk: %s ### pa pk: %s\n", msg->uuid, curve25519_pk, ed25519_pk, partner_key);
+#endif
+
+                int crypto_ret = crypto_box_open_easy(sym_key, enc_sym_key,
                     crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
-                    nonce, partner_key, curve25519_sk);
+                    nonce, tmp_token->crypto.derived_kx_public_key, context->my_identity->aaa_token->crypto.derived_kx_secret_key);
                 if (0 > crypto_ret)
                 {
                     log_msg(LOG_ERROR, "decryption of message sym_key (%s) failed", msg->uuid);

@@ -137,11 +137,11 @@ NP_API_INTERN
 int _np_node_cmp(np_node_t* a, np_node_t* b);
 
 #ifdef DEBUG 
-#define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, FUNC)
+#define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, FUNC, __LINE__)
 #else
-#define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, NULL)
+#define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, NULL, 0)
 #endif
-void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func);
+void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func, int line);
 
 
 #ifdef __cplusplus

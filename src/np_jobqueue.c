@@ -801,7 +801,7 @@ void __np_jobqueue_run_worker(np_state_t* context, np_thread_t* my_thread)
                 _np_threads_mutex_condition_wait(context, &my_thread->job_lock);
                 if(my_thread->busy == true) {
                     log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
-                    __np_jobqueue_run_once(context, my_thread->job);
+                    __np_jobqueue_run_once(context, my_thread->job);                
                 }
             }
         }

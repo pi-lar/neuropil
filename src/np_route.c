@@ -544,6 +544,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                 sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
                 sll_iterator(np_key_ptr) iter2 = NULL;
                 bool iters_equal = false;
+                uint8_t requested_list_size = 0;
                 while (iter1 != NULL)
                 {
                     iters_equal = false;
@@ -559,7 +560,11 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                     if (iters_equal == false) {
                         np_ref_obj(np_key_t, iter1->val);
                         sll_append(np_key_ptr, return_list, iter1->val);
+                        requested_list_size++;
                     }
+                    if (requested_list_size >= count)
+                    		break;
+
                     sll_next(iter1);
                 }
             }

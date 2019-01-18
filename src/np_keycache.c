@@ -66,7 +66,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
 {
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
 
-    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create start");
+    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create start");
     np_key_t* key = NULL;
     np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -84,7 +84,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
 
         key->last_update = np_time_now();
     }
-    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create end");
+    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create end");
     return (key);
 }
 

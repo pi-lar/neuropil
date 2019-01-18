@@ -509,16 +509,16 @@ char * _np_node2str(np_node_t* self, char* buffer) {
     return buffer;
 }
 
-void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func)
+void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func, int line)
 {
     np_ctx_memory(self);
     char tmp[500];
     log_debug_msg(LOG_HANDSHAKE, 
-        "Setting handshake of node \"%s\" from \"%s\" to \"%s\" at \"%s\"", 
+        "Setting handshake of node \"%s\" from \"%s\" to \"%s\" at \"%s:%d\"", 
         _np_node2str(self, tmp),
         np_handshake_status_str[self->_handshake_status], 
         np_handshake_status_str[set_to], 
-        func
+        func, line
     );
     self->_handshake_status = set_to;	
 }

@@ -39,12 +39,21 @@ def my_authz_cb(self:NeuropilNode,token:np_token):
     print("{node}: {type}: {token} {id}".format(node=self.get_fingerprint(),type="authz", token=token.subject, id=token.get_fingerprint()))
     return True
 
+def ident_check_callback(self, message:np_message):
+    print("{node}: {type}: {data}".format(node=self.get_fingerprint(), type="ident", data=message.raw()))    
+    return True
+
 class NeuropilListener(NeuropilNode):    
     def __init__(self, port, host = b'localhost', proto= b'tcp4', auto_run=True, **settings):                
         super().__init__(port, host, proto, auto_run, **settings)
         self.set_authenticate_cb(my_authn_cb)
         self.set_accounting_cb(self.my_acc_cb)
         self.set_authorize_cb(my_authz_cb)
+
+        tick = self.get_mx_properties('ident_check')
+        tick.max_parallel  = 100
+        tick.max_retry = 0
+        tick.apply()
 
         tick = self.get_mx_properties('tick')
         tick.reply_subject = "tock"
@@ -80,7 +89,13 @@ def main():
     
     np_1 = NeuropilListener(4444, no_threads=3, log_file="np_1.log")
     np_2 = NeuropilListener(5555, log_file="np_2.log")
-    #np_c = NeuropilCluster(3,port_range=4000)
+    np_c = NeuropilCluster(3,port_range=4000, auto_run=False)
+
+    ident = np_1.new_identity(time.time()+60)
+    
+    np_c.use_identity(ident)
+    np_c.set_receive_cb(b'ident_check', ident_check_callback)
+    np_c.run(0)
 
     # connect to a node in the internet
     internet = ''
@@ -97,18 +112,19 @@ def main():
         np_1.join(internet)
                 
     np_2.join(np1_addr)
-    #np_c.join(np1_addr)
+    np_c.join(np1_addr)
 
     t1 = time.time()    
     invoked = 0
     while True:
-        status = [np_1.get_status(),np_2.get_status()]# + [ s for n, s in np_c.get_status()] 
+        status = [np_1.get_status(),np_2.get_status()] + [ s for n, s in np_c.get_status()] 
 
         elapsed = int(time.time() - t1)     
         if np_1.np_has_receiver_for("tick") and not invoked:            
             invoked += 1            
-            np_1.send('tick', b'some data') 
-
+            print("invoke")
+            #np_1.send('tick', b'some data') 
+            np_2.send('ident_check',b'Send from np_2')
         if not(elapsed < max_runtime and all([s == neuropil.np_running for s in status])):
             break
         else:
@@ -118,7 +134,7 @@ def main():
     print('neuropil shutdown!')
     np_1.shutdown()
     np_2.shutdown()
-    #np_c.shutdown()
+    np_c.shutdown()
 
 if __name__ == "__main__":
     main()
