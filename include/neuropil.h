@@ -91,7 +91,7 @@ extern "C" {
         np_shutdown,		
     } NP_ENUM;
 
-    enum np_error {
+    enum np_return {
         np_ok = 0,
         np_not_implemented,
         np_network_error,
@@ -159,47 +159,47 @@ extern "C" {
     struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]);
 
     NP_API_EXPORT
-    enum np_error   np_use_identity(np_context* ac, struct np_token identity);
+    enum np_return np_use_identity(np_context* ac, struct np_token identity);
 
     NP_API_EXPORT
-    enum np_error   np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id_ptr id);
+    enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id_ptr id);
     
     NP_API_EXPORT
-    enum np_error   np_node_fingerprint(np_context* ac, np_id_ptr id);
+    enum np_return np_node_fingerprint(np_context* ac, np_id_ptr id);
 
     NP_API_EXPORT
-    enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
+    enum np_return np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
 
     // Get “connect string”. Signals error if connect string is unavailable (i.e.,
     // no listening interface is configured.)
     NP_API_EXPORT
-    enum np_error np_get_address(np_context* ac, char* address, uint32_t max);
+    enum np_return np_get_address(np_context* ac, char* address, uint32_t max);
 
     NP_API_EXPORT
-    enum np_error np_join(np_context* ac, char* address);
+    enum np_return np_join(np_context* ac, char* address);
 
     NP_API_EXPORT
-    enum np_error np_send(np_context* ac, char* subject, unsigned char* message, size_t length);
+    enum np_return np_send(np_context* ac, char* subject, unsigned char* message, size_t length);
     
     typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
     // There can be more than one receive callback, hence "add".
     NP_API_EXPORT
-    enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback);
+    enum np_return np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback);
 
     typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
     NP_API_EXPORT
-    enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
+    enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
     NP_API_EXPORT
-    enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
+    enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
     NP_API_EXPORT
-    enum np_error np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
+    enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
     
 
     // duration: 0 => process pending events and return
     //           N => process events for up to N seconds and return
     NP_API_EXPORT
-    enum np_error np_run(np_context* ac, double duration);
+    enum np_return np_run(np_context* ac, double duration);
 
     //enum np_mx_pattern      { NP_MX_BROADCAST, NP_MX_ANY, NP_MX_ONE_WAY, NP_MX_REQ_REP, /* ... */ } NP_ENUM;
     enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } NP_ENUM;
@@ -218,7 +218,7 @@ extern "C" {
     NP_API_EXPORT
     struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject);
     NP_API_EXPORT
-    enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties);
+    enum np_return np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties);
     NP_API_EXPORT
     void np_set_userdata(np_context * ac, void* userdata);
     NP_API_EXPORT
@@ -226,7 +226,7 @@ extern "C" {
     
 
     NP_API_EXPORT
-        enum np_error np_send_to(np_context* ac, char* subject, unsigned char* message, size_t length, np_id target);
+        enum np_return np_send_to(np_context* ac, char* subject, unsigned char* message, size_t length, np_id target);
     NP_API_EXPORT
         bool np_has_joined(np_context * ac);		
     NP_API_EXPORT
@@ -319,7 +319,7 @@ Identity management
    :return:
        an *identity token*.
 
-.. c:function:: enum np_error np_set_identity(np_context* ac, struct np_token identity)
+.. c:function:: enum np_return np_set_identity(np_context* ac, struct np_token identity)
 
    Sets the identity used by the neuropil node.
 
@@ -341,7 +341,7 @@ Identity management
 Starting up
 -----------
 
-.. c:function:: enum np_error np_listen(np_context* ac, char* protocol, char* host, uint16_t port)
+.. c:function:: enum np_return np_listen(np_context* ac, char* protocol, char* host, uint16_t port)
 
    Binds a neuropil application context to a listening address.
 
@@ -365,7 +365,7 @@ Starting up
    :c:data:`np_invalid_operation`   No identity is set for the application context.
    ===============================  ===========================================
 
-.. c:function:: enum np_error np_get_address(np_context* ac, char* address, uint32_t max)
+.. c:function:: enum np_return np_get_address(np_context* ac, char* address, uint32_t max)
 
    Gets the absolute address of the neuropil node within the overlay network.
 
@@ -387,7 +387,7 @@ Starting up
    :c:data:`np_invalid_operation`   No listening address is bound for the application context. (Call :c:func:`np_listen` first.)
    ===============================  ===========================================
 
-.. c:function:: enum np_error np_join(np_context* ac, char* address)
+.. c:function:: enum np_return np_join(np_context* ac, char* address)
 
    Adds a bootstrap node to be used by this node to join the neuropil network.
 
@@ -409,7 +409,7 @@ Starting up
 Sending and receiving messages
 ------------------------------
 
-.. c:function:: enum np_error np_send(np_context* ac, char* subject, unsigned char* message, size_t length)
+.. c:function:: enum np_return np_send(np_context* ac, char* subject, unsigned char* message, size_t length)
 
    Sends a message on a given subject.
 
@@ -431,7 +431,7 @@ Sending and receiving messages
    :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
    ===============================  ===========================================
 
-.. c:function:: enum np_error np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback)
+.. c:function:: enum np_return np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback)
 
    Adds a callback to be executed when receiving a message on a given subject.
    It is possible to add more than one receive callback for a given subject, in
@@ -496,7 +496,7 @@ Sending and receiving messages
 
    Unix timestamp that denotes the time the message was received.
 
-.. c:function:: enum np_error np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties)
+.. c:function:: enum np_return np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties)
 
    Configure message exchange semantics for a given subject. The default is
    best-effort message delivery without any attempt at retransmission and if
@@ -592,7 +592,7 @@ Sending and receiving messages
 Authentication and authorization
 --------------------------------
 
-.. c:function:: enum np_error np_set_authorize_cb(np_context* ac, np_aaa_callback callback)
+.. c:function:: enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback)
 
    Sets the authorization callback used to control access to message exchanges.
    The provided *callback* is responsible for judging whether the identity that
@@ -613,7 +613,7 @@ Authentication and authorization
    :c:data:`np_invalid_operation`   An authorization callback has already been set for this application context.
    ===============================  ===========================================
 
-.. c:function:: enum np_error np_set_authenticate_cb(np_context* ac, np_aaa_callback callback)
+.. c:function:: enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback)
 
    Sets an additional authentication callback used to authenticate nodes. Such
    a callback can be used to extend the authentication provided by neuropil to
@@ -730,7 +730,7 @@ Fingerprints
 Running your application
 ------------------------
 
-.. c:function:: enum np_error np_run(np_context* ac, double duration)
+.. c:function:: enum np_return np_run(np_context* ac, double duration)
 
    Runs the neuropil event loop for a given application context for a specified
    *duration*. During the execution of the event loop incoming and outgoing
@@ -750,7 +750,7 @@ Running your application
 Detecting errors
 ----------------
 
-.. c:type:: enum np_error
+.. c:type:: enum np_return
 
    This type denotes the set of status codes returned by various functions in
    the neuropil API. Possible values include:

@@ -102,7 +102,7 @@ int main (void)
 
 	   \code
 	 */
-	enum np_error status;
+	enum np_return status;
 	char *message = "Hello, World!";
 	size_t message_len = strlen(message);
 	do status = np_run(ac, 5.0)
