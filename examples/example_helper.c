@@ -78,14 +78,14 @@ void __np_example_deinti_ncurse(np_context * context);
 
 void example_helper_destroy(np_context* context){
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    if(ud){
-        np_set_userdata(context, NULL);
+    if(ud){        
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
             ud->_np_httpserver_active = false;
         }
         __np_example_deinti_ncurse(context);
-
+        
+        np_set_userdata(context, NULL);
         _np_threads_mutex_destroy(context, ud->__log_mutex);
         free(ud->__log_mutex);
         free(ud->__log_buffer);
@@ -787,7 +787,7 @@ example_user_context* parse_program_args(
 void __np_example_deinti_ncurse(np_context * context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
         
-    if (ud->__np_ncurse_initiated == true) {
+    if (ud != NULL && ud->__np_ncurse_initiated == true) {
         delwin(ud->__np_top_left_win);
         delwin(ud->__np_top_right_win);
         delwin(ud->__np_top_logo_win);
