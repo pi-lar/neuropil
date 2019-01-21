@@ -24,7 +24,7 @@ if not os.path.isfile(library_path):
     print("Please build the neuropil library first")
 else:    
     lib_destination_path = os.path.join(install_path,f"{lib_prefix}{build_name}{lib_extension}")
-    copyfile(library_path, lib_destionation_path)
+    copyfile(library_path, lib_destination_path)
 
     symlink_path = os.path.join(install_path,lib_name)
     if os.path.isfile(symlink_path):
