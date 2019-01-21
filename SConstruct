@@ -5,6 +5,7 @@ import platform
 import glob
 import io
 import os
+import SCons.Util
 
 def exec_call(target):        
     ret = subprocess.check_call(target)
@@ -50,7 +51,7 @@ verbose = bool(ARGUMENTS.get('verbose', 1))
 analyze = ARGUMENTS.get('analyze', 0)
 build_tests = int(ARGUMENTS.get('test', 1))
 build_tests_enable_test_coverage = build_tests > 1
-build_doc = ARGUMENTS.get('doc', 0)
+build_doc = int(ARGUMENTS.get('doc', 0))
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
@@ -59,7 +60,7 @@ build_program = ARGUMENTS.get('program', False)
 opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
 build_x64 = int(ARGUMENTS.get('x64', -1))
 install = int(ARGUMENTS.get('install', 0))
-
+build_bindings = bool(ARGUMENTS.get('bindings', True))
 
 
 # use clang to compile the source code
@@ -94,7 +95,6 @@ default_env.Decider('MD5')
 # read in additional compile flags
 
 
-build_bindings = bool(ARGUMENTS.get('bindings', True))
 if build_x64 == -1:
     build_x64  = "64" in str(platform.processor())
 else:
@@ -223,7 +223,7 @@ if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
     print ('Did not find libsodium.so or sodium.lib ...')
     Exit(1)
 
-scan_build_exe = neuropil_env.WhereIs('scan-build')
+scan_build_exe = neuropil_env.WhereIs('scan-build') or SCons.Util.WhereIs('scan-build')
 if int(analyze) and not scan_build_exe:
     print ('---')
     print ('did not find clang checker executable in the path, skipping build of static code analysis')
@@ -231,8 +231,8 @@ if int(analyze) and not scan_build_exe:
     print ('---')
     Exit(1)
 
-sphinx_exe = neuropil_env.WhereIs('sphinx-build')
-if int(build_doc) and not sphinx_exe:
+sphinx_exe = neuropil_env.WhereIs('sphinx-build') or SCons.Util.WhereIs('sphinx-build')
+if build_doc and not sphinx_exe:
     print ('---')
     print ('did not find sphinx executable in the path, skipping build of documentation')
     print ('---')
@@ -250,13 +250,14 @@ analyze_builder = Builder(generator = analyze_source_code)
 neuropil_env.Append(BUILDERS = {'Analyzer' : analyze_builder})
 
 # create sphinx builder, hopefully sphinx-build will be on the path
-def build_sphinx_doc(source, target, neuropil_env, for_signature):
-    return 'sphinx-build %s %s' % (source[0], target[0])
-sphinx_builder = Builder(generator = build_sphinx_doc, target_factory=Dir, source_factory=Dir)
-neuropil_env.Append(BUILDERS = {'Sphinx' : sphinx_builder})
+#def build_sphinx_doc(source, target, neuropil_env, for_signature):
+#    return 'sphinx-build %s %s' % (source[0], target[0])
+#sphinx_builder = Builder(generator = build_sphinx_doc, target_factory=Dir, source_factory=Dir)
+#neuropil_env.Append(BUILDERS = {'Sphinx' : sphinx_builder})
 
-if int(build_doc) and sphinx_exe:
-    neuropil_env.Sphinx('./build/html', './doc/source')
+if build_doc and sphinx_exe:
+    #neuropil_env.Sphinx('./build/html', './doc/source')
+    compile_documentation = neuropil_env.Command("compile.documentation", None, lambda target,source,env: exec_call('make html -C doc BUILDDIR=../build'.split(' ')))
 
 if int(analyze) and scan_build_exe:
     neuropil_env.Analyzer('build/sca')
@@ -354,6 +355,7 @@ if install:
 
 # clean up
 Clean('.', os.path.join('bindings','python_cffi','build'))
+Clean('.', os.path.join('doc','build'))
 Clean('.', 'build')
 Clean('.', os.path.join('bindings','python_cffi','dist'))
 Clean('.', 'dist')
