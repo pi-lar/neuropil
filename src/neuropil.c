@@ -433,6 +433,8 @@ enum np_return np_join(np_context* ac, char* address) {
     char* safe_address = strndup(address, 500);
 
     np_send_join(context, safe_address);
+
+    free(safe_address);
     return ret;
 }
 

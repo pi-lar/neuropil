@@ -289,7 +289,7 @@ np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
 bindings_python_build = False
 if build_bindings:
   bindings_py_env = default_env.Clone()    
-  bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build_swig.sh']))
+  bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build.sh']))
   Depends(bindings_python_build, np_dylib)
 
 
