@@ -50,7 +50,7 @@ category             neuropil             MQTT                 TCP/TLS          
 ==================== ==================== ==================== ==================== ====================
 - pki                yes                  based on TLS         yes                  based on TLS
 - web of trust       yes                                       no                   no
-- identity provider  yes                  partly()             no ()
+- identity provider  yes                  partly               no 
 - username/password  no                   yes                  no
 - realm              yes                  no                   no
 - pre-seed identity  yes                  yes                  yes                  yes
