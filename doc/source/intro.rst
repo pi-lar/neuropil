@@ -1,8 +1,10 @@
+************
 Introduction
 ************
+
 neuropil is a small messaging library which by default adds two layers of encryption.
-It allows you to address devices, applications, persons worldwide without compromise for 
-privacy or security requirements.
+It allows you to address identities (a device, an application, a service or a person) worldwide 
+without compromise for privacy or security requirements.
 
 All neuropil enabled applications or devices form an ad-hoc cluster of connected nodes which
 constantly exchange messages to detect failures and to exchange informations. Nodes can connect and
@@ -12,7 +14,7 @@ disconnect at any time, messages will still be transported to their destinations
 
    <hr width=200>
 
-*********
+
 Use Cases
 *********
 
@@ -26,7 +28,6 @@ Use Cases
 
    <hr width=200>
 
-********
 Features
 ********
 
@@ -45,7 +46,6 @@ Features
 
    <hr width=200>
 
-*******
 Roadmap
 *******
 
