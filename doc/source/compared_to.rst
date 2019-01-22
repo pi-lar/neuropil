@@ -13,9 +13,9 @@ Digital identities
 ******************
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|               |TCP/TLS|            |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
-- identities         token                based http/TLS       x509                 based http/TLS
+- identities         :term:`token`        based http/TLS       x509                 based http/TLS
 - username/password  no                   yes                  no                   no
 - asymmetric         yes                  no                   yes                  yes
 - symmetric          no                   no                   no                   no
@@ -33,7 +33,7 @@ The interesting fact about X.509 and TLS, although a good measure for transport 
 it is bad when being used for persons. For some reasons X.509 has never made it to the upper OSI layers,
 and if you would like to use them you have to add additional standards like e.g. SAML and WS-Security.
 When looking at the REST/JSON world, those concepts never really made it and instead JWT is used. Or
-WeaveNet comes into play to integrate security as a cross concern.
+|WeaveNet| comes into play to integrate security as a cross concern.
 
 Neuropil captures the strength of digital identities based on asymmetric cryptography, but adds the dynamic
 approach of JWT to it. Thus neuropil can support attribute based security measures as they can be found in
@@ -46,7 +46,7 @@ Authentication
 Let's move on to a different topic, the ways you have to authenticate your partners:
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
 - pki                yes                  based on TLS         yes                  based on TLS
 - web of trust       yes                                       no                   no
@@ -70,8 +70,8 @@ CRL (certificate revocation lists) are in our point of view too large for smalle
 certs and an error rate of 1%) and they are implemented as black list. OCSP (Online Certificate Status Protocol)
 suffers form the same 'black list' weakness, but is at least better suited for online checks.
 
-Neuropil uses a DHT, and each identity has a place in this DHT and is authenticated at least once.
-The size of the DHT is exactly large enough to cover all used identities, and can be used to lookup identity
+Neuropil uses a :term:`DHT`, and each identity has a place in this :term:`DHT` and is authenticated at least once.
+The size of the :term:`DHT` is exactly large enough to cover all used identities, and can be used to lookup identity
 informations.
 
 And I just realize, that we need to add a secure remote password (SRP) library to neuropil.
@@ -81,7 +81,7 @@ Authorization
 *************
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
 - local config       possible             yes                  yes                  yes
 - rule based         yes                  no                   no                   yes
@@ -106,7 +106,7 @@ Transport encryption
 ********************
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
 transport encryption yes                  yes (based on TLS)   yes                  yes (based on TLS)
 - asymmetric         yes                                       yes
@@ -125,19 +125,19 @@ With neuropil we always take into account the "next hop", that is why we are usi
 encryption (and no, TLS is not end-to-end encryption in our opinion. Only for very specific use cases.)
 
 When looking at multicast or broadcast scenarios neuropil again excels. By assigning cryptographic attributes
-to a node (e.g. with and end-to-end encrypted message), you can implement different encryption schemes on
+to a :term:`node` (e.g. with and end-to-end encrypted message), you can implement different encryption schemes on
 the same physical transport. Think about it: your thermostats use a different encryption than your machines
 than your maintenance engineer!
 
-If you are missing multicast/broadcast a 'yes' for MQTT here: this table is for network layer encryption. Doing
-pub/sub with MQTT follows later on, and has it's very own quirk.
+If you are missing multicast/broadcast a 'yes' for |MQTT| here: this table is for network layer encryption. Doing
+pub/sub with |MQTT| follows later on, and has it's very own quirk.
 
 
 Payload encryption
 ******************
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
 - encrypted content  yes (automatic)      no                   no                   no
 - signed content     via neuropil_data.h  no                   no                   no
@@ -156,7 +156,7 @@ Message exchange pattern
 ************************
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
 - one-to-one         yes                  yes                  yes                  yes
 - one-to many        yes                  yes                  no                   no
@@ -165,29 +165,29 @@ category             neuropil             MQTT                 TCP/TLS          
 - fault-tolerance    yes                  yes                  no                   (additional lb/fw)
 ==================== ==================== ==================== ==================== ====================
 
-No surprise, neither TLS nor WeaveNet do have an answer for sending messages to more than one component.
-You have to use an additional 'microservice' called MQTT (or any other messaging system). But then you
+No surprise, neither TLS nor |WeaveNet| do have an answer for sending messages to more than one component.
+You have to use an additional 'microservice' called |MQTT| (or any other messaging system). But then you
 have to get the resources for it and scale it accordingly as well. Be aware that there is a potential
 security gap: although technically decoupling sender and receiver (good!), these systems also decouple
 identities from knowing each other. You can attach an additional receiver to any of the current messaging
 servers, and the sender will never know about it! Any messaging server in your application landscape will
 be the honey pot for an attacker. Together with password based authentication and possible TLS degradation
-because of old TLS version this can become very ugly soon (hint: some MQTT implementations let you define
+because of old TLS version this can become very ugly soon (hint: some |MQTT| implementations let you define
 the TLS connection per partner).
 
 
 Protocol efficiency
 *******************
 
-==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
-==================== ==================== ==================== ==================== ====================
-internal protocol    binary/msgpack       binary               binary               http
-==================== ==================== ==================== ==================== ====================
+==================== ====================== ==================== ==================== ====================
+category             neuropil               |MQTT|               |TCP/TLS|            |WeaveNet|
+==================== ====================== ==================== ==================== ====================
+internal protocol    binary/:term:`msgpack` binary               binary               http
+==================== ====================== ==================== ==================== ====================
 
 For small devices and machines plain text (http) is not an option. Thus neuropil supports the binary
-msgpack protocol and also uses it for parts of its internal messages as well.
-MQTT itself is agnostic towards the payload, you have to choose one yourself. HTTP also usually requires
+:term:`msgpack` protocol and also uses it for parts of its internal messages as well.
+|MQTT| itself is agnostic towards the payload, you have to choose one yourself. HTTP also usually requires
 and extra protocol definition on top (e.g. COAP).
 
 
@@ -195,7 +195,7 @@ Cryptographic primitives
 ************************
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
 - based on           libsodium            openssl              openssl              openssl
 - algorithm          curve, poly1905                           you have to manage
@@ -211,14 +211,14 @@ External dependencies
 *********************
 
 ==================== ==================== ==================== ==================== ====================
-category             neuropil             MQTT                 TCP/TLS              WeaveNet
+category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
 ==================== ==================== ==================== ==================== ====================
 - DNS (security)     no                   yes                  yes                  yes
 - NTP                no (tbs.)            yes                  yes                  yes
 - other              no                                                             kubernetes
 - firewall setup     simple keep state    yes                                       yes
                      rules
-- IIoT size          no                   yes                  yes                  yes
+- IIoT size ready    yes                  no                   no                   no
 - B2B exchange       yes                  no                   yes                  no
 ==================== ==================== ==================== ==================== ====================
 
@@ -227,11 +227,11 @@ For all TLS based systems you also have to get you DNS (DNSSEC) and NTP settings
 have to use load-balancer to finally implement the security that you would like to have.
 
 neuropil is the only system that doesn't have restrictions for the mentioned topics:
- * the DHT acts as an DNSSEC layer as well, no privacy leak by DNS lookups
+ * the :term:`DHT` acts as an DNSSEC layer as well, no privacy leak by DNS lookups
  * a secure variant of the NTP protocol could be easily implemented
  * a simple OS installation is enough to get you started
  * the simplest firewall set (keep-state for TCP connections) let's you connect your protected devices worldwide
- * IIoT size is not a problem (the DHT address space is large enough to cover all atoms in the universe)
+ * IIoT size is not a problem (the :term:`DHT` address space is large enough to cover all atoms in the universe)
  * B2B exchange is not a problem, because neuropil has 'SLA included' (e.g. limit throughput based on attributes and
    digital identities)
 
@@ -247,9 +247,21 @@ If you have no questions: when do you plan your start of using the neuropil mess
 
 
 
-[1]: MQTT
+  [1]: MQTT: https://MQTT.org
 
-[2]: TCP/TLS
+  [2]: TCP/TLS: https://datatracker.ietf.org/wg/tls/documents
 
-[3]: WeaveNet
+  [3]: WeaveNet: https://www.weave.works/oss/net
+
+.. |MQTT| raw:: html
+
+  <a href="https://MQTT.org/" target="_blank">MQTT</a>
+
+.. |TCP/TLS| raw:: html
+
+  <a href="https://datatracker.ietf.org/wg/tls/documents/" target="_blank">TCP/TLS</a>
+
+.. |WeaveNet| raw:: html
+
+  <a href="https://www.weave.works/oss/net/" target="_blank">WeaveNet</a>
 

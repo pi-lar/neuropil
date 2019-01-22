@@ -219,7 +219,7 @@ Specific definition of discovery messages (additional MAC on the body of the mes
 Message serialization format
 ****************************
 
-We use the msgpack format to serialize messages. Some parts of the message can still be used directly, as the position
+We use the :term:`msgpack` format to serialize messages. Some parts of the message can still be used directly, as the position
 in the 1024 byte blocks is always is the same. The message object can then be composed of the following parts:
 
 .. code-block:: c
@@ -239,7 +239,7 @@ in the 1024 byte blocks is always is the same. The message object can then be co
 
 
 All together this sums up to 220 bytes of protocol parts (1+17+8+17+150+3+5+25=236)
-msgpack definitions sum up to 29 bytes and could be optimized (removed) further in the future.
+:term:`msgpack` definitions sum up to 29 bytes and could be optimized (removed) further in the future.
 Right now it is easier to keep msg protocol definitions to ba able to add further fields in the future.
 
 
