@@ -29,7 +29,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __default_properties->priority = 0;
     __default_properties->ack_mode = ACK_NONE;
     __default_properties->retry = 0;
-    sll_append(np_callback_t, __default_properties->clb_inbound, _np_in_received);
+    //sll_append(np_callback_t, __default_properties->clb_inbound, _np_in_received);
     //default: 	sll_append(np_callback_t, __default_properties->clb_outbound, _np_out);
     //sll_append(np_callback_t, __default_properties->clb_transform, _np_never_called_jobexec_transform);
     //default: sll_append(np_callback_t, __default_properties->clb_route, _np_glia_route_lookup);
@@ -191,7 +191,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __piggy->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
     __piggy->mep_type = ONE_WAY;
     __piggy->priority = 0;
-    __piggy->ack_mode = ACK_DESTINATION;
+    __piggy->ack_mode = ACK_NONE;
     __piggy->retry = 0;
     sll_append(np_callback_t, __piggy->clb_inbound, _np_in_piggy);
     //default: sll_append(np_callback_t, __piggy->clb_outbound, _np_out);

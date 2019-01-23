@@ -44,6 +44,12 @@ if (NULL == np_tree_find_str(TREE, FIELD_NAME)){							\
 } 																			\
 else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 
+#define CHECK_STR_FIELD_BOOL(TREE, FIELD_NAME, VAR_NAME, ERROR_MSG, ...) 					 \
+np_tree_elem_t* VAR_NAME = NULL;                                                             \
+if(!np_tree_check_field(context, TREE, FIELD_NAME, _NP_MSG_HEADER_SUBJECT, &VAR_NAME)) {     \
+    log_debug(LOG_ERROR,ERROR_MSG, __VA_ARGS__);                                               \
+} else
+
 /**
 .. c:type:: np_tree_conf_t
 
@@ -321,6 +327,8 @@ NP_API_INTERN
 void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val);
 NP_API_EXPORT
 unsigned char* np_tree_get_hash(np_tree_t* self);
+NP_API_INTERN
+bool np_tree_check_field(np_state_t* context, np_tree_t* tree, const char* field_name, const  char* _NP_MSG_HEADER_SUBJECT, np_tree_elem_t** buffer) ;
 #ifdef __cplusplus
 }
 #endif

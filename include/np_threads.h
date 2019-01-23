@@ -36,7 +36,7 @@ return_type wrapped_##func_name(arg_1, arg_2);
 
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
-
+typedef struct np_thread_stats_s np_thread_stats_t;
 
 
 typedef enum np_module_lock_e np_module_lock_type;
@@ -141,7 +141,7 @@ struct np_thread_s
 
     np_mutex_t job_lock;
     np_job_t job;
-    bool busy;
+    bool _busy;
     enum np_thread_type_e thread_type;
 
     enum np_status status;
@@ -153,6 +153,11 @@ struct np_thread_s
     np_sll_t(char_ptr, want_lock);
     np_sll_t(char_ptr, has_lock);
 #endif
+
+#ifdef NP_STATISTICS_THREADS 
+    np_thread_stats_t *stats;
+#endif
+
 } NP_API_INTERN;
 
 
@@ -299,6 +304,16 @@ char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine);
     _LOCK_ACCESS(&NAME##_mutex)
 #define TSP_TRYSCOPE(NAME)								\
     _TRYLOCK_ACCESS(&NAME##_mutex)
+
+ 
+void np_threads_busyness(np_thread_t* self, bool is_busy);
+#ifdef NP_STATISTICS_THREADS 
+    void np_threads_busyness_statistics(np_thread_t* self, double *perc_1, double *perc_5, double *perc_15);
+    void np_threads_busyness_stat(np_thread_t* self) ;
+#else
+    #define np_threads_busyness_statistics(self,perc_1, perc_5, perc_15) 
+    #define np_threads_busyness_stat(self) 
+#endif
 
 
 #ifdef __cplusplus

@@ -97,325 +97,336 @@ bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_
     return ret;
 }
 
+
+
+bool _np_in_received_decrypt(np_state_t* context, np_key_t* alias_key, void* raw_msg){
+
+    bool ret = false;
+    
+
+     if (NULL != alias_key &&
+        NULL != alias_key->aaa_token &&
+        IS_VALID (alias_key->aaa_token->state) &&
+        alias_key->node->session_key_is_set == true
+        )
+    {
+        log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+            "/start decrypting message with alias %s",
+            _np_key_as_str(alias_key)
+        );
+
+        unsigned char nonce[crypto_secretbox_NONCEBYTES];
+
+        unsigned char dec_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES];
+        memcpy(nonce, raw_msg, crypto_secretbox_NONCEBYTES);                
+
+        int crypto_result = crypto_secretbox_open_easy(dec_msg,
+                (const unsigned char *)raw_msg + crypto_secretbox_NONCEBYTES,
+                MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES,
+                nonce,
+                alias_key->node->session.session_key_to_read
+        );
+                        
+        log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
+            "HANDSHAKE SECRET: using shared secret from %s (mem id: %s) = %"PRIi32" to decrypt data",
+            _np_key_as_str(alias_key), 
+            np_memory_get_id(alias_key), 
+            crypto_result
+        );
+
+        if (crypto_result == 0)
+        {					
+            ret = true;
+            log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+                    "correct decryption of message send from %s", _np_key_as_str(alias_key));
+            memset(raw_msg, 0, MSG_CHUNK_SIZE_1024);
+            memcpy(raw_msg, dec_msg, MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
+        } else {
+            char tmp[255];
+            log_msg(LOG_WARN,
+                "error on decryption of message (source: \"%s\")",
+                np_network_get_desc(alias_key,tmp));
+        }
+    }
+    else {
+        log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
+            "HANDSHAKE SECRET: using no shared secret (%s) used alias: %s",
+                NULL == alias_key ? "no alias key is provided":
+                NULL == alias_key->aaa_token ? "alias key has no aaatoken" :
+                !(IS_VALID(alias_key->aaa_token->state)) ? "alias key token is not valid" :
+                alias_key->node->session_key_is_set != true ? "alias key node has no session key" :
+                "no reason available",
+            alias_key == NULL ?"NULL":_np_key_as_str(alias_key)
+        );
+    }
+    return ret;
+}
+
+
+bool _np_in_received_forwarding(
+    np_state_t* context, np_msgproperty_t* handler, 
+    np_key_t* my_key,np_key_t* alias_key, 
+    np_dhkey_t target_dhkey, bool is_direct_msg, 
+    np_message_t* msg_in, char* str_msg_subject, 
+    bool *forwarded_msg
+    ){    
+
+    bool ret = true;
+    *forwarded_msg = false;
+
+    // forward the message if
+    // a) msg is not for my dhkey
+    if (_np_dhkey_cmp(&target_dhkey, &my_key->dhkey) != 0)// || handler == NULL)
+    {
+        // perform a route lookup
+        np_sll_t(np_key_ptr, tmp) = NULL;
+        // zero as "consider this node as final target"
+        tmp = _np_route_lookup(context, target_dhkey, 0);
+        if (0 < sll_size(tmp))
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                "msg (%s) route_lookup result 1 = %s",
+                msg_in->uuid, _np_key_as_str(sll_first(tmp)->val)
+            );
+
+        /* forward the message if
+            b) we do have a list of possible forwards
+            c) we are not the best possible forward
+        */
+        if (NULL != tmp &&
+            sll_size(tmp) > 0 &&
+            (false == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
+        {
+            *forwarded_msg = true;
+        }
+        /* try forwarding the message if
+        d) it is a direct message (ack / join / ...)
+        e) we do have a handler (but we are not the target!)
+        */
+        if (handler != NULL && is_direct_msg)
+        {
+            *forwarded_msg = true;
+        }
+
+        if (*forwarded_msg)
+        {
+            log_msg(LOG_INFO, "forwarding message (%s) for subject: %s", msg_in->uuid, str_msg_subject);
+
+            np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, str_msg_subject);
+            if (NULL == prop) {
+                prop = np_msgproperty_get(context, OUTBOUND, _DEFAULT);
+            }
+            // TODO: is it necessary to forward with a small penalty to prevent infinite loops?
+            _np_job_submit_route_event(context, NP_PI/1000, prop, alias_key, msg_in);
+            _np_increment_forwarding_counter();
+
+            np_key_unref_list(tmp, "_np_route_lookup");
+            sll_free(np_key_ptr, tmp);
+
+            // if we do not have a handler or the handler has no receive tokens and no send tokens
+            // we may cancel further handling
+            // FIXME: Only further work on this msg if we are one of the (few) nodes handling this type of msg            
+            if (handler == NULL ||
+                (
+                ( /*msg->subj*/handler->recv_key == NULL || pll_size(handler->recv_key->recv_tokens) <= 0)
+                &&
+                (handler->send_key == NULL || pll_size(handler->send_key->send_tokens) <= 0)
+                )
+            )
+            {
+                ret = false;
+            }
+        } else {
+            np_key_unref_list(tmp, "_np_route_lookup");
+            if (NULL != tmp) sll_free(np_key_ptr, tmp);
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                        "msg (%s) self handling message for subject '%s'",
+                        msg_in->uuid, str_msg_subject);
+        }
+    }
+    return ret;
+}
+
 /**
  ** message_received:
  ** is called by network_activate and will be passed received data and size from socket
  */
-void _np_in_received(np_state_t* context, np_jobargs_t args)
+void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "received msg");
-    void* raw_msg = NULL;
     char* str_msg_subject;
     char str_msg_to[65];
     char str_msg_from[65];
 
     np_state_t* state = context;
-
-    np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
-    {
-        np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
+    if (raw_msg != NULL) {            
+        np_waitref_obj(np_key_t, state->my_node_key, my_key,"np_waitref_key");
         {
-            np_message_t* msg_in = NULL;
-            int ret = 1;
-
-            // we registered this token info before in the first handshake message
-            np_key_t* alias_key = args.target;
-
-            raw_msg = args.custom_data;
-
-            if (NULL == raw_msg)
+            np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
             {
-                goto __np_cleanup__;
-            }
+                np_message_t* msg_in = NULL;
 
-            np_new_obj(np_message_t, msg_in);
-            _np_message_mark_as_incomming(msg_in);
+                np_new_obj(np_message_t, msg_in);
+                _np_message_mark_as_incomming(msg_in);
 
+                log_debug_msg(LOG_MESSAGE, "incomming msg alias_key %s", _np_key_as_str(alias_key));
 
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                "alias_key %s",
-                _np_key_as_str(alias_key)
-            );
+                bool is_decryption_successful = _np_in_received_decrypt(context, alias_key, raw_msg);                
 
-            bool is_decryption_successful = false;
-            if (NULL != alias_key &&
-                NULL != alias_key->aaa_token &&
-                IS_VALID (alias_key->aaa_token->state) &&
-                alias_key->node->session_key_is_set == true
-                )
-            {
-                log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                    "/start decrypting message with alias %s",
-                    _np_key_as_str(alias_key)
-                );
+                bool is_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
 
-                unsigned char nonce[crypto_secretbox_NONCEBYTES];
-
-                unsigned char dec_msg[1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES];
-                memcpy(nonce, raw_msg, crypto_secretbox_NONCEBYTES);                
-
-                ret = crypto_secretbox_open_easy(dec_msg,
-                        (const unsigned char *)raw_msg + crypto_secretbox_NONCEBYTES,
-                        1024 - crypto_secretbox_NONCEBYTES,
-                        nonce,
-                        alias_key->node->session.session_key_to_read
-                );
-                                
-                log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
-                    "HANDSHAKE SECRET: using shared secret from %s (mem id: %s) (msg: %s)= %"PRIi32" to decrypt data",
-                    _np_key_as_str(alias_key), 
-                    np_memory_get_id(alias_key), 
-                    msg_in->uuid, 
-                    ret
-                );
-
-                if (ret == 0)
-                {					
-                    is_decryption_successful = true;
-                    log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                            "correct decryption of message (%s) (send from %s)", msg_in->uuid, _np_key_as_str(alias_key));
-                    memset(raw_msg, 0, 1024);
-                    memcpy(raw_msg, dec_msg, 1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
-                } else {
-                    char tmp[255];
-                    log_msg(LOG_WARN,
-                        "error on decryption of message (%s) (source: \"%s\")",
-                        msg_in->uuid, np_network_get_desc(alias_key,tmp));
-                }
-            }
-            else {
-                log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
-                    "HANDSHAKE SECRET: using no shared secret (%s) used alias: %s",
-                        NULL == alias_key ? "no alias key is provided":
-                        NULL == alias_key->aaa_token ? "alias key has no aaatoken" :
-                        !(IS_VALID(alias_key->aaa_token->state)) ? "alias key token is not valid" :
-                        alias_key->node->session_key_is_set != true ? "alias key node has no session key" :
-                        "no reason available",
-                    alias_key == NULL ?"NULL":_np_key_as_str(alias_key)
-                );
-            }
-            
-
-            ret = _np_message_deserialize_header_and_instructions(msg_in, raw_msg);
-
-            char tmp[255]={0};
-            if (ret == false) {				
-                if(is_decryption_successful == true) {
-                    log_msg(LOG_ERROR,
-                        "error deserializing message %s after   successful decryption (source: \"%s\")",
-                        msg_in->uuid, np_network_get_desc(alias_key,tmp));
-                } else {
-                    log_msg(LOG_WARN,
-                        "error deserializing message %s after unsuccessful decryption (source: \"%s\")",
-                        msg_in->uuid, np_network_get_desc(alias_key,tmp));
-
-                    char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
-                    log_debug_msg(LOG_DEBUG | LOG_VERBOSE | LOG_NETWORK,
-                        "(msg: %s) %s",
-                        msg_in->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, raw_msg, MSG_CHUNK_SIZE_1024));
-                }
-                np_memory_free(context, raw_msg);
-                goto __np_cleanup__;
-            }
-
-            log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
-                "deserialized message %s (source: \"%s\")",
-                msg_in->uuid, np_network_get_desc(alias_key,tmp));
-
-            _np_message_trace_info("in", msg_in);
-
-            // now read decrypted (or handshake plain text) message
-            CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
-            CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
-
-            _np_dhkey2str(&msg_from.value.dhkey, str_msg_from);
-            str_msg_subject = msg_subject.value.s;
-
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
-
-            bool is_handshake_msg = 0 == strncmp(
-                str_msg_subject,
-                _NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE,
-                strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)
-            );
-
-            bool is_direct_msg =
-                    ( 0 == strncmp(str_msg_subject, _NP_MSG_ACK, strlen(_NP_MSG_ACK)) ||
-                      0 == strncmp(str_msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
-                      0 == strncmp(str_msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST))
-                    );
-
-            np_msgproperty_t* handshake_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
-
-            if (is_handshake_msg && _np_msgproperty_check_msg_uniquety(handshake_prop, msg_in))
-            {
-                _np_job_submit_msgin_event(0.0, handshake_prop, alias_key, msg_in, NULL);
-            }
-            else if (is_decryption_successful == false) {
-                char tmp[255];
-                log_msg(LOG_WARN,
-                    "(msg: %s) incorrect decryption of message (received via alias %s / %s) (send from %s)",
-                    msg_in->uuid,
-                    _np_key_as_str(alias_key),
-                    np_network_get_desc(alias_key, tmp),
-                    str_msg_from
-                );
-            }
-            else if(true == alias_key->node->joined_network || is_direct_msg)
-            {
-                /* real receive part */
-                CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_to);
-                CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl);
-                CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp);
-                CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter);
-
-                _np_dhkey2str(&msg_to.value.dhkey, str_msg_to);
-
-                log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                    "msg (%s) target of message for subject: %s from: %s is: %s",
-                    msg_in->uuid, str_msg_subject, str_msg_from, str_msg_to);
-
-                // check time-to-live for message and expiry if neccessary
-                if (true == _np_message_is_expired(msg_in))
-                {
-                    log_msg(LOG_INFO,
-                        "msg (%s) ttl expired, dropping message (part) %s target: %s",
-                        msg_in->uuid, str_msg_subject, str_msg_to);
-                }
-                else if (msg_resendcounter.value.ush > 31) {
-                    log_msg(LOG_WARN,
-                        "msg (%s) resend count (%d) too high, dropping message (part) %s target: %s",
-                        msg_in->uuid, msg_resendcounter.value.ush, str_msg_subject, str_msg_to);
-                }
-                else {
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) message ttl not expired", msg_in->uuid);
-
-                    np_dhkey_t target_dhkey = msg_to.value.dhkey;
-                    /*
-                        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                            "target of msg (%s) is %s i am %s",
-                            msg_in->uuid, msg_to, _np_key_as_str(context->my_node_key)
-                        );
-                    */
-
-                    // check if inbound subject handler exists
-                    np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, str_msg_subject);
-                    bool forwarded_msg = false;
-                    // forward the message if
-                    // a) msg is not for my dhkey
-                    if (_np_dhkey_cmp(&target_dhkey, &my_key->dhkey) != 0)// || handler == NULL)
-                    {
-                        // perform a route lookup
-                        np_sll_t(np_key_ptr, tmp) = NULL;
-                        // zero as "consider this node as final target"
-                        tmp = _np_route_lookup(context, target_dhkey, 0);
-                        if (0 < sll_size(tmp))
-                            log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                                "msg (%s) route_lookup result 1 = %s",
-                                msg_in->uuid, _np_key_as_str(sll_first(tmp)->val)
-                            );
-
-                        /* forward the message if
-                            b) we do have a list of possible forwards
-                            c) we are not the best possible forward
-                        */
-                        if (NULL != tmp &&
-                            sll_size(tmp) > 0 &&
-                            (false == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &my_key->dhkey)))
-                        {
-                            forwarded_msg = true;
-                        }
-                        /* try forwarding the message if
-                           d) it is a direct message (ack / join / ...)
-                           e) we do have a handler (but we are not the target!)
-                        */
-                        if (handler != NULL && is_direct_msg)
-                        {
-                            forwarded_msg = true;
-                        }
-
-                        if (forwarded_msg)
-                        {
-                            log_msg(LOG_INFO,
-                                    "forwarding message (%s) for subject: %s", msg_in->uuid, str_msg_subject);
-
-                            np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, str_msg_subject);
-                            if (NULL == prop) {
-                                prop = np_msgproperty_get(context, OUTBOUND, _DEFAULT);
-                            }
-                            // TODO: is it necessary to forward with a small penalty to prevent infinite loops?
-                            _np_job_submit_route_event(context, NP_PI/1000, prop, alias_key, msg_in);
-                            _np_increment_forwarding_counter();
-
-                            np_key_unref_list(tmp, "_np_route_lookup");
-                            sll_free(np_key_ptr, tmp);
-
-                            // if we do not have a handler or the handler has no receive tokens and no send tokens
-                            // we may cancel further handling
-                            // FIXME: Only further work on this msg if we are one of the (few) nodes handling this type of msg
-                            // goto __np_cleanup__;
-                            if (handler == NULL ||
-                                (
-                                  ( /*msg->subj*/handler->recv_key == NULL || pll_size(handler->recv_key->recv_tokens) <= 0)
-                                  &&
-                                  (handler->send_key == NULL || pll_size(handler->send_key->send_tokens) <= 0)
-                                )
-                            )
-                            {
-                                goto __np_cleanup__;
-                            }
-                        } else {
-                            np_key_unref_list(tmp, "_np_route_lookup");
-                            if (NULL != tmp) sll_free(np_key_ptr, tmp);
-                            log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                                          "msg (%s) internal routing for subject '%s'",
-                                          msg_in->uuid, str_msg_subject);
-                        }
-                    }
-                    // we know now: this node is the node nearest to the dhkey
-
-                    // if this message really has to be handled by this node, does a handler exists ?
-                    if (NULL == handler)
-                    {
-                        log_msg(LOG_WARN,
-                            "msg (%s) no incoming callback function was found for type %s, dropping message",
-                            msg_in->uuid, str_msg_subject);
+                char tmp[255]={0};
+                if (is_deserialization_successful == false) {				
+                    if(is_decryption_successful == true) {
+                        log_msg(LOG_ERROR,
+                            "error deserializing message %s after   successful decryption (source: \"%s\")",
+                            msg_in->uuid, np_network_get_desc(alias_key,tmp));
                     } else {
-                        // sum up message parts if the message is for this node
-                        np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
-                        if (NULL != msg_to_submit)
-                        {
-                            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) is now complete", msg_in->uuid);
-                            _np_in_new_msg_received(msg_to_submit, handler, !forwarded_msg);
-                            np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
-                        }
-                        else {
-                            log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                                "msg (%s) is not complete and waits for other chunks",
-                                msg_in->uuid
+                        log_msg(LOG_WARN,
+                            "error deserializing message %s after unsuccessful decryption (source: \"%s\")",
+                            msg_in->uuid, np_network_get_desc(alias_key,tmp));
+
+                        #ifdef DEBUG
+                            char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
+                            log_debug(LOG_VERBOSE | LOG_NETWORK,
+                                "(msg: %s) %s",
+                                msg_in->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, raw_msg, MSG_CHUNK_SIZE_1024)
                             );
+                        #endif
+
+                    }
+                    np_memory_free(context, raw_msg);
+                    
+                } else {
+
+                    log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
+                        "deserialized message %s (source: \"%s\")",
+                        msg_in->uuid, np_network_get_desc(alias_key,tmp));
+
+                    _np_message_trace_info("in", msg_in);
+
+                    // now read decrypted (or handshake plain text) message
+                    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE (%s)", msg_in->uuid) {
+                        CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_FROM, msg_from,"NO FROM IN MESSAGE (%s)", msg_in->uuid) 
+                        {
+
+                            _np_dhkey2str(&msg_from->val.value.dhkey, str_msg_from);
+                            str_msg_subject = msg_subject->val.value.s;
+
+                            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
+
+                            bool is_handshake_msg = 0 == strncmp(
+                                str_msg_subject,
+                                _NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE,
+                                strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)
+                            );
+
+                            bool is_direct_msg =
+                                    ( 0 == strncmp(str_msg_subject, _NP_MSG_ACK, strlen(_NP_MSG_ACK)) ||
+                                    0 == strncmp(str_msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
+                                    0 == strncmp(str_msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST))
+                                    );
+
+                            np_msgproperty_t* handshake_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
+
+                            if (is_handshake_msg && _np_msgproperty_check_msg_uniquety(handshake_prop, msg_in))
+                            {
+                                _np_job_submit_msgin_event(0.0, handshake_prop, alias_key, msg_in, NULL);
+                            }
+                            else if (is_decryption_successful == false) {
+                                char tmp[255];
+                                log_msg(LOG_WARN,
+                                    "(msg: %s) incorrect decryption of message (received via alias %s / %s) (send from %s)",
+                                    msg_in->uuid,
+                                    _np_key_as_str(alias_key),
+                                    np_network_get_desc(alias_key, tmp),
+                                    str_msg_from
+                                );
+                            }
+                            else if(alias_key->node->joined_network || is_direct_msg)
+                            {
+                                /* real receive part */
+                                CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_TO, msg_to, "NO TO IN MESSAGE (%s)", msg_in->uuid) {
+                                    CHECK_STR_FIELD_BOOL(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl, "NO TTL IN MESSAGE (%s)", msg_in->uuid) {
+                                        CHECK_STR_FIELD_BOOL(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp, "NO TSTAMP IN MESSAGE (%s)", msg_in->uuid) {
+                                            CHECK_STR_FIELD_BOOL(msg_in->instructions, _NP_MSG_INST_SEND_COUNTER, msg_resendcounter, "NO SEND_COUNTER IN MESSAGE (%s)", msg_in->uuid) 
+                                            {
+                                                _np_dhkey2str(&msg_to->val.value.dhkey, str_msg_to);
+
+                                                log_debug(LOG_ROUTING,
+                                                    "msg (%s) target of message for subject: %s from: %s is: %s",
+                                                    msg_in->uuid, str_msg_subject, str_msg_from, str_msg_to);
+
+                                                // check time-to-live for message and expiry if neccessary
+                                                if (true == _np_message_is_expired(msg_in))
+                                                {
+                                                    log_msg(LOG_INFO,
+                                                        "msg (%s) ttl expired, dropping message (part) %s target: %s",
+                                                        msg_in->uuid, str_msg_subject, str_msg_to);
+                                                }
+                                                else if (msg_resendcounter->val.value.ush > 31) {
+                                                    log_msg(LOG_WARN,
+                                                        "msg (%s) resend count (%d) too high, dropping message (part) %s target: %s",
+                                                        msg_in->uuid, msg_resendcounter->val.value.ush, str_msg_subject, str_msg_to);
+                                                }
+                                                else {
+                                                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) message ttl not expired", msg_in->uuid);
+
+                                                    np_dhkey_t target_dhkey = msg_to->val.value.dhkey;
+                                                    /*
+                                                        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                                                            "target of msg (%s) is %s i am %s",
+                                                            msg_in->uuid, msg_to, _np_key_as_str(context->my_node_key)
+                                                        );
+                                                    */
+
+                                                    // check if inbound subject handler exists
+                                                    np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, str_msg_subject);
+                                                    bool forwarded_msg;
+
+                                                    bool forwarded = _np_in_received_forwarding(context, handler, my_key,alias_key, target_dhkey, is_direct_msg, msg_in, str_msg_subject, &forwarded_msg);
+                                                    if(forwarded) 
+                                                    {
+                                                        // we know now: this node is the node nearest to the dhkey
+
+                                                        // if this message really has to be handled by this node, does a handler exists ?
+                                                        if (NULL == handler)
+                                                        {
+                                                            log_msg(LOG_WARN,
+                                                                "msg (%s) no incoming callback function was found for type %s, dropping message",
+                                                                msg_in->uuid, str_msg_subject);
+                                                        } else {
+                                                            // sum up message parts if the message is for this node
+                                                            np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
+                                                            if (NULL != msg_to_submit)
+                                                            {
+                                                                log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) is now complete", msg_in->uuid);
+                                                                _np_in_new_msg_received(msg_to_submit, handler, !forwarded_msg);
+                                                                np_unref_obj(np_message_t, msg_to_submit, "_np_message_check_chunks_complete");
+                                                            }
+                                                            else {
+                                                                log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                                                                    "msg (%s) is not complete and waits for other chunks",
+                                                                    msg_in->uuid
+                                                                );
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                }
+                }                
+                np_unref_obj(np_message_t, msg_in, ref_obj_creation);
             }
-            else {
-// 				not yet
-//				log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-//					"msg (%s) requeue msg as it is not in protocol to receive a %s msg now.",
-//					msg_in->uuid, str_msg_subject
-//				);
-// 				_np_job_resubmit_msgin_event(NP_PI/100, args);
-            }
-
-        // clean the mess up
-        __np_cleanup__:
-            np_unref_obj(np_message_t, msg_in, ref_obj_creation);
-
+            np_unref_obj(np_network_t,my_network,"np_waitref_network");
         }
-        np_unref_obj(np_network_t,my_network,"np_waitref_network");
+        np_unref_obj(np_key_t, my_key,"np_waitref_key");
     }
-    np_unref_obj(np_key_t, my_key,"np_waitref_key");
     // __np_return__:
     return;
 }
@@ -479,7 +490,7 @@ void _np_in_piggy(np_state_t* context, np_jobargs_t args)
 
     np_waitref_obj(np_key_t, state->my_node_key, my_key, "np_waitref_key");
 
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
+    log_info(LOG_ROUTING, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
 
     while (NULL != (node_entry = sll_head(np_key_ptr, o_piggy_list)))
     {
@@ -1607,7 +1618,7 @@ void _np_in_available_sender(np_state_t* context, np_jobargs_t args)
     // check if we are (one of the) receiving node(s) of this kind of message
     if ( NULL != real_prop)
     {
-        _np_msgproperty_check_receiver_msgcache(real_prop);
+        _np_msgproperty_check_receiver_msgcache(real_prop, _np_aaatoken_get_issuer(msg_token));
     }
 
     __np_cleanup__:
@@ -1868,7 +1879,7 @@ void _np_in_authenticate_reply(np_state_t* context, np_jobargs_t args)
                      if (0 == strncmp(tmp_token->uuid, authentication_token->uuid, 255))
                      {
                          tmp_token->state |= AAA_AUTHENTICATED;
-                         _np_msgproperty_check_receiver_msgcache(subject_key->recv_property);
+                         _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
                          break;
                      }
                      // TODO: move to msgcache.h and change parameter
@@ -2045,7 +2056,7 @@ void _np_in_authorize_reply(np_state_t* context, np_jobargs_t args)
                     if (0 == strncmp(tmp_token->uuid, authorization_token->uuid, 255))
                     {
                         tmp_token->state |= AAA_AUTHORIZED;
-                        _np_msgproperty_check_receiver_msgcache(subject_key->recv_property);
+                        _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
                         break;
                     }
                     // TODO: move to msgcache.h and change parameter

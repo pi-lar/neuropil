@@ -16,7 +16,7 @@ NP_API_INTERN
 void _np_in_handshake(np_state_t* context, np_jobargs_t args);
 
 NP_API_INTERN
-void _np_in_received (np_state_t* context, np_jobargs_t args);
+void _np_in_received(np_state_t* context, np_key_t* alias_key, void* data_blob);
 
 NP_API_INTERN
 void _np_in_piggy (np_state_t* context, np_jobargs_t args);

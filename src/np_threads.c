@@ -101,6 +101,7 @@ void _np_threads_destroy(np_state_t* context) {
         sll_free(np_thread_ptr, _module->threads);                
 
         TSP_DESTROY(_module->threads);
+
         np_module_free(threads);		
     }
 }
@@ -577,6 +578,10 @@ void _np_thread_t_del(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP
     }
 
 #endif
+
+        #ifdef NP_STATISTICS_THREADS 
+            if(thread->stats)free(thread->stats);
+        #endif
     _np_threads_mutex_destroy(context, &thread->job_lock);
 
 }
@@ -585,6 +590,10 @@ void _np_thread_t_new(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP
 {
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_new(void* nw){");
     np_thread_t* thread = (np_thread_t*)data;
+
+#ifdef NP_STATISTICS_THREADS 
+    thread->stats = NULL;
+#endif
 
     thread->max_job_priority = DBL_MAX;
     thread->min_job_priority = 0;
@@ -674,7 +683,8 @@ np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, n
     new_thread->idx = number;
     new_thread->run_fn = fn;
     new_thread->thread_type = type;
-    new_thread->busy = false;
+    new_thread->_busy = false;
+    
 
 
     //TSP_SCOPE(np_module(threads)->threads) cannot be used due to recusion
@@ -857,22 +867,26 @@ char* np_threads_print(np_state_t * context, bool asOneLine) {
 #ifdef DEBUG
 
     ret = np_str_concatAndFree(ret,
-        "%-15s | %-7s | %4s | %-275s" "%s",
-        "Thread ID","Type","Busy", "Last FN pointer ident",
+        "%-15s | %-7s | %14s | %-275s" "%s",
+        "Thread ID","Type","Busy(1s/1m/5m)", "Last FN pointer ident",
         new_line
     );         
+    
     TSP_SCOPE(np_module(threads)->threads) {    
         sll_iterator(np_thread_ptr) thread_iter = sll_first(np_module(threads)->threads) ;
         while (thread_iter != NULL) {
             np_thread_t * thread = thread_iter->val;      
             assert(thread != NULL);          
             _LOCK_ACCESS(&thread->job_lock) {
+                double perc_0=0, perc_1=0,perc_2=0;
+                np_threads_busyness_statistics(thread, &perc_0, &perc_1, &perc_2);
+
                 ret = np_str_concatAndFree(ret,
-                    "%15"PRIu32" | %7s | %4"PRIu8" | %15p / %-257s"	"%s",
+                    "%15"PRIu32" | %7s | %3.0f%%%% %3.0f%%%% %3.0f%%%% | %15p / %-257s"	"%s",
                     thread->id, 
                     np_thread_type_str[thread->thread_type],
-                    thread->busy,
-                    ((thread->busy && thread->job.processorFuncs != NULL && sll_size(thread->job.processorFuncs)) > 0 ? sll_first(thread->job.processorFuncs)->val : NULL),
+                    perc_0,perc_1,perc_2,
+                    ((thread->_busy && thread->job.processorFuncs != NULL && sll_size(thread->job.processorFuncs)) > 0 ? sll_first(thread->job.processorFuncs)->val : NULL),
                     thread->job.ident,
                     new_line
                 ); 
@@ -885,3 +899,78 @@ char* np_threads_print(np_state_t * context, bool asOneLine) {
 #endif
     return ret;
 }
+
+
+struct np_thread_stat_s {
+    double interval;
+    double interval_start;
+    double interval_end;
+    double usage;
+    double last_usage;
+};
+struct np_thread_stats_s {
+    np_mutex_t mutex;
+    double last_busy_mark;
+    struct np_thread_stat_s items[3];
+};
+
+#ifdef NP_STATISTICS_THREADS 
+void _np_threads_busyness_stat(np_thread_t* self, bool is_busy) {
+    double now = np_time_now();
+    for(int i = 0; i < ARRAY_SIZE(self->stats->items); i++) {
+        if(now >= self->stats->items[i].interval_end) {
+            self->stats->items[i].usage = self->stats->items[i].last_usage;
+            self->stats->items[i].usage = 0;
+            self->stats->items[i].interval_start  = now;
+            self->stats->items[i].interval_end = now + self->stats->items[i].interval;
+            self->stats->last_busy_mark = 0;
+        }
+    }
+    if(self->stats->last_busy_mark != 0) {
+        double diff = now - self->stats->last_busy_mark;
+        for(int i = 0; i < ARRAY_SIZE(self->stats->items); i++) {
+            self->stats->items[i].usage += diff;
+        }
+    }
+    if(is_busy) {                        
+        self->stats->last_busy_mark = now;
+    } else {
+        self->stats->last_busy_mark = 0;
+    }
+}
+
+void np_threads_busyness_stat(np_thread_t* self) {
+    _np_threads_busyness_stat(self, self->_busy);
+}
+#endif
+void np_threads_busyness(np_thread_t* self, bool is_busy){
+    if(self->_busy != is_busy){                
+        self->_busy = is_busy;
+    }
+#ifdef NP_STATISTICS_THREADS         
+        if(self->stats==NULL) {
+            self->stats = calloc(1, sizeof(struct np_thread_stats_s));
+            self->stats->items[0].interval = 1;
+            self->stats->items[1].interval = 60;
+            self->stats->items[2].interval = 60*5;            
+        }        
+        _np_threads_busyness_stat(self, is_busy);
+#endif
+}
+#ifdef NP_STATISTICS_THREADS 
+void np_threads_busyness_statistics(np_thread_t* self, double *perc_0, double *perc_1, double *perc_2) {
+    if(self->stats)
+    {
+        #define code(i)                                                                                          \
+            *perc_##i = self->stats->items[i].usage / (np_time_now() - self->stats->items[i].interval_start);    \
+            if(self->stats->items[i].last_usage != 0) {                                                          \
+                *perc_##i = (self->stats->items[i].last_usage / self->stats->items[i].interval + *perc_##i) / 2; \
+            }                                                                                                    \
+            *perc_##i = *perc_##i *100;
+        code(0)
+        code(1)
+        code(2)        
+        #undef code
+    }
+}
+#endif

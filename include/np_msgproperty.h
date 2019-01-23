@@ -421,7 +421,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 NP_API_INTERN
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop);
 NP_API_INTERN
-void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop);
+void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhkey_t from);
 
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);

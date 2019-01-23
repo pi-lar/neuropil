@@ -1253,7 +1253,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 				// TODO: check if the complete buffer was read (byte count match)
 				value->value.tree = subtree;
 				value->size = subtree->byte_size;
-				log_debug_msg(LOG_TRACE, "read:  buffer size for subtree %u (%hd %u)", value->size, value->value.tree->size, subtree->byte_size);
+				log_debug_msg(LOG_SERIALIZATION | LOG_VERBOSE, "read:  buffer size for subtree %u (%hd %u)", value->size, value->value.tree->size, subtree->byte_size);
 			}
 			else if (obj->as.ext.type == np_treeval_type_dhkey)
 			{
@@ -1411,4 +1411,23 @@ unsigned char* np_tree_get_hash(np_tree_t* self) {
 
 	crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
 	return hash;
+}
+
+
+
+bool np_tree_check_field(np_state_t* context, np_tree_t* tree, const char* field_name,const  char* _NP_MSG_HEADER_SUBJECT, np_tree_elem_t** buffer) {
+	bool ret = true;
+	np_tree_elem_t* tmp; 									
+	if (NULL == (tmp = np_tree_find_str(tree, field_name))) {
+		ret = false;
+		if (NULL != (tmp = np_tree_find_str(tree, _NP_MSG_HEADER_SUBJECT))) {
+			log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",		
+				field_name,														
+				np_treeval_to_str(tmp->val,NULL));	
+		}else {																	
+			log_msg(LOG_WARN,"Missing field \"%s\" in tree", field_name);		
+		}																				
+	}
+	if(buffer != NULL) *buffer = tmp;
+	return ret;
 }

@@ -274,8 +274,8 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
     // np_memory_register_type(context, np_memory_types_np_job_t, sizeof(np_job_t), 4, JOBQUEUE_MAX_SIZE, NULL, NULL, np_memory_clear_space);
     // np_memory_register_type(context, np_memory_types_np_jobargs_t, sizeof(np_jobargs_t), 4, JOBQUEUE_MAX_SIZE/2, NULL, NULL, np_memory_clear_space);
 
-    np_memory_register_type(context, np_memory_types_BLOB_1024, 1024, 4, 150, NULL, NULL, np_memory_clear_space);
-    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, 984, 4, 50, NULL, NULL, np_memory_randomize_space);
+    np_memory_register_type(context, np_memory_types_BLOB_1024, MSG_CHUNK_SIZE_1024, 4, 150, NULL, NULL, np_memory_clear_space);
+    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40, 4, 50, NULL, NULL, np_memory_randomize_space);
 
     return true;
 }

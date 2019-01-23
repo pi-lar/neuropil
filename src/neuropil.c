@@ -558,7 +558,9 @@ enum np_return np_run(np_context* ac, double duration) {
         TSP_SET(context->status, np_running);
 
         if (duration <= 0) {        
-        __np_jobqueue_run_jobs_once(context, thread);
+            np_threads_busyness(thread, true);
+            __np_jobqueue_run_jobs_once(context, thread);
+            np_threads_busyness(thread, false);
         }
         else {
             np_jobqueue_run_jobs_for(context, duration);
