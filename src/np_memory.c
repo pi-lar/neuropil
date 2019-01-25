@@ -18,7 +18,6 @@
 #include "np_jobqueue.h"
 #include "np_threads.h"
 #include "np_util.h"
-#include "np_statistics.h"
 #include "np_list.h"
 #include "np_types.h"
 #include "np_message.h"
@@ -31,6 +30,7 @@
 #include "np_responsecontainer.h"
 #include "np_messagepart.h"
 #include "np_crypto.h"
+#include "np_statistics.h"
 
 
 #include "np_constants.h"

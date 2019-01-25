@@ -182,7 +182,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	struct np_token my_id = np_new_identity(context_1, np_time_now() + 3600.0, NULL);
+	struct np_token my_id = np_new_identity(context_1, _np_time_now(NULL) + 3600.0, NULL);
 	strncpy(my_id.subject, "urn:np:id:this.is.a.test.identity", 255);
 
 	np_use_identity(context_1, my_id);

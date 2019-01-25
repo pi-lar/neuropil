@@ -439,32 +439,32 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 
     CHECK_STR_FIELD(msg_to_submit->instructions, _NP_MSG_INST_ACK, msg_ack);
 
-    bool event_accepted = false;
-
     if (_np_message_deserialize_chunked(msg_to_submit) == false) {
         log_msg(LOG_WARN,
             "msg (%s) could not deserialize chunked msg", msg_to_submit->uuid);
 
     } else {
 
-        if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)) {
-            event_accepted = _np_job_submit_msgin_event(0.0, handler, my_key, msg_to_submit, NULL);
+        if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)) {             
+            
+            if(!_np_job_submit_msgin_event(0, handler, my_key, msg_to_submit, NULL)) {
+                _np_msgproperty_remove_msg_from_uniquety_list(handler, msg_to_submit);
+            } else
+            
+            {
+                log_debug(LOG_MESSAGE, "handling   message (%s) for subject: %s (%d) with function %p",
+                        msg_to_submit->uuid, handler->msg_subject, allow_destination_ack, handler->clb_inbound);
+
+                _np_message_trace_info("accepted", msg_to_submit);
+
+                if (allow_destination_ack)
+                {
+                    _np_send_ack(msg_to_submit, ACK_DESTINATION);
+                }            
+            }
+            //np_job_submit_msgin_event_sync(handler, my_key, msg_to_submit, NULL);
         } else {
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) is already known", msg_to_submit->uuid);
-        }
-
-        if (event_accepted) {
-            log_info(LOG_MESSAGE, "handling   message (%s) for subject: %s (%d) with function %p",
-                    msg_to_submit->uuid, handler->msg_subject, allow_destination_ack, handler->clb_inbound);
-
-            _np_message_trace_info("accepted", msg_to_submit);
-
-            if (allow_destination_ack && FLAG_CMP(msg_ack.value.ush, ACK_DESTINATION))
-            {
-                _np_send_ack(msg_to_submit);
-            }
-        } else {
-            _np_msgproperty_remove_msg_from_uniquety_list(handler, msg_to_submit);
         }
     }
 
@@ -658,7 +658,6 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
 
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_ele);    
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
-    CHECK_STR_FIELD(msg_in->instructions, _NP_MSG_INST_ACK, msg_ack_mode);
 
     msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
     np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, msg_subject);
@@ -692,17 +691,14 @@ void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args)
             // np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui--;
 
             bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-            if (true == decrypt_ok)
-//             {
-//                 np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
-//             }
-//             else
-            {
-                bool result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
+            if (true == decrypt_ok) {
+                // np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
 
-                if (ACK_CLIENT == (msg_ack_mode.value.ush & ACK_CLIENT) && (true == result))
+                bool user_result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
+
+                if(user_result)
                 {
-                    _np_send_ack(args.msg);
+                    _np_send_ack(args.msg, ACK_CLIENT);
                 }
             }
         }
@@ -1055,25 +1051,6 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
         routing_key = join_key;
     }
 
-    /* acknowledgement of join message send out earlier */
-    /*
-    //FIXME: Mixing of Transport ACK and BL ACK
-    CHECK_STR_FIELD(args.msg->instructions, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
-
-    np_network_t* ng = my_key->network;
-
-    _LOCK_ACCESS(&ng->send_data_lock)
-    {
-        np_tree_elem_t *jrb_node = np_tree_find_str(ng->waiting,  np_treeval_to_str(ack_uuid));
-        if (jrb_node != NULL)
-        {
-            np_responsecontainer_t *entry = (np_responsecontainer_t *) jrb_node->val.value.v;
-            _np_responsecontainer_received_ack(entry, true);
-            log_debug_msg(LOG_DEBUG, "received acknowledgment of JOIN uuid=%s",  np_treeval_to_str(ack_uuid));
-        }
-    }
-    */
-
     // should never happen
     if (NULL == routing_key || NULL == routing_key->node)
     {
@@ -1090,25 +1067,28 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
     /* forward arrival of new node to the nodes with similar hash keys */
     // TODO: check for protected node neighbours ?
     np_sll_t(np_key_ptr, node_keys) = NULL;
-    node_keys = _np_route_lookup(context, join_key->dhkey, 6);
+    node_keys = _np_route_lookup(context, join_key->dhkey, 2);
 
     np_key_t* elem = NULL;
     int i = 0;
 
     while ( NULL != (elem = sll_head(np_key_ptr, node_keys)))
     {
-        np_new_obj(np_message_t, msg_out);
+        if(!_np_dhkey_equal(_np_message_get_sender(args.msg), &elem->dhkey)) {
+            np_new_obj(np_message_t, msg_out);
 
-        // encode informations -> has to be done for each update message new
-        // otherwise there is a crash when deleting the message
-        np_tree_t* jrb_join_node = np_tree_create();
-        np_aaatoken_encode(jrb_join_node, join_token);
+            // encode informations -> has to be done for each update message new
+            // otherwise there is a crash when deleting the message
+            np_tree_t* jrb_join_node = np_tree_create();
+            np_aaatoken_encode(jrb_join_node, join_token);
 
-        _np_message_create(msg_out, elem->dhkey, my_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
-        out_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-        _np_job_submit_route_event(context, i*NP_PI/500, out_props, elem, msg_out);
+            _np_message_create(msg_out, elem->dhkey, my_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_join_node);
+            out_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_UPDATE_REQUEST);
+            _np_job_submit_route_event(context, i*NP_PI/500, out_props, elem, msg_out);
 
-        np_unref_obj(np_message_t, msg_out,ref_obj_creation);
+            np_unref_obj(np_message_t, msg_out,ref_obj_creation);
+        }
+
         np_unref_obj(np_key_t, elem,"_np_route_lookup");
     }
     np_key_unref_list(node_keys, "_np_route_lookup");
@@ -1154,7 +1134,7 @@ void _np_in_join_ack(np_state_t* context, np_jobargs_t args)
                         deleted->node->success_avg);
 #endif
 
-    _np_send_ack(args.msg); // CLIENT ACK
+    _np_send_ack(args.msg, ACK_CLIENT);
 
     // send an initial piggy message to the new node in our routing table
     np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);

@@ -17,6 +17,8 @@
 #include "event/ev.h"
 #include "sodium.h"
 
+#include "np_constants.h"
+
 #include "np_axon.h"
 
 #include "np_log.h"
@@ -38,13 +40,13 @@
 #include "np_settings.h"
 #include "np_types.h"
 #include "np_token_factory.h"
-#include "np_constants.h"
-#include "np_statistics.h"
 #include "np_list.h"
 #include "np_key.h"
 #include "np_util.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
+#include "np_statistics.h"
+
 
 /** message split up maths
  ** message size = 1b (common header) + 40b (encryption) +

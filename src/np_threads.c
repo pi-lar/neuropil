@@ -802,13 +802,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         } else {
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
         }        
-
-        // if (pool_size > worker_threads) {
-        // pool_size--;
-        // special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
-        // } else {
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
-        // }
+        
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, NP_LOG_FLUSH_INTERVAL, NP_LOG_FLUSH_INTERVAL, _np_glia_log_flush, "_np_glia_log_flush");
 
@@ -827,6 +821,8 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC, _np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
+        
+        np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
 
         // TODO: re-enable _np_renew_node_token_jobexec
         // np_job_submit_event_periodic(PRIORITY_MOD_LEVEL_4, 0.0, MISC_RENEW_NODE_SEC,					_np_renew_node_token_jobexec, "_np_renew_node_token_jobexec");
@@ -879,14 +875,20 @@ char* np_threads_print(np_state_t * context, bool asOneLine) {
             assert(thread != NULL);          
             _LOCK_ACCESS(&thread->job_lock) {
                 double perc_0=0, perc_1=0,perc_2=0;
-                np_threads_busyness_statistics(thread, &perc_0, &perc_1, &perc_2);
+                np_threads_busyness_statistics(context, thread, &perc_0, &perc_1, &perc_2);
 
+                void* a= NULL;
+                if(thread->_busy)
+                 if(thread->job.processorFuncs != NULL) 
+                  if(sll_size(thread->job.processorFuncs) > 0)
+                    a = sll_first(thread->job.processorFuncs)->val;
+                
                 ret = np_str_concatAndFree(ret,
                     "%15"PRIu32" | %7s | %3.0f%%%% %3.0f%%%% %3.0f%%%% | %15p / %-257s"	"%s",
                     thread->id, 
                     np_thread_type_str[thread->thread_type],
                     perc_0,perc_1,perc_2,
-                    ((thread->_busy && thread->job.processorFuncs != NULL && sll_size(thread->job.processorFuncs)) > 0 ? sll_first(thread->job.processorFuncs)->val : NULL),
+                    a,
                     thread->job.ident,
                     new_line
                 ); 
@@ -915,7 +917,7 @@ struct np_thread_stats_s {
 };
 
 #ifdef NP_STATISTICS_THREADS 
-void _np_threads_busyness_stat(np_thread_t* self, bool is_busy) {
+void _np_threads_busyness_stat(np_state_t* context, np_thread_t* self, bool is_busy) {
     double now = np_time_now();
     for(int i = 0; i < ARRAY_SIZE(self->stats->items); i++) {
         if(now >= self->stats->items[i].interval_end) {
@@ -939,11 +941,11 @@ void _np_threads_busyness_stat(np_thread_t* self, bool is_busy) {
     }
 }
 
-void np_threads_busyness_stat(np_thread_t* self) {
-    _np_threads_busyness_stat(self, self->_busy);
+void np_threads_busyness_stat(np_state_t* context, np_thread_t* self) {
+    _np_threads_busyness_stat(context, self, self->_busy);
 }
 #endif
-void np_threads_busyness(np_thread_t* self, bool is_busy){
+void np_threads_busyness(np_state_t* context, np_thread_t* self, bool is_busy){
     if(self->_busy != is_busy){                
         self->_busy = is_busy;
     }
@@ -954,11 +956,11 @@ void np_threads_busyness(np_thread_t* self, bool is_busy){
             self->stats->items[1].interval = 60;
             self->stats->items[2].interval = 60*5;            
         }        
-        _np_threads_busyness_stat(self, is_busy);
+        _np_threads_busyness_stat(context, self, is_busy);
 #endif
 }
 #ifdef NP_STATISTICS_THREADS 
-void np_threads_busyness_statistics(np_thread_t* self, double *perc_0, double *perc_1, double *perc_2) {
+void np_threads_busyness_statistics(np_state_t* context, np_thread_t* self, double *perc_0, double *perc_1, double *perc_2) {
     if(self->stats)
     {
         #define code(i)                                                                                          \

@@ -306,13 +306,13 @@ char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine);
     _TRYLOCK_ACCESS(&NAME##_mutex)
 
  
-void np_threads_busyness(np_thread_t* self, bool is_busy);
+void np_threads_busyness(np_state_t* context, np_thread_t* self, bool is_busy);
 #ifdef NP_STATISTICS_THREADS 
-    void np_threads_busyness_statistics(np_thread_t* self, double *perc_1, double *perc_5, double *perc_15);
-    void np_threads_busyness_stat(np_thread_t* self) ;
+    void np_threads_busyness_statistics(np_state_t* context, np_thread_t* self, double *perc_1, double *perc_5, double *perc_15);
+    void np_threads_busyness_stat(np_state_t* context, np_thread_t* self) ;
 #else
-    #define np_threads_busyness_statistics(self,perc_1, perc_5, perc_15) 
-    #define np_threads_busyness_stat(self) 
+    #define np_threads_busyness_statistics(context,self,perc_1, perc_5, perc_15) 
+    #define np_threads_busyness_stat(context,self) 
 #endif
 
 

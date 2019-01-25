@@ -663,36 +663,43 @@ void np_send_join(np_context*ac, const char* node_string)
 * Sends a ACK msg for the given message.
 * @param msg_to_ack
 */
-void _np_send_ack(const np_message_t* const msg_to_ack)
+void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum type)
 { 
     assert(msg_to_ack != NULL);
     np_state_t* context = np_ctx_by_memory(msg_to_ack);
-     
-    uint32_t seq = 0;
 
-    CHECK_STR_FIELD(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to);
-    np_dhkey_t ack_dhkey = ack_to.value.dhkey;
+    CHECK_STR_FIELD_BOOL(msg_to_ack->instructions, _NP_MSG_INST_ACK, msg_ack_mode,"NO ACK MODE DEFINED FOR msg %s",msg_to_ack->uuid) 
+    {
+        if(FLAG_CMP(msg_ack_mode->val.value.ush, type)) {
+            uint32_t seq = 0;
 
-    // create new ack message & handlers
-    np_message_t* ack_msg = NULL;
-    np_new_obj(np_message_t, ack_msg);
+            CHECK_STR_FIELD_BOOL(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to, "ACK target missing for msg %s", msg_to_ack->uuid)
+            {
+                np_dhkey_t ack_dhkey = ack_to->val.value.dhkey;
 
-    np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
+                // create new ack message & handlers
+                np_message_t* ack_msg = NULL;
+                np_new_obj(np_message_t, ack_msg);
 
-    _np_message_create(ack_msg, ack_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, NULL);
-    np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
-    np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
+                np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
 
-    // send the ack out
-    // no direct connection possible, route through the dht
-    _np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg);
-    log_debug_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
+                _np_message_create(ack_msg, ack_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, NULL);
+                np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
+                np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
-    np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
-    return;
-
-    __np_cleanup__:
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK target missing");
+                // send the ack out
+                // no direct connection possible, route through the dht
+                if(_np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg)){
+                    log_info(LOG_ROUTING,
+                     "ACK_HANDLING route  send ack (%s) for message (%s / %s)",
+                     ack_msg->uuid, msg_to_ack->uuid, 
+                     (msg_to_ack->msg_property ? msg_to_ack->msg_property->msg_subject : "?")
+                    );
+                }
+                np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
+            }
+        }
+    }
 }
 
 /**

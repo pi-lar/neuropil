@@ -120,7 +120,7 @@ void _np_statistics_destroy(np_state_t* context){
 #ifdef DEBUG_CALLBACKS
         sll_iterator(void_ptr) __np_debug_statistics_item = sll_first(_module->__np_debug_statistics);
         while(__np_debug_statistics_item != NULL){
-            _np_util_debug_statistics_ele_destroy(context, __np_debug_statistics_item->val);            
+            _np_statistics_debug_ele_destroy(context, __np_debug_statistics_item->val);            
             sll_next(__np_debug_statistics_item);
         }
         sll_free(void_ptr, _module->__np_debug_statistics);
@@ -185,7 +185,7 @@ bool np_statistics_destroy(np_state_t* context) {
         sll_free(char_ptr, np_module(statistics)->__watched_subjects);
         free(np_module(statistics)->__cache);
 
-        _np_util_debug_statistics_destroy(context);
+        _np_statistics_debug_destroy(context);
         
     }
     return true;
@@ -443,5 +443,83 @@ void __np_statistics_add_received_bytes(np_state_t* context, uint32_t add) {
             np_module(statistics)->__network_received_bytes += add;
         }
     }
+}
+#endif
+
+
+
+#ifdef DEBUG_CALLBACKS
+_np_statistics_debug_t* __np_statistics_debug_get(np_state_t * context, char* key) {
+    _np_statistics_debug_t* ret = NULL;
+    _LOCK_MODULE(np_utilstatistics_t) {
+        assert(np_module(statistics) != NULL);
+        assert(np_module(statistics)->__np_debug_statistics != NULL);
+        sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
+
+        while (iter != NULL) {
+            _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;
+            if (strncmp(item->key, key, 255) == 0) {
+                ret = item;
+                break;
+            }
+            sll_next(iter);
+        }
+    }
+    return ret;
+}
+char* __np_statistics_debug_print(np_state_t * context) {
+    char* ret = NULL;
+    _LOCK_MODULE(np_utilstatistics_t) {
+        sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
+
+        ret = np_str_concatAndFree(ret, "%85s --> %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "hits");
+        while (iter != NULL) {
+            _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;			
+            ret = np_str_concatAndFree(ret, "%85s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
+                item->key, item->min, item->avg, item->max, item->count);								
+            sll_next(iter);
+        }
+    }
+    return ret;
+}
+void _np_statistics_debug_ele_destroy(np_state_t* context, void* item) {
+     _np_statistics_debug_t* ele = (_np_statistics_debug_t*)item;
+    _np_threads_mutex_destroy(context, &ele->lock);
+    free(ele);
+}
+_np_statistics_debug_t* _np_statistics_debug_add(np_state_t * context, char* key, double value) {
+    _np_statistics_debug_t* item = __np_statistics_debug_get(context, key);
+    if (item == NULL) {
+        item = (_np_statistics_debug_t*)calloc(1, sizeof(_np_statistics_debug_t));
+        item->min = DBL_MAX;
+        item->max = 0;
+        item->avg = 0;
+        memcpy(item->key, key, strnlen(key, 254));
+        _np_threads_mutex_init(context, &item->lock,"debug_statistics");
+
+        _LOCK_MODULE(np_utilstatistics_t) {
+            sll_append(void_ptr, np_module(statistics)->__np_debug_statistics, (void_ptr)item);
+        }
+    }
+
+    _LOCK_ACCESS(&item->lock)
+    {
+        item->avg = (item->avg * item->count + value) / (item->count + 1);
+        item->count++;
+
+        item->max = fmax(value, item->max);
+        item->min = fmin(value, item->min);
+    }
+
+    return item;
+}
+void  _np_statistics_debug_destroy(np_state_t * context) {
+    sll_iterator(void_ptr) iter_np_debug_statistics = sll_first(np_module(statistics)->__np_debug_statistics);
+    while (iter_np_debug_statistics != NULL)
+    {
+        _np_statistics_debug_ele_destroy(context, (void*)iter_np_debug_statistics->val);
+        sll_next(iter_np_debug_statistics);
+    }
+    sll_free(void_ptr, np_module(statistics)->__np_debug_statistics);
 }
 #endif

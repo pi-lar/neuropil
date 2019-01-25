@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include "sodium.h"
+
 #include "np_constants.h"
 
 #ifdef __cplusplus
@@ -62,7 +63,7 @@ extern "C" {
  *	attempt to share its data.
  */
 #ifndef SYSINFO_PROACTIVE_SEND_IN_SEC
-    #define SYSINFO_PROACTIVE_SEND_IN_SEC (2)
+    #define SYSINFO_PROACTIVE_SEND_IN_SEC (30)
 #endif
 #ifndef SYSINFO_MAX_TTL
     #define SYSINFO_MAX_TTL (MAX(20, SYSINFO_PROACTIVE_SEND_IN_SEC*10))

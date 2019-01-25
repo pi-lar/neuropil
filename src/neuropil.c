@@ -38,6 +38,8 @@
 #include "np_serialization.h"
 #include "np_token_factory.h"
 #include "np_sysinfo.h"
+#include "np_time.h"
+
 
 // split into hash 
 void np_get_id(np_id_ptr id, char* string, NP_UNUSED size_t length) {
@@ -56,7 +58,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
         ret = settings;
     }	
     ret->n_threads = 10;
-    snprintf(ret->log_file, 256, "%.0f_neuropil.log",np_time_now()*100);
+    snprintf(ret->log_file, 256, "%.0f_neuropil.log",_np_time_now(NULL)*100);
     ret->log_level = LOG_ERROR;
     ret->log_level |= LOG_WARN;
 #ifdef DEBUG
@@ -122,6 +124,11 @@ np_context* np_new_context(struct np_settings * settings_in) {
     else if (_np_keycache_init(context) == false)
     {
         log_msg(LOG_ERROR, "neuropil_init: could not init keycache");
+        status = np_startup;
+    }
+    else if (_np_time_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: could not init time cache");
         status = np_startup;
     }
     else {
@@ -558,9 +565,9 @@ enum np_return np_run(np_context* ac, double duration) {
         TSP_SET(context->status, np_running);
 
         if (duration <= 0) {        
-            np_threads_busyness(thread, true);
+            np_threads_busyness(context, thread, true);
             __np_jobqueue_run_jobs_once(context, thread);
-            np_threads_busyness(thread, false);
+            np_threads_busyness(context, thread, false);
         }
         else {
             np_jobqueue_run_jobs_for(context, duration);
@@ -622,6 +629,7 @@ void np_destroy(np_context*ac, bool gracefully)
     _np_shutdown_destroy(context);    
     _np_bootstrap_destroy(context);
     _np_jobqueue_destroy(context);    
+     _np_time_destroy(context);
      
     //sodium_destroy() /*not available*/
         
