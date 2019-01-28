@@ -1208,7 +1208,7 @@ void __np_example_helper_loop(np_state_t* context) {
 
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
-                        mvwprintw(ud->__np_top_left_win, 0, 0, "%s - BUILD IN "
+/*                        mvwprintw(ud->__np_top_left_win, 0, 0, "%s - BUILD IN "
 #if defined(DEBUG)
                             "DEBUG"
 #elif defined(RELEASE)
@@ -1217,7 +1217,7 @@ void __np_example_helper_loop(np_state_t* context) {
                             "NON DEBUG and NON RELEASE"                            
 #endif
                             " (%s)(EV:%s)(FPS: %4.0f / RT: %2.0fms)\n%s ", time, NEUROPIL_RELEASE, ev_polls, (1/ud->output_intervall_sec),ud->input_intervall_sec*1000, memory_str
-                        );                            
+                        );                            */
                     }
                     if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
                         np_example_print(context, stdout, memory_str);
