@@ -8,7 +8,7 @@ let
 in stdenv.mkDerivation rec {
   name = "neuropil-shell";
 
-  buildInputs = [ neuropil neuropil_luajit luajit ];
+  buildInputs = [ clang scons neuropil neuropil_luajit luajit ];
 
   shellHook = ''
     export LD_LIBRARY_PATH="${lib.makeLibraryPath [ neuropil ]}"
