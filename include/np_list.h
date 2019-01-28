@@ -526,7 +526,7 @@ function like macros are:
 #define sll_find(TYPE, sll_list, value, fn_cmp, default_return) TYPE##_sll_find(sll_list, value, fn_cmp, default_return)
 #define sll_contains(TYPE, sll_list, value, fn_cmp) TYPE##_sll_contains(sll_list, value, fn_cmp)
 #define sll_merge(TYPE, sll_list_a, sll_list_b, fn_cmp) TYPE##_sll_merge(sll_list_a,sll_list_b, fn_cmp)
-#define sll_clone(TYPE, sll_list_source, sll_list_target)										\
+#define sll_clone(TYPE, sll_list_source, sll_list_target) 										\
     np_sll_t(TYPE, sll_list_target);															\
     sll_init(TYPE, sll_list_target);															\
     TYPE##_sll_clone(sll_list_source, sll_list_target);											\

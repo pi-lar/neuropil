@@ -1,9 +1,20 @@
 #! /usr/bin/env python3
 
+import subprocess
 import platform
 import glob
 import io
 import os
+import SCons.Util
+
+def exec_call(target):        
+    ret = subprocess.check_call(target)
+    if ret != 0:        
+        print("Error: cannot execute {target}".format(**locals()))
+    return ret
+
+def SymLink(target, source, env):
+    os.symlink(os.path.abspath(str(source[0])), os.path.abspath(str(target[0])))
 
 def buildNo():
     try:
@@ -36,10 +47,11 @@ except:
     pass;
 
 
+verbose = bool(ARGUMENTS.get('verbose', 1))
 analyze = ARGUMENTS.get('analyze', 0)
 build_tests = int(ARGUMENTS.get('test', 1))
 build_tests_enable_test_coverage = build_tests > 1
-build_doc = ARGUMENTS.get('doc', 0)
+build_doc = int(ARGUMENTS.get('doc', 0))
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
 console_log = ARGUMENTS.get('console', 0)
@@ -47,7 +59,8 @@ strict = int(ARGUMENTS.get('strict', 0))
 build_program = ARGUMENTS.get('program', False)
 opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
 build_x64 = int(ARGUMENTS.get('x64', -1))
-
+install = int(ARGUMENTS.get('install', 0))
+build_bindings = bool(ARGUMENTS.get('bindings', True))
 
 
 # use clang to compile the source code
@@ -179,7 +192,8 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
 # env.Append(CCFLAGS = '-target ' + platform.machine() + '-' + platform.system().lower() )
 # env.Append(CCFLAGS = '-target ' + platform.machine())
 
-default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
+if verbose:
+    default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
 
 default_env.Append(CPPPATH = ['./include'])
 default_env.Append(LIBPATH = ['./build/lib'])
@@ -206,10 +220,10 @@ for lib in neuropil_env['LIBS']:
         Exit(1)
 
 if not conf.CheckLibWithHeader('sodium', 'sodium.h', 'c'):
-    print ('Did not find libsodium.a or sodium.lib ...')
+    print ('Did not find libsodium.so or sodium.lib ...')
     Exit(1)
 
-scan_build_exe = neuropil_env.WhereIs('scan-build')
+scan_build_exe = neuropil_env.WhereIs('scan-build') or SCons.Util.WhereIs('scan-build')
 if int(analyze) and not scan_build_exe:
     print ('---')
     print ('did not find clang checker executable in the path, skipping build of static code analysis')
@@ -217,8 +231,8 @@ if int(analyze) and not scan_build_exe:
     print ('---')
     Exit(1)
 
-sphinx_exe = neuropil_env.WhereIs('sphinx-build')
-if int(build_doc) and not sphinx_exe:
+sphinx_exe = neuropil_env.WhereIs('sphinx-build') or SCons.Util.WhereIs('sphinx-build')
+if build_doc and not sphinx_exe:
     print ('---')
     print ('did not find sphinx executable in the path, skipping build of documentation')
     print ('---')
@@ -236,13 +250,14 @@ analyze_builder = Builder(generator = analyze_source_code)
 neuropil_env.Append(BUILDERS = {'Analyzer' : analyze_builder})
 
 # create sphinx builder, hopefully sphinx-build will be on the path
-def build_sphinx_doc(source, target, neuropil_env, for_signature):
-    return 'sphinx-build %s %s' % (source[0], target[0])
-sphinx_builder = Builder(generator = build_sphinx_doc, target_factory=Dir, source_factory=Dir)
-neuropil_env.Append(BUILDERS = {'Sphinx' : sphinx_builder})
+#def build_sphinx_doc(source, target, neuropil_env, for_signature):
+#    return 'sphinx-build %s %s' % (source[0], target[0])
+#sphinx_builder = Builder(generator = build_sphinx_doc, target_factory=Dir, source_factory=Dir)
+#neuropil_env.Append(BUILDERS = {'Sphinx' : sphinx_builder})
 
-if int(build_doc) and sphinx_exe:
-    neuropil_env.Sphinx('./build/html', './doc/source')
+if build_doc and sphinx_exe:
+    #neuropil_env.Sphinx('./build/html', './doc/source')
+    compile_documentation = neuropil_env.Command("compile.documentation", None, lambda target,source,env: exec_call('make html -C doc BUILDDIR=../build'.split(' ')))
 
 if int(analyze) and scan_build_exe:
     neuropil_env.Analyzer('build/sca')
@@ -251,12 +266,12 @@ if int(analyze) and scan_build_exe:
 #     neuropil_env.Append(CPPPATH='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES =  ['dtime.c',        'np_time.c',            'neuropil.c',        'np_aaatoken.c',        'np_axon.c',        'np_dendrit.c']
-SOURCES += ['np_glia.c',    'np_jobqueue.c',        'np_dhkey.c',        'np_key.c',                'np_keycache.c',    'np_bootstrap.c']
-SOURCES += ['np_log.c',        'np_memory.c',            'np_message.c',        'np_msgproperty.c',        'np_network.c',        'np_node.c']
-SOURCES += ['np_route.c',    'np_tree.c',            'np_util.c',        'np_treeval.c',            'np_threads.c',        'np_pinging.c']
-SOURCES += ['np_sysinfo.c',    'np_scache.c',            'np_event.c',        'np_messagepart.c',        'np_statistics.c',    'np_responsecontainer.c']
-SOURCES += ['np_legacy.c',    'np_serialization.c',    'np_shutdown.c',    'np_token_factory.c',   'np_crypto.c']
+SOURCES =  ['dtime.c',      'np_time.c',            'neuropil.c',       'np_aaatoken.c',        'np_axon.c',        'np_dendrit.c']
+SOURCES += ['np_glia.c',    'np_jobqueue.c',        'np_dhkey.c',       'np_key.c',             'np_keycache.c',    'np_bootstrap.c']
+SOURCES += ['np_log.c',     'np_memory.c',          'np_message.c',     'np_msgproperty.c',     'np_network.c',     'np_node.c']
+SOURCES += ['np_route.c',   'np_tree.c',            'np_util.c',        'np_treeval.c',         'np_threads.c',     'np_pinging.c']
+SOURCES += ['np_sysinfo.c', 'np_scache.c',          'np_event.c',       'np_messagepart.c',     'np_statistics.c',  'np_responsecontainer.c']
+SOURCES += ['np_legacy.c',  'np_serialization.c',   'np_shutdown.c',    'np_token_factory.c',   'np_crypto.c']
 
 # source code 3rd party libraries
 SOURCES += ['event/ev.c', 'json/parson.c','msgpack/cmp.c','gpio/bcm2835.c']
@@ -271,6 +286,12 @@ print ('####')
 if not build_tests_enable_test_coverage:
     np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES)
 np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
+
+bindings_python_build = False
+if build_bindings:
+  bindings_py_env = default_env.Clone()    
+  bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build.sh']))
+  Depends(bindings_python_build, np_dylib)
 
 
 test_env = default_env.Clone()
@@ -294,16 +315,19 @@ else:
 programs = [
 #    (PROGRAM_NAME (w/o neuropil_ prefix), DEPENDENCIES)
     ('controller',     ['neuropil']),
-    ('receiver',     ['neuropil']),
+    ('receiver',       ['neuropil']),
     ('sender',         ['neuropil']),
-    ('node',          ['neuropil','ncurses','sodium']),
+    ('node',           ['neuropil','ncurses','sodium']),
+    ('receiver_lb',     ['neuropil','ncurses','sodium']),
     ('cloud',          ['neuropil','ncurses','sodium']),
     ('hydra',          ['neuropil','ncurses','sodium']),
-    ('pingpong',     ['neuropil','ncurses','sodium']),
-    ('echo_server',     ['neuropil','ncurses','sodium']),
-    ('echo_client',     ['neuropil','ncurses','sodium']),
-    ('raspberry',     ['neuropil','ncurses','sodium']),
-    ('demo_service', ['neuropil','ncurses','sodium']),
+    ('receiver_cb',    ['neuropil','ncurses','sodium']),
+    ('pingpong',       ['neuropil','ncurses','sodium']),
+    ('echo_server',    ['neuropil','ncurses','sodium']),
+    ('echo_client',    ['neuropil','ncurses','sodium']),
+    ('raspberry',      ['neuropil','ncurses','sodium']),
+    ('demo_service',   ['neuropil','ncurses','sodium']),
+    ('raffle',         ['neuropil','ncurses','sodium','sqlite3']),
     ]
 
 if build_program and build_program not in programs:
@@ -319,8 +343,24 @@ else:
             prg_np = program_env.Program('bin/neuropil_%s'%program, variantDir+'examples/neuropil_%s.c'%program)
             Depends(prg_np, np_dylib)
 
+
+if install:
+    install_lib = neuropil_env.Command("install.sharedlib", None, lambda target,source,env: exec_call('sudo ./install.py'.split(' ')))
+    Depends(install_lib, np_dylib)
+    
+    if bindings_python_build:        
+        py_install = bindings_py_env.Command("install.binding_python", None, lambda target,source,env: exec_call('./bindings/python_cffi/setup.py install --force'.split(' ')))
+        Depends(py_install, install_lib)
+        Depends(py_install, bindings_python_build)
+
 # clean up
+Clean('.', os.path.join('bindings','python_cffi','build'))
+Clean('.', os.path.join('doc','build'))
 Clean('.', 'build')
+Clean('.', os.path.join('bindings','python_cffi','dist'))
+Clean('.', 'dist')
+Clean('.', os.path.join('bindings','python_cffi','.eggs'))
+Clean('.', '.eggs')
 Clean('.', 'bin')
 Clean('.', 'warn.log')
 Clean('.', 'warn_clean.log')

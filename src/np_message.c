@@ -40,8 +40,7 @@
 #include "np_responsecontainer.h"
 #include "np_constants.h"
 #include "np_serialization.h"
-
-
+#include "np_statistics.h"
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
@@ -64,7 +63,8 @@ void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     msg_tmp->no_of_chunks   = 1;
     msg_tmp->is_single_part = false;
     
-    TSP_INITD(msg_tmp->is_acked , false);
+    TSP_INITD(msg_tmp->is_acked , false);    
+    
     sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
     TSP_INITD(msg_tmp->is_in_timeout, false);
     sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
@@ -123,7 +123,9 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     np_tree_free( msg->footer);
 
     _LOCK_ACCESS(&msg->msg_chunks_lock){
-        if (0 < pll_size(msg->msg_chunks))
+
+        
+        if (msg->msg_chunks != NULL)
         {
             pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
             while (NULL != iter)
@@ -132,8 +134,9 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
                 np_unref_obj(np_messagepart_t, current_part, ref_message_messagepart);
                 pll_next(iter);
             }
+            pll_free(np_messagepart_ptr, msg->msg_chunks);
         }
-        pll_free(np_messagepart_ptr, msg->msg_chunks);
+        
 
         np_unref_obj(np_messagepart_t, msg->bin_static, ref_message_bin_static);
         free(msg->bin_body);
@@ -208,9 +211,9 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
 
                 np_messagepart_ptr to_add = NULL;
                 _LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
-                    to_add = pll_head(np_messagepart_ptr, msg_to_check->msg_chunks); // get the messagepart we received
+                    to_add = pll_first(msg_to_check->msg_chunks)->val; // get the messagepart we received
                     np_ref_obj(np_messagepart_t, to_add, FUNC);
-                    np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart); // as we removed it from the list
+                   // np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart); // as we removed it from the list
                 }
                 log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                         "message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
@@ -335,7 +338,11 @@ bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobar
     cmp_ctx_t cmp;
     np_messagepart_ptr part = NULL;
     _LOCK_ACCESS(&args.msg->msg_chunks_lock){
-        part = pll_first(args.msg->msg_chunks)->val;
+        assert(args.msg->msg_chunks != NULL);
+        pll_iterator(np_messagepart_ptr) first =  pll_first(args.msg->msg_chunks);
+        assert(first != NULL);
+        part = first->val;
+        assert(part != NULL);
     }
     // we simply override the header and instructions part for a single part message here
     // the byte size should be the same as before
@@ -906,17 +913,6 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
     np_tree_free(old);
 };
 
-//		if (-1 == _np_messagepart_decrypt(context, newmsg->instructions,
-//										  enc_nonce->val.value.bin,
-//										  session_token->session_key, NULL))
-//		{
-//			log_msg(LOG_ERROR,
-//				"incorrect decryption of message instructions (send from %s:%hd)",
-//				ipstr, port);
-//			job_submit_event(state->jobq, np_network_read);
-//			return;
-//		}
-
 void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 {
     np_ctx_memory(msg);
@@ -932,20 +928,28 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     _np_messagepart_encrypt(context, msg->body, nonce, sym_key, NULL);
 
     // now encrypt the encryption key using public key crypto stuff
-    unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
+    // unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
     unsigned char ciphertext[crypto_box_MACBYTES + crypto_secretbox_KEYBYTES];
 
     // convert our own sign key to an encryption key
-    crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                                                   context->my_identity->aaa_token->crypto.ed25519_secret_key);
+    // crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
+    //                                                context->my_identity->aaa_token->crypto.ed25519_secret_key);
 
     // convert our partner key to an encryption key
-    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-    crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
+    // unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
+    // crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
+
+#ifdef DEBUG
+    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1];
+    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES*2+1];
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) encrypt: pa pk: %s ### my pk: %s\n", msg->uuid, partner_key, curve25519_pk);
+#endif
 
     // finally encrypt
     crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
-                              partner_key, curve25519_sk);
+    		                      tmp_token->crypto.derived_kx_public_key, context->my_identity->aaa_token->crypto.derived_kx_secret_key);
     if (0 > crypto)
     {
         log_msg(LOG_ERROR, "encryption of message payload failed");
@@ -1014,29 +1018,28 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
             {
                 memcpy(enc_sym_key,
                     encryption_details_elem->val.value.bin,
-                    crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
+                    crypto_secretbox_KEYBYTES + crypto_box_MACBYTES
+                );
+                
+#ifdef DEBUG
+
+    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES*2+1]; partner_key[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+
+    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, context->my_identity->aaa_token->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+
+    log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) decrypt: my cu pk: %s ### my ed pk: %s ### pa pk: %s\n", msg->uuid, curve25519_pk, ed25519_pk, partner_key);
+#endif
+
+                NP_PERFORMANCE_POINT_START(message_decrypt);
 
                 unsigned char sym_key[crypto_secretbox_KEYBYTES];
-
-                // convert own secret to encryption key
-                unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-                crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                    context->my_identity->aaa_token->crypto.ed25519_secret_key);
-
-                // convert partner public key to signature key
-                unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-                int crypto_ret = 0;
-
-                crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
-                if (0 > crypto_ret)
-                {
-                    log_msg(LOG_ERROR, "decryption of message payload (%s) failed", msg->uuid);
-                    ret = false;
-                }
-
-                crypto_ret += crypto_box_open_easy(sym_key, enc_sym_key,
+                int crypto_ret = crypto_box_open_easy(sym_key, enc_sym_key,
                     crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
-                    nonce, partner_key, curve25519_sk);
+                    nonce, tmp_token->crypto.derived_kx_public_key, context->my_identity->aaa_token->crypto.derived_kx_secret_key);
                 if (0 > crypto_ret)
                 {
                     log_msg(LOG_ERROR, "decryption of message sym_key (%s) failed", msg->uuid);
@@ -1058,6 +1061,7 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                         np_tree_free(old);
                     }
                 }
+                NP_PERFORMANCE_POINT_END(message_decrypt);
             }
         }
     }

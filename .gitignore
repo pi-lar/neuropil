@@ -2,7 +2,8 @@
 *.os
 *core*
 bin/*
-build/*
+.eggs/
+build/
 config.log
 .sconf_temp/
 .sconsign.dblite
@@ -23,4 +24,5 @@ config.log
 *.key
 ext_tools/*
 *perf.data*
+/release
 bindings/luajit/neuropil_ffi.lua

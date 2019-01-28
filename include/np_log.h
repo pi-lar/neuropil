@@ -72,14 +72,14 @@ enum np_log_e
 NP_API_EXPORT
 void _np_log_init (np_state_t* context, const char* filename, uint32_t level);
 
+NP_API_EXPORT
+void _np_log_destroy(np_state_t* context);
+
 NP_API_INTERN
 void _np_log_rotate(np_state_t* context, bool force);
 
 NP_API_EXPORT
 void np_log_setlevel(np_state_t* context, uint32_t level);
-
-NP_API_EXPORT
-void np_log_destroy (np_state_t* context);
 
 NP_API_INTERN
 void _np_log_fflush(np_state_t* context, bool force);
@@ -98,18 +98,34 @@ void np_log_message(np_state_t* context, enum np_log_e level,
          np_log_message(context, level, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
 #endif
 
+#ifndef log_info
+        #define log_info(level, msg, ...) \
+                 np_log_message(context, level | LOG_INFO, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+#endif
+#ifndef log_warn
+        #define log_warn(level, msg, ...) \
+                 np_log_message(context, level | LOG_WARN, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+#endif
+#ifndef log_error
+        #define log_error(level, msg, ...) \
+                 np_log_message(context, level | LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+#endif
+
 #ifndef log_debug_msg
     #ifdef DEBUG	
         #define log_debug_msg(level, msg, ...) \
                  np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	
+        #define log_debug(level, msg, ...) \
+                 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	
     #else
         #define log_debug_msg(level, msg, ...)
+        #define log_debug(level, msg, ...)
     #endif
 #endif
 
 #ifndef log_trace_msg
     #ifdef TRACE
-    #define log_trace_msg(level, msg, ...) \
+        #define log_trace_msg(level, msg, ...) \
                  np_log_message(context, LOG_TRACE| level, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
     #else
         #define log_trace_msg(level, msg, ...)

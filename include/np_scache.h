@@ -36,6 +36,9 @@ typedef struct np_simple_cache_table_s np_simple_cache_table_t;
 
 NP_API_EXPORT
 np_simple_cache_table_t* np_cache_init(np_state_t* context);
+NP_API_EXPORT
+void np_cache_destroy(np_state_t* context, np_simple_cache_table_t* cache);
+
 
 NP_API_EXPORT
 np_cache_item_t* np_simple_cache_get(np_state_t* context, np_simple_cache_table_t* table, const char* const key);

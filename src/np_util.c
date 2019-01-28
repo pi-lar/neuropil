@@ -59,7 +59,7 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
     char input[256] = { '\0' };
     unsigned char out[18] = { '\0' };
 
-    double now = np_time_now();
+    double now = _np_time_now(NULL);
     snprintf (input, 255, "%s:%u:%16.16f", str, num, now);
     // log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
     crypto_generichash(out, 18, (unsigned char*) input, 256, NULL, 0);
@@ -413,6 +413,9 @@ bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
     }
     return ret;
 }
+uint8_t np_util_char_ptr_cmp(char_ptr const a, char_ptr const b) {
+    return (uint8_t) strcmp(a,b);
+} 
 
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len) {
     char * ret = NULL;
@@ -488,69 +491,6 @@ sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount) 
     }
     return ret;
 }
-
-#ifdef DEBUG_CALLBACKS
-
-_np_util_debug_statistics_t* __np_util_debug_statistics_get(np_state_t * context, char* key) {
-    _np_util_debug_statistics_t* ret = NULL;
-    _LOCK_MODULE(np_utilstatistics_t) {
-        assert(np_module(statistics) != NULL);
-        assert(np_module(statistics)->__np_debug_statistics != NULL);
-        sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
-
-        while (iter != NULL) {
-            _np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;
-            if (strncmp(item->key, key, 255) == 0) {
-                ret = item;
-                break;
-            }
-            sll_next(iter);
-        }
-    }
-    return ret;
-}
-char* __np_util_debug_statistics_print(np_state_t * context) {
-    char* ret = NULL;
-    _LOCK_MODULE(np_utilstatistics_t) {
-        sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
-
-        ret = np_str_concatAndFree(ret, "%85s --> %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "hits");
-        while (iter != NULL) {
-            _np_util_debug_statistics_t* item = (_np_util_debug_statistics_t*)iter->val;			
-            ret = np_str_concatAndFree(ret, "%85s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
-                item->key, item->min, item->avg, item->max, item->count);								
-            sll_next(iter);
-        }
-    }
-    return ret;
-}
-_np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context, char* key, double value) {
-    _np_util_debug_statistics_t* item = __np_util_debug_statistics_get(context, key);
-    if (item == NULL) {
-        item = (_np_util_debug_statistics_t*)calloc(1, sizeof(_np_util_debug_statistics_t));
-        item->min = DBL_MAX;
-        item->max = 0;
-        item->avg = 0;
-        memcpy(item->key, key, strnlen(key, 254));
-        _np_threads_mutex_init(context, &item->lock,"debug_statistics");
-
-        _LOCK_MODULE(np_utilstatistics_t) {
-            sll_append(void_ptr, np_module(statistics)->__np_debug_statistics, (void_ptr)item);
-        }
-    }
-
-    _LOCK_ACCESS(&item->lock)
-    {
-        item->avg = (item->avg * item->count + value) / (item->count + 1);
-        item->count++;
-
-        item->max = fmax(value, item->max);
-        item->min = fmin(value, item->min);
-    }
-
-    return item;
-}
-#endif
 
 char* np_util_string_trim_left(char* target) {
     char* ret = target;

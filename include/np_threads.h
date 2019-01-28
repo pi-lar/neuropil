@@ -36,7 +36,7 @@ return_type wrapped_##func_name(arg_1, arg_2);
 
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
-
+typedef struct np_thread_stats_s np_thread_stats_t;
 
 
 typedef enum np_module_lock_e np_module_lock_type;
@@ -112,17 +112,24 @@ enum np_thread_type_e {
     np_thread_type_main,
     np_thread_type_worker,
     np_thread_type_manager,
+    np_thread_type_managed,
+}NP_ENUM;
+
+static const char* np_thread_type_str[] =  {
+    "other",
+    "main",
+    "worker",
+    "manager",
+    "managed",
 };
 
 /** thread														**/
 struct np_thread_s
-{
-    
-
-    void * run_fn;
+{  
+    np_threads_worker_run run_fn;
     uint8_t idx;
 
-    unsigned long id;
+    size_t id;
     /**
     this thread can only handle jobs up to the max_job_priority
     */
@@ -134,21 +141,33 @@ struct np_thread_s
 
     np_mutex_t job_lock;
     np_job_t job;
-    bool busy;
+    bool _busy;
     enum np_thread_type_e thread_type;
 
-    pthread_t* thread_id;
+    enum np_status status;
+
+    pthread_t thread_id;
 
 #ifdef NP_THREADS_CHECK_THREADING
     np_mutex_t locklists_lock;
     np_sll_t(char_ptr, want_lock);
     np_sll_t(char_ptr, has_lock);
 #endif
+
+#ifdef NP_STATISTICS_THREADS 
+    np_thread_stats_t *stats;
+#endif
+
 } NP_API_INTERN;
 
 
 NP_API_INTERN
 bool _np_threads_init(np_state_t* context);
+NP_API_INTERN
+void _np_threads_destroy(np_state_t* context);
+NP_API_INTERN
+void np_threads_shutdown_workers(np_state_t* context);
+
 NP_API_INTERN
 int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, const char* where);
 NP_API_INTERN
@@ -197,13 +216,16 @@ void _np_threads_condition_destroy(NP_UNUSED np_state_t* context, np_cond_t* con
 NP_API_INTERN
 int _np_threads_condition_broadcast(NP_UNUSED np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
-np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, void *(fn)(void *), bool auto_run, enum np_thread_type_e type);
+np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number,np_threads_worker_run fn, bool auto_run, enum np_thread_type_e type);
 NP_API_INTERN
 np_thread_t*_np_threads_get_self(NP_UNUSED np_state_t* context);
 NP_API_INTERN
 void _np_threads_set_self(np_thread_t * myThread);
 NP_API_INTERN
 void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size);
+
+NP_API_INTERN
+char* np_threads_print(np_state_t * context, bool asOneLine);
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
@@ -250,7 +272,7 @@ _LOCK_MODULE(np_keycache_t)
 // print the complete object list and statistics
 
 NP_API_PROTEC
-char* np_threads_printpool(NP_UNUSED np_state_t* context, bool asOneLine);
+char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine);
 
 /*
     TSP = ThreadSafeProperty
@@ -282,6 +304,16 @@ char* np_threads_printpool(NP_UNUSED np_state_t* context, bool asOneLine);
     _LOCK_ACCESS(&NAME##_mutex)
 #define TSP_TRYSCOPE(NAME)								\
     _TRYLOCK_ACCESS(&NAME##_mutex)
+
+ 
+void np_threads_busyness(np_state_t* context, np_thread_t* self, bool is_busy);
+#ifdef NP_STATISTICS_THREADS 
+    void np_threads_busyness_statistics(np_state_t* context, np_thread_t* self, double *perc_1, double *perc_5, double *perc_15);
+    void np_threads_busyness_stat(np_state_t* context, np_thread_t* self) ;
+#else
+    #define np_threads_busyness_statistics(context,self,perc_1, perc_5, perc_15) 
+    #define np_threads_busyness_stat(context,self) 
+#endif
 
 
 #ifdef __cplusplus

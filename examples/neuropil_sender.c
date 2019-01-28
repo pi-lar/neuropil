@@ -92,7 +92,7 @@ int main (void)
 	   event loop for five seconds with :c:func:`np_run`, and then send our
 	   message with the subject ``"mysubject"`` using :c:func:`np_send`. If
 	   anything goes wrong we return the error code (an
-	   :c:type:`np_error`.)
+	   :c:type:`np_return`.)
 
 	   Effectively, this means that our node will process protocol requests
 	   continuously (for as long as there is no error situation) and send a
@@ -102,7 +102,7 @@ int main (void)
 
 	   \code
 	 */
-	enum np_error status;
+	enum np_return status;
 	char *message = "Hello, World!";
 	size_t message_len = strlen(message);
 	do status = np_run(ac, 5.0)

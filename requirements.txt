@@ -17,6 +17,7 @@ scons==3.0.1
 six==1.11.0
 snowballstemmer==1.2.1
 Sphinx==1.7.3
-sphinxcontrib-cmtinc==0.2
+sphinxcontrib-cmtinc>=0.2
 sphinxcontrib-websupport==1.0.1
 urllib3==1.22
+cffi==1.11.5

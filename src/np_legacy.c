@@ -217,17 +217,13 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
     _np_route_set_key (new_node_key);
 
     // set and ref additional identity
-    //TODO: use _np_set_identity
-    if (_np_key_cmp(context->my_identity ,context->my_node_key)==0)
+    // TODO: use _np_set_identity
+    if (_np_key_cmp(context->my_identity, context->my_node_key) == 0)
     {
         np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, new_node_key);
     }
-    else
-    {
-        // set target node string for correct routing
-        np_tree_replace_str( context->my_identity->aaa_token->extensions,  "target_node", np_treeval_new_s(_np_key_as_str(new_node_key)) );
-    }
-    context->my_identity->aaa_token->type |= np_aaatoken_type_identity;
+
+    // context->my_identity->aaa_token->type = np_aaatoken_type_identity;
     context->my_node_key = new_node_key;
 
     log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(context->my_node_key));
@@ -310,27 +306,19 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, subject);
-
-    if (NULL == msg_prop)
-    {
-        // create a default set of properties for listening to messages
-        np_new_obj(np_msgproperty_t, msg_prop);
-        msg_prop->msg_subject = strndup(subject, 255);
-        msg_prop->mode_type |= INBOUND;
-        np_msgproperty_register(msg_prop);
-    } else {
-        msg_prop->mode_type |= INBOUND;
-    }
+    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, INBOUND, subject);
+    
+    log_debug(LOG_MISC, "Adding receive listener on subject %s / property %p", subject, msg_prop);
+    
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
     msg_handler->fn = msg_handler_fn;
 
+    sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
+
     if (false == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
         sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
     }
-
-    sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
 }
 
 /**
@@ -343,16 +331,8 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
+    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, OUTBOUND, subject);
 
-    if (NULL == msg_prop)
-    {
-        // create a default set of properties for listening to messages
-        np_new_obj(np_msgproperty_t, msg_prop);
-        msg_prop->msg_subject = strndup(subject, 255);
-        msg_prop->mode_type |= OUTBOUND;
-        np_msgproperty_register(msg_prop);
-    }
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
     msg_handler->fn = msg_handler_fn;
@@ -368,33 +348,46 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: void _np_set_identity(np_aaatoken_t* identity){");
 
- 
+	_np_aaatoken_set_signature(identity, identity);
+	_np_aaatoken_update_extensions_signature(identity, identity);
+
     // build a hash to find a place in the dhkey table, not for signing !
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
+
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
-    
     np_key_t* old_ident = context->my_identity;
 
     identity->type |= np_aaatoken_type_identity;
     np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
 
-    if (old_ident != NULL && old_ident->aaa_token != NULL && identity != old_ident->aaa_token) {
-        old_ident->aaa_token->type &= ~np_aaatoken_type_identity;
-    }
+	//    if (old_ident != NULL && old_ident->aaa_token != NULL && identity != old_ident->aaa_token) {
+	//        old_ident->aaa_token->type &= ~np_aaatoken_type_identity;
+	//    }
     np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, my_identity_key);
-            
+
     if (_np_key_cmp(my_identity_key, context->my_node_key) != 0) {
+/*
         if (context->my_node_key != NULL && context->my_node_key->node != NULL) {
             np_node_t* tmp_node = NULL;
             np_new_obj(np_node_t, tmp_node);
             _np_node_update(tmp_node, _np_network_parse_protocol_string("pas4"), "localhost", "3333");
             _np_context_create_new_nodekey(context, tmp_node);
             np_unref_obj(np_node_t, tmp_node, ref_obj_creation);
-        }
-        _np_aaatoken_set_signature(identity, identity);
-        _np_aaatoken_update_extensions_signature(identity, identity);
+          }
+*/
     }
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
+
+    #ifdef DEBUG
+    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+
+    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+
+    log_debug_msg(LOG_DEBUG, "     identity token: my cu pk: %s ### my ed pk: %s\n", curve25519_pk, ed25519_pk);
+#endif
+
 }
 
 /**
@@ -411,9 +404,11 @@ void np_set_mx_property(np_context*ac, char* subject, const char* key, np_treeva
     log_trace_msg(LOG_TRACE, "start: void np_set_mx_property(char* subject, const char* key, np_treeval_t value){");
     // TODO: rework key from char to enum
     np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
+    bool created = false;
     if (NULL == msg_prop)
     {
         np_new_obj(np_msgproperty_t, msg_prop);
+        created = true;
         msg_prop->msg_subject = strndup(subject, 255);
 
         if(false == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)){
@@ -451,6 +446,9 @@ void np_set_mx_property(np_context*ac, char* subject, const char* key, np_treeva
     {
         _np_msgproperty_t_set_partner_key(msg_prop, value.value.dhkey);
     }
+    if(created){
+        np_unref_obj(np_msgproperty_t, msg_prop, ref_obj_creation);
+    }
 }
 
 void np_rem_mx_property(np_context*ac, char* subject, const char* key)
@@ -478,20 +476,8 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     np_message_t* ret = NULL;
     np_new_obj(np_message_t, ret);
 
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
-    if (NULL == msg_prop)
-    {		
-        np_new_obj(np_msgproperty_t, msg_prop);
-
-        // set correct subject 		
-        msg_prop->msg_subject = strndup(subject, 255);
-
-        msg_prop->mep_type = ANY_TO_ANY;
-        msg_prop->mode_type |= OUTBOUND;
-
-        np_msgproperty_register(msg_prop);
-    }
-
+    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, OUTBOUND, subject);
+    
     np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
     ret->msg_property = msg_prop;
 
@@ -512,6 +498,8 @@ void np_send_msg(np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* targ
     np_ctx_cast(ac);
     np_message_t* msg = _np_prepare_msg(context, subject, body, target_key);
 
+    log_msg(LOG_INFO, "(msg: %s) initial send. Subject \"%s\"", msg->uuid, subject);
+
     _np_send_msg(subject, msg, msg->msg_property, target_key);
 
     np_unref_obj(np_message_t, msg, ref_obj_creation);
@@ -527,31 +515,6 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body
     _np_send_msg(msg->msg_property->msg_subject, msg, msg->msg_property, sender);
 
     np_unref_obj(np_message_t, msg, ref_obj_creation);
-}
-
-/**
- ** np_destroy:
- ** destroys the neuropil data structures and cleans memory that has been used
- **/
-void np_destroy(np_context*ac, bool gracefully)
-{
-    np_ctx_cast(ac);
-
-    _np_shutdown_run_callbacks(context);
-
-    if(gracefully)
-        np_shutdown_notify_others(context);
-    // TODO: implement me ...
-    /*
-    _np_threads_init()
-    sodium_init()
-    np_mem_init
-    _np_dhkey_init
-
-    __global_state = state
-    */
-
-    TSP_SET(context->status, np_shutdown);
 }
 
 void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
@@ -577,9 +540,6 @@ void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
         _np_network_remap_network(my_new_node_key, my_old_node_key);
     }
     _np_route_set_key(my_new_node_key);
-    // set target node string for correct routing
-    if(context->my_identity != NULL && context->my_identity != context->my_node_key)
-        np_tree_replace_str(context->my_identity->aaa_token->extensions, "target_node", np_treeval_new_s(_np_key_as_str(context->my_node_key)));
 
     np_unref_obj(np_aaatoken_t, auth_token, "_np_token_factory_new_node_token");
     np_unref_obj(np_key_t, my_new_node_key, "_np_keycache_find_or_create");
@@ -634,16 +594,17 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
     assert(target!= NULL);
     np_state_t* context = np_ctx_by_memory(target);
 
-    np_tree_t* jrb_data = np_tree_create();
-    np_tree_t* jrb_my_node = np_tree_create();
+    np_tree_t* jrb_data     = np_tree_create();
+    np_tree_t* jrb_my_node  = np_tree_create();
+    np_tree_t* jrb_my_ident = NULL;
+
     np_aaatoken_encode(jrb_my_node, context->my_node_key->aaa_token);
     np_tree_insert_str( jrb_data, "_np.token.node", np_treeval_new_tree(jrb_my_node));
 
-
     if(_np_key_cmp(context->my_identity, context->my_node_key) != 0){
-        np_tree_t* jrb_my_ident = np_tree_create();
+        jrb_my_ident = np_tree_create();
         np_aaatoken_encode(jrb_my_ident, context->my_identity->aaa_token);
-        np_tree_insert_str( jrb_data, "_np.token.ident", np_treeval_new_tree(jrb_my_ident));
+        np_tree_insert_str(jrb_data, "_np.token.ident", np_treeval_new_tree(jrb_my_ident));
     }
 
     np_message_t* msg_out = NULL;
@@ -655,6 +616,7 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
     _np_job_submit_msgout_event(context, 0.0, prop, target, msg_out);
 
     np_tree_free(jrb_my_node);
+    if (NULL != jrb_my_ident) np_tree_free(jrb_my_ident);
 
     return msg_out;	
 }
@@ -701,36 +663,43 @@ void np_send_join(np_context*ac, const char* node_string)
 * Sends a ACK msg for the given message.
 * @param msg_to_ack
 */
-void _np_send_ack(const np_message_t* const msg_to_ack)
+void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum type)
 { 
     assert(msg_to_ack != NULL);
     np_state_t* context = np_ctx_by_memory(msg_to_ack);
-     
-    uint32_t seq = 0;
 
-    CHECK_STR_FIELD(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to);
-    np_dhkey_t ack_dhkey = ack_to.value.dhkey;
+    CHECK_STR_FIELD_BOOL(msg_to_ack->instructions, _NP_MSG_INST_ACK, msg_ack_mode,"NO ACK MODE DEFINED FOR msg %s",msg_to_ack->uuid) 
+    {
+        if(FLAG_CMP(msg_ack_mode->val.value.ush, type)) {
+            uint32_t seq = 0;
 
-    // create new ack message & handlers
-    np_message_t* ack_msg = NULL;
-    np_new_obj(np_message_t, ack_msg);
+            CHECK_STR_FIELD_BOOL(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to, "ACK target missing for msg %s", msg_to_ack->uuid)
+            {
+                np_dhkey_t ack_dhkey = ack_to->val.value.dhkey;
 
-    np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
+                // create new ack message & handlers
+                np_message_t* ack_msg = NULL;
+                np_new_obj(np_message_t, ack_msg);
 
-    _np_message_create(ack_msg, ack_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, NULL);
-    np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
-    np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
+                np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
 
-    // send the ack out
-    // no direct connection possible, route through the dht
-    _np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg);
-    log_debug_msg(LOG_INFO, "ACK_HANDLING route  send ack (%s) for message (%s)", ack_msg->uuid, msg_to_ack->uuid);
+                _np_message_create(ack_msg, ack_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, NULL);
+                np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
+                np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
 
-    np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
-    return;
-
-    __np_cleanup__:
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "ACK target missing");
+                // send the ack out
+                // no direct connection possible, route through the dht
+                if(_np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg)){
+                    log_info(LOG_ROUTING,
+                     "ACK_HANDLING route  send ack (%s) for message (%s / %s)",
+                     ack_msg->uuid, msg_to_ack->uuid, 
+                     (msg_to_ack->msg_property ? msg_to_ack->msg_property->msg_subject : "?")
+                    );
+                }
+                np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
+            }
+        }
+    }
 }
 
 /**

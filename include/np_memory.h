@@ -5,9 +5,10 @@
 #ifndef _NP_MEMORY_H_
 #define _NP_MEMORY_H_
 
-#include "np_types.h"
-#include "np_settings.h"
 #include "np_constants.h"
+#include "np_settings.h"
+
+#include "np_types.h"
 
 
 #ifdef __cplusplus
@@ -53,6 +54,8 @@ extern "C" {
     typedef void(*np_memory_on_refresh_space) (np_state_t *context, uint8_t type, size_t size, void* data);
 
     bool _np_memory_init(np_state_t* context);
+    void _np_memory_destroy(np_state_t* context);
+    
 
     NP_API_EXPORT
         void np_memory_register_type(
@@ -107,7 +110,8 @@ extern "C" {
         uint32_t np_memory_get_refcount(void * item);
     NP_API_INTERN
         char* np_memory_get_id(void * item);
-
+    NP_API_INTERN
+        void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, bool del_container);
 
     // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE)												\

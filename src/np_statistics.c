@@ -17,6 +17,7 @@
 #include "np_route.h"
 #include "np_util.h"
 #include "np_key.h"
+#include "np_util.h"
 #include "np_jobqueue.h"
 
 #include "np_statistics.h"
@@ -80,38 +81,57 @@ bool _np_statistics_init(np_state_t* context) {
     if (!np_module_initiated(statistics)) {
         np_module_malloc(statistics);
 
-        np_module(statistics)->__cache = np_cache_init(context);
-        sll_init(char_ptr, np_module(statistics)->__watched_subjects);
+        _module->__cache = np_cache_init(context);
+        sll_init(char_ptr, _module->__watched_subjects);
 
-        TSP_INITD(np_module(statistics)->__forwarding_counter, 0);
-        TSP_INITD(np_module(statistics)->__network_send_bytes, 0);
-        TSP_INITD(np_module(statistics)->__network_received_bytes, 0);
+        TSP_INITD(_module->__forwarding_counter, 0);
+        TSP_INITD(_module->__network_send_bytes, 0);
+        TSP_INITD(_module->__network_received_bytes, 0);
 
-        np_module(statistics)->__network_received_bytes_per_sec_last = 
-            np_module(statistics)->__network_send_bytes_per_sec_last = np_time_now();
+        _module->__network_received_bytes_per_sec_last = 
+            _module->__network_send_bytes_per_sec_last = np_time_now();
 
 #ifdef DEBUG_CALLBACKS
-        sll_init(void_ptr, np_module(statistics)->__np_debug_statistics);
+        sll_init(void_ptr, _module->__np_debug_statistics);
 #endif
     }
     return true;
 }
+void _np_statistics_destroy(np_state_t* context){
+     if (np_module_initiated(statistics)) {
+        np_module_var(statistics);
+               
+        sll_iterator(char_ptr) __watched_subjects_item = sll_first(_module->__watched_subjects);
+        while(__watched_subjects_item != NULL){
 
-bool np_statistics_destroy(np_state_t* context) {
-    if (np_module_initiated(statistics)) {
-        sll_iterator(char_ptr) iter = sll_first(np_module(statistics)->__watched_subjects);
-        while (iter != NULL)
-        {
-            free(np_simple_cache_get(context, np_module(statistics)->__cache, iter->val)->value);
-            free(iter->val);
-            sll_next(iter);
+            free(np_simple_cache_get(context, _module->__cache, __watched_subjects_item->val)->value);
+            free(__watched_subjects_item->val);
+            sll_next(__watched_subjects_item);
         }
+        sll_free(char_ptr, _module->__watched_subjects);
+        
+        np_cache_destroy(context, _module->__cache);
 
-        sll_free(char_ptr, np_module(statistics)->__watched_subjects);
-        free(np_module(statistics)->__cache);
+        TSP_DESTROY(_module->__forwarding_counter);
+        TSP_DESTROY(_module->__network_send_bytes);
+        TSP_DESTROY(_module->__network_received_bytes);
+
+
+#ifdef DEBUG_CALLBACKS
+        sll_iterator(void_ptr) __np_debug_statistics_item = sll_first(_module->__np_debug_statistics);
+        while(__np_debug_statistics_item != NULL){
+            _np_statistics_debug_ele_destroy(context, __np_debug_statistics_item->val);            
+            sll_next(__np_debug_statistics_item);
+        }
+        sll_free(void_ptr, _module->__np_debug_statistics);
+#endif
+        
+        NP_PERFORMANCE_POINT_DESTROY();
+
+        np_module_free(statistics);
     }
-    return true;
 }
+
 
 void np_statistics_add_watch(np_state_t* context, char* subject) {	
 
@@ -153,7 +173,23 @@ void np_statistics_add_watch(np_state_t* context, char* subject) {
         np_add_send_listener(context, _np_statistics_send_msg_on_watched, NULL, key);
     }
 }
+bool np_statistics_destroy(np_state_t* context) {
+    if (np_module_initiated(statistics)) {
+        sll_iterator(char_ptr) iter = sll_first(np_module(statistics)->__watched_subjects);
+        while (iter != NULL)
+        {
+            free(np_simple_cache_get(context, np_module(statistics)->__cache, iter->val)->value);
+            free(iter->val);
+            sll_next(iter);
+        }
+        sll_free(char_ptr, np_module(statistics)->__watched_subjects);
+        free(np_module(statistics)->__cache);
 
+        _np_statistics_debug_destroy(context);
+        
+    }
+    return true;
+}
 void np_statistics_add_watch_internals(np_state_t* context) {
     
     //np_statistics_add_watch(context, _DEFAULT);
@@ -407,5 +443,83 @@ void __np_statistics_add_received_bytes(np_state_t* context, uint32_t add) {
             np_module(statistics)->__network_received_bytes += add;
         }
     }
+}
+#endif
+
+
+
+#ifdef DEBUG_CALLBACKS
+_np_statistics_debug_t* __np_statistics_debug_get(np_state_t * context, char* key) {
+    _np_statistics_debug_t* ret = NULL;
+    _LOCK_MODULE(np_utilstatistics_t) {
+        assert(np_module(statistics) != NULL);
+        assert(np_module(statistics)->__np_debug_statistics != NULL);
+        sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
+
+        while (iter != NULL) {
+            _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;
+            if (strncmp(item->key, key, 255) == 0) {
+                ret = item;
+                break;
+            }
+            sll_next(iter);
+        }
+    }
+    return ret;
+}
+char* __np_statistics_debug_print(np_state_t * context) {
+    char* ret = NULL;
+    _LOCK_MODULE(np_utilstatistics_t) {
+        sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
+
+        ret = np_str_concatAndFree(ret, "%85s --> %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "hits");
+        while (iter != NULL) {
+            _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;			
+            ret = np_str_concatAndFree(ret, "%85s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
+                item->key, item->min, item->avg, item->max, item->count);								
+            sll_next(iter);
+        }
+    }
+    return ret;
+}
+void _np_statistics_debug_ele_destroy(np_state_t* context, void* item) {
+     _np_statistics_debug_t* ele = (_np_statistics_debug_t*)item;
+    _np_threads_mutex_destroy(context, &ele->lock);
+    free(ele);
+}
+_np_statistics_debug_t* _np_statistics_debug_add(np_state_t * context, char* key, double value) {
+    _np_statistics_debug_t* item = __np_statistics_debug_get(context, key);
+    if (item == NULL) {
+        item = (_np_statistics_debug_t*)calloc(1, sizeof(_np_statistics_debug_t));
+        item->min = DBL_MAX;
+        item->max = 0;
+        item->avg = 0;
+        memcpy(item->key, key, strnlen(key, 254));
+        _np_threads_mutex_init(context, &item->lock,"debug_statistics");
+
+        _LOCK_MODULE(np_utilstatistics_t) {
+            sll_append(void_ptr, np_module(statistics)->__np_debug_statistics, (void_ptr)item);
+        }
+    }
+
+    _LOCK_ACCESS(&item->lock)
+    {
+        item->avg = (item->avg * item->count + value) / (item->count + 1);
+        item->count++;
+
+        item->max = fmax(value, item->max);
+        item->min = fmin(value, item->min);
+    }
+
+    return item;
+}
+void  _np_statistics_debug_destroy(np_state_t * context) {
+    sll_iterator(void_ptr) iter_np_debug_statistics = sll_first(np_module(statistics)->__np_debug_statistics);
+    while (iter_np_debug_statistics != NULL)
+    {
+        _np_statistics_debug_ele_destroy(context, (void*)iter_np_debug_statistics->val);
+        sll_next(iter_np_debug_statistics);
+    }
+    sll_free(void_ptr, np_module(statistics)->__np_debug_statistics);
 }
 #endif

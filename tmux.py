@@ -22,7 +22,7 @@ parser.add_argument('-g', action='store_true', default=False, help='GDB prefix')
 parser.add_argument('-gc', action='store_true', default=False, help='GDB Client prefix')
 parser.add_argument('-gs', action='store_true', default=False, help='GDB Server prefix')
 parser.add_argument('-k', action='store_true', help='Kill all only')
-parser.add_argument('-t', nargs='?', type=int, default=18, help='Count of threads to start for each node')
+parser.add_argument('-t', nargs='?', type=int, default=9, help='Count of threads to start for each node')
 parser.add_argument('-tr', action='store_true', default=False, help='(Add) Random sleep timer during client startup')
 parser.add_argument('-ts', nargs='?', type=int, default=-1, help='Sleep Timer (in ms) during client statup')
 parser.add_argument('-oh', nargs='?', type=int, default=1, help='Host sysinfo config')
@@ -83,10 +83,10 @@ else:
     windowName  = "neuropil bootstraper"
     if start_bootstrapper and not session.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
-        prefix_bootstrap = ('valgrind ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
+        prefix_bootstrap = ('valgrind --leak-check=full ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
         if args.perf:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
-        nb.attached_pane.send_keys(prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> test.log'.format(
+        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> error.log'.format(
             port, threads, port_type_server, loglevel, publish_domain, sysinfo,httpdomain, statistics, autoclose))
         if args.v or args.vs:
             time.sleep(4)
@@ -103,7 +103,7 @@ else:
                 rand = random.random() if args.tr else 0
                 time.sleep(rand+(args.ts/1000))
             nn = session.new_window(attach=False, window_name=windowName )
-            nn.attached_pane.send_keys(('valgrind ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
+            nn.attached_pane.send_keys("  " + ('valgrind ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
             port+i+start_bootstrapper,publish_domain, threads, port_type_client, sysinfo_client, loglevel, join_client, httpdomain, statistics, autoclose))
 
     if not args.k:

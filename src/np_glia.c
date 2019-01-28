@@ -128,7 +128,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
         np_msgproperty_t* prop = np_msgproperty_get(context, INBOUND, msg_subject);
         if(prop != NULL) {
             _np_job_submit_msgin_event(0.0, prop, my_key, args.msg, NULL);
-        }	
+        }
     } else {
         /* hand it over to the np_axon sending unit */
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) forward routing for subject '%s'", msg_in->uuid, msg_subject);
@@ -238,7 +238,6 @@ void _np_glia_send_pings(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
             if(node_exists) {
                 if (node->joined_network) {
                     _np_ping_send(context, iter->val);
-                    np_time_sleep(NP_PI/1000);
                 }
                 np_unref_obj(np_node_t, node, FUNC);
             }
@@ -273,7 +272,7 @@ void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t a
     {
         // send a piggy message to the the nodes in our routing table
         np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-        _np_job_submit_transform_event(context, i*NP_PI/10, piggy_prop, iter_keys->val, NULL);
+        _np_job_submit_transform_event(context, 0.0, piggy_prop, iter_keys->val, NULL);
 
         i++;
         sll_next(iter_keys);
@@ -566,7 +565,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out);
         _np_message_create(msg_out, target_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PIGGY_REQUEST, msg_body);
-        _np_job_submit_msgout_event(context, 0.0, outprop, target_key, msg_out);
+        _np_job_submit_msgout_event(context, NP_PI/500, outprop, target_key, msg_out);
         np_unref_obj(np_message_t, msg_out, ref_obj_creation);
     }
 
@@ -576,7 +575,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
 
 void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type mode_type, const char* subject)
 {
-    //TODO: msg_tokens for either
+    // TODO: msg_tokens for either
     // insert into msg token token renewal queue
     _LOCK_MODULE(np_state_message_tokens_t) {
         if (NULL == np_tree_find_str(context->msg_tokens, subject))
@@ -584,6 +583,7 @@ void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type 
             np_tree_insert_str( context->msg_tokens, subject, np_treeval_new_v(NULL));
 
             np_msgproperty_t* msg_prop = np_msgproperty_get(context, mode_type, subject);
+            assert(msg_prop!=NULL);
             msg_prop->mode_type |= TRANSFORM;
             if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
                 sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
@@ -612,23 +612,17 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
         _np_msgproperty_threshold_increase(msg_prop);
         log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
 
-        //TODO: instead of token threshold a local copy of the value should be increased
+        // TODO: instead of token threshold a local copy of the value should be increased
         np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
 
-        char* target_node_str = NULL;
-        np_dhkey_t receiver_dhkey = { 0 };
-        np_tree_elem_t* tn_node = np_tree_find_str(tmp_token->extensions, "target_node");
-        if (NULL != tn_node)
+        np_dhkey_t empty_check = { 0 };
+        np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
+        if (_np_dhkey_equal(&empty_check, &receiver_dhkey))
         {
-            target_node_str = tn_node->val.value.s;
+            _np_str2dhkey(tmp_token->issuer, &receiver_dhkey);
         }
-        else
-        {
-            target_node_str = tmp_token->issuer;
-        }
-        np_str_id(*(np_id*)&receiver_dhkey, target_node_str);
 
-        if (_np_dhkey_cmp(&context->my_node_key->dhkey, &receiver_dhkey) == 0)
+        if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
         {
             np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, msg->msg_property->msg_subject);
             if (handler != NULL)
@@ -638,18 +632,24 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
         }
         else
         {
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s ...", msg->uuid, tmp_token->uuid);
+            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s %s...", msg->uuid, tmp_token->uuid, tmp_token->issuer);
 
             // encrypt the relevant message part itself
             _np_message_encrypt_payload(msg, tmp_token);
 
+/*            char receiver_key_str[65];
+            receiver_key_str[64] = '\0';
+            _np_dhkey2str(&receiver_dhkey, receiver_key_str);
+            char * ctx = np_get_userdata(context);
+            fprintf(stdout, "     (%s): encrypted message (%s) for %s / node: %s\n", ctx, msg->uuid, tmp_token->issuer, receiver_key_str); fflush(stdout);
+*/
             np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
 
             np_msgproperty_t* out_prop = np_msgproperty_get(context, OUTBOUND, subject);
             _np_job_submit_route_event(context, 0.0, out_prop, NULL, msg);
 
             if (NULL != msg_prop->rep_subject &&
-                STICKY_REPLY == (msg_prop->mep_type & STICKY_REPLY))
+                FLAG_CMP(msg_prop->mep_type, STICKY_REPLY))
             {
 
                 np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);

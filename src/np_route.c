@@ -74,7 +74,57 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
 
     return (true);
 }
+void _np_route_destroy(np_state_t* context){
+    if (np_module_initiated(route)) {        
+        np_module_var(route);
+        
+        np_unref_obj(np_key_t, _module->my_key, ref_route_routingtable_mykey);
+        
+        for (int i = 0; i < NP_ROUTES_TABLE_SIZE; i++) {
+            if(_module->table[i] != NULL){
+                //_np_route_update (_module->table[i], false, NULL, NULL);
+                np_unref_obj(np_key_t, _module->table[i], ref_route_inroute);                
+            }
+        }        
 
+        TSP_DESTROY(_module->route_count);
+        TSP_DESTROY(_module->leafset_left_count);
+        TSP_DESTROY(_module->leafset_right_count);
+
+        sll_iterator(np_key_ptr) iter_leaf;
+        
+        log_debug(LOG_ROUTING, "unreffing left leafset %d",sll_size(_module->left_leafset));
+        iter_leaf = sll_first(_module->left_leafset);
+        int i=0;
+        while(iter_leaf != NULL) {
+            if(iter_leaf->val != NULL) {
+                char tmp[255]={0};
+                _np_dhkey2str(&iter_leaf->val->dhkey, tmp);
+                log_debug(LOG_ROUTING, "unreffing idx: %d %s",i++, tmp);
+                //_np_route_leafset_update (iter_leaf->val, false, NULL, NULL);
+                np_unref_obj(np_key_t,iter_leaf->val, ref_route_inleafset);
+            }
+            sll_next(iter_leaf);
+        }
+        log_debug(LOG_ROUTING, "unreffing right leafset %d",sll_size(_module->right_leafset));
+        iter_leaf = sll_first(_module->right_leafset);
+        i=0;
+        while(iter_leaf != NULL) {
+            if(iter_leaf->val != NULL) {
+                char tmp[255]={0};
+                _np_dhkey2str(&iter_leaf->val->dhkey, tmp);
+                log_debug(LOG_ROUTING, "unreffing idx: %d %s",i++, tmp);
+                //_np_route_leafset_update (iter_leaf->val, false, NULL, NULL);
+                np_unref_obj(np_key_t,iter_leaf->val, ref_route_inleafset);
+            }
+            sll_next(iter_leaf);
+        }
+        sll_free(np_key_ptr, _module->left_leafset);
+        sll_free(np_key_ptr, _module->right_leafset);
+                                
+        np_module_free(route);
+    }    
+}
 /**
  ** _np_route_leafset_update:
  ** this function is called whenever a _np_route_update is called the joined
@@ -85,8 +135,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_update");
     np_ctx_memory(node_key);
 
-    TSP_GET(bool, node_key->in_destroy, in_destroy);
-    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (in_destroy == true && joined))
+    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (node_key->in_destroy == true && joined))
         return;
 
     if(added != NULL) *added = NULL;
@@ -99,7 +148,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
         if (_np_key_cmp(node_key, np_module(route)->my_key) != 0)
         {
             np_key_ptr find_right = sll_find(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp, NULL);
-            np_key_ptr find_left  = sll_find(np_key_ptr, np_module(route)->left_leafset, node_key, _np_key_cmp, NULL);
+            np_key_ptr find_left  = sll_find(np_key_ptr, np_module(route)->left_leafset,  node_key, _np_key_cmp, NULL);
 
             if (false == joined) {
                 if (NULL != find_right) {
@@ -112,14 +161,13 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                     sll_remove(np_key_ptr, np_module(route)->left_leafset, node_key, _np_key_cmp);
                 }
                 else {
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was not found");
+                    log_debug(LOG_ROUTING, "leafset did not change as key was not found");
                 }
             }
             else {
 
                 if (NULL != find_right || NULL != find_left) {
                     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was already in leafset");
-
                 }
                 else {
                     /**
@@ -189,7 +237,6 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                 }
             }
         }
-
 
         if (deleted_from != NULL || add_to != NULL)
         {
@@ -497,6 +544,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                 sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
                 sll_iterator(np_key_ptr) iter2 = NULL;
                 bool iters_equal = false;
+                uint8_t requested_list_size = 0;
                 while (iter1 != NULL)
                 {
                     iters_equal = false;
@@ -512,7 +560,11 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                     if (iters_equal == false) {
                         np_ref_obj(np_key_t, iter1->val);
                         sll_append(np_key_ptr, return_list, iter1->val);
+                        requested_list_size++;
                     }
+                    if (requested_list_size >= count)
+                    		break;
+
                     sll_next(iter1);
                 }
             }
@@ -673,9 +725,7 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
 {
     np_ctx_memory(key);
 
-    TSP_GET(bool, key->in_destroy, in_destroy);
-
-    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (in_destroy == true && joined))
+    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (key->in_destroy == true && joined))
         return;
 
     _LOCK_MODULE(np_routeglobal_t)

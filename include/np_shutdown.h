@@ -14,9 +14,10 @@
 extern "C" {
 #endif
 	NP_API_INTERN
-		void _np_shutdown_init_auto_notify_others(np_state_t* context);
+		void _np_shutdown_init(np_state_t* context);
 	NP_API_INTERN
-		void _np_shutdown_deinit();
+		void _np_shutdown_destroy(np_state_t* context);
+	
 	NP_API_PROTEC
 		void np_shutdown_notify_others(np_state_t* context);
 
