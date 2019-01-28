@@ -479,7 +479,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
     }
 }
 
-void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
+void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhkey_t from)
 {
     np_ctx_memory(recv_prop);
     log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
@@ -496,14 +496,21 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
     while ( 0 < msg_available )
     {
         np_message_t* msg_in = NULL;
+        sll_iterator(np_message_ptr) peek;
         _LOCK_ACCESS(&recv_prop->lock)
         {
             // if messages are available in cache, try to decode them !
             if (FLAG_CMP(recv_prop->cache_policy, FIFO)){
-                msg_in = sll_head(np_message_ptr, recv_prop->msg_cache_in);
+                peek = sll_first(recv_prop->msg_cache_in);
+                if(peek != NULL && peek->val != NULL && _np_dhkey_cmp(_np_message_get_sender(peek->val), &from) ==0){
+                    msg_in = sll_head(np_message_ptr, recv_prop->msg_cache_in);
+                }
             }
             else if (FLAG_CMP(recv_prop->cache_policy , LIFO)){
-                msg_in = sll_tail(np_message_ptr, recv_prop->msg_cache_in);
+                peek = sll_last(recv_prop->msg_cache_in);
+                if(peek != NULL && peek->val != NULL && _np_dhkey_cmp(_np_message_get_sender(peek->val), &from) ==0){
+                    msg_in = sll_tail(np_message_ptr, recv_prop->msg_cache_in);
+                }
             }
 
             msg_available = sll_size(recv_prop->msg_cache_in);
@@ -511,8 +518,16 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop)
 
         if(NULL != msg_in) {
             _np_msgproperty_threshold_decrease(recv_prop);
-            _np_job_submit_msgin_event(0.0, recv_prop, context->my_node_key, msg_in, NULL);
-            np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
+            if(_np_job_submit_msgin_event(0.0, recv_prop, context->my_node_key, msg_in, NULL)){
+                np_unref_obj(np_message_t, msg_in, ref_msgproperty_msgcache);
+            }else{
+                 if (FLAG_CMP(recv_prop->cache_policy, FIFO)){
+                    sll_prepend(np_message_ptr, recv_prop->msg_cache_in,msg_in);                    
+                }
+                else if (FLAG_CMP(recv_prop->cache_policy , LIFO)){
+                    sll_append(np_message_ptr, recv_prop->msg_cache_in, msg_in);
+                }
+            }
         } else {
         		break;
         }

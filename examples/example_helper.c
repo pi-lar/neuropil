@@ -38,7 +38,6 @@
 #include "np_event.h"
 #include "np_memory.h"
 #include "np_messagepart.h"
-#include "np_performance.h"
 #include "np_statistics.h"
 #include "np_shutdown.h"
 #include "np_sysinfo.h"
@@ -978,6 +977,11 @@ void _np_interactive_quit(np_context* context, char* buffer) {
         np_destroy(context, true);
         
         exit(EXIT_SUCCESS);
+    }else if (strncmp(buffer, "f", 2) == 0){
+        
+        np_destroy(context, false);
+        
+        exit(EXIT_SUCCESS);
     }
 }
 
@@ -1338,6 +1342,7 @@ void __np_example_helper_loop(np_state_t* context) {
                         "Quit:\n"
                         "0/n/no/cancel\n"
                         "1/y/yes\n"
+                        "f/force\n"
                         , _np_interactive_quit
                     );
                     break;

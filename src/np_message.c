@@ -40,8 +40,7 @@
 #include "np_responsecontainer.h"
 #include "np_constants.h"
 #include "np_serialization.h"
-
-
+#include "np_statistics.h"
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
@@ -64,7 +63,8 @@ void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     msg_tmp->no_of_chunks   = 1;
     msg_tmp->is_single_part = false;
     
-    TSP_INITD(msg_tmp->is_acked , false);
+    TSP_INITD(msg_tmp->is_acked , false);    
+    
     sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
     TSP_INITD(msg_tmp->is_in_timeout, false);
     sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
@@ -1018,24 +1018,9 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
             {
                 memcpy(enc_sym_key,
                     encryption_details_elem->val.value.bin,
-                    crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
-
-                unsigned char sym_key[crypto_secretbox_KEYBYTES];
-
-                // convert own secret to encryption key
-                // unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-                // crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-                // context->my_identity->aaa_token->crypto.ed25519_secret_key);
-
-                // convert partner public key to signature key
-                // unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-
-                // crypto_ret += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
-                // if (0 > crypto_ret)
-                // {
-                //     log_msg(LOG_ERROR, "decryption of message payload (%s) failed", msg->uuid);
-                //     ret = false;
-                // }
+                    crypto_secretbox_KEYBYTES + crypto_box_MACBYTES
+                );
+                
 #ifdef DEBUG
 
     unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
@@ -1049,6 +1034,9 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) decrypt: my cu pk: %s ### my ed pk: %s ### pa pk: %s\n", msg->uuid, curve25519_pk, ed25519_pk, partner_key);
 #endif
 
+                NP_PERFORMANCE_POINT_START(message_decrypt);
+
+                unsigned char sym_key[crypto_secretbox_KEYBYTES];
                 int crypto_ret = crypto_box_open_easy(sym_key, enc_sym_key,
                     crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
                     nonce, tmp_token->crypto.derived_kx_public_key, context->my_identity->aaa_token->crypto.derived_kx_secret_key);
@@ -1073,6 +1061,7 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                         np_tree_free(old);
                     }
                 }
+                NP_PERFORMANCE_POINT_END(message_decrypt);
             }
         }
     }

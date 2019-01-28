@@ -5,9 +5,10 @@
 #ifndef _NP_MEMORY_H_
 #define _NP_MEMORY_H_
 
-#include "np_types.h"
-#include "np_settings.h"
 #include "np_constants.h"
+#include "np_settings.h"
+
+#include "np_types.h"
 
 
 #ifdef __cplusplus

@@ -2,23 +2,22 @@
 // neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-
 /**
-The structure np_msgproperty_t is used to describe properties of the message exchange itself.
-It is setup by sender and receiver independent of each other.
-It defines attributes like a re-send counter and the type of message exchange.
-A developer should be familiar with the main settings
-
+ The structure np_msgproperty_t is used to describe properties of the message exchange itself.
+ It is setup by sender and receiver independent of each other.
+ It defines attributes like a re-send counter and the type of message exchange.
+ A developer should be familiar with the main settings
 */
+
 #ifndef _NP_MSGPROPERTY_H_
 #define _NP_MSGPROPERTY_H_
 
 #include <stdarg.h>
+#include "np_types.h"
 
 #include "np_memory.h"
 
 #include "np_util.h"
-#include "np_types.h"
 #include "np_list.h"
 #include "np_threads.h"
 
@@ -421,7 +420,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 NP_API_INTERN
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop);
 NP_API_INTERN
-void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop);
+void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhkey_t from);
 
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);

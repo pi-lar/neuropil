@@ -86,7 +86,7 @@ else:
         prefix_bootstrap = ('valgrind --leak-check=full ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
         if args.perf:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
-        nb.attached_pane.send_keys(prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> error.log'.format(
+        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> error.log'.format(
             port, threads, port_type_server, loglevel, publish_domain, sysinfo,httpdomain, statistics, autoclose))
         if args.v or args.vs:
             time.sleep(4)
@@ -103,7 +103,7 @@ else:
                 rand = random.random() if args.tr else 0
                 time.sleep(rand+(args.ts/1000))
             nn = session.new_window(attach=False, window_name=windowName )
-            nn.attached_pane.send_keys(('valgrind ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
+            nn.attached_pane.send_keys("  " + ('valgrind ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
             port+i+start_bootstrapper,publish_domain, threads, port_type_client, sysinfo_client, loglevel, join_client, httpdomain, statistics, autoclose))
 
     if not args.k:

@@ -13,7 +13,6 @@
 #include "np_tree.h"
 #include "np_threads.h"
 #include "np_settings.h"
-#include "np_statistics.h"
 
 
 #ifdef __cplusplus
@@ -31,6 +30,9 @@ extern "C" {
 #define ARRAY_SIZE(array) ((int)( sizeof(array) / sizeof(array[0])))
 
 #define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))
+
+#define STRINGIFY(x) #x
+#define TO_STRING(x) STRINGIFY(x)
 
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\
@@ -142,33 +144,6 @@ NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount);
-
-#ifdef DEBUG_CALLBACKS
-typedef struct {
-	char key[255];
-	uint32_t count;
-	np_mutex_t lock;
-	double avg;
-	double min;
-	double max;
-} _np_util_debug_statistics_t;
-
-NP_API_INTERN
-_np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context, char* key, double value);
-NP_API_INTERN
-_np_util_debug_statistics_t* __np_util_debug_statistics_get(np_state_t * context, char* key);
-NP_API_INTERN
-char* __np_util_debug_statistics_print(np_state_t * context);
-NP_API_INTERN
-void  _np_util_debug_statistics_destroy(np_state_t * context);
-NP_API_INTERN
-void _np_util_debug_statistics_ele_destroy(np_state_t* context, void* item) ;
-#else 
-	#define _np_util_debug_statistics_destroy(context) ;
-	#define _np_util_debug_statistics_ele_destroy(context, item) ;
-NP_API_INTERN
-
-#endif
 
 enum np_util_stringify_e {
 	np_util_stringify_time_ms,

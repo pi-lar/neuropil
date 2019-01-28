@@ -39,6 +39,8 @@
 
 #include "../examples/example_helper.h"
 
+#define HTTP_PORT 31415
+
 // generate new and del method for np_node_t
 // _NP_GENERATE_MEMORY_PROTOTYPES(np_http_t);
 
@@ -732,7 +734,7 @@ bool np_http_init(np_state_t* context, char* domain) {
         domain = strdup("localhost");
     }
     
-    char* port = "31415";
+    char* port = TO_STRING(HTTP_PORT);
     np_http_t* __local_http = (np_http_t*) malloc(sizeof(np_http_t));
     CHECK_MALLOC(__local_http);
     
@@ -782,7 +784,7 @@ bool np_http_init(np_state_t* context, char* domain) {
     ev_io_start(EV_A_&__local_http->network->watcher);
     _np_event_resume_loop_http(context);
     __local_http->user_hooks = NULL;
-
+    
     ((example_user_context*)np_get_userdata(context))->local_http = __local_http;
     return true;
 }
@@ -868,8 +870,8 @@ bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo
     if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
         if ((ret && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_server)
         {
-            np_example_print(context, stdout, "HTTP interface set to %s\n", http_domain);
-            log_msg(LOG_INFO, "HTTP interface set to %s", http_domain);
+            np_example_print(context, stdout, "HTTP interface set to %s:%d\n", http_domain, HTTP_PORT);
+            log_msg(LOG_INFO, "HTTP interface set to %s:%d", http_domain,HTTP_PORT);
             np_example_print(context, stdout, "Enable sysinfo server option\n");
             np_sysinfo_enable_server(context);
         }

@@ -29,7 +29,7 @@
 #include "np_constants.h"
 #include "np_token_factory.h"
 #include "np_memory.h"
-
+#include "np_statistics.h"
 
 np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken_scope scope)
 {

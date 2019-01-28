@@ -51,6 +51,7 @@
 #include "np_settings.h"
 #include "np_util.h"
 #include "np_statistics.h"
+#include "np_dendrit.h"
 
 static char* URN_TCP_V4 = "tcp4";
 static char* URN_TCP_V6 = "tcp6";
@@ -449,7 +450,7 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
 
                             if (data_to_send != NULL)
                             {
-                                int retry = 10;
+                                int retry = 1;
                                 do {
 
                                     /*
@@ -508,7 +509,7 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
                                 }
                                 np_memory_free(context, data_to_send);
                             }
-                        } while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN && np_time_now() < timeout);
+                        } while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN_OUT && np_time_now() < timeout);
 
 #ifdef DEBUG 
                         if (sll_size(key_network->out_events) > 0)
@@ -802,7 +803,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
         }
 
     // there may be more then one msg in our socket pipeline
-    } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC); 
+    } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC); 
     
 }
     
@@ -838,6 +839,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
 
     if (0 == data_container->in_msg_len)
     {        
+        log_debug(LOG_ERROR, "Received 0 size package");
         np_memory_free(context, data_container->data);
     }
     else {
@@ -870,16 +872,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from (%d) %s:%s (size: %hd), insert into alias %s",
                     ng->socket, data_container->ipstr, data_container->port, data_container->in_msg_len, _np_key_as_str(alias_key));
             
-                np_msgproperty_t* msg_prop = np_msgproperty_get(context, INBOUND, _DEFAULT);
-
-                if (_np_job_submit_msgin_event(0.0, msg_prop, alias_key, NULL, data_container->data)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "submitted msg to list for %s",
-                        _np_key_as_str(data_container->key));
-                }
-                else {
-                    log_debug_msg(LOG_ERROR, "could not submit msg to list for %s (jobqueue overflow)",
-                        _np_key_as_str(data_container->key));
-                }
+                _np_in_received(context, alias_key, data_container->data);
             }
             else {
                 np_memory_free(context, data_container->data);

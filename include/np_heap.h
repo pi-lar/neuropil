@@ -109,7 +109,7 @@ TYPE TYPE##_binheap_head(TYPE##_binheap_t* heap) {                              
 void TYPE##_binheap_insert(TYPE##_binheap_t* heap, TYPE element) {                                                     \
     assert(heap->count < heap->size);                                                       	                       \
     uint16_t i = ++(heap->count);                          											                   \
-    assert(i!=0);                          											                   \
+    ASSERT(i!=0,"i = %d",i);                          											           \
     heap->elements[i].data = element;                        										                   \
     heap->elements[i].sentinel = false;                     										                   \
     heap->elements[i].priority = TYPE##_binheap_get_priority(element);                                                 \

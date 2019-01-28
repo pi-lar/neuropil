@@ -21,10 +21,12 @@ It should contain all required functions to send or receive messages.
 
 #include <pthread.h>
 
+
 #include "np_constants.h"
-
-
 #include "np_settings.h"
+
+#include "neuropil.h"
+
 #include "np_types.h"
 #include "np_list.h"
 #include "np_memory.h"
@@ -32,8 +34,9 @@ It should contain all required functions to send or receive messages.
 #include "np_treeval.h"
 #include "map.h"
 #include "np_scache.h"
+#include "np_msgproperty.h"
 
-#include "neuropil.h"
+
 
 
 
@@ -48,7 +51,7 @@ extern "C" {
         np_ctx_decl(np_ctx_by_memory(a));
 
 
-#define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue, shutdown, bootstrap
+#define NP_CTX_MODULES route, memory, threads, events, statistics, msgproperties, keycache, sysinfo, log, jobqueue, shutdown, bootstrap, time
 
 /**
 \toggle_keepwhitespaces
@@ -319,11 +322,13 @@ char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char
 NP_API_INTERN
 void _np_ping_send(np_state_t* context, np_key_t* key);
 
-NP_API_INTERN
-void _np_send_ack(const np_message_t* const in_msg);
 
+NP_API_INTERN
+void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum type);
+
+#define np_time_now() _np_time_now(context)
 NP_API_PROTEC
-double np_time_now();
+double _np_time_now(np_state_t* context);
 
 NP_API_PROTEC
 double np_time_sleep(double sleeptime);

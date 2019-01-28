@@ -17,6 +17,8 @@
 #include "event/ev.h"
 #include "sodium.h"
 
+#include "np_constants.h"
+
 #include "np_axon.h"
 
 #include "np_log.h"
@@ -38,23 +40,23 @@
 #include "np_settings.h"
 #include "np_types.h"
 #include "np_token_factory.h"
-#include "np_constants.h"
-#include "np_statistics.h"
 #include "np_list.h"
 #include "np_key.h"
 #include "np_util.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
+#include "np_statistics.h"
+
 
 /** message split up maths
  ** message size = 1b (common header) + 40b (encryption) +
  **                msg (header + instructions) + msg (properties + body) + msg (footer)
- ** if (size > 1024)
+ ** if (size > MSG_CHUNK_SIZE_1024)
  **     fixed_size = 1b + 40b + msg (header + instructions)
  **     payload_size = msg (properties) + msg(body) + msg(footer)
- **     #_of_chunks = int(payload_size / (1024 - fixed_size)) + 1
+ **     #_of_chunks = int(payload_size / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1
  **     chunk_size = payload_size / #_of_chunks
- **     garbage_size = #_of_chunks * (fixed_size + chunk_size) % 1024 // spezial behandlung garbage_size < 3
+ **     garbage_size = #_of_chunks * (fixed_size + chunk_size) % MSG_CHUNK_SIZE_1024 // spezial behandlung garbage_size < 3
  **     add garbage
  ** else
  ** 	add garbage
@@ -664,8 +666,7 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t args)
 
 // deprecated
 void _np_out_receiver_discovery(np_state_t* context, np_jobargs_t args)
-{
-    
+{    
     log_trace_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_state_t* context, np_jobargs_t args){");
     // create message interest in authentication request
     np_aaatoken_t* msg_token = NULL;

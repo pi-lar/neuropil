@@ -17,6 +17,8 @@
 #include "event/ev.h"
 #include "tree/tree.h"
 
+#include "np_constants.h"
+#include "np_settings.h" 
 #include "np_log.h"
 #include "np_jobqueue.h"
 
@@ -34,9 +36,8 @@
 #include "np_message.h"
 #include "np_messagepart.h"
 #include "np_memory.h"
+#include "np_statistics.h"
 
-#include "np_settings.h"
-#include "np_constants.h"
 
 
 #define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)                 \

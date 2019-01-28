@@ -114,10 +114,10 @@ void np_sysinfo_enable_client(np_state_t* context) {
     sysinfo_response_props->mep_type = ONE_WAY;
     sysinfo_response_props->ack_mode = ACK_NONE;
     sysinfo_response_props->retry    = 0;
-    sysinfo_response_props->priority -= 1;
+    sysinfo_response_props->priority += 1;
     sysinfo_response_props->msg_ttl  = 20.0;
     sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-    sysinfo_response_props->max_threshold = 32;
+    sysinfo_response_props->max_threshold = 2;
 
     sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
     sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
@@ -128,7 +128,7 @@ void np_sysinfo_enable_client(np_state_t* context) {
     }    
 
     np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
-                                 0,
+                                 np_crypt_rand_mm(0, SYSINFO_PROACTIVE_SEND_IN_SEC*1000) / 1000.,
                                  //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
                                  SYSINFO_PROACTIVE_SEND_IN_SEC+.0,
                                  _np_sysinfo_client_send_cb,
@@ -151,7 +151,7 @@ void np_sysinfo_enable_server(np_state_t* context) {
     sysinfo_response_props->ack_mode = ACK_NONE;
     sysinfo_response_props->retry    = 0;
     sysinfo_response_props->msg_ttl  = 20.0;
-    sysinfo_response_props->priority -= 1;
+    sysinfo_response_props->priority += 1;
     
     sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
     sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;

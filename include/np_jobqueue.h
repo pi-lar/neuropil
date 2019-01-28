@@ -80,8 +80,12 @@ NP_API_INTERN
 NP_API_INTERN
     bool __np_job_submit_msgin_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
 
+    #define np_job_submit_msgin_event_sync(prop, key, msg, custom_data) __np_job_submit_msgin_event_sync(context, prop, key, msg, custom_data, FUNC)
+    NP_API_INTERN
+    void __np_job_submit_msgin_event_sync(np_state_t * context, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
+
 NP_API_INTERN
-    void _np_job_submit_route_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+    bool _np_job_submit_route_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 NP_API_INTERN
     bool _np_job_submit_transform_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, void* custom_data);
