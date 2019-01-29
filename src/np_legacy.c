@@ -68,7 +68,7 @@ bool _np_default_authorizefunc (np_context* ac, struct  np_token* token )
     log_msg(LOG_WARN, "using default handler (authorize all) to authorize %s", token->subject );
     // log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
 #endif
-    return (true);
+    return (false);
 }
 /**
  * The default realm client authorize function. Forwards the authorization request to the realm server
@@ -152,7 +152,7 @@ bool _np_default_accountingfunc (np_context*ac, NP_UNUSED struct np_token* token
     log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
     // log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
 #endif
-    return (true);
+    return (false);
 }
 /**
  * The default realm client accounting function. Forwards the accounting request to the realm server
