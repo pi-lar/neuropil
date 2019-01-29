@@ -866,7 +866,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
     if (NULL != join_ident_key && !IS_AUTHENTICATED(join_ident_key->aaa_token->state) )
     {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
-        bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
+        bool join_allowed = context->authenticate_func == NULL ? false : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
 
         if (false == context->enable_realm_client &&
@@ -878,10 +878,10 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
     } else {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/node) authentication of token");
         bool join_allowed = false;
-		if (!IS_AUTHENTICATED(join_node_key->aaa_token->state))
+		if (IS_AUTHENTICATED(join_node_key->aaa_token->state))
 			join_allowed = true;
 		else
-			join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
+			join_allowed = context->authenticate_func == NULL ? false : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
         if (false == context->enable_realm_client &&
             true == join_allowed)
@@ -1228,7 +1228,7 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t args)
                         deleted->node->success_avg);
 #endif
 
-    nack_key->aaa_token->state &= AAA_INVALID;
+    nack_key->aaa_token->state &= (~AAA_AUTHENTICATED);
     nack_key->node->joined_network = false;
     np_node_set_handshake(nack_key->node, np_handshake_status_Disconnected);
 

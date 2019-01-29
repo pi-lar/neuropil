@@ -60,14 +60,12 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
  * @param token
  * @return
  */
-bool _np_default_authorizefunc (np_context* ac, struct  np_token* token )
+bool _np_default_authorizefunc (np_context* ac, struct np_token* token )
 {
     np_ctx_cast(ac);
-
-#ifndef DEBUG
-    log_msg(LOG_WARN, "using default handler (authorize all) to authorize %s", token->subject );
+    log_msg(LOG_WARN, "using default handler (authorize none) to reject authorization for: %s", token->subject );
     // log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
-#endif
+
     return (false);
 }
 /**
@@ -104,13 +102,12 @@ bool _np_aaa_authorizefunc (np_context* ac, struct np_token* token )
  * @param token
  * @return
  */
-bool _np_default_authenticatefunc (np_context*ac, struct np_token* token )
+bool _np_default_authenticatefunc (np_context* ac, struct np_token* token )
 {
-#ifndef DEBUG
     np_ctx_cast(ac);
-    log_msg(LOG_WARN, "using default handler (auth all) to authenticate %s", token->subject);
+    log_msg(LOG_WARN, "using default handler (authn all) to authenticate %s", token->subject);
     // log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
-#endif
+
     return (true);
 }
 /**
@@ -145,13 +142,12 @@ bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
  * @param token
  * @return
  */
-bool _np_default_accountingfunc (np_context*ac, NP_UNUSED struct np_token* token )
+bool _np_default_accountingfunc (np_context* ac, struct np_token* token )
 {
-#ifndef DEBUG
     np_ctx_cast(ac);
-    log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
+    log_msg(LOG_WARN, "using default handler to deny accounting for: %s", token->subject );
     // log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
-#endif
+
     return (false);
 }
 /**
