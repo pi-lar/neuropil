@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include "sodium.h"
+
 #include "np_constants.h"
 
 #ifdef __cplusplus
@@ -22,16 +23,23 @@ extern "C" {
      - x64								(enable 64 Bit support)	(is automaticly set by SConstruct file)
      - CONSOLE_LOG						(prints the log in stdout)
      - NP_BENCHMARKING					if defined enables the performance point macros and sets the size of the calucations array
-     - NP_STATISTICS_COUNTER			enables the statistics (in/out bytes, forwarding counter) statistics
+     - NP_STATISTICS                    enables all of the following NP_STATISTICS* switches
+     - NP_STATISTICS_COUNTER			in/out bytes, forwarding counter statistics
+     - NP_STATISTICS_THREADS			thread statistics
 */
 #ifdef DEBUG
-#define DEBUG_CALLBACKS 1
-    // #define NP_MEMORY_CHECK_MEMORY_REFFING 1
-    // #define NP_MEMORY_CHECK_MAGIC_NO
+    #define DEBUG_CALLBACKS 1
+     #define NP_MEMORY_CHECK_MEMORY_REFFING 1
+     #define NP_MEMORY_CHECK_MAGIC_NO
     // #define NP_THREADS_CHECK_THREADING 1
-    // #define NP_BENCHMARKING 4096
-    #define NP_STATISTICS_COUNTER
+     #define NP_BENCHMARKING 4096
+    #define NP_STATISTICS
 #endif // DEBUG
+
+#ifdef NP_STATISTICS
+    #define NP_STATISTICS_COUNTER
+    #define NP_STATISTICS_THREADS
+#endif
 
 #define NP_PI 3.1415
 #define NP_PI_INT 3
@@ -58,10 +66,10 @@ extern "C" {
     #define SYSINFO_PROACTIVE_SEND_IN_SEC (30)
 #endif
 #ifndef SYSINFO_MAX_TTL
-    #define SYSINFO_MAX_TTL (SYSINFO_PROACTIVE_SEND_IN_SEC*10)
+    #define SYSINFO_MAX_TTL (MAX(20, SYSINFO_PROACTIVE_SEND_IN_SEC*10))
 #endif
 #ifndef SYSINFO_MIN_TTL
-    #define SYSINFO_MIN_TTL (SYSINFO_MAX_TTL-SYSINFO_PROACTIVE_SEND_IN_SEC)
+    #define SYSINFO_MIN_TTL (MAX(10, SYSINFO_MAX_TTL-SYSINFO_PROACTIVE_SEND_IN_SEC))
 #endif
 
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL
@@ -227,7 +235,7 @@ extern "C" {
 #endif
 
 #ifndef LOG_ROW_SIZE
-        #define LOG_ROW_SIZE (5000)
+    #define LOG_ROW_SIZE (5000)
 #endif
 
 #ifndef LOG_ROTATE_AFTER_BYTES
@@ -242,8 +250,12 @@ extern "C" {
     #endif
 #endif
 
-#ifndef NP_NETWORK_MAX_MSGS_PER_SCAN
-    #define NP_NETWORK_MAX_MSGS_PER_SCAN (3)
+#ifndef NP_NETWORK_MAX_MSGS_PER_SCAN_OUT
+    #define NP_NETWORK_MAX_MSGS_PER_SCAN_OUT (1)
+#endif
+
+#ifndef NP_NETWORK_MAX_MSGS_PER_SCAN_IN
+    #define NP_NETWORK_MAX_MSGS_PER_SCAN_IN (5)
 #endif
  // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024)
 #ifndef NETWORK_RECEIVING_TIMEOUT_SEC
@@ -271,8 +283,10 @@ extern "C" {
 /*
     lower value => success avg more on realtime
     higher value => more msgs need to be failed to regard this link as bad
+
+    use a prime number because of modulo division
 */
-#define NP_NODE_SUCCESS_WINDOW 20
+#define NP_NODE_SUCCESS_WINDOW 31
 
 
 #if !(defined(__APPLE__) || defined(__MACH__ ))
@@ -280,7 +294,7 @@ extern "C" {
 #endif
 
 
-#define NP_SLEEP_MIN (0.001)
+#define NP_SLEEP_MIN (NP_PI/1000)
 
 
 #define __MAX_ROW    64 /* length of key*/

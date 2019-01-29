@@ -2,23 +2,22 @@
 // neuropil is copyright 2016-2018 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-
 /**
-The structure np_msgproperty_t is used to describe properties of the message exchange itself.
-It is setup by sender and receiver independent of each other.
-It defines attributes like a re-send counter and the type of message exchange.
-A developer should be familiar with the main settings
-
+ The structure np_msgproperty_t is used to describe properties of the message exchange itself.
+ It is setup by sender and receiver independent of each other.
+ It defines attributes like a re-send counter and the type of message exchange.
+ A developer should be familiar with the main settings
 */
+
 #ifndef _NP_MSGPROPERTY_H_
 #define _NP_MSGPROPERTY_H_
 
 #include <stdarg.h>
+#include "np_types.h"
 
 #include "np_memory.h"
 
 #include "np_util.h"
-#include "np_types.h"
 #include "np_list.h"
 #include "np_threads.h"
 
@@ -37,11 +36,11 @@ extern "C" {
 
 */
 typedef enum np_msg_mode_enum {
-    DEFAULT_MODE = 0,
-    INBOUND      = 0x1,
-    OUTBOUND     = 0x2,
-    ROUTE        = 0x4,
-    TRANSFORM    = 0x8
+    DEFAULT_MODE = 0x00,
+    INBOUND      = 0x01,
+    OUTBOUND     = 0x02,
+    ROUTE        = 0x04,
+    TRANSFORM    = 0x08
 } NP_API_EXPORT np_msg_mode_type;
 
 /**
@@ -272,7 +271,7 @@ struct np_msgproperty_s
     np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
 
     np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
-    np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outnound
+    np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
 
     // The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
     uint32_t token_max_ttl;
@@ -327,6 +326,10 @@ _NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, msg_audience);
 NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
 
+
+NP_API_INTERN
+void _np_msgproperty_update_disovery(np_state_t * context, np_msgproperty_t* msgprop);
+
 /**
 .. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
 
@@ -340,8 +343,12 @@ return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
 :returns: np_msgproperty_t structure of NULL if none found
 
 */
-NP_API_EXPORT
+NP_API_INTERN
 np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type msg_mode, const char* subject);
+
+NP_API_INTERN
+np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_type mode_type, const char* subject);
+
 
 
 
@@ -400,6 +407,8 @@ bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* ms
  **/
 NP_API_INTERN
 bool _np_msgproperty_init (np_state_t* context);
+NP_API_INTERN
+void _np_msgproperty_destroy (np_state_t* context);
 
 /**
  ** compare two msg properties for rb cache management
@@ -411,7 +420,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgpr
 NP_API_INTERN
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop);
 NP_API_INTERN
-void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop);
+void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhkey_t from);
 
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
@@ -424,12 +433,14 @@ void _np_msgproperty_threshold_increase(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
 NP_API_INTERN
+bool _np_messsage_threshold_breached(np_msgproperty_t* self);
+NP_API_INTERN
 np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop);
 
 NP_API_INTERN
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src);
 NP_API_INTERN
-void np_msgproperty_from_user(np_msgproperty_t* dest, struct np_mx_properties* src);
+void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src);
 
 #ifdef __cplusplus
 }

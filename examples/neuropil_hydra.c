@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
 
-	double started_at = np_time_now();
+	double started_at = _np_time_now(NULL);
 
 	int no_threads = 8;
 	char *j_key = NULL;
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 	char bootstrap_port[10];
 	int bootstrap_port_i = atoi(port);
 	memcpy(bootstrap_port, port, strnlen(port,10));
-	double last_process_kill_at = np_time_now();
+	double last_process_kill_at = _np_time_now(NULL);
 	while (true) {
 		// (re-) start child processes
 		if (sll_size(list_of_childs) < required_nodes) {

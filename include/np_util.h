@@ -13,7 +13,6 @@
 #include "np_tree.h"
 #include "np_threads.h"
 #include "np_settings.h"
-#include "np_statistics.h"
 
 
 #ifdef __cplusplus
@@ -28,8 +27,12 @@ extern "C" {
 #define debugf(s, ...)
 #endif
 	
+#define ARRAY_SIZE(array) ((int)( sizeof(array) / sizeof(array[0])))
 
 #define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))
+
+#define STRINGIFY(x) #x
+#define TO_STRING(x) STRINGIFY(x)
 
 #ifdef DEBUG
 #define ASSERT(expression, onfail_msg, ...)												\
@@ -43,6 +46,13 @@ extern "C" {
 	if (!(expression)) {																\
 			log_debug_msg(LOG_ERROR, onfail_msg, ##__VA_ARGS__);						\
 	}
+#endif
+
+#ifndef MAX
+	#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef MIN
+	#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 
@@ -63,14 +73,15 @@ inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) {	\
 #define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE)			\
 inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, TYPE value) { \
 	np_msgproperty_t* msg_prop = np_message_get_handler(state, mode_type, subject); \
-	if (NULL == msg_prop)                                 \
-	{                                                     \
-		np_new_obj(np_msgproperty_t, msg_prop);           \
-		msg_prop->mode_type = mode_type;                  \
-		msg_prop->msg_subject = strndup(subject, 255);    \
-		np_message_register_handler(state, msg_prop);     \
-	}                                                     \
-	msg_prop->PROP_NAME = value;                          \
+	if (NULL == msg_prop)                                 				\
+	{                                                     				\
+		np_new_obj(np_msgproperty_t, msg_prop);           				\
+		msg_prop->mode_type = mode_type;                  				\
+		msg_prop->msg_subject = strndup(subject, 255);    				\
+		np_message_register_handler(state, msg_prop);     				\
+		np_unref_obj(np_msgproperty_t, msg_prop, ref_obj_creation);     \
+	}                                                     				\
+	msg_prop->PROP_NAME = value;                          				\
 }
 
 
@@ -126,29 +137,13 @@ NP_API_PROTEC
 bool np_get_local_ip(np_state_t* context, char* buffer, int buffer_size);
 
 NP_API_PROTEC
+uint8_t np_util_char_ptr_cmp(char_ptr const a, char_ptr const b) ;
+NP_API_PROTEC
 char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target));
 NP_API_INTERN
 char_ptr _sll_char_remove(np_sll_t(char_ptr, target), char* to_remove, size_t cmp_len);
 NP_API_INTERN
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount);
-
-#ifdef DEBUG_CALLBACKS
-typedef struct {
-	char key[255];
-	uint32_t count;
-	np_mutex_t lock;
-	double avg;
-	double min;
-	double max;
-} _np_util_debug_statistics_t;
-
-NP_API_INTERN
-_np_util_debug_statistics_t* _np_util_debug_statistics_add(np_state_t * context, char* key, double value);
-NP_API_INTERN
-_np_util_debug_statistics_t* __np_util_debug_statistics_get(np_state_t * context, char* key);
-NP_API_INTERN
-char* __np_util_debug_statistics_print(np_state_t * context);
-#endif
 
 enum np_util_stringify_e {
 	np_util_stringify_time_ms,
@@ -159,6 +154,7 @@ NP_API_EXPORT
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]);
 NP_API_EXPORT
 char* np_util_string_trim_left(char* target);
+
 
 
 #ifdef __cplusplus

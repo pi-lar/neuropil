@@ -119,7 +119,7 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
     }
     np_tree_insert_str(data, NP_SERIALISATION_NODE_PORT, port);
 
-    np_tree_insert_str( data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
+    np_tree_insert_str(data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
 
     if (true == include_stats)
     {		
@@ -354,7 +354,7 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
 {
     np_ctx_memory(token);
     // TODO: check whether metadata is used as a hash key in general
-    np_dhkey_t search_key = np_aaatoken_get_fingerprint(token);
+    np_dhkey_t search_key = np_aaatoken_get_fingerprint(token, false);
     np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
     
     if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0){
@@ -509,16 +509,16 @@ char * _np_node2str(np_node_t* self, char* buffer) {
     return buffer;
 }
 
-void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func)
+void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func, int line)
 {
     np_ctx_memory(self);
     char tmp[500];
     log_debug_msg(LOG_HANDSHAKE, 
-        "Setting handshake of node \"%s\" from \"%s\" to \"%s\" at \"%s\"", 
+        "Setting handshake of node \"%s\" from \"%s\" to \"%s\" at \"%s:%d\"", 
         _np_node2str(self, tmp),
         np_handshake_status_str[self->_handshake_status], 
         np_handshake_status_str[set_to], 
-        func
+        func, line
     );
     self->_handshake_status = set_to;	
 }

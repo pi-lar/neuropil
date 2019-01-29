@@ -61,6 +61,17 @@ void _np_sysinfo_init_cache(np_state_t* context)
         }
     }
 }
+void _np_sysinfo_destroy_cache(np_state_t* context)
+{
+    _LOCK_MODULE(np_sysinfo_t)
+    {
+        if (np_module_initiated(sysinfo)) {
+            np_module_var(sysinfo);
+            np_tree_free(_module->_cache);            
+            np_module_free(sysinfo);
+        }
+    }
+}
 
 void _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_jobargs_t args) {
     
@@ -91,48 +102,33 @@ void np_sysinfo_enable_client(np_state_t* context) {
     log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_client() {");
     // the client does not need the cache
     //_np_sysinfo_init_cache();
-    /*
-    np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(context, INBOUND, _NP_SYSINFO_REQUEST);
-    if(sysinfo_request_props == NULL) {
-        np_new_obj(np_msgproperty_t, sysinfo_request_props);
-    }
-    sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
-    sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
-    sysinfo_request_props->mep_type =  REQ_REP;
-    sysinfo_request_props->ack_mode = ACK_NONE;
-    sysinfo_request_props->retry    = 0;
-    sysinfo_request_props->priority -= 1;
-    sysinfo_request_props->msg_ttl  = 20.0;
-    sysinfo_request_props->mode_type = INBOUND | ROUTE;
-    sysinfo_request_props->max_threshold = 32;
-    */
-
+    
+   bool created = false;
     np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(context, OUTBOUND, _NP_SYSINFO_REPLY);
     if(sysinfo_response_props == NULL){
         np_new_obj(np_msgproperty_t, sysinfo_response_props);
+        created = true;
     }
     
     sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
     sysinfo_response_props->mep_type = ONE_WAY;
     sysinfo_response_props->ack_mode = ACK_NONE;
     sysinfo_response_props->retry    = 0;
-    sysinfo_response_props->priority -= 1;
+    sysinfo_response_props->priority += 1;
     sysinfo_response_props->msg_ttl  = 20.0;
     sysinfo_response_props->mode_type = OUTBOUND | ROUTE;
-    sysinfo_response_props->max_threshold = 32;
+    sysinfo_response_props->max_threshold = 2;
 
-    //sysinfo_request_props->token_max_ttl = 
-        sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
-    //sysinfo_request_props->token_min_ttl = 
-        sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
+    sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
+    sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
     np_msgproperty_register(sysinfo_response_props);
-    //np_msgproperty_register(sysinfo_request_props);
-
-    //np_add_receive_listener(_np_in_sysinfo, _NP_SYSINFO_REQUEST);
+    if(created) {
+        np_unref_obj(np_msgproperty_t, sysinfo_response_props, ref_obj_creation);        
+    }    
 
     np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
-                                 0,
+                                 np_crypt_rand_mm(0, SYSINFO_PROACTIVE_SEND_IN_SEC*1000) / 1000.,
                                  //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
                                  SYSINFO_PROACTIVE_SEND_IN_SEC+.0,
                                  _np_sysinfo_client_send_cb,
@@ -142,22 +138,12 @@ void np_sysinfo_enable_client(np_state_t* context) {
 void np_sysinfo_enable_server(np_state_t* context) {
     
     _np_sysinfo_init_cache(context);
-    /*
-    np_msgproperty_t* sysinfo_request_props = np_msgproperty_get(context, OUTBOUND, _NP_SYSINFO_REQUEST);
-    if (sysinfo_request_props == NULL) {
-        np_new_obj(np_msgproperty_t, sysinfo_request_props);
-    }
-    sysinfo_request_props->msg_subject = strndup(_NP_SYSINFO_REQUEST, 255);
-    sysinfo_request_props->rep_subject = strndup(_NP_SYSINFO_REPLY, 255);
-    sysinfo_request_props->mep_type =  REQ_REP;
-    sysinfo_request_props->ack_mode = ACK_NONE;
-    sysinfo_request_props->retry    = 0;
-    sysinfo_request_props->msg_ttl  = 20.0;
-    sysinfo_request_props->priority -= 1;
-    */
+    bool created = false;
+
     np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(context, INBOUND, _NP_SYSINFO_REPLY);
     if(sysinfo_response_props == NULL){
         np_new_obj(np_msgproperty_t, sysinfo_response_props);
+        created = true;
     }
     
     sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
@@ -165,20 +151,18 @@ void np_sysinfo_enable_server(np_state_t* context) {
     sysinfo_response_props->ack_mode = ACK_NONE;
     sysinfo_response_props->retry    = 0;
     sysinfo_response_props->msg_ttl  = 20.0;
-    sysinfo_response_props->priority -= 1;
+    sysinfo_response_props->priority += 1;
     
-    //sysinfo_request_props->token_max_ttl = 
-        sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
-    //sysinfo_request_props->token_min_ttl = 
-        sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
-    //sysinfo_request_props->mode_type = OUTBOUND | ROUTE;
-    //sysinfo_request_props->max_threshold = 20;
+    sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
+    sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
     sysinfo_response_props->mode_type = INBOUND | ROUTE;
     sysinfo_response_props->max_threshold =  32/*expected count of nodes */ * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC);
     
     np_msgproperty_register(sysinfo_response_props);
-    //np_msgproperty_register(sysinfo_request_props);
     
+    if(created) {
+        np_unref_obj(np_msgproperty_t, sysinfo_response_props, ref_obj_creation);        
+    }
     np_add_receive_listener(context, _np_in_sysinforeply, NULL, _NP_SYSINFO_REPLY);
 }
 
@@ -245,7 +229,7 @@ bool _np_in_sysinfo(np_context* ac, NP_UNUSED const np_message_t* const msg, np_
 //	np_tree_insert_str( reply_properties, _NP_SYSINFO_TARGET,
 //			np_treeval_new_s( np_treeval_to_str(source->val)));
 //	np_dhkey_t target_dhkey;
-//	np_str2id(  np_treeval_to_str(source->val), &target_dhkey);
+//	_np_str2dhkey(  np_treeval_to_str(source->val), &target_dhkey);
 
     // send msg
     log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo reply (size: %"PRIu16")",

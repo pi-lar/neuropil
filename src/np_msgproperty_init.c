@@ -19,17 +19,17 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_init(np_msgproperty_ptr, ret);
 
     np_msgproperty_t* __default_properties = NULL;
-    np_new_obj(np_msgproperty_t, __default_properties);
+    np_new_obj(np_msgproperty_t, __default_properties, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __default_properties);
 
-    __default_properties->msg_subject = _DEFAULT;
+    __default_properties->msg_subject = strdup(_DEFAULT);
     __default_properties->rep_subject = NULL;
     __default_properties->mode_type = INBOUND | OUTBOUND | ROUTE;
     __default_properties->mep_type = DEFAULT_TYPE;
     __default_properties->priority = 0;
     __default_properties->ack_mode = ACK_NONE;
     __default_properties->retry = 0;
-    sll_append(np_callback_t, __default_properties->clb_inbound, _np_in_received);
+    //sll_append(np_callback_t, __default_properties->clb_inbound, _np_in_received);
     //default: 	sll_append(np_callback_t, __default_properties->clb_outbound, _np_out);
     //sll_append(np_callback_t, __default_properties->clb_transform, _np_never_called_jobexec_transform);
     //default: sll_append(np_callback_t, __default_properties->clb_route, _np_glia_route_lookup);
@@ -39,10 +39,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __default_properties->token_min_ttl = 20;
 
     np_msgproperty_t* __handshake_properties = NULL;
-    np_new_obj(np_msgproperty_t, __handshake_properties);
+    np_new_obj(np_msgproperty_t, __handshake_properties, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __handshake_properties);
 
-    __handshake_properties->msg_subject = _NP_MSG_HANDSHAKE;
+    __handshake_properties->msg_subject = strdup(_NP_MSG_HANDSHAKE);
     __handshake_properties->rep_subject = NULL;
     __handshake_properties->mode_type = INBOUND | OUTBOUND | TRANSFORM;
     __handshake_properties->mep_type = ONE_WAY;
@@ -60,10 +60,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     // we don't need to ack the ack the ack the ack ...
     np_msgproperty_t* __ack_properties = NULL;
-    np_new_obj(np_msgproperty_t, __ack_properties);
+    np_new_obj(np_msgproperty_t, __ack_properties, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __ack_properties);
 
-    __ack_properties->msg_subject = _NP_MSG_ACK;
+    __ack_properties->msg_subject = strdup(_NP_MSG_ACK);
     __ack_properties->rep_subject = NULL;
     __ack_properties->mode_type = OUTBOUND | INBOUND | ROUTE;
     __ack_properties->mep_type = ONE_WAY;
@@ -82,10 +82,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     // join request: node unknown yet; therefore send without ack; explicit ack handling via extra messages
     np_msgproperty_t* __join_req = NULL;
-    np_new_obj(np_msgproperty_t, __join_req);
+    np_new_obj(np_msgproperty_t, __join_req, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __join_req);
 
-    __join_req->msg_subject = _NP_MSG_JOIN_REQUEST;
+    __join_req->msg_subject = strdup(_NP_MSG_JOIN_REQUEST);
     __join_req->rep_subject = NULL;
     __join_req->mode_type = INBOUND | OUTBOUND;
     __join_req->mep_type = REQ_REP;
@@ -102,10 +102,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __join_req->token_min_ttl = 20;
 
     np_msgproperty_t* __join_ack = NULL;
-    np_new_obj(np_msgproperty_t, __join_ack);
+    np_new_obj(np_msgproperty_t, __join_ack, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __join_ack);
 
-    __join_ack->msg_subject = _NP_MSG_JOIN_ACK;
+    __join_ack->msg_subject = strdup(_NP_MSG_JOIN_ACK);
     __join_ack->rep_subject = NULL;
     __join_ack->mode_type = INBOUND | OUTBOUND | ROUTE;
     __join_ack->mep_type = ONE_WAY;
@@ -122,10 +122,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __join_ack->token_min_ttl = 20;
 
     np_msgproperty_t* __join_nack = NULL;
-    np_new_obj(np_msgproperty_t, __join_nack);
+    np_new_obj(np_msgproperty_t, __join_nack, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __join_nack);
 
-    __join_nack->msg_subject = _NP_MSG_JOIN_NACK;
+    __join_nack->msg_subject = strdup(_NP_MSG_JOIN_NACK);
     __join_nack->rep_subject = NULL;
     __join_nack->mode_type = INBOUND | OUTBOUND | ROUTE;
     __join_nack->mep_type = ONE_WAY;
@@ -143,10 +143,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     // leave the network and clean up the mess
     np_msgproperty_t* __leave_properties = NULL;
-    np_new_obj(np_msgproperty_t, __leave_properties);
+    np_new_obj(np_msgproperty_t, __leave_properties, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __leave_properties);
 
-    __leave_properties->msg_subject = _NP_MSG_LEAVE_REQUEST;
+    __leave_properties->msg_subject = strdup(_NP_MSG_LEAVE_REQUEST);
     __leave_properties->rep_subject = NULL;
     __leave_properties->mode_type = INBOUND | OUTBOUND | ROUTE;
     __leave_properties->mep_type = ONE_WAY;
@@ -163,16 +163,16 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __leave_properties->token_min_ttl = 20;
 
     np_msgproperty_t* __ping = NULL;
-    np_new_obj(np_msgproperty_t, __ping);
+    np_new_obj(np_msgproperty_t, __ping, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __ping);
 
-    __ping->msg_subject = _NP_MSG_PING_REQUEST;
+    __ping->msg_subject = strdup(_NP_MSG_PING_REQUEST);
     __ping->rep_subject = NULL;
     __ping->mode_type = INBOUND | OUTBOUND | ROUTE;
     __ping->mep_type = ONE_WAY;
     __ping->priority = 0;
     __ping->ack_mode = ACK_DESTINATION;
-    __ping->retry = 3;
+    __ping->retry = 0;
     sll_append(np_callback_t, __ping->clb_inbound, _np_in_ping);
     //default: sll_append(np_callback_t, __ping->clb_outbound, _np_out);
     //sll_append(np_callback_t, __ping->clb_transform, _np_never_called_jobexec_transform);
@@ -183,15 +183,15 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __ping->token_min_ttl = 20;
     
     np_msgproperty_t* __piggy = NULL;
-    np_new_obj(np_msgproperty_t, __piggy);
+    np_new_obj(np_msgproperty_t, __piggy, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __piggy);
 
-    __piggy->msg_subject = _NP_MSG_PIGGY_REQUEST;
+    __piggy->msg_subject = strdup(_NP_MSG_PIGGY_REQUEST);
     __piggy->rep_subject = NULL;
     __piggy->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
     __piggy->mep_type = ONE_WAY;
     __piggy->priority = 0;
-    __piggy->ack_mode = ACK_DESTINATION;
+    __piggy->ack_mode = ACK_NONE;
     __piggy->retry = 0;
     sll_append(np_callback_t, __piggy->clb_inbound, _np_in_piggy);
     //default: sll_append(np_callback_t, __piggy->clb_outbound, _np_out);
@@ -203,16 +203,16 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __piggy->token_min_ttl = 20;
 
     np_msgproperty_t* __update = NULL;
-    np_new_obj(np_msgproperty_t, __update);
+    np_new_obj(np_msgproperty_t, __update, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __update);
 
-    __update->msg_subject = _NP_MSG_UPDATE_REQUEST;
+    __update->msg_subject = strdup(_NP_MSG_UPDATE_REQUEST);
     __update->rep_subject = NULL;
     __update->mode_type = INBOUND | OUTBOUND | ROUTE;
     __update->mep_type = ONE_WAY;
     __update->priority = 0;
-    __update->ack_mode = ACK_DESTINATION;
-    __update->retry = 2;
+    __update->ack_mode = ACK_NONE;
+    __update->retry = 0;
     sll_append(np_callback_t, __update->clb_inbound, _np_in_update);
     //default: sll_append(np_callback_t, __update->clb_outbound, _np_out);
     //sll_append(np_callback_t, __update->clb_transform, _np_never_called_jobexec_transform);
@@ -223,11 +223,11 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __update->token_min_ttl = 20;
 
     np_msgproperty_t* __discover_receiver = NULL;
-    np_new_obj(np_msgproperty_t, __discover_receiver);
+    np_new_obj(np_msgproperty_t, __discover_receiver, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __discover_receiver);
 
-    __discover_receiver->msg_subject = _NP_MSG_DISCOVER_RECEIVER;
-    __discover_receiver->rep_subject = _NP_MSG_AVAILABLE_RECEIVER;
+    __discover_receiver->msg_subject = strdup(_NP_MSG_DISCOVER_RECEIVER);
+    __discover_receiver->rep_subject = strdup(_NP_MSG_AVAILABLE_RECEIVER);
     __discover_receiver->mode_type = INBOUND | OUTBOUND | ROUTE;
     __discover_receiver->mep_type = A2A_STICKY_REPLY;
     __discover_receiver->priority = 0;
@@ -243,11 +243,11 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __discover_receiver->token_min_ttl = 20;
 
     np_msgproperty_t* __discover_sender = NULL;
-    np_new_obj(np_msgproperty_t, __discover_sender);
+    np_new_obj(np_msgproperty_t, __discover_sender, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __discover_sender);
 
-    __discover_sender->msg_subject = _NP_MSG_DISCOVER_SENDER;
-    __discover_sender->rep_subject = _NP_MSG_AVAILABLE_SENDER;
+    __discover_sender->msg_subject = strdup(_NP_MSG_DISCOVER_SENDER);
+    __discover_sender->rep_subject = strdup(_NP_MSG_AVAILABLE_SENDER);
     __discover_sender->mode_type = INBOUND | OUTBOUND | ROUTE;
     __discover_sender->mep_type = A2A_STICKY_REPLY;
     __discover_sender->priority = 0;
@@ -263,10 +263,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __discover_sender->token_min_ttl = 20;
 
     np_msgproperty_t* __available_receiver = NULL;
-    np_new_obj(np_msgproperty_t, __available_receiver);
+    np_new_obj(np_msgproperty_t, __available_receiver, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __available_receiver);
 
-    __available_receiver->msg_subject = _NP_MSG_AVAILABLE_RECEIVER;
+    __available_receiver->msg_subject = strdup(_NP_MSG_AVAILABLE_RECEIVER);
     __available_receiver->rep_subject = NULL;
     __available_receiver->mode_type = INBOUND | OUTBOUND | ROUTE;
     __available_receiver->mep_type = ONE_WAY;
@@ -283,10 +283,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __available_receiver->token_min_ttl = 20;
 
     np_msgproperty_t* __available_sender = NULL;
-    np_new_obj(np_msgproperty_t, __available_sender);
+    np_new_obj(np_msgproperty_t, __available_sender, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __available_sender);
 
-    __available_sender->msg_subject = _NP_MSG_AVAILABLE_SENDER;
+    __available_sender->msg_subject = strdup(_NP_MSG_AVAILABLE_SENDER);
     __available_sender->rep_subject = NULL;
     __available_sender->mode_type = INBOUND | OUTBOUND | ROUTE;
     __available_sender->mep_type = ONE_WAY;
@@ -303,11 +303,11 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __available_sender->token_min_ttl = 20;
 
     np_msgproperty_t* __authenticate = NULL;
-    np_new_obj(np_msgproperty_t, __authenticate);
+    np_new_obj(np_msgproperty_t, __authenticate, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __authenticate);
 
-    __authenticate->msg_subject = _NP_MSG_AUTHENTICATION_REQUEST;
-    __authenticate->rep_subject = _NP_MSG_AUTHENTICATION_REPLY;
+    __authenticate->msg_subject = strdup(_NP_MSG_AUTHENTICATION_REQUEST);
+    __authenticate->rep_subject = strdup(_NP_MSG_AUTHENTICATION_REPLY);
     __authenticate->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
     __authenticate->mep_type = A2G_STICKY_REPLY;
     __authenticate->priority = 0;
@@ -324,10 +324,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authenticate->token_min_ttl = 20;
 
     np_msgproperty_t* __authenticate_reply = NULL;
-    np_new_obj(np_msgproperty_t, __authenticate_reply);
+    np_new_obj(np_msgproperty_t, __authenticate_reply, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __authenticate_reply);
 
-    __authenticate_reply->msg_subject = _NP_MSG_AUTHENTICATION_REPLY;
+    __authenticate_reply->msg_subject = strdup(_NP_MSG_AUTHENTICATION_REPLY);
     __authenticate_reply->rep_subject = NULL;
     __authenticate_reply->mode_type = INBOUND | OUTBOUND | ROUTE;
     __authenticate_reply->mep_type = ONE_WAY | STICKY_REPLY;
@@ -344,11 +344,11 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authenticate_reply->token_min_ttl = 20;
 
     np_msgproperty_t* __authorize = NULL;
-    np_new_obj(np_msgproperty_t, __authorize);
+    np_new_obj(np_msgproperty_t, __authorize, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __authorize);
 
-    __authorize->msg_subject = _NP_MSG_AUTHORIZATION_REQUEST;
-    __authorize->rep_subject = _NP_MSG_AUTHORIZATION_REPLY;
+    __authorize->msg_subject = strdup(_NP_MSG_AUTHORIZATION_REQUEST);
+    __authorize->rep_subject = strdup(_NP_MSG_AUTHORIZATION_REPLY);
     __authorize->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
     __authorize->mep_type = G2G_STICKY_REPLY;
     __authorize->priority = 0;
@@ -365,10 +365,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authorize->token_min_ttl = 20;
 
     np_msgproperty_t* __authorize_reply = NULL;
-    np_new_obj(np_msgproperty_t, __authorize_reply);
+    np_new_obj(np_msgproperty_t, __authorize_reply, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __authorize_reply);
 
-    __authorize_reply->msg_subject = _NP_MSG_AUTHORIZATION_REPLY;
+    __authorize_reply->msg_subject = strdup(_NP_MSG_AUTHORIZATION_REPLY);
     __authorize_reply->rep_subject = NULL;
     __authorize_reply->mode_type = INBOUND | OUTBOUND | ROUTE;
     __authorize_reply->mep_type = ONE_WAY;
@@ -385,10 +385,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authorize_reply->token_min_ttl = 20;
 
     np_msgproperty_t* __account = NULL;
-    np_new_obj(np_msgproperty_t, __account);
+    np_new_obj(np_msgproperty_t, __account, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __account);
 
-    __account->msg_subject = _NP_MSG_ACCOUNTING_REQUEST;
+    __account->msg_subject = strdup(_NP_MSG_ACCOUNTING_REQUEST);
     __account->rep_subject = NULL;
     __account->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
     __account->mep_type = GROUP_TO_GROUP;

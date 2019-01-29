@@ -32,6 +32,8 @@ SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
 NP_API_INTERN
 bool _np_keycache_init(np_state_t* context);
+NP_API_INTERN
+void _np_keycache_destroy(np_state_t* context);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t key);

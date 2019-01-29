@@ -54,12 +54,14 @@ NP_API_INTERN
 NP_API_INTERN
     void _np_job_free_args(np_state_t* context, np_jobargs_t args);
 
-/** _np_jobqueue_create
+/** _np_jobqueue_init
  *  initiate the queue and thread pool of size "pool_size" returns a pointer
  *  to the initiated queue
  **/
 NP_API_INTERN
-    bool _np_jobqueue_create(np_state_t* context);
+    bool _np_jobqueue_init(np_state_t* context);
+NP_API_INTERN 
+    void _np_jobqueue_destroy(np_state_t* context);
 
 NP_API_INTERN
     bool _np_job_queue_insert(np_state_t* context, np_job_t new_job);
@@ -78,8 +80,12 @@ NP_API_INTERN
 NP_API_INTERN
     bool __np_job_submit_msgin_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
 
+    #define np_job_submit_msgin_event_sync(prop, key, msg, custom_data) __np_job_submit_msgin_event_sync(context, prop, key, msg, custom_data, FUNC)
+    NP_API_INTERN
+    void __np_job_submit_msgin_event_sync(np_state_t * context, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg, void* custom_data, const char* tmp);
+
 NP_API_INTERN
-    void _np_job_submit_route_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
+    bool _np_job_submit_route_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg);
 
 NP_API_INTERN
     bool _np_job_submit_transform_event (np_state_t* context, double delay, np_msgproperty_t* prop, np_key_t* key, void* custom_data);
@@ -94,13 +100,13 @@ NP_API_INTERN
     void _np_job_yield(np_state_t* context, const double delay);
 
 NP_API_INTERN
-    void* __np_jobqueue_run_worker (void* np_thread_ptr);
+    void __np_jobqueue_run_worker (np_state_t* context, np_thread_t* my_thread);
 
 NP_API_INTERN
-    void* __np_jobqueue_run_manager(void* np_thread_ptr_self);
+    void __np_jobqueue_run_manager(np_state_t* context, np_thread_t* my_thread);
 
 NP_API_INTERN
-    void* __np_jobqueue_run_jobs(void* np_thread_ptr_self);
+    void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread);
 
 NP_API_INTERN
     void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute) ;
@@ -122,7 +128,16 @@ NP_API_EXPORT
 NP_API_EXPORT
 void np_jobqueue_run_jobs_for(np_state_t* context, double duration);
 NP_API_EXPORT
-double __np_jobqueue_run_jobs_once(np_state_t* context);
+double __np_jobqueue_run_jobs_once(np_state_t* context,np_thread_t* my_thread);
+
+
+#ifdef DEBUG
+NP_API_INTERN
+void _np_jobqueue_print_jobs(np_state_t* context);
+#else
+    #define  _np_jobqueue_print_jobs(context);
+#endif
+
 NP_PLL_GENERATE_PROTOTYPES(np_job_ptr);
 
 #ifdef __cplusplus

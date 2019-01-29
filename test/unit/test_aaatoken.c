@@ -109,7 +109,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description = "test the encoding and de
 		ref = _np_token_factory_new_node_token(context, test_node);
 
 		np_new_obj(np_key_t, test_key);
-		test_key->dhkey = np_aaatoken_get_fingerprint(ref);
+		test_key->dhkey = np_aaatoken_get_fingerprint(ref, false);
 		np_ref_obj(np_node_t, test_node, ref_key_node); 
 		test_key->node = test_node;		
 		np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token); 

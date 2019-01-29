@@ -77,6 +77,7 @@ typedef void(*np_destroycallback_t) (np_context* ac);
 typedef bool(*np_usercallbackfunction_t) (np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata);
 typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
 typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
+typedef void(*np_threads_worker_run) (np_state_t* context, np_thread_t* thread);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t);

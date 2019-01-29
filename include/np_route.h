@@ -19,6 +19,8 @@ extern "C" {
  **/
 NP_API_INTERN
 bool _np_route_init (np_state_t* context, np_key_t* me);
+NP_API_INTERN
+void _np_route_destroy(np_state_t* context);
 
 NP_API_INTERN
 void _np_route_set_key (np_key_t* new_node_key);
@@ -48,7 +50,6 @@ void _np_route_leafset_clear (np_state_t* context);
  **/
 NP_API_INTERN
 sll_return(np_key_ptr) _np_route_lookup (np_state_t* context, np_dhkey_t key, uint8_t count);
-// np_key_t** _np_route_lookup (np_state_t* state, np_key_t* key, int count, int is_safe);
 
 /** _np_route_neighbors:
  ** returns an list of neighbor nodes with priority to closer nodes.

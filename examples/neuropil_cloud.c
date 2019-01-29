@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
         np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 
-        if (np_ok != (tmp = np_listen(nodes[i], "udp4", "localhost", port))) {
+        if (np_ok != (tmp = np_listen(nodes[i], "udp4", publish_domain, port))) {
             np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str[tmp]);
         }
         else {

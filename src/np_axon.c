@@ -17,6 +17,8 @@
 #include "event/ev.h"
 #include "sodium.h"
 
+#include "np_constants.h"
+
 #include "np_axon.h"
 
 #include "np_log.h"
@@ -38,23 +40,23 @@
 #include "np_settings.h"
 #include "np_types.h"
 #include "np_token_factory.h"
-#include "np_constants.h"
-#include "np_statistics.h"
 #include "np_list.h"
 #include "np_key.h"
 #include "np_util.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
+#include "np_statistics.h"
+
 
 /** message split up maths
  ** message size = 1b (common header) + 40b (encryption) +
  **                msg (header + instructions) + msg (properties + body) + msg (footer)
- ** if (size > 1024)
+ ** if (size > MSG_CHUNK_SIZE_1024)
  **     fixed_size = 1b + 40b + msg (header + instructions)
  **     payload_size = msg (properties) + msg(body) + msg(footer)
- **     #_of_chunks = int(payload_size / (1024 - fixed_size)) + 1
+ **     #_of_chunks = int(payload_size / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1
  **     chunk_size = payload_size / #_of_chunks
- **     garbage_size = #_of_chunks * (fixed_size + chunk_size) % 1024 // spezial behandlung garbage_size < 3
+ **     garbage_size = #_of_chunks * (fixed_size + chunk_size) % MSG_CHUNK_SIZE_1024 // spezial behandlung garbage_size < 3
  **     add garbage
  ** else
  ** 	add garbage
@@ -135,7 +137,7 @@ void _np_out_ack(np_state_t* context, np_jobargs_t args)
 void _np_out(np_state_t* context, np_jobargs_t args)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_jobargs_t args){");
-    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 1");
+    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 1");
 
     uint32_t seq = 0;
     np_message_t* msg_out = args.msg;
@@ -180,24 +182,24 @@ void _np_out(np_state_t* context, np_jobargs_t args)
     np_ref_obj(np_key_t, target, FUNC); // usage ref
 
 
-    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 2");
+    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 2");
     // now we can try to send the msg
     np_waitref_obj(np_key_t, context->my_node_key, my_key,"np_waitref_key");
     {
-        log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 3");
+        // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 3");
         np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
         {
-            log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 4");
+            // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 4");
             uuid = msg_out->uuid;
 
             // check ack indicator if this is a resend of a message
             if (true == is_resend && prop->ack_mode != ACK_NONE)
             {
                 bool skip = false;
-                log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 5");
+                // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 5");
                 _LOCK_ACCESS(&my_network->waiting_lock)
                 {
-                    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 6");
+                    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 6");
                     // first find the uuid
                     np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
                     if (NULL == uuid_ele)
@@ -290,10 +292,10 @@ void _np_out(np_state_t* context, np_jobargs_t args)
             np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
             if (!is_resend)
             {
-                log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 7");
+                // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 7");
                 _LOCK_ACCESS(&my_network->access_lock)
                 {
-                    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 8");
+                    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 8");
                     /* get/set sequence number to keep increasing sequence numbers per node */
                     seq = my_network->seqend;
                     np_tree_replace_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
@@ -374,10 +376,10 @@ void _np_out(np_state_t* context, np_jobargs_t args)
                     __np_cleanup__:
                         {}
 #endif
-                    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 9");
+                    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 9");
                     _LOCK_ACCESS(&my_network->waiting_lock)
                     {
-                        log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 10");
+                        // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 10");
                         np_tree_insert_str( my_network->waiting, uuid, np_treeval_new_v(responsecontainer));
                     }
                     // log_msg(LOG_ERROR, "ACK_HANDLING ack handling requested for msg uuid: %s/%s", uuid, args.properties->msg_subject);
@@ -433,7 +435,7 @@ void _np_out(np_state_t* context, np_jobargs_t args)
         np_unref_obj(np_key_t, target, FUNC);
         np_unref_obj(np_key_t, my_key, "np_waitref_key");		
     }
-    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
+    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
 }
 
 void _np_out_handshake(np_state_t* context, np_jobargs_t args)
@@ -446,7 +448,7 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
         if (_np_node_check_address_validity(args.target->node))
         {
             // get our node identity from the cache			
-            np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context );
+            np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context);
 
             // create real handshake message ...
             np_message_t* hs_message = NULL;
@@ -664,8 +666,7 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t args)
 
 // deprecated
 void _np_out_receiver_discovery(np_state_t* context, np_jobargs_t args)
-{
-    
+{    
     log_trace_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_state_t* context, np_jobargs_t args){");
     // create message interest in authentication request
     np_aaatoken_t* msg_token = NULL;
@@ -748,12 +749,12 @@ void _np_out_authentication_request(np_state_t* context, np_jobargs_t args)
 
     if (0 < strlen(args.target->aaa_token->realm))
     {
-        np_str2id( args.target->aaa_token->realm, (np_id*)&target_dhkey);
+        _np_str2dhkey( args.target->aaa_token->realm, &target_dhkey);
     }
     else if (0 < strlen(context->my_identity->aaa_token->realm) )
     {
         // TODO: this is wrong, it should be the token issuer which we ask for authentication
-        np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
+        _np_str2dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
     }
     else
     {
@@ -839,7 +840,7 @@ void _np_out_authorization_request(np_state_t* context, np_jobargs_t args)
 
     if (0 < strlen(context->my_identity->aaa_token->realm) )
     {
-        np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
+        _np_str2dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
     }
     else
     {
@@ -878,11 +879,11 @@ void _np_out_authorization_reply(np_state_t* context, np_jobargs_t args)
     if (STICKY_REPLY != mep_reply_sticky &&
         0 < strlen(args.target->aaa_token->realm) )
     {
-        np_str2id( args.target->aaa_token->realm, (np_id*)&target_dhkey);
+        _np_str2dhkey( args.target->aaa_token->realm, &target_dhkey);
     }
     else
     {
-        np_str2id( args.target->aaa_token->issuer, (np_id*)&target_dhkey);
+        _np_str2dhkey( args.target->aaa_token->issuer, &target_dhkey);
     }
 
     log_debug_msg(LOG_SERIALIZATION| LOG_DEBUG, "encoding and sending authorization reply");
@@ -910,7 +911,7 @@ void _np_out_accounting_request(np_state_t* context, np_jobargs_t args)
 
     if (0 < strlen(context->my_identity->aaa_token->realm) )
     {
-        np_str2id( context->my_identity->aaa_token->realm, (np_id*)&target_dhkey);
+        _np_str2dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
     }
     else
     {
