@@ -157,7 +157,7 @@ void _np_memory_container_destroy(np_state_t* context, np_memory_container_t* co
 }
 
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
-bool _np_memory_remove_reason(sll_return(char_ptr) sll, char_ptr cmp_obj){
+bool _np_memory_remove_reason(sll_return(char_ptr) sll, const char* cmp_obj){
     bool ret = false;
     sll_iterator(char_ptr) iter_reason = sll_first(sll);
     

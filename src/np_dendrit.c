@@ -1354,7 +1354,7 @@ void _np_in_update(np_state_t* context, np_jobargs_t args)
     return;
 }
 
-void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* sender_msg_token, bool inform_counterparts) {
+void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* sender_msg_token, NP_UNUSED bool inform_counterparts) {
     np_ctx_memory(sender_msg_token);
     np_sll_t(np_aaatoken_ptr, available_list) =
         _np_aaatoken_get_all_receiver(context, sender_msg_token->subject, sender_msg_token->audience);
@@ -1399,7 +1399,7 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
     */
 }
 
-void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, bool inform_counterparts) {
+void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, NP_UNUSED bool inform_counterparts) {
 
     np_ctx_memory(receiver_msg_token);
     np_sll_t(np_aaatoken_ptr, available_list) =

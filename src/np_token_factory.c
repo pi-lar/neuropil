@@ -340,8 +340,8 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
     _np_aaatoken_update_extensions_signature(ret, ret); 
 
 #ifdef DEBUG
-    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
-    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+    char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
 
     sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, ret->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
     sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, ret->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);

@@ -355,7 +355,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
 
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
-    np_key_t* old_ident = context->my_identity;
+    // np_key_t* old_ident = context->my_identity;
 
     identity->type |= np_aaatoken_type_identity;
     np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
@@ -379,8 +379,8 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 
     #ifdef DEBUG
-    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
-    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+    char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
 
     sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
     sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);

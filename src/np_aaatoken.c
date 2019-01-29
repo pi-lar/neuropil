@@ -363,7 +363,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
                 token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
             char kx_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
-            sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
+            sodium_bin2hex(kx_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
             		token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
 
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
@@ -1328,7 +1328,7 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
 
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
     assert(self != NULL);
-    np_state_t* context = np_ctx_by_memory(self);
+    // np_state_t* context = np_ctx_by_memory(self);
     
     np_dhkey_t ret = { 0 };
 
@@ -1366,7 +1366,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 
         assert( 0 == strncmp(signee_token_fp, self->issuer, 64) );
 
-        char signer_pubsig[crypto_sign_PUBLICKEYBYTES+crypto_sign_BYTES];
+        unsigned char signer_pubsig[crypto_sign_PUBLICKEYBYTES+crypto_sign_BYTES];
         // copy public key
         memcpy(signer_pubsig, signee->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
         // add signature of signer to extensions

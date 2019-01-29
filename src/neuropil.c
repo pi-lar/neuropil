@@ -529,8 +529,7 @@ enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
 struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
     np_ctx_cast(ac);    
     struct np_mx_properties ret = { 0 };
-    bool exisits = false;
- 
+
     np_msgproperty_t* property = np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
     
     np_msgproperty4user(&ret, property);
@@ -540,7 +539,6 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
 enum np_return np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
-    bool exisited = true;
     
     // todo: validate user_property
     struct np_mx_properties safe_user_property = user_property;

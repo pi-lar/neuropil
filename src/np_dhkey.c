@@ -310,7 +310,7 @@ void _np_dhkey2str(const np_dhkey_t* k, char* key_string)
     
     return np_id2str((np_id_ptr)k, key_string);
 } 
-void _np_str2dhkey( char* key_string, const np_dhkey_t* k)
+void _np_str2dhkey( const char* key_string, np_dhkey_t* k)
 {    
     return np_str2id(key_string,(np_id_ptr) k);
 } 
