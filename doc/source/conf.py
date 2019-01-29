@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'neuropil'
-copyright = u'2016-2018, pi-lar GmbH'
+copyright = u'2016-2019, pi-lar GmbH'
 author = u'pi-lar GmbH'
 
 # The version info for the project you're documenting, acts as replacement for
