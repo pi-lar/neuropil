@@ -226,7 +226,7 @@ void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
 }
 
 /*
- * Gibt an, an welcher Stelle ander routing Tabelle der Key hinzugef�gt werden muss.
+ * calculates the position within the routing table where a new entry will be inserted.
  */
 uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
 {

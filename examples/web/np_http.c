@@ -886,9 +886,6 @@ bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo
         np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
         np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
 
-        np_example_print(context, stdout, "Watch internal subjects\n");
-        np_statistics_add_watch_internals(context);
-
     }
     if(free_http_domain) free(http_domain);
 

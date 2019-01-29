@@ -716,25 +716,24 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            | LOG_VERBOSE
-            | LOG_TRACE
-            //| LOG_MUTEX
+            // | LOG_VERBOSE
+            // | LOG_TRACE
+            // | LOG_MUTEX
             | LOG_ROUTING
-            //| LOG_HTTP
-            //| LOG_KEY
-            //| LOG_NETWORK
-            //| LOG_HANDSHAKE
+            // | LOG_HTTP
+            // | LOG_KEY
+            // | LOG_NETWORK
+            // | LOG_HANDSHAKE
             | LOG_AAATOKEN
-            //| LOG_SYSINFO
-            | LOG_MESSAGE
-            //| LOG_SERIALIZATION
-            //| LOG_SERIALIZATION
-            //| LOG_MEMORY
-            | LOG_MISC
-            //| LOG_EVENT
-            //| LOG_THREADS
-            //| LOG_JOBS
-            //| LOG_GLOBAL
+            // | LOG_SYSINFO
+            // | LOG_MESSAGE
+            // | LOG_SERIALIZATION
+            // | LOG_MEMORY
+            // | LOG_MISC
+            // | LOG_EVENT
+            // | LOG_THREADS
+            // | LOG_JOBS
+            // | LOG_GLOBAL
             ;
 
         if ((*level) == -1) {	   // production client
@@ -1207,6 +1206,14 @@ void __np_example_helper_loop(np_state_t* context) {
 
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
+                        unsigned int ev_backends = ev_backend(_np_event_get_loop_in(context));
+                        char ev_polls[5];
+                        ev_polls[0] = FLAG_CMP(ev_backends, EVBACKEND_SELECT) ? 'S' : ' ';
+                        ev_polls[1] = FLAG_CMP(ev_backends, EVBACKEND_POLL) ?   'P' : ' ';
+                        ev_polls[2] = FLAG_CMP(ev_backends, EVBACKEND_EPOLL) ?  'E' : ' ';
+                        ev_polls[3] = FLAG_CMP(ev_backends, EVBACKEND_KQUEUE) ? 'K' : ' ';
+                        ev_polls[4] = 0;
+
                         mvwprintw(ud->__np_top_left_win, 0, 0, "%s - BUILD IN "
 #if defined(DEBUG)
                             "DEBUG"
