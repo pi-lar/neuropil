@@ -42,7 +42,7 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
     log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void _np_aaatoken_t_new(void* token){");
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
 
-    aaa_token->version = 0.80;
+    aaa_token->version = 0.90;
 
     // aaa_token->issuer;
     memset(aaa_token->realm,    0, 255);
@@ -74,7 +74,7 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
     log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "aaatoken expires in %d sec", expire_sec);
 
     aaa_token->extensions = np_tree_create();
-    aaa_token->state |= AAA_INVALID;
+    aaa_token->state = AAA_UNKNOWN;
     aaa_token->extensions_local = aaa_token->extensions;
 
     aaa_token->type = np_aaatoken_type_undefined;

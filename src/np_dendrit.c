@@ -863,7 +863,7 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
 
 
     struct np_token tmp_user_token = { 0 };
-    if (NULL != join_ident_key && !IS_AUTHENTICATED(join_ident_key->aaa_token->state) )
+    if (NULL != join_ident_key && IS_NOT_AUTHENTICATED(join_ident_key->aaa_token->state) )
     {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
         bool join_allowed = context->authenticate_func == NULL ? false : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));

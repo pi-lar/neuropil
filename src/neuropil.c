@@ -381,7 +381,7 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
 
     _np_set_identity(ac, imported_token);
 
-    np_unref_obj(np_aaatoken_t, imported_token, "__np_token_factory_new");
+    np_unref_obj(np_aaatoken_t, imported_token, "np_token_factory_new_identity_token");
 
     log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
     return ret;
