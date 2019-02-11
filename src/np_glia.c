@@ -231,13 +231,17 @@ void _np_glia_send_pings(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
 
     sll_iterator(np_key_ptr) iter = sll_first(keys);
 
+    double now = np_time_now();
     while (iter != NULL) {
 
         if(iter->val != context->my_node_key){
             np_tryref_obj(np_node_t, iter->val->node, node_exists, node);
             if(node_exists) {
-                if (node->joined_network) {
-                    _np_ping_send(context, iter->val);
+                if (
+                    node->joined_network                 
+                    && (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC) <= now
+                ) {
+                    _np_ping_send(context, iter->val);                
                 }
                 np_unref_obj(np_node_t, node, FUNC);
             }
