@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -97,7 +97,7 @@ void _np_dhkey_encode(np_state_t* context, np_tree_t* jrb, np_dhkey_t* key);
 NP_API_INTERN
 void _np_dhkey2str(const np_dhkey_t* k, char* key_string);
 NP_API_INTERN
-void _np_str2dhkey(char* key_string, const np_dhkey_t* k);
+void _np_str2dhkey(const char* key_string, np_dhkey_t* k);
 
 #ifdef __cplusplus
 }

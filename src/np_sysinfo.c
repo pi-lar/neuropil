@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -103,7 +103,7 @@ void np_sysinfo_enable_client(np_state_t* context) {
     // the client does not need the cache
     //_np_sysinfo_init_cache();
     
-   bool created = false;
+    bool created = false;
     np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(context, OUTBOUND, _NP_SYSINFO_REPLY);
     if(sysinfo_response_props == NULL){
         np_new_obj(np_msgproperty_t, sysinfo_response_props);

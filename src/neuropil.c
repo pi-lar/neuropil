@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
@@ -381,7 +381,7 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
 
     _np_set_identity(ac, imported_token);
 
-    np_unref_obj(np_aaatoken_t, imported_token, "__np_token_factory_new");
+    np_unref_obj(np_aaatoken_t, imported_token, "np_token_factory_new_identity_token");
 
     log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
     return ret;
@@ -529,8 +529,7 @@ enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
 struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
     np_ctx_cast(ac);    
     struct np_mx_properties ret = { 0 };
-    bool exisits = false;
- 
+
     np_msgproperty_t* property = np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
     
     np_msgproperty4user(&ret, property);
@@ -540,7 +539,6 @@ struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject) {
 enum np_return np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties user_property) {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
-    bool exisited = true;
     
     // todo: validate user_property
     struct np_mx_properties safe_user_property = user_property;

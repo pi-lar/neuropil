@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -60,15 +60,13 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
  * @param token
  * @return
  */
-bool _np_default_authorizefunc (np_context* ac, struct  np_token* token )
+bool _np_default_authorizefunc (np_context* ac, struct np_token* token )
 {
     np_ctx_cast(ac);
-
-#ifndef DEBUG
-    log_msg(LOG_WARN, "using default handler (authorize all) to authorize %s", token->subject );
+    log_msg(LOG_WARN, "using default handler (authorize none) to reject authorization for: %s", token->subject );
     // log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
-#endif
-    return (true);
+
+    return (false);
 }
 /**
  * The default realm client authorize function. Forwards the authorization request to the realm server
@@ -104,13 +102,12 @@ bool _np_aaa_authorizefunc (np_context* ac, struct np_token* token )
  * @param token
  * @return
  */
-bool _np_default_authenticatefunc (np_context*ac, struct np_token* token )
+bool _np_default_authenticatefunc (np_context* ac, struct np_token* token )
 {
-#ifndef DEBUG
     np_ctx_cast(ac);
-    log_msg(LOG_WARN, "using default handler (auth all) to authenticate %s", token->subject);
+    log_msg(LOG_WARN, "using default handler (authn all) to authenticate %s", token->subject);
     // log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
-#endif
+
     return (true);
 }
 /**
@@ -145,14 +142,13 @@ bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
  * @param token
  * @return
  */
-bool _np_default_accountingfunc (np_context*ac, NP_UNUSED struct np_token* token )
+bool _np_default_accountingfunc (np_context* ac, struct np_token* token )
 {
-#ifndef DEBUG
     np_ctx_cast(ac);
-    log_msg(LOG_WARN, "using default handler to account for %s", token->subject );
+    log_msg(LOG_WARN, "using default handler to deny accounting for: %s", token->subject );
     // log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
-#endif
-    return (true);
+
+    return (false);
 }
 /**
  * The default realm client accounting function. Forwards the accounting request to the realm server
@@ -355,7 +351,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
 
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
-    np_key_t* old_ident = context->my_identity;
+    // np_key_t* old_ident = context->my_identity;
 
     identity->type |= np_aaatoken_type_identity;
     np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
@@ -379,8 +375,8 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 
     #ifdef DEBUG
-    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
-    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+    char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
 
     sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
     sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);

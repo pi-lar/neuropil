@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
@@ -226,7 +226,7 @@ void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
 }
 
 /*
- * Gibt an, an welcher Stelle ander routing Tabelle der Key hinzugefügt werden muss.
+ * calculates the position within the routing table where a new entry will be inserted.
  */
 uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
 {
@@ -310,7 +310,7 @@ void _np_dhkey2str(const np_dhkey_t* k, char* key_string)
     
     return np_id2str((np_id_ptr)k, key_string);
 } 
-void _np_str2dhkey( char* key_string, const np_dhkey_t* k)
+void _np_str2dhkey( const char* key_string, np_dhkey_t* k)
 {    
     return np_str2id(key_string,(np_id_ptr) k);
 } 
