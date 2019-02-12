@@ -798,8 +798,8 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
     _LOCK_ACCESS(&subject_key->send_property->lock)
     {
 #ifdef DEBUG
-	char sender_dhkey_as_str[65];
-	np_id_str(sender_dhkey_as_str, *(np_id*)sender_dhkey);
+        char sender_dhkey_as_str[65];
+        _np_dhkey_str(sender_dhkey, sender_dhkey_as_str);
 #endif
 
         log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender_token %d / %s", pll_size(subject_key->send_tokens), subject);
@@ -818,13 +818,13 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
 
             np_dhkey_t partner_token_dhkey = np_aaatoken_get_partner_fp(return_token);
             /* np_dhkey_t issuer_token_dhkey = { 0 };
-            _np_str2dhkey(return_token->issuer, &issuer_token_dhkey);
+            _np_str_dhkey(return_token->issuer, &issuer_token_dhkey);
 
             if (_np_dhkey_equal(&issuer_token_dhkey, &partner_token_dhkey))
             {
                 char return_token_dhkey_as_str[65];
                 char return_token_dhkey_as_str[64] = '\0';
-                _np_dhkey2str(sender_dhkey, return_token_dhkey_as_str);
+                _np_dhkey_str(sender_dhkey, return_token_dhkey_as_str);
                 log_debug_msg(LOG_DEBUG,
                               "comparing sender token (%s) for %s with send_dhkey: %s (target node match)",
                               return_token->uuid, &return_token_dhkey_as_str, sender_dhkey_as_str);
@@ -842,7 +842,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
             if (false == _np_dhkey_equal(&partner_token_dhkey, sender_dhkey))
             {
                 char partner_token_dhkey_str[65]; partner_token_dhkey_str[64] = '\0';
-                _np_dhkey2str(&partner_token_dhkey, partner_token_dhkey_str);
+                _np_dhkey_str(&partner_token_dhkey, partner_token_dhkey_str);
                 log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
                               "ignoring sender token for issuer %s (partner node: %s) / send_hk: %s (sender dhkey doesn't match)",
                               return_token->issuer, partner_token_dhkey_str, sender_dhkey_as_str);
@@ -999,7 +999,7 @@ np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const 
 #ifdef DEBUG
         if(NULL != target) {
             char targetnode_str[65];
-            np_id_str(targetnode_str, *(np_id*)target);
+            _np_dhkey_str(target, targetnode_str);
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
         }
 #endif
@@ -1337,7 +1337,7 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
         ret = ele->val.value.dhkey;
     }
     else {
-        np_str_id(*(np_id*)&ret, self->issuer);
+        _np_str_dhkey(self->issuer, &ret);
     }
 
     return ret;
@@ -1362,7 +1362,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
         char signee_token_fp[65];
         signee_token_fp [64] = '\0';
         np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
-        _np_dhkey2str(&my_token_fp, signee_token_fp);
+        _np_dhkey_str(&my_token_fp, signee_token_fp);
 
         assert( 0 == strncmp(signee_token_fp, self->issuer, 64) );
 
@@ -1475,8 +1475,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
 
     char tmp_c[65] = { 0 };
 	np_dhkey_t tmp_d = np_aaatoken_get_fingerprint(self, false);
-    np_id_str(tmp_c, *(np_id*)&tmp_d);
-    _np_dhkey2str(&tmp_d, tmp_c);
+    _np_dhkey_str(&tmp_d, tmp_c);
 
     info_str = np_str_concatAndFree(info_str, " fingerprint: %s ; TREE: (",tmp_c);
     RB_FOREACH(tmp, np_tree_s, (data))

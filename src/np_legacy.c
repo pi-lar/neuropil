@@ -493,7 +493,7 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     return ret;
 }
 
-void np_send_msg(np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* target_key)
+void np_send_msg(np_context*ac, const char* subject, np_tree_t *body, np_dhkey_t* target_key)
 {
     np_ctx_cast(ac);
     np_message_t* msg = _np_prepare_msg(context, subject, body, target_key);
@@ -725,7 +725,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
         //START Build our wildcard connection string
         np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
         char wildcard_dhkey_str[65];
-        np_id_str(wildcard_dhkey_str, *(np_id*)&wildcard_dhkey);
+        _np_dhkey_str(&wildcard_dhkey, wildcard_dhkey_str);
         asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
         //END Build our wildcard connection string
 

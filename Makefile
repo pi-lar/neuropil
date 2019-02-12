@@ -100,15 +100,8 @@ build/lib/libneuropil.dylib: $(OBJECTS)
 	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER) -dynamiclib -fprofile-instr-generate -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o build/lib/libneuropil.dylib
 	# dsymutil build/lib/libneuropil.$(TARGET).dylib -o build/lib/libneuropil.dylib.dSYM
 
-build/lib/libneuropil_ffi.h: include/np_ffi.h
-	mkdir -p build/lib
-	$(CC) -E $< | egrep -v "^#" > $@
-
-bindings/luajit/neuropil_ffi.lua: build/lib/libneuropil_ffi.h
-	@echo "GEN	$@"
-	@(echo -n "local ffi=require('ffi'); ffi.cdef[=============["; \
-	 cat $<; \
-	 echo "]=============]; return ffi.load('neuropil')") > $@
+bindings/luajit/build/neuropil_ffi.lua: 
+	./bindings/luajit/build.sh
 
 build/obj/%.o: src/%.c
 	@mkdir -p $(@D)

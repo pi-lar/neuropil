@@ -99,7 +99,7 @@ void _np_route_destroy(np_state_t* context){
         while(iter_leaf != NULL) {
             if(iter_leaf->val != NULL) {
                 char tmp[255]={0};
-                _np_dhkey2str(&iter_leaf->val->dhkey, tmp);
+                _np_dhkey_str(&iter_leaf->val->dhkey, tmp);
                 log_debug(LOG_ROUTING, "unreffing idx: %d %s",i++, tmp);
                 //_np_route_leafset_update (iter_leaf->val, false, NULL, NULL);
                 np_unref_obj(np_key_t,iter_leaf->val, ref_route_inleafset);
@@ -112,7 +112,7 @@ void _np_route_destroy(np_state_t* context){
         while(iter_leaf != NULL) {
             if(iter_leaf->val != NULL) {
                 char tmp[255]={0};
-                _np_dhkey2str(&iter_leaf->val->dhkey, tmp);
+                _np_dhkey_str(&iter_leaf->val->dhkey, tmp);
                 log_debug(LOG_ROUTING, "unreffing idx: %d %s",i++, tmp);
                 //_np_route_leafset_update (iter_leaf->val, false, NULL, NULL);
                 np_unref_obj(np_key_t,iter_leaf->val, ref_route_inleafset);
@@ -400,7 +400,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
 #ifdef DEBUG
         char key_as_str[65] = { 0 };
-        np_id_str(key_as_str, *(np_id*)&key);
+        _np_dhkey_str(&key, key_as_str);
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET: %s", key_as_str);
 #endif
         /*calculate the leafset and table size */

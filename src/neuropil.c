@@ -58,7 +58,7 @@ const char *np_error_str(enum np_return e) {
 }
 
 // split into hash 
-void np_get_id(np_id id, const char* string, NP_UNUSED size_t length) {
+void np_get_id(np_id (*id), const char* string, NP_UNUSED size_t length) {
     // np_ctx_cast(ac);
      
     np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
@@ -325,7 +325,7 @@ enum np_return np_listen(np_context* ac, const char* protocol, const char* host,
 }
 
 // secret_key is nullable
-struct np_token np_new_identity(np_context* ac, double expires_at, const uint8_t secret_key[NP_SECRET_KEY_BYTES]) {
+struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]) {
     np_ctx_cast(ac); 
     
     struct np_token ret = {0};	
@@ -342,23 +342,19 @@ struct np_token np_new_identity(np_context* ac, double expires_at, const uint8_t
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
     return ret;
 }
-enum np_return np_node_fingerprint(np_context* ac, np_id id){
+enum np_return np_node_fingerprint(np_context* ac, np_id (*id)){
   np_ctx_cast(ac); 
     enum np_return ret = np_ok;
-    if(id == NULL) {
-        ret = np_invalid_argument;
-    }
-    else {
-        np_dhkey_t fp = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
+   
+    np_dhkey_t fp = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
 
-        memcpy(id, &fp , NP_FINGERPRINT_BYTES);
-    }
-
+    memcpy(id, &fp , NP_FINGERPRINT_BYTES);
+   
     return ret;
  
 }
 
-enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id id)
+enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id))
 {
     np_ctx_cast(ac); 
 
@@ -399,7 +395,7 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
 
     _np_set_identity(ac, imported_token);
 
-    np_unref_obj(np_aaatoken_t, imported_token, "__np_token_factory_new");
+    np_unref_obj(np_aaatoken_t, imported_token, "np_token_factory_new_identity_token");
 
     log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
     return ret;
@@ -463,14 +459,14 @@ enum np_return np_join(np_context* ac, const char* address) {
     return ret;
 }
 
-enum np_return np_send(np_context* ac, const char* subject, const uint8_t* message, size_t length) {
+enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length) {
     char* safe_subject = strndup(subject,255);
     enum np_return ret = np_send_to(ac, safe_subject, message, length, NULL);
     free(safe_subject);
     return ret;
 }
 
-enum np_return np_send_to(np_context* ac, const char* subject, const uint8_t* message, size_t length, const np_id target) {
+enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target)) {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
@@ -617,13 +613,13 @@ void np_id_str(char str[65], const np_id id)
 
 }
 
-void np_str_id(np_id id, const char str[65])
+void np_str_id(np_id (*id), const char str[65])
 {
     // TODO: this is dangerous, encoding could be different between systems,
     // encoding has to be send over the wire to be sure ...
     // for now: all tests on the same system
     // assert (64 == strlen((char*) str));
-    sodium_hex2bin(id, NP_FINGERPRINT_BYTES, str, NP_FINGERPRINT_BYTES*2, NULL, NULL, NULL);
+    sodium_hex2bin(*id, NP_FINGERPRINT_BYTES, str, NP_FINGERPRINT_BYTES*2, NULL, NULL, NULL);
 }
 
 void np_destroy(np_context*ac, bool gracefully)

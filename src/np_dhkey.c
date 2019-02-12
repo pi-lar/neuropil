@@ -305,12 +305,12 @@ uint8_t _np_dhkey_hexalpha_at (np_state_t* context, const np_dhkey_t* key, const
 
 
 
-void _np_dhkey2str(const np_dhkey_t* k, char* key_string)
+void _np_dhkey_str(const np_dhkey_t* k, char* key_string)
 {
     
     np_id_str(key_string, *(np_id*)k);
 } 
-void _np_str2dhkey( char* key_string, const np_dhkey_t* k)
+void _np_str_dhkey( char* key_string, const np_dhkey_t* k)
 {    
     np_str_id(*(np_id*)k, key_string);
 } 

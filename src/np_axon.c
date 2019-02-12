@@ -749,12 +749,12 @@ void _np_out_authentication_request(np_state_t* context, np_jobargs_t args)
 
     if (0 < strlen(args.target->aaa_token->realm))
     {
-        np_str_id(*(np_id*)&target_dhkey, args.target->aaa_token->realm);
+        _np_str_dhkey( args.target->aaa_token->realm, &target_dhkey);
     }
     else if (0 < strlen(context->my_identity->aaa_token->realm) )
     {
         // TODO: this is wrong, it should be the token issuer which we ask for authentication
-        np_str_id(*(np_id*)&target_dhkey, context->my_identity->aaa_token->realm);
+        _np_str_dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
     }
     else
     {
@@ -840,7 +840,7 @@ void _np_out_authorization_request(np_state_t* context, np_jobargs_t args)
 
     if (0 < strlen(context->my_identity->aaa_token->realm) )
     {
-        np_str_id(*(np_id*)&target_dhkey, context->my_identity->aaa_token->realm);
+        _np_str_dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
     }
     else
     {
@@ -879,11 +879,11 @@ void _np_out_authorization_reply(np_state_t* context, np_jobargs_t args)
     if (STICKY_REPLY != mep_reply_sticky &&
         0 < strlen(args.target->aaa_token->realm) )
     {
-        np_str_id(*(np_id*)&target_dhkey, args.target->aaa_token->realm);
+        _np_str_dhkey( args.target->aaa_token->realm, &target_dhkey);
     }
     else
     {
-        np_str_id(*(np_id*)&target_dhkey, args.target->aaa_token->issuer);
+        _np_str_dhkey( args.target->aaa_token->issuer, &target_dhkey);
     }
 
     log_debug_msg(LOG_SERIALIZATION| LOG_DEBUG, "encoding and sending authorization reply");
@@ -911,7 +911,7 @@ void _np_out_accounting_request(np_state_t* context, np_jobargs_t args)
 
     if (0 < strlen(context->my_identity->aaa_token->realm) )
     {
-        np_str_id(*(np_id*)&target_dhkey, context->my_identity->aaa_token->realm);
+        _np_str_dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
     }
     else
     {

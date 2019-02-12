@@ -33,8 +33,8 @@ if os.getenv("CC"):
     cc = os.getenv("CC")
 h_file = subprocess.run([
 	cc,"-E",h_file_path,#"-Ipycparser/utils/fake_libc_include",
-	"-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-D__CLANG_MAX_ALIGN_T_DEFINED",
-	"-DNP_ENUM="
+	"-D__CLANG_MAX_ALIGN_T_DEFINED",
+	"-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-DNP_ENUM="
 	], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
 #print("START Neuropil.h")

@@ -32,7 +32,7 @@ class np_id(object):
     def __init__(self, id_cdata):                
         self._cdata = id_cdata
         s = ffi.new("char[65]", b'\0')
-        neuropil.np_id2str(self._cdata, s)
+        neuropil.np_id_str(s, self._cdata)
         self._hex = ffi.string(s).decode("utf-8") 
 
     def __str__(self):
@@ -46,9 +46,8 @@ class np_token(object):
         self.__dict__.update(entries)
 
     def get_fingerprint(self):
-
         id = ffi.new("np_id", b'\0')
-        ret = neuropil.np_token_fingerprint(self._node._context, _NeuropilHelper.convert_from_python(self), True, ffi.cast("np_id_ptr",id))
+        ret = neuropil.np_token_fingerprint(self._node._context, _NeuropilHelper.convert_from_python(self), True, ffi.addressof(id))
         
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
@@ -141,7 +140,7 @@ class NeuropilNode(object):
             
     def get_fingerprint(self):
         id = ffi.new("np_id", b'\0')
-        ret = neuropil.np_node_fingerprint(self._context, ffi.cast("np_id_ptr",id))
+        ret = neuropil.np_node_fingerprint(self._context, ffi.addressof(id))
         
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
@@ -156,7 +155,7 @@ class NeuropilNode(object):
         msg = _NeuropilHelper.convert_to_python(myself, message)
     
         subject_id = ffi.new("char[65]",b'\0')
-        neuropil.np_id2str(msg.subject, subject_id)
+        neuropil.np_id_str(subject_id, msg.subject)
         subject_id = _NeuropilHelper.convert_to_python(myself, subject_id)
         if myself.__callback_info_dict__[subject_id]:
             for user_fn in myself.__callback_info_dict__[subject_id]:                                 
@@ -177,8 +176,8 @@ class NeuropilNode(object):
         
         subject_npid = ffi.new("np_id")
         subject_id = ffi.new("char[65]",b'\0')
-        neuropil.np_get_id(subject_npid, subject, 64)
-        neuropil.np_id2str(subject_npid, subject_id)
+        neuropil.np_get_id(ffi.addressof(subject_npid), subject, 64)
+        neuropil.np_id_str(subject_id, subject_npid)
         subject_id = _NeuropilHelper.convert_to_python(self, subject_id)
  
         if subject_id not in self.__callback_info_dict__:       

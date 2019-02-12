@@ -60,7 +60,7 @@ char* _np_key_as_str(np_key_t* key)
         key->dhkey_str = (char*) malloc(65);
         CHECK_MALLOC(key->dhkey_str);
     }
-    np_id_str(key->dhkey_str, *(np_id*)&key->dhkey);
+    _np_dhkey_str(&key->dhkey, key->dhkey_str);
     log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
 
     return (key->dhkey_str);

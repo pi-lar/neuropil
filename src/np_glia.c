@@ -330,7 +330,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED  np_jo
             np_msgproperty_t* msg_prop = NULL;
 
             np_dhkey_t target_dhkey = { 0 };
-            np_str_id(*(np_id*)&target_dhkey, context->my_identity->aaa_token->realm);
+            _np_str_dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
 
             np_key_t* target = NULL;
             target = _np_keycache_find_or_create(context, target_dhkey);
@@ -619,7 +619,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
         np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
         if (_np_dhkey_equal(&empty_check, &receiver_dhkey))
         {
-            _np_str2dhkey(tmp_token->issuer, &receiver_dhkey);
+            _np_str_dhkey(tmp_token->issuer, &receiver_dhkey);
         }
 
         if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
@@ -639,7 +639,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 
 /*            char receiver_key_str[65];
             receiver_key_str[64] = '\0';
-            _np_dhkey2str(&receiver_dhkey, receiver_key_str);
+            _np_dhkey_str(&receiver_dhkey, receiver_key_str);
             char * ctx = np_get_userdata(context);
             fprintf(stdout, "     (%s): encrypted message (%s) for %s / node: %s\n", ctx, msg->uuid, tmp_token->issuer, receiver_key_str); fflush(stdout);
 */

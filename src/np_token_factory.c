@@ -118,7 +118,7 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
     return ret;
 }
 
-np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char node_subject[255], double expires_at, const uint8_t secret_key[NP_SECRET_KEY_BYTES])
+np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
 {
     np_aaatoken_t* ret = NULL;
     np_new_obj(np_aaatoken_t, ret, FUNC);
@@ -135,9 +135,9 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context,char issuer[64], char 
     ret->not_before = np_time_now();
     ret->expires_at = expires_at;
     
-    if (secret_key != NULL) {		
+    if (secret_key != NULL) {
         np_cryptofactory_by_secret(context, &ret->crypto, secret_key);
-    }
+	}
     else {
         np_cryptofactory_new(context, &ret->crypto);
     }
@@ -239,7 +239,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
     ret->type = np_aaatoken_type_handshake;
 
     np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token, false);
-    np_id_str(ret->issuer, *(np_id*)&node_dhkey);
+    _np_dhkey_str(&node_dhkey, ret->issuer);
 
     _np_aaatoken_set_signature(ret, my_node_key->aaa_token);
     // clear tree here to prevent too large handshake token (remove additional signer extension value)
@@ -249,7 +249,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 #ifdef DEBUG
     char my_token_fp_s[65] = { 0 };
     np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret, false);
-    np_id_str(my_token_fp_s, *(np_id*)&my_token_fp);
+    _np_dhkey_str(&my_token_fp, my_token_fp_s);
     log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(my_node_key));
     // ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key and handshake partner key has to be the same");
 #endif // DEBUG
@@ -308,9 +308,9 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
 
 #ifdef DEBUG
         char tmp_ident[65];
-        np_id_str(tmp_ident, *(np_id*)&ident_dhkey);
+        _np_dhkey_str(&ident_dhkey, tmp_ident);
         char tmp_node[65];
-        np_id_str(tmp_node, *(np_id*)&node_dhkey);
+        _np_dhkey_str(&node_dhkey, tmp_node); 
         log_debug_msg(LOG_AAATOKEN, "setting partner relationship for identity %s/%s and node %s/%s",
             tmp_ident, context->my_identity->aaa_token->uuid,
             tmp_node, ret->uuid
@@ -325,7 +325,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
     return (ret);
 }
 
-np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at, const uint8_t secret_key[NP_SECRET_KEY_BYTES])
+np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
 {
     char issuer[64] = { 0 };
     char node_subject[255];
