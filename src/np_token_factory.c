@@ -136,7 +136,7 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char
     ret->expires_at = expires_at;
     
     if (secret_key != NULL) {
-        np_cryptofactory_by_secret(context, &ret->crypto, secret_key);
+        np_cryptofactory_by_secret(context, &ret->crypto, *secret_key);
 	}
     else {
         np_cryptofactory_new(context, &ret->crypto);

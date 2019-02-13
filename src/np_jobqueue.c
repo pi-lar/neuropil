@@ -180,7 +180,8 @@ bool _np_job_queue_insert(np_state_t* context, np_job_t new_job)
         // do not add job items that would overflow internal queue size
         bool  overflow = np_module(jobqueue)->job_list->count + np_module(jobqueue)->periodic_jobs + 1 > JOBQUEUE_MAX_SIZE;
         if (overflow && false == new_job.is_periodic) {
-            log_msg(LOG_WARN, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");
+            log_msg(LOG_WARN, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");            
+            log_debug(LOG_WARN, "Current Threads:\n%s",np_threads_print(context, false));
         } else {
             pheap_insert(np_job_t, np_module(jobqueue)->job_list, new_job);
             ret = true;

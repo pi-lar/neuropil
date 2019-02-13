@@ -66,8 +66,8 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_crypto_t);
 void np_crypto_init(np_crypto_t* self);
 // generates new keypairs, buffer may be NULL
 np_crypto_t* np_cryptofactory_new(np_context* context, np_crypto_t* buffer);
-np_crypto_t* np_cryptofactory_by_public(np_context* context, np_crypto_t* buffer, unsigned char (*ed25519_public_key)[crypto_sign_ed25519_PUBLICKEYBYTES]);
-np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer, unsigned char (*ed25519_secret_key)[crypto_sign_ed25519_SECRETKEYBYTES]);
+np_crypto_t* np_cryptofactory_by_public(np_context* context, np_crypto_t* buffer, unsigned char ed25519_public_key[crypto_sign_ed25519_PUBLICKEYBYTES]);
+np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer, unsigned char ed25519_secret_key[crypto_sign_ed25519_SECRETKEYBYTES]);
 // generates new keypairs, buffer may be NULL
 int np_crypto_session(np_state_t* context, np_crypto_t* my_container, np_crypto_session_t* session, np_crypto_t* remote_container, bool remote_is_client);
 

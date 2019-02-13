@@ -202,7 +202,6 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
  **/
 void _np_glia_check_neighbours(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
     
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");	
     np_sll_t(np_key_ptr, table) = NULL;
     table = _np_route_neighbors(context);
     __np_glia_check_connections(table, _np_route_leafset_update);
@@ -212,7 +211,6 @@ void _np_glia_check_neighbours(np_state_t* context, NP_UNUSED  np_jobargs_t args
 
 void _np_glia_check_routes(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
     
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");	
     np_sll_t(np_key_ptr, table) = NULL;
     table = _np_route_get_table(context);
     __np_glia_check_connections(table, _np_route_update);
@@ -221,8 +219,6 @@ void _np_glia_check_routes(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
 }
 
 void _np_glia_send_pings(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset check for table started");
-
     // TODO: do a dynamic selection of keys
     np_sll_t(np_key_ptr, routing_keys) = _np_route_get_table(context);
     np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors(context);
@@ -387,20 +383,22 @@ void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
     _LOCK_ACCESS(&my_network->waiting_lock)
     {
         iter = RB_MIN(np_tree_s, my_network->waiting);
+        double now =  np_time_now();
         while (iter != NULL) {
             jrb_ack_node = iter;
             iter = RB_NEXT(np_tree_s, my_network->waiting, iter);
 
             np_responsecontainer_t *responsecontainer = (np_responsecontainer_t *)jrb_ack_node->val.value.v;
             if (responsecontainer != NULL) {
-                if (np_time_now() > responsecontainer->expires_at || _np_responsecontainer_is_fully_acked(responsecontainer))
-                {
-                    if (!_np_responsecontainer_is_fully_acked(responsecontainer)) {
+                bool is_fully_acked = _np_responsecontainer_is_fully_acked(responsecontainer);
+
+                if (is_fully_acked || now > responsecontainer->expires_at) {
+                    if (!is_fully_acked) {
                         _np_responsecontainer_set_timeout(responsecontainer);
                         log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
                             my_network->waiting->size,
                             jrb_ack_node->key.value.s, responsecontainer->msg->msg_property->msg_subject,
-                            np_time_now(), responsecontainer->expires_at
+                            now, responsecontainer->expires_at
                         );
                     }
                     sll_append(char_ptr, to_remove, jrb_ack_node->key.value.s);

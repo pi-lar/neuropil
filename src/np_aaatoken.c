@@ -1348,6 +1348,10 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 	assert(self != NULL);
     np_state_t* context = np_ctx_by_memory(self);
 
+    ASSERT(signee != NULL, "Cannot sign extensions with empty signee");
+    ASSERT(signee->private_key_is_set == true, "Cannot sign extensions without private key");
+    ASSERT(signee->crypto.ed25519_secret_key_is_set == true, "Cannot sign extensions without private key");
+
     // update public key and issuer fingerprint with data take from signee
     memcpy((char*)self->crypto.derived_kx_public_key, (char*)signee->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
 

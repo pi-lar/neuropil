@@ -39,6 +39,10 @@ def my_authz_cb(self:NeuropilNode,token:np_token):
     print("{node}: {type}: {token} {id}".format(node=self.get_fingerprint(),type="authz", token=token.subject, id=token.get_fingerprint()))
     return True
 
+def my_acc_cb(self, token:np_token):
+    print("{node}: {type}: {token}".format(node=self.get_fingerprint(), type="acc", token=token.subject))
+    return True
+
 def ident_check_callback(self, message:np_message):
     print("{node}: {type}: {data}".format(node=self.get_fingerprint(), type="ident", data=message.raw()))    
     return True
@@ -50,11 +54,7 @@ class NeuropilListener(NeuropilNode):
         self.set_accounting_cb(self.my_acc_cb)
         self.set_authorize_cb(my_authz_cb)
 
-        tick = self.get_mx_properties('ident_check')
-        tick.max_parallel  = 100
-        tick.max_retry = 0
-        tick.apply()
-
+ 
         tick = self.get_mx_properties('tick')
         tick.reply_subject = "tock"
         tick.max_parallel  = 100
@@ -85,14 +85,17 @@ class NeuropilListener(NeuropilNode):
 
 def main():    
     
-    max_runtime = 50 #sec        
+    max_runtime = 180 #sec        
     
-    np_1 = NeuropilListener(4444, no_threads=3, log_file="np_1.log")
+    np_1 = NeuropilListener(4444, log_file="np_1.log", no_threads=25)
     np_2 = NeuropilListener(5555, log_file="np_2.log")
-    np_c = NeuropilCluster(3,port_range=4000, auto_run=False)
+    np_c = NeuropilCluster (3,    port_range=4000, auto_run=False)
 
     ident = np_1.new_identity(time.time()+60)
     
+    np_c.set_authorize_cb(my_authz_cb)
+    np_c.set_authenticate_cb(my_authn_cb)
+    np_c.set_accounting_cb(my_acc_cb)
     np_c.use_identity(ident)
     np_c.set_receive_cb(b'ident_check', ident_check_callback)
     np_c.run(0)
@@ -114,27 +117,29 @@ def main():
     np_2.join(np1_addr)
     np_c.join(np1_addr)
 
-    t1 = time.time()    
+    t1 = time.time()
     invoked = 0
-    while True:
-        status = [np_1.get_status(),np_2.get_status()] + [ s for n, s in np_c.get_status()] 
+    np_1.send('ident_check', b'Send from np_1')
 
-        elapsed = int(time.time() - t1)     
-        if np_1.np_has_receiver_for("ident_check")  and not invoked:            
-            invoked += 1            
-            print("invoke")
-            #np_1.send('tick', b'some data') 
-            np_2.send('ident_check',b'Send from np_2')
-        if not(elapsed < max_runtime and all([s == neuropil.np_running for s in status])):
-            break
-        else:
-            time.sleep(0.01)  
-        
+    try:
+        while True:
+            status = [np_1.get_status(),np_2.get_status()] + [ s for n, s in np_c.get_status()] 
 
-    print('neuropil shutdown!')
-    np_1.shutdown()
-    np_2.shutdown()
-    np_c.shutdown()
+            elapsed = int(time.time() - t1)     
+            if np_1.np_has_receiver_for("ident_check")  and not invoked:            
+                invoked += 1            
+                print("invoke")
+                #np_1.send('tick', b'some data') 
+                np_1.send('ident_check',b'Send from np_1')
+            if not(elapsed < max_runtime and all([s == neuropil.np_running for s in status])):
+                break
+            else:
+                time.sleep(0.01)  
+    finally:
+        print('neuropil shutdown!')
+        np_1.shutdown()
+        np_2.shutdown()
+        np_c.shutdown()
 
 if __name__ == "__main__":
     main()

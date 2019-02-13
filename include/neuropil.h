@@ -773,7 +773,7 @@ Tokens
 Fingerprints
 ------------
 
-.. c:function:: void np_get_id(np_id id, char* string, size_t length)
+.. c:function:: void np_get_id(np_id (*id), char* string, size_t length)
 
    Computes the fingerprint (or overlay address) of a serialized object.
 

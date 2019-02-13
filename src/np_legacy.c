@@ -378,7 +378,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     }
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 
-    #ifdef DEBUG
+#ifdef DEBUG
     unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
     unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
 

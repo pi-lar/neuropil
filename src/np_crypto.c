@@ -72,7 +72,7 @@ np_crypto_t* np_cryptofactory_new(np_context* context, np_crypto_t* buffer) {
 	}
 	return ret;
 }
-np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer, unsigned char (*ed25519_secret_key)[crypto_sign_ed25519_SECRETKEYBYTES]) {
+np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer, unsigned char ed25519_secret_key[crypto_sign_ed25519_SECRETKEYBYTES]) {
 	np_crypto_t* ret = buffer;
 	if (ret == NULL) {
 		np_new_obj(np_crypto_t, ret, FUNC);
@@ -113,7 +113,7 @@ np_crypto_t* np_cryptofactory_by_secret(np_context* context, np_crypto_t* buffer
 	}
 	return ret;
 }
-np_crypto_t* np_cryptofactory_by_public(np_context* context, np_crypto_t* buffer, unsigned char (*ed25519_public_key)[crypto_sign_ed25519_PUBLICKEYBYTES]) {
+np_crypto_t* np_cryptofactory_by_public(np_context* context, np_crypto_t* buffer, unsigned char ed25519_public_key[crypto_sign_ed25519_PUBLICKEYBYTES]) {
 	np_crypto_t* ret = buffer;
 	if (ret == NULL) {
 		np_new_obj(np_crypto_t, ret, FUNC);

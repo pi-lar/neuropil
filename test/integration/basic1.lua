@@ -41,7 +41,7 @@ Receiver:receive(test_subject, function (message)
 end)
 Receiver:join(Controller:get_address())
 
-local deadline = os.time() + 20
+local deadline = os.time() + 120
 while true do
    -- XXX: test fails if running for .1 seconds instead of 1 second each
    Controller:run(1)

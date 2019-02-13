@@ -87,7 +87,7 @@ class NeuropilCluster(object):
                 def wrapper_fn(*args, **kwargs):
                     ret = []
                     for node in self.nodes:
-                        attr = object.__getattribute__(node, name)
+                        attr = object.__getattribute__(node, name)                        
                         ret.append((node, attr(*args, **kwargs)))
                     return ret
                 return wrapper_fn
@@ -107,9 +107,9 @@ class NeuropilNode(object):
         self._userdata = None
         self._destroyed = False
         # default aaa callbacks
-        self._user_authn_cb = lambda s,x: True # Default return True 
-        self._user_authz_cb = lambda s,x: True # Default return True
-        self._user_accou_cb = lambda s,x: True # Default return True
+        self._user_authn_cb = lambda s,x: False # Default return False
+        self._user_authz_cb = lambda s,x: False # Default return False
+        self._user_accou_cb = lambda s,x: False # Default return False
         # user subject callbacks    
         self.__callback_info_dict__ = {}
         # DEFAULTS END

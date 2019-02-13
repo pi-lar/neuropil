@@ -80,8 +80,8 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
 #ifdef DEBUG
     ret->log_level |= LOG_INFO;
     ret->log_level |= LOG_DEBUG;    
-    ret->log_level |= LOG_VERBOSE;    
-    ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_JOBS|LOG_MISC;
+//    ret->log_level |= LOG_VERBOSE;    
+    ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_MISC;
 #endif
 
     return ret;
@@ -346,10 +346,14 @@ enum np_return np_node_fingerprint(np_context* ac, np_id (*id)){
   np_ctx_cast(ac); 
     enum np_return ret = np_ok;
    
-    np_dhkey_t fp = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
+    if(id == NULL) {
+        ret = np_invalid_argument;
+    }
+    else {
+        np_dhkey_t fp = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
 
-    memcpy(id, &fp , NP_FINGERPRINT_BYTES);
-   
+        memcpy(id, &fp , NP_FINGERPRINT_BYTES);
+    }
     return ret;
  
 }
@@ -363,8 +367,7 @@ enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bo
         ret = np_invalid_argument;
     }
     else {
-        np_ident_private_token_t* imported_token=NULL;
-        np_new_obj(np_aaatoken_t, imported_token);
+        np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key);
         np_user4aaatoken(imported_token, &identity);
 
         _np_aaatoken_set_signature(imported_token, imported_token);
@@ -374,7 +377,7 @@ enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bo
         np_dhkey_t fp = np_aaatoken_get_fingerprint(imported_token, include_attributes);
 
 		memcpy(id, &fp, NP_FINGERPRINT_BYTES);
-		np_unref_obj(np_aaatoken_t, imported_token, ref_obj_creation);
+        np_unref_obj(np_aaatoken_t, imported_token, "np_token_factory_new_identity_token");
     }
 
     return ret;
@@ -390,7 +393,7 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
 
     enum np_return ret = np_ok;
 
-    np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key );
+    np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key);
     np_user4aaatoken(imported_token, &identity);
 
     _np_set_identity(ac, imported_token);
@@ -485,7 +488,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     if (userdata != NULL) {
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
-        np_get_id(message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
+        np_get_id(&message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
         
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 
@@ -610,7 +613,6 @@ enum np_status np_get_status(np_context* ac) {
 void np_id_str(char str[65], const np_id id)
 {
     sodium_bin2hex(str, NP_FINGERPRINT_BYTES*2+1, id, NP_FINGERPRINT_BYTES);
-
 }
 
 void np_str_id(np_id (*id), const char str[65])
@@ -667,6 +669,7 @@ void np_destroy(np_context*ac, bool gracefully)
     TSP_DESTROY(context->status);
     free(context);
 }
+
 bool np_id_equals(np_id first, np_id second) {
     return memcmp(first,second,sizeof(np_id))==0;
 }
