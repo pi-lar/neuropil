@@ -23,7 +23,7 @@
 #define NP_CHECK_ERROR(status) \
     if (np_ok != status) \
     { \
-    		fprintf(stdout, "ERROR: %s", np_error_str[status]); \
+    		fprintf(stdout, "ERROR: %s", np_error_str(status)); \
     		exit(EXIT_FAILURE); \
     }; \
 

@@ -24,8 +24,8 @@ Test(neuropil_h, np_token_fingerprint, .description = "test the retrieval of a t
     		cr_expect(0 != memcmp(&fp, &old_fp, NP_FINGERPRINT_BYTES), "expect the fingerprint to have changed");
     		memcpy(old_fp, fp, NP_FINGERPRINT_BYTES);
 
-    		np_id2str(fp, fp_str);
-    		np_id2str(old_fp, old_fp_str);
+    		np_id_str(fp_str, fp);
+    		np_id_str(old_fp_str, old_fp);
     		log_msg(LOG_INFO, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
 
     		strncpy(token.subject, "urn:np:subject:test_subject", 255);
@@ -33,8 +33,8 @@ Test(neuropil_h, np_token_fingerprint, .description = "test the retrieval of a t
     		cr_expect(0 != memcmp(&fp, '0', NP_FINGERPRINT_BYTES), "expect the fingerprint to have changed");
     		memcpy(old_fp, fp, NP_FINGERPRINT_BYTES);
 
-    		np_id2str(fp, fp_str);
-    		np_id2str(old_fp, old_fp_str);
+    		np_id_str(fp_str, fp);
+    		np_id_str(old_fp_str, old_fp);
     		log_msg(LOG_INFO, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
 
 			// This seems wrong, old_fp is no string
@@ -43,8 +43,8 @@ Test(neuropil_h, np_token_fingerprint, .description = "test the retrieval of a t
     		cr_expect(0 != memcmp(&fp, '0', NP_FINGERPRINT_BYTES), "expect the fingerprint to have changed");
     		memcpy(old_fp, fp, NP_FINGERPRINT_BYTES);
 
-    		np_id2str(fp, fp_str);
-    		np_id2str(old_fp, old_fp_str);
+    		np_id_str(fp_str, fp);
+    		np_id_str(old_fp_str, old_fp);
     		log_msg(LOG_INFO, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
     }
 }

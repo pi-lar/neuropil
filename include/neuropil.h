@@ -76,7 +76,7 @@ extern "C" {
         NP_PUBLIC_KEY_BYTES = 32,
         NP_FINGERPRINT_BYTES = 32,
         NP_UUID_BYTES = 37
-    };
+    }NP_ENUM;
 
     // Implementation defined limits
     enum {
@@ -99,24 +99,18 @@ extern "C" {
         np_invalid_operation,
         np_startup
     } NP_ENUM;    
-    static const char* np_error_str[] = {
-        "",
-        "operation is not implemented",
-        "could not init network",
-        "argument is invalid",
-        "operation is currently invalid",
-        "insufficient memory",
-        "startup error. See log for more details"
-    };
+
+    NP_API_EXPORT
+    const char *np_error_str(enum np_return e);
+
     typedef void np_context;    
 
     typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
-    typedef unsigned char* np_id_ptr;
         
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
-    void np_get_id(np_id_ptr id, char* string, size_t length);
+    void np_get_id(np_id (*id), const char* string, size_t length);
 
     struct np_token {
         char uuid[NP_UUID_BYTES];
@@ -162,13 +156,13 @@ extern "C" {
     enum np_return np_use_identity(np_context* ac, struct np_token identity);
 
     NP_API_EXPORT
-    enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id_ptr id);
+    enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
     
     NP_API_EXPORT
-    enum np_return np_node_fingerprint(np_context* ac, np_id_ptr id);
+    enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
 
     NP_API_EXPORT
-    enum np_return np_listen(np_context* ac, char* protocol, char* host, uint16_t port);
+    enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) ;
 
     // Get “connect string”. Signals error if connect string is unavailable (i.e.,
     // no listening interface is configured.)
@@ -176,16 +170,16 @@ extern "C" {
     enum np_return np_get_address(np_context* ac, char* address, uint32_t max);
 
     NP_API_EXPORT
-    enum np_return np_join(np_context* ac, char* address);
+    enum np_return np_join(np_context* ac, const char* address);
 
     NP_API_EXPORT
-    enum np_return np_send(np_context* ac, char* subject, unsigned char* message, size_t length);
+    enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length);
     
     typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
     // There can be more than one receive callback, hence "add".
     NP_API_EXPORT
-    enum np_return np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback);
+    enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback);
 
     typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
     NP_API_EXPORT
@@ -216,9 +210,9 @@ extern "C" {
     } NP_PACKED(1);
 
     NP_API_EXPORT
-    struct np_mx_properties np_get_mx_properties(np_context* ac, char* subject);
+    struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject);
     NP_API_EXPORT
-    enum np_return np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties);
+    enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties properties);
     NP_API_EXPORT
     void np_set_userdata(np_context * ac, void* userdata);
     NP_API_EXPORT
@@ -226,22 +220,99 @@ extern "C" {
     
 
     NP_API_EXPORT
-        enum np_return np_send_to(np_context* ac, char* subject, unsigned char* message, size_t length, np_id target);
+        enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target));
     NP_API_EXPORT
         bool np_has_joined(np_context * ac);		
     NP_API_EXPORT
         enum np_status np_get_status(np_context* ac);
     NP_API_EXPORT
-        bool np_has_receiver_for(np_context*ac, char * subject);	
+        bool np_has_receiver_for(np_context*ac, const char * subject);	
+    NP_API_EXPORT        
+        void np_id_str(char str[65], const np_id id);
     NP_API_EXPORT
-        void np_id2str(const np_id k, char* key_string);
-    NP_API_EXPORT
-        void np_str2id(const char* key_string, np_id_ptr k);
+        void np_str_id(np_id (*id), const char str[65]);
 
     NP_API_EXPORT
         void np_destroy(np_context*ac, bool gracefully);
     NP_API_EXPORT
-        bool np_id_equals(np_id* first, np_id* second);
+        bool np_id_equals(np_id first, np_id second);
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _NP_INTERFACE_H_ */
+//
+// neuropil is copyright 2016-2018 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+//
+
+/* neuropil API v2 */
+
+#ifndef _NP_INTERFACE_H_
+#define _NP_INTERFACE_H_
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define NEUROPIL_RELEASE	"neuropil_0.8.0"
+
+#define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2019 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2019 pi-lar GmbH, Cologne, Germany"
+
+
+    /* just in case NULL is not defined */
+#ifndef NULL
+#define NULL (void*)0
+#endif
+
+    //
+    // int __attribute__((overloadable)) square(int);
+
+#if defined(__APPLE__) && defined(__MACH__)
+    #define NP_ENUM __attribute__ ((flag_enum))
+#else
+    #define NP_ENUM 
+#endif
+
+#define NP_CONST __attribute__ ((const))
+#define NP_PURE  __attribute__ ((pure))
+
+#define NP_PACKED(x)  __attribute__ ((packed(), aligned(x)))
+#define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
+
+
+
+#if defined(TEST_COMPILE) || defined(DEBUG)
+#define NP_UNUSED     __attribute__ ((unused))
+#define NP_API_HIDDEN __attribute__ ((visibility ("default")))
+#define NP_API_PROTEC __attribute__ ((visibility ("default")))
+#define NP_API_INTERN __attribute__ ((visibility ("default")))
+#else
+#ifndef NP_UNUSED
+#define NP_UNUSED     __attribute__ ((unused))
+#endif
+#ifndef NP_API_PROTEC
+#define NP_API_PROTEC __attribute__ ((visibility ("default")))
+#endif
+#ifndef NP_API_HIDDEN
+#define NP_API_HIDDEN __attribute__ ((visibility ("default")))
+#endif
+#ifndef NP_API_INTERN
+#define NP_API_INTERN __attribute__ ((visibility ("default")))
+#endif
+#endif
+
+#ifndef NP_API_EXPORT
+#define NP_API_EXPORT __attribute__ ((visibility ("default")))
+#endif
+
+#include "np_ffi.h"
+
 #ifdef __cplusplus
 }
 #endif
@@ -305,7 +376,7 @@ Initialization
 Identity management
 ------------------
 
-.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, unsigned char* (secret_key[NP_SECRET_KEY_BYTES]))
+.. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t secret_key[NP_SECRET_KEY_BYTES])
 
    Creates a new neuropil identity.
 
@@ -314,8 +385,8 @@ Identity management
    :param expires_at:
        expiry date of the identity in seconds since the Unix epoch.
    :param secret_key:
-       a pointer to the secret key used by the identity. If `NULL` is supplied a
-       random key is generated.
+       the secret key used by the identity. If `NULL` is supplied a random key
+       is generated.
    :return:
        an *identity token*.
 
@@ -341,7 +412,7 @@ Identity management
 Starting up
 -----------
 
-.. c:function:: enum np_return np_listen(np_context* ac, char* protocol, char* host, uint16_t port)
+.. c:function:: enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port)
 
    Binds a neuropil application context to a listening address.
 
@@ -387,7 +458,7 @@ Starting up
    :c:data:`np_invalid_operation`   No listening address is bound for the application context. (Call :c:func:`np_listen` first.)
    ===============================  ===========================================
 
-.. c:function:: enum np_return np_join(np_context* ac, char* address)
+.. c:function:: enum np_return np_join(np_context* ac, const char* address)
 
    Adds a bootstrap node to be used by this node to join the neuropil network.
 
@@ -409,7 +480,7 @@ Starting up
 Sending and receiving messages
 ------------------------------
 
-.. c:function:: enum np_return np_send(np_context* ac, char* subject, unsigned char* message, size_t length)
+.. c:function:: enum np_return np_send(np_context* ac, const char* subject, const uint8_t* message, size_t length)
 
    Sends a message on a given subject.
 
@@ -431,7 +502,7 @@ Sending and receiving messages
    :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
    ===============================  ===========================================
 
-.. c:function:: enum np_return np_add_receive_cb(np_context* ac, char* subject, np_receive_callback callback)
+.. c:function:: enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback)
 
    Adds a callback to be executed when receiving a message on a given subject.
    It is possible to add more than one receive callback for a given subject, in
@@ -472,7 +543,7 @@ Sending and receiving messages
    Structure that holds a received message and some metadata about that
    message.
 
-.. c:member:: unsigned char *data
+.. c:member:: uint8_t *data
 
    A pointer to a buffer that contains the received message.
 
@@ -496,7 +567,7 @@ Sending and receiving messages
 
    Unix timestamp that denotes the time the message was received.
 
-.. c:function:: enum np_return np_set_mx_properties(np_context* ac, char* subject, struct np_mx_properties properties)
+.. c:function:: enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties properties)
 
    Configure message exchange semantics for a given subject. The default is
    best-effort message delivery without any attempt at retransmission and if
@@ -686,14 +757,14 @@ Tokens
    in seconds that denote issue date and validity duration of the token. These
    validity periods are validated by neuropil.
 
-.. c:member:: unsigned char[] extensions
+.. c:member:: uint8_t[] extensions
 .. c:member:: size_t extension_length
 
    A buffer of extension data of :c:member:`extension_length` bytes represented
    as a `MessagePack <https://msgpack.org/>`_ encoded map.
 
-.. c:member:: unsigned char[NP_PUBLIC_KEY_BYTES] public_key
-.. c:member:: unsigned char[NP_SECRET_KEY_BYTES] secret_key
+.. c:member:: uint8_t[NP_PUBLIC_KEY_BYTES] public_key
+.. c:member:: uint8_t[NP_SECRET_KEY_BYTES] secret_key
 
    The key pair associated with the token. Foreign tokens have the
    :c:member:`secret_key` unset (all zero).
@@ -702,12 +773,12 @@ Tokens
 Fingerprints
 ------------
 
-.. c:function:: void np_get_id(np_id_ptr id, char* string, size_t length)
+.. c:function:: void np_get_id(np_id (*id), char* string, size_t length)
 
    Computes the fingerprint (or overlay address) of a serialized object.
 
    :param id:
-       a pointer to the :c:type:`np_id` to be written.
+       a :c:type:`np_id` to be written.
    :param string:
        the data to be hashed.
    :param length:
@@ -720,7 +791,7 @@ Fingerprints
    but no party is able to forge an object that hashes to a particular
    fingerprint.
 
-.. c:type:: unsigned char[NP_FINGERPRINT_BYTES] np_id
+.. c:type:: uint8_t[NP_FINGERPRINT_BYTES] np_id
 
    The type :c:type:`np_id` denotes both a fingerprint and a virtual address in
    the overlay network implemented by neuropil. It is represented as a
@@ -766,17 +837,6 @@ Detecting errors
    In order to accurately interpret error codes refer to the documentation of
    the specific function in question.
 
-
-    
-.. c:function:: void np_destroy(np_context*ac, bool gracefully)
-
-   stops the internal neuropil event loop, shuts down the thread pool and cleans the used memory.
-
-   :param ac:
-       a neuropil application context.
-   :param gracefully:
-       To send a Leave Message to the connected nodes. May delay the function return for a few seconds
-    
 ---------
 Constants
 ---------
@@ -800,4 +860,3 @@ Constants
 .. _UUID: https://en.wikipedia.org/wiki/Universally_unique_identifier 
 
 */
-

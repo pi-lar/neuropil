@@ -60,7 +60,7 @@ PROGRAMS=$(subst examples/,build/obj/,$(subst .c,.o,$(SOURCES_PRG)))
 TESTS=$(subst test/,build/obj/,$(subst .c,.o,$(SOURCES_TST)))
 
 
-all: library test prg
+all: library bindings/luajit/neuropil_ffi.lua test prg
 
 # build/lib/libneuropil.dylib neuropil_hydra neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_receiver_cb neuropil_demo_service neuropil_pingpong neuropil_raspberry
 
@@ -103,6 +103,9 @@ build/lib/libneuropil.dylib: $(OBJECTS)
 	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER) -dynamiclib -fprofile-instr-generate -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o build/lib/libneuropil.dylib
 	# dsymutil build/lib/libneuropil.$(TARGET).dylib -o build/lib/libneuropil.dylib.dSYM
 
+bindings/luajit/build/neuropil_ffi.lua: 
+	./bindings/luajit/build.sh
+
 build/obj/%.o: src/%.c
 	@mkdir -p $(@D)
 	@mkdir -p build/lib
@@ -123,6 +126,7 @@ build/obj/%.o: test/%.c
 
 clean:
 	-rm -r ./bin/* ./build/obj/*.o ./build/lib/*
+	-rm -r ./bindings/luajit/neuropil_ffi.lua
 	-rm examples/*.o
 	-rm ./neuropil_*.log ./test_*.log
 

@@ -56,7 +56,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
 
 
 /**
- * The default authorize function, allows all authorizations and generates warnings
+ * The default authorize function, allows no authorizations and generates warnings
  * @param token
  * @return
  */
@@ -138,7 +138,7 @@ bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
 }
 
 /**
- * The default accounting function, allows all authorizations and generates warnings
+ * The default accounting function, allows no authorizations and generates warnings
  * @param token
  * @return
  */
@@ -374,7 +374,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     }
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 
-    #ifdef DEBUG
+#ifdef DEBUG
     char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
     char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
 
@@ -489,7 +489,7 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     return ret;
 }
 
-void np_send_msg(np_context*ac, char* subject, np_tree_t *body, np_dhkey_t* target_key)
+void np_send_msg(np_context*ac, const char* subject, np_tree_t *body, np_dhkey_t* target_key)
 {
     np_ctx_cast(ac);
     np_message_t* msg = _np_prepare_msg(context, subject, body, target_key);
@@ -721,7 +721,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string)
         //START Build our wildcard connection string
         np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
         char wildcard_dhkey_str[65];
-        _np_dhkey2str(&wildcard_dhkey, wildcard_dhkey_str);
+        _np_dhkey_str(&wildcard_dhkey, wildcard_dhkey_str);
         asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
         //END Build our wildcard connection string
 

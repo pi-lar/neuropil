@@ -16,7 +16,7 @@ extern "C" {
 	struct np_dhkey_s
 	{
 		uint32_t t[8];
-	} ;
+	} NP_PACKED;
 
 /* key_comp: k1, k2
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2
@@ -95,7 +95,7 @@ void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2);
 NP_API_INTERN
 void _np_dhkey_encode(np_state_t* context, np_tree_t* jrb, np_dhkey_t* key);
 NP_API_INTERN
-void _np_dhkey2str(const np_dhkey_t* k, char* key_string);
+void _np_dhkey_str(const np_dhkey_t* k, char* key_string);
 NP_API_INTERN
 void _np_str2dhkey(const char* key_string, np_dhkey_t* k);
 

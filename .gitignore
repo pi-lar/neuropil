@@ -25,3 +25,4 @@ config.log
 ext_tools/*
 *perf.data*
 /release
+bindings/luajit/neuropil_ffi.lua

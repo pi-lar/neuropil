@@ -72,7 +72,7 @@ np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
 {
     log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hash(const char* strOrig){");
     np_dhkey_t kResult = { 0 };
-    _np_str2dhkey( strOrig, &kResult);
+    np_str_id(*(np_id*)&kResult, strOrig);
     return kResult;
 }
 
@@ -305,12 +305,12 @@ uint8_t _np_dhkey_hexalpha_at (np_state_t* context, const np_dhkey_t* key, const
 
 
 
-void _np_dhkey2str(const np_dhkey_t* k, char* key_string)
+void _np_dhkey_str(const np_dhkey_t* k, char* key_string)
 {
     
-    return np_id2str((np_id_ptr)k, key_string);
+    np_id_str(key_string, *(np_id*)k);
 } 
-void _np_str2dhkey( const char* key_string, np_dhkey_t* k)
+void _np_str_dhkey( char* key_string, const np_dhkey_t* k)
 {    
-    return np_str2id(key_string,(np_id_ptr) k);
+    np_str_id(*(np_id*)k, key_string);
 } 

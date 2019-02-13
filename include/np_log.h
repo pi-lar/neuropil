@@ -107,8 +107,8 @@ void np_log_message(np_state_t* context, enum np_log_e level,
                  np_log_message(context, level | LOG_WARN, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
 #endif
 #ifndef log_error
-        #define log_error(level, msg, ...) \
-                 np_log_message(context, level | LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+        #define log_error(msg, ...) \
+                 np_log_message(context, LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
 #endif
 
 #ifndef log_debug_msg

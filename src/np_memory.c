@@ -133,7 +133,7 @@ void __np_memory_delete_item(np_state_t* context, np_memory_container_t* contain
 #if NP_MEMORY_CHECK_MEMORY_REFFING
     if(sll_size( item_config->reasons) > 0) {
         char * flat = _sll_char_make_flat(context, item_config->reasons);
-        log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
+        log_error("Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
         free(flat);
     }
     sll_free(char_ptr, item_config->reasons);
@@ -190,13 +190,13 @@ void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, b
     __np_memory_delete_item(context, container, item_config);
     if(del_container) {
         if(sll_size(container->total_items) != 0){
-            log_error(LOG_MEMORY, "Still has %"PRIu32" object of type %s in cache", sll_size(container->total_items), np_memory_types_str[container->type]);
+            log_error("Still has %"PRIu32" object of type %s in cache", sll_size(container->total_items), np_memory_types_str[container->type]);
             #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
             sll_iterator(np_memory_itemconf_ptr) leftover_iter = sll_first(container->total_items);
             while(leftover_iter != NULL){                    
                 item_config = leftover_iter ->val;
                 char * flat = _sll_char_make_flat(context, item_config->reasons);
-                log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
+                log_error("Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
                 free(flat);
                 sll_next(leftover_iter);
             }
@@ -225,10 +225,10 @@ void _np_memory_destroy(np_state_t* context){
                 if (item_config->in_use) {                    
                     #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
                         char * flat = _sll_char_make_flat(context, item_config->reasons);
-                        log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[type], item_config->ref_count, item_config->id, flat);		
+                        log_error("Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[type], item_config->ref_count, item_config->id, flat);		
                         free(flat);
                     #else
-                        log_error(LOG_MEMORY, "Still has a object of type %s in cache", np_memory_types_str[type]);
+                        log_error("Still has a object of type %s in cache", np_memory_types_str[type]);
                     #endif
 
                     /*

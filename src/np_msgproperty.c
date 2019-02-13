@@ -97,7 +97,6 @@ bool _np_msgproperty_init (np_state_t* context)
         {
             np_msgproperty_t* property = __np_internal_messages->val;
             property->is_internal = true;
-
             if (strlen(property->msg_subject) > 0)
             {
                 log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);

@@ -229,7 +229,7 @@ bool _np_in_sysinfo(np_context* ac, NP_UNUSED const np_message_t* const msg, np_
 //	np_tree_insert_str( reply_properties, _NP_SYSINFO_TARGET,
 //			np_treeval_new_s( np_treeval_to_str(source->val)));
 //	np_dhkey_t target_dhkey;
-//	_np_str2dhkey(  np_treeval_to_str(source->val), &target_dhkey);
+//	_np_str_dhkey(  np_treeval_to_str(source->val), &target_dhkey);
 
     // send msg
     log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo reply (size: %"PRIu16")",

@@ -65,7 +65,9 @@ build_program = ARGUMENTS.get('program', False)
 opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
 build_x64 = int(ARGUMENTS.get('x64', -1))
 install = int(ARGUMENTS.get('install', 0))
-build_bindings = bool(ARGUMENTS.get('bindings', True))
+build_bindings = bool(int(ARGUMENTS.get('bindings', False)))
+build_bindings_lua = bool(int(ARGUMENTS.get('lua_binding', build_bindings)))
+build_bindings_python = bool(int(ARGUMENTS.get('python_binding', build_bindings)))
 
 
 # use clang to compile the source code
@@ -293,7 +295,12 @@ if not build_tests_enable_test_coverage:
 np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
 
 bindings_python_build = False
-if build_bindings:
+if build_bindings_lua:
+  bindings_lua_env = default_env.Clone()    
+  bindings_lua_build= bindings_lua_env.Command ("build.binding_lua", None, lambda target,source,env: exec_call(['./bindings/luajit/build.sh']))
+  Depends(bindings_lua_build, np_dylib)
+
+if build_bindings_python:
   bindings_py_env = default_env.Clone()    
   bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build.sh']))
   Depends(bindings_python_build, np_dylib)
@@ -359,6 +366,7 @@ if install:
         Depends(py_install, bindings_python_build)
 
 # clean up
+Clean('.', os.path.join('bindings','luajit','build'))
 Clean('.', os.path.join('bindings','python_cffi','build'))
 Clean('.', os.path.join('doc','build'))
 Clean('.', 'build')

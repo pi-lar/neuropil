@@ -86,11 +86,11 @@ int main(int argc, char **argv)
         np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 
         if (np_ok != (tmp = np_listen(nodes[i], "udp4", publish_domain, port))) {
-            np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str[tmp]);
+            np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str(tmp));
         }
         else {
             if (np_ok != (tmp = np_get_address(nodes[i], addr, SIZE(addr)))) {
-                np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
+                np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str(tmp));
             }
             np_example_print(nodes[0], stdout, "INFO: Node %"PRIsizet" aka  (%s) listens\n", i, addr);
         }
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
         iteration++;
         for (int i = 0; i < cloud_size; i++) {
             if (np_ok != (tmp = np_run(nodes[i], 0))) {
-                np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str[tmp]);
+                np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str(tmp));
             }
             else {
                 if (i == 0) {
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
                 if (i > 0 && iteration < cloud_size && !np_has_joined(nodes[i - 1])) {
                     // get connection str of previous node
                     if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
-                        np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str[tmp]);
+                        np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str(tmp));
                     }
                     // for fun and testing make every second join a wildcard join
                     // currently all via wildcard as of bug "hash join"
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
                     }
                     // join previous node
                     if (np_ok != (tmp = np_join(nodes[i], addr))) {
-                        np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not join. %s\n", i, np_error_str[tmp]);
+                        np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not join. %s\n", i, np_error_str(tmp));
                     }
                     else {
                         np_example_print(nodes[0], stdout, "INFO: Node %"PRIsizet" joins %s\n", i, addr);
