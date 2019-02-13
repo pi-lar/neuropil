@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -22,7 +22,6 @@
 #include <ncurses.h>
 
 #include "sodium.h"
-#include "event/ev.h"
 
 #include "../examples/example_helper.h"
 
@@ -457,7 +456,24 @@ void np_print_startup(np_context * context) {
     }
 }
 
+bool __np_example_helper_authz_everyone (np_context* ac, struct np_token* token)
+{
+    np_ctx_cast(ac);
+    log_error("using DANGEROUS handler (authorize all) to allow authorization for: %s", token->subject );
+    return (true);
+}
+bool __np_example_helper_acc_everyone (np_context* ac, struct np_token* token)
+{
+    np_ctx_cast(ac);
+    log_error("using DANGEROUS handler (account all) to allow authorization for: %s", token->subject );
+    return (true);
+}
 
+void np_example_helper_allow_everyone(np_context* ac) {
+
+    np_set_authorize_cb(ac, __np_example_helper_authz_everyone);
+    np_set_accounting_cb(ac, __np_example_helper_acc_everyone);
+}
 bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     bool  ret = false;
@@ -717,25 +733,24 @@ example_user_context* parse_program_args(
         va_end(args);
 
         uint32_t log_categories = 0
-            //| LOG_VERBOSE
-            //| LOG_TRACE
-            //| LOG_MUTEX
+            // | LOG_VERBOSE
+            // | LOG_TRACE
+            // | LOG_MUTEX
             | LOG_ROUTING
-            //| LOG_HTTP
-            //| LOG_KEY
-            //| LOG_NETWORK
-            //| LOG_HANDSHAKE
+            // | LOG_HTTP
+            // | LOG_KEY
+            // | LOG_NETWORK
+            // | LOG_HANDSHAKE
             | LOG_AAATOKEN
-            //| LOG_SYSINFO
-            | LOG_MESSAGE
-            //| LOG_SERIALIZATION
-            //| LOG_SERIALIZATION
-            //| LOG_MEMORY
-            | LOG_MISC
-            //| LOG_EVENT
-            //| LOG_THREADS
-            //| LOG_JOBS
-            //| LOG_GLOBAL
+            | LOG_SYSINFO
+            // | LOG_MESSAGE
+            // | LOG_SERIALIZATION
+            // | LOG_MEMORY
+            // | LOG_MISC
+            // | LOG_EVENT
+            // | LOG_THREADS
+            // | LOG_JOBS
+            // | LOG_GLOBAL
             ;
 
         if ((*level) == -1) {	   // production client
@@ -1023,7 +1038,7 @@ void __np_example_helper_loop(np_state_t* context) {
     // Runs only once
     if (ud->started_at == 0) {
         ud->started_at = np_time_now();
-
+        np_example_helper_allow_everyone(context);
         np_shutdown_add_callback(context, example_helper_destroy);
 
         if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
@@ -1208,12 +1223,12 @@ void __np_example_helper_loop(np_state_t* context) {
 
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
-                        unsigned int ev_backends = ev_backend(_np_event_get_loop_in(context));												
+                        unsigned int ev_backends = ev_backend(_np_event_get_loop_in(context));
                         char ev_polls[5];
                         ev_polls[0] = FLAG_CMP(ev_backends, EVBACKEND_SELECT) ? 'S' : ' ';
                         ev_polls[1] = FLAG_CMP(ev_backends, EVBACKEND_POLL) ?   'P' : ' ';
                         ev_polls[2] = FLAG_CMP(ev_backends, EVBACKEND_EPOLL) ?  'E' : ' ';
-                        ev_polls[3] = FLAG_CMP(ev_backends, EVBACKEND_KQUEUE) ? 'K' : ' ';						
+                        ev_polls[3] = FLAG_CMP(ev_backends, EVBACKEND_KQUEUE) ? 'K' : ' ';
                         ev_polls[4] = 0;
 
                         mvwprintw(ud->__np_top_left_win, 0, 0, "%s - BUILD IN "
@@ -1377,5 +1392,6 @@ void __np_example_helper_run_info_loop(np_context*context) {
         np_time_sleep(sleep);
     }
 }
+
 
 #include "web/np_http.c"

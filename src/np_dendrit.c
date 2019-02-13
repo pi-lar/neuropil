@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <arpa/inet.h>
@@ -863,10 +863,10 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
 
 
     struct np_token tmp_user_token = { 0 };
-    if (NULL != join_ident_key && !IS_AUTHENTICATED(join_ident_key->aaa_token->state) )
+    if (NULL != join_ident_key && IS_NOT_AUTHENTICATED(join_ident_key->aaa_token->state) )
     {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
-        bool join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
+        bool join_allowed = context->authenticate_func == NULL ? false : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
 
         if (false == context->enable_realm_client &&
@@ -878,10 +878,10 @@ void _np_in_join_req(np_state_t* context, np_jobargs_t args)
     } else {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/node) authentication of token");
         bool join_allowed = false;
-		if (!IS_AUTHENTICATED(join_node_key->aaa_token->state))
+		if (IS_AUTHENTICATED(join_node_key->aaa_token->state))
 			join_allowed = true;
 		else
-			join_allowed = context->authenticate_func == NULL ? true : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
+			join_allowed = context->authenticate_func == NULL ? false : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
         if (false == context->enable_realm_client &&
             true == join_allowed)
@@ -1228,7 +1228,7 @@ void _np_in_join_nack(np_state_t* context, np_jobargs_t args)
                         deleted->node->success_avg);
 #endif
 
-    nack_key->aaa_token->state &= AAA_INVALID;
+    nack_key->aaa_token->state &= (~AAA_AUTHENTICATED);
     nack_key->node->joined_network = false;
     np_node_set_handshake(nack_key->node, np_handshake_status_Disconnected);
 
@@ -1354,7 +1354,7 @@ void _np_in_update(np_state_t* context, np_jobargs_t args)
     return;
 }
 
-void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* sender_msg_token, bool inform_counterparts) {
+void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* sender_msg_token, NP_UNUSED bool inform_counterparts) {
     np_ctx_memory(sender_msg_token);
     np_sll_t(np_aaatoken_ptr, available_list) =
         _np_aaatoken_get_all_receiver(context, sender_msg_token->subject, sender_msg_token->audience);
@@ -1399,7 +1399,7 @@ void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_mes
     */
 }
 
-void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, bool inform_counterparts) {
+void _np_dendrit_propagate_senders(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* receiver_msg_token, NP_UNUSED bool inform_counterparts) {
 
     np_ctx_memory(receiver_msg_token);
     np_sll_t(np_aaatoken_ptr, available_list) =

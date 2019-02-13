@@ -49,7 +49,7 @@ SOURCES_LIB += src/np_node.c src/np_pinging.c src/np_responsecontainer.c src/np_
 SOURCES_LIB += src/np_sysinfo.c src/np_threads.c src/np_time.c src/np_token_factory.c src/np_tree.c src/np_treeval.c src/np_util.c
 SOURCES_LIB += src/event/ev.c src/gpio/bcm2835.c  src/json/parson.c src/msgpack/cmp.c
 
-SOURCES_PRG  = examples/neuropil_hydra.c examples/neuropil_controller.c examples/neuropil_node.c examples/neuropil_sender.c 
+SOURCES_PRG  = examples/neuropil_hydra.c examples/neuropil_controller.c examples/neuropil_node.c examples/neuropil_sender.c examples/neuropil_cloud.c 
 SOURCES_PRG += examples/neuropil_receiver.c examples/neuropil_demo_service.c 
 SOURCES_PRG += examples/neuropil_pingpong.c examples/neuropil_raspberry.c examples/web/np_http.c
 
@@ -66,7 +66,7 @@ all: library bindings/luajit/neuropil_ffi.lua test prg
 
 library: build/lib/libneuropil.dylib
 test: library neuropil_test_suites
-prg: library neuropil_hydra neuropil_controller neuropil_node neuropil_sender neuropil_receiver neuropil_demo_service neuropil_pingpong neuropil_raspberry
+prg: library neuropil_hydra neuropil_controller neuropil_node neuropil_cloud neuropil_sender neuropil_receiver neuropil_demo_service neuropil_pingpong neuropil_raspberry
 
 
 neuropil_controller: $(PROGRAMS)
@@ -76,6 +76,9 @@ neuropil_hydra: $(PROGRAMS)
 	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) $(NCURSES_LIBRARIES) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_node: $(PROGRAMS)
+	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) $(NCURSES_LIBRARIES) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
+
+neuropil_cloud: $(PROGRAMS)
 	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER) $(NCURSES_LIBRARIES) -fprofile-instr-generate -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 neuropil_pingpong: $(PROGRAMS)

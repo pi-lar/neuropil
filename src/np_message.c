@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -940,8 +940,8 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     // crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
 
 #ifdef DEBUG
-    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1];
-    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES*2+1];
+    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1];
+    char partner_key[crypto_scalarmult_curve25519_BYTES*2+1];
     sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
     sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
     log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) encrypt: pa pk: %s ### my pk: %s\n", msg->uuid, partner_key, curve25519_pk);
@@ -1023,9 +1023,9 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                 
 #ifdef DEBUG
 
-    unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
-    unsigned char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
-    unsigned char partner_key[crypto_scalarmult_curve25519_BYTES*2+1]; partner_key[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+    char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+    char partner_key[crypto_scalarmult_curve25519_BYTES*2+1]; partner_key[crypto_scalarmult_curve25519_BYTES*2] = '\0';
 
     sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, context->my_identity->aaa_token->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
     sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);

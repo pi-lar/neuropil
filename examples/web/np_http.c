@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2018 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <assert.h>
@@ -885,6 +885,7 @@ bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo
         // If you want to you can enable the statistics modulte to view the nodes statistics
         np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
         np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
+
     }
     if(free_http_domain) free(http_domain);
 
