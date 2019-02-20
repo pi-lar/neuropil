@@ -17,10 +17,15 @@
 #include "np_route.h"
 #include "np_util.h"
 #include "np_key.h"
-#include "np_util.h"
+#include "np_tree.h"
 #include "np_jobqueue.h"
 
 #include "np_statistics.h"
+
+#include "prometheus/prometheus.h"
+
+
+
 
 struct np_statistics_element_s {
     bool watch_receive;
@@ -76,6 +81,17 @@ bool _np_statistics_send_msg_on_watched(np_context* ac, const np_message_t* cons
     return true; 
 }
 
+uint64_t get_timestamp(){
+    return (uint64_t) _np_time_now(NULL)*1000;
+} 
+void __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_jobargs_t args) {
+    np_module_var(statistics);
+    prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_job_count], np_jobqueue_count(context));
+    prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], 1);        
+    prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_neighbor_count], _np_route_my_key_count_neighbors(context, NULL, NULL));        
+    prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_route_count], _np_route_my_key_count_routes(context));        
+}
+
 bool _np_statistics_init(np_state_t* context) {
 
     if (!np_module_initiated(statistics)) {
@@ -84,18 +100,143 @@ bool _np_statistics_init(np_state_t* context) {
         _module->__cache = np_cache_init(context);
         sll_init(char_ptr, _module->__watched_subjects);
 
-        TSP_INITD(_module->__forwarding_counter, 0);
-        TSP_INITD(_module->__network_send_bytes, 0);
-        TSP_INITD(_module->__network_received_bytes, 0);
+        _module->_per_subject_metrics = np_tree_create();
+        _module->_per_dhkey_metrics = np_tree_create();
 
-        _module->__network_received_bytes_per_sec_last = 
-            _module->__network_send_bytes_per_sec_last = np_time_now();
+        _module->_prometheus_context = prometheus_create_context(get_timestamp);        
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_info] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"info");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"forwarded_msgs_sum");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_received_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"received_msgs_sum");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_send_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"send_msgs_sum");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_job_count] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"jobs_count");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_in] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"network_in_bytes");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"network_out_bytes");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_neighbor_count] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"routing_neighbor_count");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_route_count] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"routing_route_count");
 
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_in_per_sec] = prometheus_register_sub_metric_time(_module->_prometheus_metrics[np_prometheus_exposed_metrics_network_in],1);
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out_per_sec] = prometheus_register_sub_metric_time(_module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out],1);
+        
+        prometheus_label label;
+        strcpy(label.name,"version");
+        strcpy(label.value,NEUROPIL_RELEASE);
+        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
+        strcpy(label.name,"application");
+        strcpy(label.value,"neuropil_exporter");
+        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
+        prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], 1);        
+        _np_statistics_update_prometheus_labels(context, NULL);
 #ifdef DEBUG_CALLBACKS
         sll_init(void_ptr, _module->__np_debug_statistics);
 #endif
+
+    np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,0.,
+                                 NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL,
+                                 __np_statistics_gather_data_clb,
+                                 "__np_statistics_gather_data_clb");
+
     }
     return true;
+}
+
+typedef struct np_statistics_per_subject_metrics_s{
+    prometheus_metric* received_msgs;
+    prometheus_metric* send_msgs;
+}np_statistics_per_subject_metrics;
+
+np_statistics_per_subject_metrics* __np_statistics_get_subject_metrics(np_state_t* context, char* subject) {
+    np_statistics_per_subject_metrics* ret;
+
+    np_module_var(statistics);
+    np_tree_elem_t* element = np_tree_find_str(_module->_per_subject_metrics, subject);
+
+    if(element == NULL){
+        prometheus_label label;
+        strcpy(label.name,"subject");
+        strncpy(label.value,subject,255);    
+        ret = calloc(1,sizeof(np_statistics_per_subject_metrics));
+        
+        ret->received_msgs = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"received_msgs");
+        prometheus_metric_add_label(ret->received_msgs, label);
+        _np_statistics_update_prometheus_labels(context, ret->received_msgs);
+
+        ret->send_msgs = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"send_msgs");
+        prometheus_metric_add_label(ret->send_msgs, label);
+        _np_statistics_update_prometheus_labels(context, ret->send_msgs);
+
+        np_tree_insert_str(np_module(statistics)->_per_subject_metrics, subject,np_treeval_new_v(ret));
+    }else{
+        ret = element->val.value.v;
+    }
+
+    return ret;    
+}
+
+
+typedef struct np_statistics_per_dhkey_metrics_s{
+    prometheus_metric* latency;
+    prometheus_metric* success_avg;
+
+}np_statistics_per_dhkey_metrics;
+
+np_statistics_per_dhkey_metrics* __np_statistics_get_dhkey_metrics(np_state_t* context, np_dhkey_t id) {
+    np_statistics_per_dhkey_metrics* ret;
+
+    np_module_var(statistics);
+    np_tree_elem_t* element = np_tree_find_dhkey(_module->_per_dhkey_metrics, id);
+
+    if(element == NULL){
+        prometheus_label label;
+        strcpy(label.name,"target");
+        _np_dhkey_str(&id, label.value);    
+        ret = calloc(1,sizeof(np_statistics_per_dhkey_metrics));
+
+        ret->latency = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"latency");
+        prometheus_metric_add_label(ret->latency, label);
+        _np_statistics_update_prometheus_labels(context, ret->latency);
+
+        ret->success_avg = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"success_avg");
+        prometheus_metric_add_label(ret->success_avg, label);
+        _np_statistics_update_prometheus_labels(context, ret->success_avg);
+
+        np_tree_insert_dhkey(np_module(statistics)->_per_dhkey_metrics, id, np_treeval_new_v(ret));
+    }else{
+        ret = element->val.value.v;
+    }
+
+    return ret;    
+}
+
+void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metric* metric){
+    if (np_module_initiated(statistics)) {
+        np_module_var(statistics);
+        
+        prometheus_label node_label;         
+        prometheus_label ident_label;         
+        prometheus_label instance_label;         
+        strcpy(node_label.name,"node");
+        strcpy(instance_label.name,"instance");
+        strcpy(ident_label.name,"identity");
+        if(context->my_node_key) {
+            _np_dhkey_str(&context->my_node_key->dhkey, node_label.value);            
+            if(context->my_node_key->node)
+                sprintf(instance_label.value, "%s:%s", context->my_node_key->node->dns_name,context->my_node_key->node->port);
+        }           
+        if(context->my_identity)
+            _np_dhkey_str(&context->my_identity->dhkey, ident_label.value);
+                
+        if(metric == NULL){
+            for(int i=0; i < np_prometheus_exposed_metrics_END; i++) {                
+                prometheus_metric_replace_label(_module->_prometheus_metrics[i], node_label);
+                prometheus_metric_replace_label(_module->_prometheus_metrics[i], ident_label);            
+                prometheus_metric_replace_label(_module->_prometheus_metrics[i], instance_label);            
+            }
+        }else{
+                prometheus_metric_replace_label(metric, node_label);
+                prometheus_metric_replace_label(metric, ident_label);            
+                prometheus_metric_replace_label(metric, instance_label);            
+        }
+    }
 }
 void _np_statistics_destroy(np_state_t* context){
      if (np_module_initiated(statistics)) {
@@ -112,11 +253,6 @@ void _np_statistics_destroy(np_state_t* context){
         
         np_cache_destroy(context, _module->__cache);
 
-        TSP_DESTROY(_module->__forwarding_counter);
-        TSP_DESTROY(_module->__network_send_bytes);
-        TSP_DESTROY(_module->__network_received_bytes);
-
-
 #ifdef DEBUG_CALLBACKS
         sll_iterator(void_ptr) __np_debug_statistics_item = sll_first(_module->__np_debug_statistics);
         while(__np_debug_statistics_item != NULL){
@@ -132,6 +268,11 @@ void _np_statistics_destroy(np_state_t* context){
     }
 }
 
+char* np_statistics_prometheus_export(np_context*ac){
+    np_ctx_cast(ac);
+
+    return prometheus_format(np_module(statistics)->_prometheus_context);
+}
 
 void np_statistics_add_watch(np_state_t* context, char* subject) {	
 
@@ -360,7 +501,9 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
     ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((context->my_identity == NULL) ? "-" : _np_key_as_str(context->my_identity)), new_line);
 
     snprintf(tmp_format, 512, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32" Forwarded Msgs: %%8.0f%%s", "total:", tenth);
-    TSP_GET(double, np_module(statistics)->__forwarding_counter, __fw_counter_r);
+    
+     double __fw_counter_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs]);
+
     ret = np_str_concatAndFree(ret,
         tmp_format,
         all_total_send + all_total_received,
@@ -373,42 +516,23 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
     ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
     snprintf(tmp_format, 512, "%-17s %%"PRIu32" (:= %%"PRIu32"|%%"PRIu32") ", "Neighbours nodes:");
     uint32_t l, r;
-    uint32_t c = _np_route_my_key_count_neighbours(context, &l, &r);
+    uint32_t c = _np_route_my_key_count_neighbors(context, &l, &r);
     ret = np_str_concatAndFree(ret, tmp_format, c, l, r);
 
 
     snprintf(tmp_format, 512, "In: %8%s(%5%s) Out: %8%s(%5%s)%%s");
-    uint32_t __network_send_bytes_r, __network_received_bytes_r;
-    double timediff;
-    static const double timediff_threshhold = 1;
-    TSP_SCOPE(np_module(statistics)->__network_send_bytes)
-    {
-        __network_send_bytes_r = np_module(statistics)->__network_send_bytes;
-
-        timediff = now - np_module(statistics)->__network_send_bytes_per_sec_last;
-        if (timediff >= timediff_threshhold) {
-            np_module(statistics)->__network_send_bytes_per_sec_r = (np_module(statistics)->__network_send_bytes - np_module(statistics)->__network_send_bytes_per_sec_remember) / timediff;
-            np_module(statistics)->__network_send_bytes_per_sec_last = now;
-            np_module(statistics)->__network_send_bytes_per_sec_remember = np_module(statistics)->__network_send_bytes;
-        }
-    }
-    TSP_SCOPE(np_module(statistics)->__network_received_bytes)
-    {
-        __network_received_bytes_r = np_module(statistics)->__network_received_bytes;
-        timediff = now - np_module(statistics)->__network_received_bytes_per_sec_last;
-        if (timediff >= timediff_threshhold) {
-            np_module(statistics)->__network_received_bytes_per_sec_r = (np_module(statistics)->__network_received_bytes - np_module(statistics)->__network_received_bytes_per_sec_remember) / timediff;
-            np_module(statistics)->__network_received_bytes_per_sec_last = now;
-            np_module(statistics)->__network_received_bytes_per_sec_remember = np_module(statistics)->__network_received_bytes;
-        }
-    }
+    float __network_send_bytes_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_network_out]);
+    float __network_send_bytes_per_sec_r =  prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_network_out_per_sec]);
+    float __network_received_bytes_r =  prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_network_in]);    
+    float __network_received_bytes_per_sec_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_network_in_per_sec]);
+    
     char b1[255], b2[255], b3[255], b4[255];
     ret = np_str_concatAndFree(ret,
         tmp_format,
         np_util_stringify_pretty(np_util_stringify_bytes, &__network_received_bytes_r, b1),
-        np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &(np_module(statistics)->__network_received_bytes_per_sec_r), b3),
+        np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &__network_received_bytes_per_sec_r, b3),
         np_util_stringify_pretty(np_util_stringify_bytes, &__network_send_bytes_r, b2),
-        np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &(np_module(statistics)->__network_send_bytes_per_sec_r), b4),
+        np_util_stringify_pretty(np_util_stringify_bytes_per_sec, &__network_send_bytes_per_sec_r, b4),
         new_line);
     
     ret = np_str_concatAndFree(ret, "%s-%s",details, new_line);
@@ -418,30 +542,44 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
 }
 
 #ifdef NP_STATISTICS_COUNTER
-void __np_increment_forwarding_counter(np_state_t* context) {
+void __np_statistics_set_latency(np_state_t* context, np_dhkey_t id, float value){
+   if (np_module_initiated(statistics)) {
+        prometheus_metric_set(__np_statistics_get_dhkey_metrics(context, id)->latency, value);
+    }
+}
+void __np_statistics_set_success_avg(np_state_t* context, np_dhkey_t id, float value){
     if (np_module_initiated(statistics)) {
+        prometheus_metric_set(__np_statistics_get_dhkey_metrics(context, id)->success_avg, value);
+    }
+}
 
-        TSP_SCOPE(np_module(statistics)->__forwarding_counter) {
-            np_module(statistics)->__forwarding_counter++;
-        }
+void __np_increment_forwarding_counter(np_state_t* context, char* subject) {
+    if (np_module_initiated(statistics)) {
+        prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs], 1);
+    }
+}
+void __np_increment_received_msgs_counter(np_state_t* context, char * subject){
+if (np_module_initiated(statistics)) {
+        prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_received_msgs], 1);
+        prometheus_metric_inc(__np_statistics_get_subject_metrics(context, subject)->received_msgs, 1);        
+    }
+}
+void __np_increment_send_msgs_counter(np_state_t* context, char * subject){
+    if (np_module_initiated(statistics)) {
+        prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_send_msgs], 1);
+        prometheus_metric_inc(__np_statistics_get_subject_metrics(context, subject)->send_msgs, 1);        
     }
 }
 
 void __np_statistics_add_send_bytes(np_state_t* context, uint32_t add) {
-    if (np_module_initiated(statistics)) {
-        TSP_SCOPE(np_module(statistics)->__network_send_bytes)
-        {
-            np_module(statistics)->__network_send_bytes += add;
-        }
+    if (np_module_initiated(statistics)) {      
+        prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_network_out], add);
     }
 }
 
 void __np_statistics_add_received_bytes(np_state_t* context, uint32_t add) {
-    if (np_module_initiated(statistics)) {
-        TSP_SCOPE(np_module(statistics)->__network_received_bytes)
-        {
-            np_module(statistics)->__network_received_bytes += add;
-        }
+    if (np_module_initiated(statistics)) {       
+        prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_network_in], add);
     }
 }
 #endif

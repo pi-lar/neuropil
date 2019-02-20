@@ -27,8 +27,8 @@ void _np_responsecontainer_received(np_responsecontainer_t* entry){
 	}
 
 	double latency = (entry->received_at - entry->send_at) / 2;
-	_np_node_update_latency(entry->dest_key->node, latency);
-	_np_node_update_stat(entry->dest_key->node, true);
+	_np_node_update_latency(entry->dest_key, latency);
+	_np_node_update_stat(entry->dest_key, true);
 }
 void _np_responsecontainer_received_ack(np_responsecontainer_t* entry)
 {
@@ -54,7 +54,7 @@ void _np_responsecontainer_set_timeout(np_responsecontainer_t* entry)
 	np_ctx_memory(entry);
 	// timeout
 	log_debug_msg(LOG_ROUTING | LOG_DEBUG, "not acknowledged (TIMEOUT at %f)", entry->expires_at);
-	_np_node_update_stat(entry->dest_key->node, false);
+	_np_node_update_stat(entry->dest_key, false);
 
 	if (entry->msg != NULL) {
 		TSP_SET(entry->msg->is_in_timeout, true);

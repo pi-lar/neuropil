@@ -505,48 +505,27 @@ char* np_util_string_trim_left(char* target) {
     return ret;
 }
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]) {
-    
-    if (type == np_util_stringify_bytes_per_sec)
+
+    const char* byte_options[] = {"b","kB","MB","GB","TB","PB","?"};
+
+    if (type == np_util_stringify_bytes_per_sec || type == np_util_stringify_bytes)
     {
-        double bytes = *((double*)data);
-        double to_format;
-        double divisor = 1;
-        char* f = "b/s";
-        if (bytes < (100 * (divisor = 1024))) {
-            f = "kB/s";
+        float bytes = *((float*)data);
+        double to_format = bytes;
+        int i;
+        for(i=0;i<6;i++){                        
+            to_format = to_format / 1024;
+            if(to_format < 1024){
+                i++;
+                break;
+            }
         }
-        else if (bytes < (100 * (divisor = 1024 * 1024))) {
-            f = "MB/s";
+        if (type == np_util_stringify_bytes_per_sec){
+            snprintf(buffer, 255, "%5.2f %s/s", to_format, byte_options[i]);
+        }else{
+            snprintf(buffer, 255, "%5.2f %s", to_format, byte_options[i]);
         }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
-            f = "GB/s";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
-            f = "TB/s";
-        }
-        to_format = bytes / divisor;
-        snprintf(buffer, 254, "%5.2f %s", to_format, f);
-    }
-    else if (type == np_util_stringify_bytes)
-    {
-        uint32_t bytes = *((uint32_t*)data);
-        double to_format;
-        double divisor = 1;
-        char* f = "b";
-        if (bytes < (100 * (divisor = 1024))) {
-            f = "kB";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024))) {
-            f = "MB";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
-            f = "GB";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
-            f = "TB";
-        }
-        to_format = bytes / divisor;
-        snprintf(buffer, 254, "%5.2f %s", to_format, f);
+        //fprintf(stderr, "%f / %f / %s\n", bytes, to_format, buffer);
     }
     else if (type == np_util_stringify_time_ms) {
 

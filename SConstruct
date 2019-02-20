@@ -92,6 +92,7 @@ default_env["ENV"].update(x for x in os.environ.items() if x[0].startswith("CCC_
 
 variantDir = 'build/obj/'
 
+default_env.VariantDir(variantDir+'framework', 'framework', duplicate=0)
 default_env.VariantDir(variantDir+'src', 'src', duplicate=0)
 default_env.VariantDir(variantDir+'test', 'test', duplicate=0)
 default_env.VariantDir(variantDir+'examples', 'examples', duplicate=0)
@@ -202,7 +203,7 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
 if verbose:
     default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
 
-default_env.Append(CPPPATH = ['./include'])
+default_env.Append(CPPPATH = ['./include','./framework'])
 default_env.Append(LIBPATH = ['./build/lib'])
 
 print ("continuing with CCFLAGS set to: {dump}".format(dump=default_env.Dump(key='CCFLAGS')) )
@@ -279,6 +280,8 @@ SOURCES += ['np_log.c',     'np_memory.c',          'np_message.c',     'np_msgp
 SOURCES += ['np_route.c',   'np_tree.c',            'np_util.c',        'np_treeval.c',         'np_threads.c',     'np_pinging.c']
 SOURCES += ['np_sysinfo.c', 'np_scache.c',          'np_event.c',       'np_messagepart.c',     'np_statistics.c',  'np_responsecontainer.c']
 SOURCES += ['np_legacy.c',  'np_serialization.c',   'np_shutdown.c',    'np_token_factory.c',   'np_crypto.c']
+
+SOURCES += ['../framework/prometheus/prometheus.c']
 
 # source code 3rd party libraries
 SOURCES += ['event/ev.c', 'json/parson.c','msgpack/cmp.c','gpio/bcm2835.c']

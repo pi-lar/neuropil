@@ -16,7 +16,7 @@ extern "C" {
 
 enum np_sysinfo_opt_e {
 	np_sysinfo_opt_disable = 0,
-	np_sysinfo_opt_auto = 1,
+	//np_sysinfo_opt_auto = 1,
 	np_sysinfo_opt_force_server = 2,
 	np_sysinfo_opt_force_client = 3
 } typedef np_sysinfo_opt_e;
@@ -29,7 +29,7 @@ typedef int(*_np_http_callback_func_t)(ht_request_t* request, ht_response_t* res
 
 void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args, _np_http_callback_func_t func);
 
-bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode);
+bool example_http_server_init(np_context* context, char* http_domain, char* http_port);
 void example_http_server_destroy(np_context* context);
 
 #ifdef __cplusplus

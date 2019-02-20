@@ -28,6 +28,7 @@
 #include "np_node.h"
 #include "np_route.h"
 #include "np_sysinfo.h"
+#include "np_statistics.h"
 #include "np_threads.h"
 #include "np_tree.h"
 #include "np_treeval.h"
@@ -188,7 +189,7 @@ typedef struct _np_http_callback_s {
 } _np_http_callback_t;
 
 
-void _np_http_handle_sysinfo(np_state_t* context, np_http_client_t* client);
+ht_response_t _np_http_handle_sysinfo(np_state_t* context, np_http_client_t* client);
 
 void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args,
         _np_http_callback_func_t func) {
@@ -348,7 +349,33 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
         switch (client->ht_request.ht_method) {
         case (htp_method_GET): {            
             if (np_module_initiated(sysinfo)) {
-                _np_http_handle_sysinfo(context, client);
+
+                client->ht_response.ht_header = np_tree_create();
+                #define CHECK_PATH(prefix) strncmp("/"prefix,client->ht_request.ht_path,strlen(prefix)) == 0
+                if(CHECK_PATH("metrics")){
+                    client->ht_response.ht_body = np_statistics_prometheus_export(context);
+                    client->ht_response.ht_status = HTTP_CODE_OK;
+                    np_tree_insert_str( client->ht_response.ht_header, "Content-Type",
+                    np_treeval_new_s("text/plain; version=0.0.4"));
+                } else if(CHECK_PATH("sysinfo")){
+                    ht_response_t res = _np_http_handle_sysinfo(context, client);
+                    client->ht_response.ht_body = res.ht_body;
+                    client->ht_response.ht_status = res.ht_status;
+                    np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
+                    np_treeval_new_s("application/json"));
+                }else{
+                    client->ht_response.ht_body = strdup(client->ht_request.ht_path);
+                    client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
+                    np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
+                    np_treeval_new_s("application/json"));
+                }
+                np_tree_insert_str( client->ht_response.ht_header,
+                    "Access-Control-Allow-Origin", np_treeval_new_s("*"));
+                np_tree_insert_str( client->ht_response.ht_header,
+                    "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
+                client->ht_response.cleanup_body = true;
+                client->status = RESPONSE;
+
                 break;
             }            
         }
@@ -363,9 +390,9 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
     }
 }
 
-void _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
+ht_response_t _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
 {
-
+    ht_response_t ret = {0};
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
 
     char target_hash[65];
@@ -387,7 +414,8 @@ void _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
         log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
 
         char* path = strdup(client->ht_request.ht_path);
-        char* tmp_target_hash = strtok(path, "/");
+        char* tmp_target_hash = strtok(path, "/"); // /sysinfo
+        tmp_target_hash = strtok(NULL, "/");
 
         if (NULL != tmp_target_hash) {
             if (strlen(tmp_target_hash) == 64) {
@@ -466,18 +494,11 @@ __json_return__:
     json_value_free(json_obj);
 
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "write to body");
-    client->ht_response.ht_status = http_status;
-    client->ht_response.ht_body = response; //strdup(response);;
+    ret.ht_status = http_status;
+    ret.ht_body = response;
 
-    client->ht_response.ht_header = np_tree_create();
-    np_tree_insert_str( client->ht_response.ht_header, "Content-Type",
-        np_treeval_new_s("application/json"));
-    np_tree_insert_str( client->ht_response.ht_header,
-        "Access-Control-Allow-Origin", np_treeval_new_s("*"));
-    np_tree_insert_str( client->ht_response.ht_header,
-        "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
-    client->ht_response.cleanup_body = true;
-    client->status = RESPONSE;
+
+    return ret;
 }
 
 void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) {
@@ -728,13 +749,14 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
         log_debug_msg(LOG_HTTP | LOG_DEBUG, "http connection attempt not accepted");
     }
 } 
-bool np_http_init(np_state_t* context, char* domain) {
+bool np_http_init(np_state_t* context, char* domain, char* port) {
  
     if (domain == NULL) {
         domain = strdup("localhost");
     }
     
-    char* port = TO_STRING(HTTP_PORT);
+    if(port == NULL) port = TO_STRING(HTTP_PORT);
+
     np_http_t* __local_http = (np_http_t*) malloc(sizeof(np_http_t));
     CHECK_MALLOC(__local_http);
     
@@ -848,7 +870,7 @@ void example_http_server_destroy(np_context* context) {
     _np_http_destroy(context);
 }
 
-bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo_opt_e opt_sysinfo_mode) {
+bool example_http_server_init(np_context* context, char* http_domain, char* http_port) {
     bool ret = false;
     bool free_http_domain=false;
     if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
@@ -862,30 +884,17 @@ bool example_http_server_init(np_context* context, char* http_domain, np_sysinfo
                 free_http_domain=true;
             }
         }
-        ret = np_http_init(context, http_domain);
+        if(http_port==NULL){
+            if(http_port == NULL) http_port = TO_STRING(HTTP_PORT);
+        }
+        ret = np_http_init(context, http_domain, http_port);
         if (ret == false) {
             log_msg(LOG_WARN, "Node could not start HTTP interface");
-        }
-    }
-    if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
-        if ((ret && opt_sysinfo_mode == np_sysinfo_opt_auto) || opt_sysinfo_mode == np_sysinfo_opt_force_server)
-        {
-            np_example_print(context, stdout, "HTTP interface set to %s:%d\n", http_domain, HTTP_PORT);
-            log_msg(LOG_INFO, "HTTP interface set to %s:%d", http_domain,HTTP_PORT);
-            np_example_print(context, stdout, "Enable sysinfo server option\n");
-            np_sysinfo_enable_server(context);
-        }
-        else {
             np_example_print(context, stdout, "Node could not start HTTP interface\n");
-            np_example_print(context, stdout, "Enable sysinfo client option\n");
-            np_sysinfo_enable_client(context);
+        }else{
+            log_msg(LOG_INFO, "HTTP interface set to %s:%s", http_domain,http_port);
+            np_example_print(context, stdout, "HTTP interface set to %s:%s\n", http_domain, http_port);
         }
-        
-        np_example_print(context, stdout, "Watch sysinfo subjects \n");
-        // If you want to you can enable the statistics modulte to view the nodes statistics
-        np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
-        np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
-
     }
     if(free_http_domain) free(http_domain);
 

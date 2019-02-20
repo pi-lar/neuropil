@@ -35,6 +35,7 @@
 #include "np_util.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_statistics.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
@@ -414,9 +415,10 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
 /** _np_node_update_stat:
  ** updates the responded rate to the host based on the NP_NODE_SUCCESS_WINDOW average
  **/
-void _np_node_update_stat (np_node_t* node, bool responded)
+void _np_node_update_stat (np_key_t* key, bool responded)
 {
-    np_ctx_memory(node);
+    np_ctx_memory(key);
+    np_node_t* node = key->node;
     float total = 0;
     np_ref_obj(np_node_t, node, "usage");
      {
@@ -433,6 +435,7 @@ void _np_node_update_stat (np_node_t* node, bool responded)
                 total += node->success_win[i];
             }
             node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
+            _np_set_success_avg(key->dhkey, node->success_avg);
 
             if (true == responded) node->last_success = np_time_now();
         }
@@ -442,9 +445,10 @@ void _np_node_update_stat (np_node_t* node, bool responded)
     }
 }
 
-void _np_node_update_latency (np_node_t* node, double new_latency)
+void _np_node_update_latency (np_key_t* key, double new_latency)
 {
-    np_ctx_memory(node);
+    np_ctx_memory(key);
+    np_node_t* node = key->node;
     if (new_latency > 0.0)
     {
         np_ref_obj(np_node_t, node, "usage");
@@ -463,6 +467,7 @@ void _np_node_update_latency (np_node_t* node, double new_latency)
                     total += node->latency_win[i];
                 }
                 node->latency = total / NP_NODE_SUCCESS_WINDOW;
+                _np_set_latency(key->dhkey, node->latency);
                 log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f (update with: %1.3f)",
                         node->dns_name, node->port, node->latency, new_latency);
                 

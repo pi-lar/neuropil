@@ -114,10 +114,6 @@ np_context* np_new_context(struct np_settings * settings_in) {
         log_msg(LOG_ERROR, "neuropil_init: could not init threading mutexes");
         status = np_startup;
     }
-    else if (_np_statistics_init(context) == false) {
-        log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
-        status = np_startup;
-    }
     else if (_np_memory_init(context) == false) {
         log_msg(LOG_ERROR, "neuropil_init: could not init memory");
         status = np_startup;
@@ -265,23 +261,27 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
                 np_ref_switch(np_network_t, context->my_node_key->network , ref_key_network, my_network);
                 
                 // initialize routing table
-                if (false == _np_route_init(context, context->my_node_key))
+                if (_np_route_init(context, context->my_node_key)== false)
                 {
                     log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror(errno));
                     ret = np_startup;
                 }
                 else {
                     // initialize job queue
-                    if (false == _np_jobqueue_init(context))
+                    if (_np_jobqueue_init(context) == false)
                     {
                         log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_init failed: %s", strerror(errno));
                         ret = np_startup;
                     }
-                    else if (false == _np_bootstrap_init(context))
+                    else if (_np_bootstrap_init(context)== false)
                     {
                         log_msg(LOG_ERROR, "neuropil_init: _np_bootstrap_init failed: %s", strerror(errno));
                         ret = np_startup;
-                    }					
+                    }				                    
+                    else if (_np_statistics_init(context) == false) {
+                        log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
+                        ret = np_startup;
+                    }	
                     // initialize message handling system
                     else {
                         context->msg_tokens     = np_tree_create();
