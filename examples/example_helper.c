@@ -149,7 +149,7 @@ example_user_context* example_new_usercontext() {
 
 
     user_context->opt_http_domain = NULL;
-    user_context->opt_sysinfo_mode = np_sysinfo_opt_auto;
+    user_context->opt_sysinfo_mode = np_sysinfo_opt_force_client;
 
     return user_context;
 }
@@ -525,9 +525,7 @@ bool np_example_save_identity(np_context* context, char* passphrase, char* filen
                 new_token.uuid,
                 filename
             );
-
         }
-
     }
     return ret;
 }
@@ -633,11 +631,11 @@ example_user_context* parse_program_args(
     bool ret = true;
     char* usage;
     asprintf(&usage,
-        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=server,3=client] %s",
+        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s display 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-e http port] [-o sysinfo 0=none,2=server,3=client(default)] %s",
         program, additional_fields_desc == NULL ? "" : additional_fields_desc
     );
     char* optstr;
-    asprintf(&optstr, "j:p:b:t:u:l:d:s:y:i:a:w:o:%s", additional_fields_optstr);
+    asprintf(&optstr, "j:p:b:t:u:l:d:s:y:i:a:w:e:o:%s", additional_fields_optstr);
 
     char* additional_fields[32] = { 0 }; // max additional fields
     va_list args;
@@ -675,6 +673,9 @@ example_user_context* parse_program_args(
             break;
         case 'w':
             user_context->opt_http_domain = strdup(optarg);
+            break;
+        case 'e':
+            user_context->opt_http_port  = strdup(optarg);
             break;
         case 'o':
             user_context->opt_sysinfo_mode = atoi(optarg);
@@ -957,6 +958,30 @@ void resizeHandler(NP_UNUSED int sig)
     __np_terminal_resize_flag = true;
 }
 
+bool example_sysinfo_init(np_context* context,np_sysinfo_opt_e opt_sysinfo_mode) {
+    bool ret = false;
+
+    if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
+        if (opt_sysinfo_mode == np_sysinfo_opt_force_server)
+        {            
+            np_example_print(context, stdout, "Enable sysinfo server option\n");
+            np_sysinfo_enable_server(context);
+        }
+        else {
+            np_example_print(context, stdout, "Enable sysinfo client option\n");
+            np_sysinfo_enable_client(context);
+        }
+        
+        np_example_print(context, stdout, "Watch sysinfo subjects \n");
+        // If you want to you can enable the statistics modulte to view the nodes statistics (or use the prometheus interface)
+        np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
+        np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
+        ret = true;
+    }
+
+    return ret;
+}
+
 void _np_interactive_http_mode(np_context* context, char* buffer) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
 
@@ -970,7 +995,7 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
         }
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
+        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain,ud->opt_http_port);
     }
     else {
         np_example_print(context, stdout, "Setting http domain to \"%s\" and (re)starting HTTP server.", buffer);
@@ -979,7 +1004,7 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
         }
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
+        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
 
     }
 }
@@ -1016,12 +1041,7 @@ void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
         */
     if (strncmp(buffer, "0", 2) == 0 || strncmp(buffer, "1", 2) == 0 || strncmp(buffer, "2", 2) == 0 || strncmp(buffer, "3", 2) == 0) {
         ud->opt_sysinfo_mode = atoi(buffer);
-        if (ud->_np_httpserver_active) {
-            np_example_print(context, stdout, "Restarting HTTP server.");
-            example_http_server_destroy(context);
-            ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);        
-
-        }        
+        example_sysinfo_init(context,ud->opt_sysinfo_mode);
     }
     else {
         np_example_print(context, stderr, "Sysinfo mode \"%s\" not supported.", buffer);
@@ -1048,7 +1068,9 @@ void __np_example_helper_loop(np_state_t* context) {
 
         np_print_startup(context);
         // starting the example http server to support the http://view.neuropil.io application
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
+        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
+        example_sysinfo_init(context,ud->opt_sysinfo_mode);
+        
         
         np_example_print(context, stdout, "Watch internal subjects\n");
         np_statistics_add_watch_internals(context);

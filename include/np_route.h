@@ -84,7 +84,7 @@ bool _np_route_my_key_has_connection(np_state_t* context);
 NP_API_INTERN
 uint32_t _np_route_my_key_count_routes(np_state_t* context);
 NP_API_INTERN
-uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, uint32_t* right);
+uint32_t _np_route_my_key_count_neighbors(np_state_t* context, uint32_t* left, uint32_t* right);
 NP_API_INTERN
 np_key_t* _np_route_get_key(np_state_t* context);
 #ifdef __cplusplus

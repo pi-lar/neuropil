@@ -97,7 +97,7 @@ void _np_dhkey_encode(np_state_t* context, np_tree_t* jrb, np_dhkey_t* key);
 NP_API_INTERN
 void _np_dhkey_str(const np_dhkey_t* k, char* key_string);
 NP_API_INTERN
-void _np_str2dhkey(const char* key_string, np_dhkey_t* k);
+void _np_str_dhkey(const char* key_string, np_dhkey_t* k);
 
 #ifdef __cplusplus
 }

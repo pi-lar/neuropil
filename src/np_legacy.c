@@ -41,6 +41,7 @@
 #include "np_route.h"
 #include "np_event.h"
 #include "np_sysinfo.h"
+#include "np_statistics.h"
 #include "np_list.h"
 #include "np_util.h"
 #include "np_shutdown.h"
@@ -372,6 +373,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
           }
 */
     }
+    _np_statistics_update_prometheus_labels(context, NULL);
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 
 #ifdef DEBUG

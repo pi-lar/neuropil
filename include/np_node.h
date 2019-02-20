@@ -86,9 +86,9 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
  **
  **/
 NP_API_INTERN
-void _np_node_update_stat (np_node_t* np_node, bool responded);
+void _np_node_update_stat (np_key_t* key, bool responded);
 NP_API_INTERN
-void _np_node_update_latency (np_node_t* node, double new_latency);
+void _np_node_update_latency (np_key_t* key, double new_latency);
 NP_API_INTERN
 np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type);
 /** np_node_decode routines

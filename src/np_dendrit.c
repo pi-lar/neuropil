@@ -217,7 +217,7 @@ bool _np_in_received_forwarding(
             }
             // TODO: is it necessary to forward with a small penalty to prevent infinite loops?
             _np_job_submit_route_event(context, NP_PI/1000, prop, alias_key, msg_in);
-            _np_increment_forwarding_counter();
+            _np_increment_forwarding_counter(str_msg_subject);
 
             np_key_unref_list(tmp, "_np_route_lookup");
             sll_free(np_key_ptr, tmp);
@@ -456,6 +456,7 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
                         msg_to_submit->uuid, handler->msg_subject, allow_destination_ack, handler->clb_inbound);
 
                 _np_message_trace_info("accepted", msg_to_submit);
+                _np_increment_received_msgs_counter(handler->msg_subject);
 
                 if (allow_destination_ack)
                 {

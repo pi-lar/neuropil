@@ -100,7 +100,8 @@ int main(int argc, char **argv)
         }
         else {
 
-           example_http_server_init(nodes[i], NULL, np_sysinfo_opt_force_client);
+           example_http_server_init(nodes[i], NULL, NULL);           
+           example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
         }
     }
     if (j_key != NULL) {

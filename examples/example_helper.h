@@ -105,6 +105,7 @@ typedef struct example_user_context {
 
 
     char* opt_http_domain;
+    char* opt_http_port;
     enum np_sysinfo_opt_e opt_sysinfo_mode;
 
     bool __shutdown;

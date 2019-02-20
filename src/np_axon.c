@@ -42,6 +42,7 @@
 #include "np_token_factory.h"
 #include "np_list.h"
 #include "np_key.h"
+#include "np_dhkey.h"
 #include "np_util.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
@@ -406,8 +407,11 @@ void _np_out(np_state_t* context, np_jobargs_t args)
             if(msg_out->send_at ==0) msg_out->send_at = np_time_now();
             bool send_completed = _np_network_append_msg_to_out_queue(target, msg_out);
 
-            if(is_forward == false && send_completed == true) {
-                __np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
+            if(send_completed) {
+                _np_increment_send_msgs_counter(msg_out->msg_property->msg_subject);
+                if(is_forward == false){
+                    __np_axon_invoke_on_user_send_callbacks(msg_out, msg_out->msg_property);
+                }
             }
 
             if (send_completed == false || (args.properties->retry > 0 && reschedule_msg_transmission == true) ) {
@@ -753,7 +757,7 @@ void _np_out_authentication_request(np_state_t* context, np_jobargs_t args)
     }
     else if (0 < strlen(context->my_identity->aaa_token->realm) )
     {
-        // TODO: this is wrong, it should be the token issuer which we ask for authentication
+        // TODO: this is wrong, it should be the token issuer which we ask for authentication        
         _np_str_dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
     }
     else

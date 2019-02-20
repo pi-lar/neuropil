@@ -867,13 +867,13 @@ uint32_t __np_route_my_key_count_routes(np_state_t* context, NP_UNUSED bool brea
 }
 
 bool _np_route_my_key_has_connection(np_state_t* context) {
-    return (__np_route_my_key_count_routes(context, true) + _np_route_my_key_count_neighbours(context, NULL, NULL)) > 0 ? true: false;
+    return (__np_route_my_key_count_routes(context, true) + _np_route_my_key_count_neighbors(context, NULL, NULL)) > 0 ? true: false;
 }
 
 uint32_t _np_route_my_key_count_routes(np_state_t* context) {
     return __np_route_my_key_count_routes(context, false);
 }
-uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, uint32_t* right) {
+uint32_t _np_route_my_key_count_neighbors(np_state_t* context, uint32_t* left, uint32_t* right) {
     TSP_GET(uint32_t, np_module(route)->leafset_left_count, l);
     TSP_GET(uint32_t, np_module(route)->leafset_right_count, r);
 
