@@ -246,7 +246,7 @@ void np_statistics_set_node_description(np_context* ac, char description[255]){
     np_ctx_cast(ac);
     prometheus_label label;
     strcpy(label.name,"description");
-    strcpy(label.value,"None");
+    strcpy(label.value,description);
     prometheus_metric_replace_label(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
  }
 void _np_statistics_destroy(np_state_t* context){
