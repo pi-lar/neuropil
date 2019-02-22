@@ -51,8 +51,8 @@ int main(int argc, char **argv)
         &publish_domain,
         &level,
         &logpath,
-        "[-c cloud size]",
-        "c:",
+        "[-n cloud size]",
+        "n:",
         &opt_cloud_size
     )) == NULL) {
         exit(EXIT_FAILURE);

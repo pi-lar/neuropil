@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 	}
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		np_example_print(context, stderr, "ERROR: Node could not listen");
+		np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 	}
 	else {
 		__np_example_helper_loop(context); // for the fancy ncurse display
