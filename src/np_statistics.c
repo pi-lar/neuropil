@@ -124,6 +124,9 @@ bool _np_statistics_init(np_state_t* context) {
         strcpy(label.name,"application");
         strcpy(label.value,"neuropil_exporter");
         prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
+        strcpy(label.name,"description");
+        strcpy(label.value,"None");
+        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
         prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], 1);        
         _np_statistics_update_prometheus_labels(context, NULL);
 #ifdef DEBUG_CALLBACKS
@@ -238,6 +241,14 @@ void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metr
         }
     }
 }
+
+void np_statistics_set_node_description(np_context* ac, char description[255]){
+    np_ctx_cast(ac);
+    prometheus_label label;
+    strcpy(label.name,"description");
+    strcpy(label.value,"None");
+    prometheus_metric_replace_label(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
+ }
 void _np_statistics_destroy(np_state_t* context){
      if (np_module_initiated(statistics)) {
         np_module_var(statistics);

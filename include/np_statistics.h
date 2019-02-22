@@ -296,7 +296,8 @@ void _np_statistics_debug_ele_destroy(np_state_t* context, void* item) ;
 	#define _np_statistics_debug_destroy(context) ;
 	#define _np_statistics_debug_ele_destroy(context, item) ;
 #endif
-
+NP_API_EXPORT
+void np_statistics_set_node_description(np_context* ac, char description[255]);
 
     #ifdef __cplusplus
     }

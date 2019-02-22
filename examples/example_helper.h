@@ -98,6 +98,8 @@ typedef struct example_user_context {
     char identity_filename[255] ;
     char identity_passphrase[255] ;
 
+    char node_description[255];
+
     unsigned char salt[crypto_pwhash_SALTBYTES] ;
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char key[crypto_secretstream_xchacha20poly1305_KEYBYTES];

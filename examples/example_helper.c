@@ -631,11 +631,11 @@ example_user_context* parse_program_args(
     bool ret = true;
     char* usage;
     asprintf(&usage,
-        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s display 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-e http port] [-o sysinfo 0=none,2=server,3=client(default)] %s",
+        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s display 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-e http port] [-o sysinfo 0=none,2=server,3=client(default)] [-h description of node] %s",
         program, additional_fields_desc == NULL ? "" : additional_fields_desc
     );
     char* optstr;
-    asprintf(&optstr, "j:p:b:t:u:l:d:s:y:i:a:w:e:o:%s", additional_fields_optstr);
+    asprintf(&optstr, "j:p:b:t:u:l:d:s:y:i:a:w:e:o:h:%s", additional_fields_optstr);
 
     char* additional_fields[32] = { 0 }; // max additional fields
     va_list args;
@@ -698,6 +698,9 @@ example_user_context* parse_program_args(
             break;
         case 'a':
             strncpy(user_context->identity_passphrase, optarg, strnlen(optarg, 254));
+            break;
+        case 'h':
+            strncpy(user_context->node_description, optarg, 255);
             break;
         case 'l':
             if (optarg != NULL) {
@@ -1070,7 +1073,7 @@ void __np_example_helper_loop(np_state_t* context) {
         // starting the example http server to support the http://view.neuropil.io application
         ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
         example_sysinfo_init(context,ud->opt_sysinfo_mode);
-        
+        np_statistics_set_node_description(context, ud->node_description);
         
         np_example_print(context, stdout, "Watch internal subjects\n");
         np_statistics_add_watch_internals(context);
