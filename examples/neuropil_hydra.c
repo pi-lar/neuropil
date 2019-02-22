@@ -234,6 +234,8 @@ int main(int argc, char **argv)
 	int bootstrap_port_i = atoi(port);
 	memcpy(bootstrap_port, port, strnlen(port,10));
 	double last_process_kill_at = _np_time_now(NULL);
+
+	uint32_t instances = create_bootstrap;
 	while (true) {
 		// (re-) start child processes
 		if (sll_size(list_of_childs) < required_nodes) {
@@ -250,8 +252,11 @@ int main(int argc, char **argv)
 
 			   \code
 			*/
-			snprintf(port, 7, "%d", atoi(port) + 1);
-			int port_i = atoi(port);
+			
+			snprintf(port, 7, "%d", atoi(port) + instances);
+			snprintf(user_context->opt_http_port, 7, "%d", atoi(user_context->opt_http_port) + instances);
+			instances = (instances + 1) % required_nodes + create_bootstrap;
+
 			current_pid = fork();
 
 			if (0 == current_pid) {

@@ -37,7 +37,7 @@ void prometheus_metric_inc(prometheus_metric* self, float value);
 void prometheus_metric_set(prometheus_metric* self, float value);
 float prometheus_metric_get(prometheus_metric* self);
 char* prometheus_format(prometheus_context* self);
-
+void prometheus_disable_value_output(prometheus_metric* self);
 
     #ifdef __cplusplus
     }

@@ -100,8 +100,10 @@ int main(int argc, char **argv)
         }
         else {
 
-           example_http_server_init(nodes[i], NULL, NULL);           
-           example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
+            char port_tmp[8]={0};
+            sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);
+            example_http_server_init(nodes[i], user_context_template->opt_http_domain,port_tmp);
+            example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
         }
     }
     if (j_key != NULL) {
