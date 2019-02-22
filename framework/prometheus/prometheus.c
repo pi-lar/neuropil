@@ -24,6 +24,7 @@ struct prometheus_metric_s {
     
     char  name[255];
     pthread_mutex_t rw_lock;
+    bool disable_value_export;
     float value;
     uint64_t time_ms;
     prometheus_item* labels;
@@ -54,6 +55,9 @@ prometheus_context* prometheus_create_context(get_time_callback time){
     prometheus_context* ret = calloc(1,sizeof(prometheus_context));
     ret->time = time;
     return ret;
+}
+void prometheus_disable_value_output(prometheus_metric* self){
+    self->disable_value_export = true;
 }
 prometheus_metric* prometheus_register_metric(prometheus_context* c, char name[255]){
     prometheus_metric* ret = calloc(1,sizeof(prometheus_metric));
@@ -201,8 +205,10 @@ char* prometheus_format(prometheus_context* c) {
     while(metric_iterator != NULL){
         metric = (prometheus_metric*) metric_iterator->data;
 
-        size += strnlen(metric->name,255);
-        size += 21; // value size + space
+        if(!metric->disable_value_export){
+            size += strnlen(metric->name,255);
+            size += 21; // value size + space
+        }
 
         if(metric->time_ms != 0)
             size += 14; // timestamp size        
@@ -254,7 +260,9 @@ char* prometheus_format(prometheus_context* c) {
         }
 
         pthread_mutex_lock(&metric->rw_lock);    
-        ret_pointer += sprintf(ret+ret_pointer, " %f", metric->value);        
+        if(!metric->disable_value_export){
+            ret_pointer += sprintf(ret+ret_pointer, " %f", metric->value);        
+        }
         if(metric->time_ms != 0)
             ret_pointer += sprintf(ret+ret_pointer," %"PRIu64, metric->time_ms);        
         pthread_mutex_unlock(&metric->rw_lock);

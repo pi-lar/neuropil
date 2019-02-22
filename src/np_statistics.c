@@ -105,6 +105,8 @@ bool _np_statistics_init(np_state_t* context) {
 
         _module->_prometheus_context = prometheus_create_context(get_timestamp);        
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_info] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"info");
+        prometheus_disable_value_output(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info]);
+
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"forwarded_msgs_sum");
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_received_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"received_msgs_sum");
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_send_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"send_msgs_sum");
