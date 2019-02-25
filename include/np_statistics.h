@@ -31,7 +31,7 @@
     #endif 
     
 enum np_prometheus_exposed_metrics {
-    np_prometheus_exposed_metrics_info,
+    np_prometheus_exposed_metrics_uptime,
     np_prometheus_exposed_metrics_forwarded_msgs,
     np_prometheus_exposed_metrics_received_msgs,
     np_prometheus_exposed_metrics_send_msgs,
@@ -96,7 +96,7 @@ char* np_statistics_prometheus_export(np_context*ac);
             np_sll_t(char_ptr, __watched_subjects);
             prometheus_context* _prometheus_context;
             prometheus_metric* _prometheus_metrics[np_prometheus_exposed_metrics_END];
-
+            double startup_time;
             np_tree_t* _per_subject_metrics;
             np_tree_t* _per_dhkey_metrics;
 

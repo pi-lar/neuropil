@@ -87,7 +87,7 @@ uint64_t get_timestamp(){
 void __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_jobargs_t args) {
     np_module_var(statistics);
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_job_count], np_jobqueue_count(context));
-    //prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], 1);        
+    prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], get_timestamp()-((uint64_t)_module->startup_time*1000));
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_neighbor_count], _np_route_my_key_count_neighbors(context, NULL, NULL));        
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_route_count], _np_route_my_key_count_routes(context));        
 }
@@ -102,9 +102,10 @@ bool _np_statistics_init(np_state_t* context) {
 
         _module->_per_subject_metrics = np_tree_create();
         _module->_per_dhkey_metrics = np_tree_create();
+        _module->startup_time = np_time_now();
 
         _module->_prometheus_context = prometheus_create_context(get_timestamp);        
-        _module->_prometheus_metrics[np_prometheus_exposed_metrics_info] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"info");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"uptime");
 
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"forwarded_msgs_sum");
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_received_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"received_msgs_sum");
@@ -121,14 +122,14 @@ bool _np_statistics_init(np_state_t* context) {
         prometheus_label label;
         strcpy(label.name,"version");
         strcpy(label.value,NEUROPIL_RELEASE);
-        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
+        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
         strcpy(label.name,"application");
         strcpy(label.value,"neuropil_exporter");
-        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
+        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
         strcpy(label.name,"description");
         strcpy(label.value,"None");
-        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
-       // prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_info], 1);        
+        prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
+        prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], 0);
         _np_statistics_update_prometheus_labels(context, NULL);
 #ifdef DEBUG_CALLBACKS
         sll_init(void_ptr, _module->__np_debug_statistics);
@@ -248,7 +249,7 @@ void np_statistics_set_node_description(np_context* ac, char description[255]){
     prometheus_label label;
     strcpy(label.name,"description");
     strcpy(label.value,description);
-    prometheus_metric_replace_label(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_info], label);
+    prometheus_metric_replace_label(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
  }
 void _np_statistics_destroy(np_state_t* context){
      if (np_module_initiated(statistics)) {
