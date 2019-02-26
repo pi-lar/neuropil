@@ -69,7 +69,7 @@ int main(int argc, char **argv)
         port = atoi(opt_port);
     }
     for (int i=0; i < cloud_size; i++) {	
-        port += i;
+        port += 1;
         struct np_settings * settings = np_default_settings(NULL);		
         settings->n_threads =  no_threads;
 
