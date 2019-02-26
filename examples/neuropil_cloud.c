@@ -75,13 +75,13 @@ int main(int argc, char **argv)
 
         snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
         settings->log_level = level;
-
-        if(user_context_template->node_description[0] != 0){
-            snprintf(user_context_template->node_description, 255, "%s_ci_%d", user_context_template->node_description, i);
-        }
-
+        
         example_user_context* user_context = malloc(sizeof(example_user_context));
         memcpy(user_context, user_context_template, sizeof(example_user_context));			
+
+        if(user_context->node_description[0] != 0){
+            snprintf(user_context->node_description, 255, "%s_ci_%d", user_context->node_description, i);
+        }
 
         nodes[i] = np_new_context(settings); // use default settings		
         np_set_userdata(nodes[i], user_context);
@@ -103,11 +103,12 @@ int main(int argc, char **argv)
             __np_example_helper_loop(nodes[i]);
         }
         else {
-
+            np_example_helper_allow_everyone(nodes[i]);
+            np_statistics_set_node_description(nodes[i], user_context->node_description);
             char port_tmp[8]={0};
-            sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);
-            example_http_server_init(nodes[i], user_context_template->opt_http_domain,port_tmp);
-            example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
+            sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);            
+            user_context->_np_httpserver_active = example_http_server_init(nodes[i], user_context_template->opt_http_domain,port_tmp);
+            example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);            
         }
     }
     if (j_key != NULL) {
