@@ -839,7 +839,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
 
     if (0 == data_container->in_msg_len)
     {        
-        log_debug(LOG_ERROR, "Received 0 size package");
+        log_debug(LOG_NETWORK, "Received 0 size package");
         np_memory_free(context, data_container->data);
     }
     else {
