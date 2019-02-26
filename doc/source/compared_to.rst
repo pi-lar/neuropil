@@ -4,12 +4,12 @@
 Comparison Chart
 ****************
 
-This page gives you a short overview how we compare the neuropil messaging layer to a couple of other products / 
+This page gives you a short overview of how we compare the neuropil messaging layer to some of the other products / 
 standards on the market. It is also meant to give you an overview of existing solutions and/or measures, but you'll 
 soon notice that neuropil messaging layer draws from many sources and creates its own unique value proposition.
 
 
-Digital identities
+Digital Identities
 ******************
 
 ==================== ==================== ==================== ==================== ====================
@@ -24,26 +24,26 @@ category             neuropil             |MQTT|               |TCP/TLS|        
 ==================== ==================== ==================== ==================== ====================
 
 Depending on the layer that you're acting on, there are different competing standards. Unfortunately,
-persons still have to use passwords to identify themselves, although other mechanism are in place.
-The current standard for machines and applications is probably the X.509 certificate, which can be created by everybody.
+people still have to use passwords to identify themselves, although other mechanisms are in place.
+The current standard for machines and applications is probably the X.509 certificate, which can be created by anyone.
 The real value of such a X.509 certificate stems from signatures of trusted third parties, because they
 allow you to establish a chain of trust.
 
-The interesting fact about X.509 and TLS, although a good measure for transport level security, is that
-it is bad when being used for persons. For some reasons X.509 has never made it to the upper OSI layers,
+Although X.509 and TLS are a good method for transport level security, it is interesting to note and see that
+it has limitations when being used for persons. For some reasons X.509 has never made it to the upper OSI layers,
 and if you would like to use them you have to add additional standards like e.g. SAML and WS-Security.
 When looking at the REST/JSON world, those concepts never really made it and instead JWT is used. Or
 |WeaveNet| comes into play to integrate security as a cross concern.
 
 Neuropil captures the strength of digital identities based on asymmetric cryptography, but adds the dynamic
-approach of JWT to it. Thus neuropil can support attribute based security measures as they can be found in
+approach of JWT to it. Thus, neuropil can support attribute based security measures as they can be found in
 SAML / RBAC settings.
 
 
 Authentication
 **************
 
-Let's move on to a different topic, the ways you have to authenticate your partners:
+Let's move on to a different topic, the ways to authenticate your partners:
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
@@ -65,16 +65,16 @@ all certificates issued by a different identity, or you can use certificate pinn
 Web of trust is mostly found for pgp / mail security. Although it can be used to encrypt text as well, we
 have never encountered it for message encryption. Sometimes it is found for DevOps settings today.
 
-But how can you find that you do not want to trust somebody or that a certificate has been revoked?
-CRL (certificate revocation lists) are in our point of view too large for smaller devices (assuming 1 million
+But how can you discover that you don't want to trust somebody or that a certificate has been revoked?
+In our point of view CRL (certificate revocation lists) are too large for smaller devices (assuming 1 million
 certs and an error rate of 1%) and they are implemented as black list. OCSP (Online Certificate Status Protocol)
-suffers form the same 'black list' weakness, but is at least better suited for online checks.
+suffers from the same 'black list' weakness, but is at least better suited for online checks.
 
 Neuropil uses a :term:`DHT`, and each identity has a place in this :term:`DHT` and is authenticated at least once.
 The size of the :term:`DHT` is exactly large enough to cover all used identities, and can be used to lookup identity
-informations.
+information.
 
-And I just realize, that we need to add a secure remote password (SRP) library to neuropil.
+And I just realized a to-do on our side: we need to add a secure remote password (SRP) library to neuropil.
 
 
 Authorization
@@ -89,10 +89,10 @@ category             neuropil             |MQTT|                 |TCP/TLS|      
 - realm based        yes                  no                   no                   no
 ==================== ==================== ==================== ==================== ====================
 
-Finally we are hitting the main advantage of neuropil. Explicit authorization are a missing link in today IT / IoT
+Finally, we are hitting the main advantage of neuropil. Explicit authorization is a missing link in todays IT / IoT
 architecture. With TLS you either authorize one application (certificate pinning), or a complete set of
 applications (PKI / chain of trust). In chain of trust settings you are limiting yourself to only one attribute
-(the additional signature), and your're mostly limited on the hostname with all it's resources.
+(the additional signature), and you're mostly limited on the hostname with all its resources.
 
 In neuropil you can add any attribute you would like to. Thus neuropil enables you to throttle your traffic,
 because there is an attribute for it. It let's you define dedicated time slots, because you can easily adjust
@@ -102,7 +102,7 @@ Local configurations are almost never a good idea. Keeping security relevant inf
 for trouble. With neuropil you can remote-control those authorizations with a level of detail.
 
 
-Transport encryption
+Transport Encryption
 ********************
 
 ==================== ==================== ==================== ==================== ====================
@@ -117,23 +117,23 @@ transport encryption yes                  yes (based on TLS)   yes              
 - multi-hop          yes (based on attr.)                      no
 ==================== ==================== ==================== ==================== ====================
 
-Seen for a single connections, there is nothing that neuropil could do better than TLS. We are using the same
-concepts here as TLS 1.3. With the benefit that you do not have to manage the old TLS 1.2 things in your network.
-Did you know that a single old system can degrade your whole TLS setup if not properly isolated?
+Seen for a single connection, there is nothing that neuropil could do better than TLS. We are using the same
+concepts here as TLS 1.3. With the benefit that you do not have to manage the old TLS 1.2 stack in your network:
+Did you know that a single old system can degrade your entire TLS setup if not properly isolated?
 
 With neuropil we always take into account the "next hop", that is why we are using end-to-end
-encryption (and no, TLS is not end-to-end encryption in our opinion. Only for very specific use cases.)
+encryption (and no, TLS is not end-to-end encryption in our opinion. Only in very specific use cases.)
 
 When looking at multicast or broadcast scenarios neuropil again excels. By assigning cryptographic attributes
-to a :term:`node` (e.g. with and end-to-end encrypted message), you can implement different encryption schemes on
+to a :term:`node` (e.g. with an end-to-end encrypted message), you can implement different encryption schemes on
 the same physical transport. Think about it: your thermostats use a different encryption than your machines
-than your maintenance engineer!
+and than your maintenance engineer!
 
-If you are missing multicast/broadcast a 'yes' for |MQTT| here: this table is for network layer encryption. Doing
-pub/sub with |MQTT| follows later on, and has it's very own quirk.
+If you are missing a 'yes' for |MQTT| multicast/broadcast in this table: we are talking about physical network layer encryption.
+Doing pub/sub with |MQTT| follows later on, and has it's very own quirk.
 
 
-Payload encryption
+Payload Encryption
 ******************
 
 ==================== ==================== ==================== ==================== ====================
@@ -144,15 +144,15 @@ category             neuropil             |MQTT|                 |TCP/TLS|      
 - single field enc.  via neuropil_data.h  no                   no                   no
 ==================== ==================== ==================== ==================== ====================
 
-Another big plus for neuropil: because the our protocol covers the application layer as well, you can
+Another big plus for neuropil: because our protocol covers the application layer as well, you can
 add payload encryption signatures easily. When sending a multicast message, you can encrypt the credit
 card number for one of the receivers, and then send the messag to all receivers. The sending system just
 has to send the message once, it will be duplicated by the neuropil messaging layer.
 
-All other components leave you in the dark: please use an additional standard ... and maybe implement it wrong.
+All other components leave you in the dark: please use an additional standard ...
 
 
-Message exchange pattern
+Message Exchange Pattern
 ************************
 
 ==================== ==================== ==================== ==================== ====================
@@ -165,18 +165,18 @@ category             neuropil             |MQTT|                 |TCP/TLS|      
 - fault-tolerance    yes                  yes                  no                   (additional lb/fw)
 ==================== ==================== ==================== ==================== ====================
 
-No surprise, neither TLS nor |WeaveNet| do have an answer for sending messages to more than one component.
+No surprise, neither TLS nor |WeaveNet| have an answer for sending messages to more than one component.
 You have to use an additional 'microservice' called |MQTT| (or any other messaging system). But then you
 have to get the resources for it and scale it accordingly as well. Be aware that there is a potential
-security gap: although technically decoupling sender and receiver (good!), these systems also decouple
+security gap: although technically decoupling sender and receiver (which is good!), these systems also decouple
 identities from knowing each other. You can attach an additional receiver to any of the current messaging
 servers, and the sender will never know about it! Any messaging server in your application landscape will
-be the honey pot for an attacker. Together with password based authentication and possible TLS degradation
-because of old TLS version this can become very ugly soon (hint: some |MQTT| implementations let you define
-the TLS connection per partner).
+be the honey pot for any attacker. Together with password based authentication and possible TLS degradation
+because of old TLS version: this may lead to very unpleasant results soon (hint: some |MQTT| implementations
+let you define the TLS connection per partner).
 
 
-Protocol efficiency
+Protocol Efficiency
 *******************
 
 ==================== ====================== ==================== ==================== ====================
@@ -185,13 +185,13 @@ category             neuropil               |MQTT|               |TCP/TLS|      
 internal protocol    binary/:term:`msgpack` binary               binary               http
 ==================== ====================== ==================== ==================== ====================
 
-For small devices and machines plain text (http) is not an option. Thus neuropil supports the binary
-:term:`msgpack` protocol and also uses it for parts of its internal messages as well.
+For small devices and machines plain text (http) is not an option. Therefore neuropil supports the binary
+:term:`msgpack` protocol and also uses it for parts of its internal messages.
 |MQTT| itself is agnostic towards the payload, you have to choose one yourself. HTTP also usually requires
-and extra protocol definition on top (e.g. COAP).
+an extra protocol definition on top (e.g. COAP).
 
 
-Cryptographic primitives
+Cryptographic Primitives
 ************************
 
 ==================== ==================== ==================== ==================== ====================
@@ -202,12 +202,12 @@ category             neuropil             |MQTT|                 |TCP/TLS|      
                                                                CIPHER_SPEC
 ==================== ==================== ==================== ==================== ====================
 
-Not much to mention here: neuropil only supports the cryptographic routines available from libsodium.
+Currently not much to write here: neuropil only supports the cryptographic routines available from libsodium.
 The curve algorithms are well suited for IIoT. For TLS you have to manage your cipher specs, and there
 are also a lot of old protocols implemented (even a NULL cipher).
 
 
-External dependencies
+External Dependencies
 *********************
 
 ==================== ==================== ==================== ==================== ====================
@@ -222,13 +222,13 @@ category             neuropil             |MQTT|                 |TCP/TLS|      
 - B2B exchange       yes                  no                   yes                  no
 ==================== ==================== ==================== ==================== ====================
 
-last chapter: which other external dependencies can be solved with the mentioned competitors ?
-For all TLS based systems you also have to get you DNS (DNSSEC) and NTP settings right. In addition you
+Last comparison: which other external dependencies can be solved with the mentioned competitors ?
+For all TLS based systems you also have to get your DNS (DNSSEC) and NTP settings right. In addition, you
 have to use load-balancer to finally implement the security that you would like to have.
 
-neuropil is the only system that doesn't have restrictions for the mentioned topics:
+Neuropil is the only system that doesn't have restrictions for the mentioned topics:
  * the :term:`DHT` acts as an DNSSEC layer as well, no privacy leak by DNS lookups
- * a secure variant of the NTP protocol could be easily implemented
+ * a secure variant of the NTP protocol could be implemented easily
  * a simple OS installation is enough to get you started
  * the simplest firewall set (keep-state for TCP connections) let's you connect your protected devices worldwide
  * IIoT size is not a problem (the :term:`DHT` address space is large enough to cover all atoms in the universe)
@@ -236,15 +236,14 @@ neuropil is the only system that doesn't have restrictions for the mentioned top
    digital identities)
 
 
-Your conclusion?
-****************
+Your Conclusions?
+*****************
 
-After having read all these short paragraphs and comparisons:
-Do you think that we have mentioned something wrongly or would you like to discuss some details with us ?
-We are open to criticism, suggestions and you feedback, just send us a short email to get in contact.
+After having shared our thoughts and insights: Did we leave something unmentioned or would you like to discuss
+some of the details with us? We are open to criticism, suggestions and your feedback! 
 
-If you have no questions: when do you plan your start of using the neuropil messaging layer? Just curious ...
-
+To get in touch, just send us a short email. 
+If you have no questions: when and where will you give the neuropil messaging layer a shot? Just curious ...
 
 
   [1]: MQTT: https://MQTT.org
