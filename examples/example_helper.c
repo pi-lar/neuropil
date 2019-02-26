@@ -151,6 +151,8 @@ example_user_context* example_new_usercontext() {
     user_context->opt_http_domain = NULL;
     user_context->opt_sysinfo_mode = np_sysinfo_opt_force_client;
 
+    memset(user_context->node_description,0,255);
+
     return user_context;
 }
 

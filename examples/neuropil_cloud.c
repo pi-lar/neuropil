@@ -76,6 +76,10 @@ int main(int argc, char **argv)
         snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
         settings->log_level = level;
 
+        if(user_context_template->node_description[0] != 0){
+            snprintf(user_context_template->node_description, 255, "%s_ci_%d", user_context_template->node_description, i);
+        }
+
         example_user_context* user_context = malloc(sizeof(example_user_context));
         memcpy(user_context, user_context_template, sizeof(example_user_context));			
 
