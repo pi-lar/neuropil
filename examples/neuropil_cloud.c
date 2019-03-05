@@ -79,8 +79,8 @@ int main(int argc, char **argv)
         example_user_context* user_context = malloc(sizeof(example_user_context));
         memcpy(user_context, user_context_template, sizeof(example_user_context));			
 
-        if(user_context->node_description[0] != 0){
-            snprintf(user_context->node_description, 255, "%s_ci_%d", user_context->node_description, i);
+        if(user_context_template->node_description[0] != 0){
+            snprintf(user_context->node_description, 255, "%s_ci_%d", user_context_template->node_description, i);
         }
 
         nodes[i] = np_new_context(settings); // use default settings		

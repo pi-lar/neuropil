@@ -29,9 +29,9 @@ extern "C" {
 */
 #ifdef DEBUG
     #define DEBUG_CALLBACKS 1
-     #define NP_MEMORY_CHECK_MEMORY_REFFING 1
+    // #define NP_MEMORY_CHECK_MEMORY_REFFING 1
      #define NP_MEMORY_CHECK_MAGIC_NO
-    // #define NP_THREADS_CHECK_THREADING 1
+     #define NP_THREADS_CHECK_THREADING 1
      #define NP_BENCHMARKING 4096
     #define NP_STATISTICS
 #endif // DEBUG
@@ -274,7 +274,7 @@ extern "C" {
 
 
 #ifndef MUTEX_WAIT_SEC
-    #define MUTEX_WAIT_SEC  ((const ev_tstamp )1.0)
+    #define MUTEX_WAIT_SEC  ((const ev_tstamp )4.0)
 #endif
 
 #ifndef MUTEX_WAIT_MAX_SEC

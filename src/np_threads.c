@@ -137,7 +137,7 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
         diff = np_time_now() - start;
             if(diff >MUTEX_WAIT_MAX_SEC) {
                 log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %s (%f sec)", self_thread->id, np_module_lock_str[module_id], diff);
-                log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false));
+                log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false, true));                
                 abort();
             }
         ret = _np_threads_mutex_timedlock(context, &np_module(threads)->__mutexes[module_id], MUTEX_WAIT_MAX_SEC);
@@ -320,7 +320,7 @@ int _np_threads_mutex_lock(NP_UNUSED  np_state_t* context, np_mutex_t* mutex, co
         diff = np_time_now() - start;
         if (diff > MUTEX_WAIT_MAX_SEC) {
             log_msg(LOG_ERROR, "Thread %lu waits too long for mutex %s(%p) (%f sec)", _np_threads_get_self(context)->id, mutex->desc, mutex, diff);
-            log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false));
+            log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false, true));
             abort();
         }
 #else
@@ -447,19 +447,23 @@ int _np_threads_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* conditi
     return pthread_cond_wait(&condition->cond, &mutex->lock);
 }
 
-int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, double sec)
+int _np_threads_module_condition_timedwait(np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, double sec)
 {
     double d_sleep = np_time_now() + sec;
     struct timespec waittime = { 0 };
     waittime.tv_sec = (long)d_sleep;
     waittime.tv_nsec = (d_sleep - waittime.tv_sec) / 1e-9;
 
-    return pthread_cond_timedwait(&condition->cond, &np_module(threads)->__mutexes[module_id].lock, &waittime);
+    int ret = pthread_cond_timedwait(&condition->cond, &np_module(threads)->__mutexes[module_id].lock, &waittime);
+
+    return ret;
 }
 
 int _np_threads_mutex_condition_timedwait(NP_UNUSED np_state_t* context, np_mutex_t* mutex, struct timespec* waittime)
 {
-    return pthread_cond_timedwait(&mutex->condition.cond, &mutex->lock, waittime);
+    int ret =  pthread_cond_timedwait(&mutex->condition.cond, &mutex->lock, waittime);
+
+    return ret;
 }
 
 int _np_threads_condition_broadcast(NP_UNUSED np_state_t* context, np_cond_t* condition)
@@ -609,8 +613,47 @@ void _np_thread_t_new(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP
     sll_init(char_ptr, thread->want_lock);
 #endif
 }
+#ifdef NP_THREADS_CHECK_THREADING
 
-char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine) {
+char* __np_threads_print_locks(np_state_t* context, char* ret, char* new_line) {
+   sll_iterator(np_thread_ptr) iter_threads = sll_first(np_module(threads)->threads);
+    ret = np_str_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
+
+    np_sll_t(char_ptr, tmp);
+    char * tmp2;
+    while (iter_threads != NULL)
+    {
+        _LOCK_ACCESS(&(iter_threads->val->locklists_lock)) {
+            tmp = _sll_char_part(iter_threads->val->has_lock, -5);
+            tmp2 = _sll_char_make_flat(context, tmp);
+            sll_free(char_ptr, tmp);
+            ret = np_str_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
+            free(tmp2);
+
+            tmp = _sll_char_part(iter_threads->val->want_lock, -5);
+            tmp2 = _sll_char_make_flat(context, tmp);
+            sll_free(char_ptr, tmp);
+            ret = np_str_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
+            free(tmp2);
+
+        }
+        sll_next(iter_threads);
+    }
+//#else
+//		while (iter_threads != NULL)
+//		{
+//			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
+//			sll_next(iter_threads);
+//		}
+//#endif
+    ret = np_str_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
+
+    return ret;
+}
+#endif
+
+
+char* np_threads_print_locks(np_state_t* context, bool asOneLine, bool force) {
     char* ret = NULL;
 #ifdef NP_THREADS_CHECK_THREADING
 
@@ -619,38 +662,10 @@ char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine) {
         new_line = "    ";
     }
     TSP_TRYSCOPE(np_module(threads)->threads) {
-
-        sll_iterator(np_thread_ptr) iter_threads = sll_first(np_module(threads)->threads);
-        ret = np_str_concatAndFree(ret, "--- Threadpool START ---%s", new_line);
-
-        np_sll_t(char_ptr, tmp);
-        char * tmp2;
-        while (iter_threads != NULL)
-        {
-            _LOCK_ACCESS(&(iter_threads->val->locklists_lock)) {
-                tmp = _sll_char_part(iter_threads->val->has_lock, -5);
-                tmp2 = _sll_char_make_flat(context, tmp);
-                sll_free(char_ptr, tmp);
-                ret = np_str_concatAndFree(ret, "Thread %"PRIu32" LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
-                free(tmp2);
-
-                tmp = _sll_char_part(iter_threads->val->want_lock, -5);
-                tmp2 = _sll_char_make_flat(context, tmp);
-                sll_free(char_ptr, tmp);
-                ret = np_str_concatAndFree(ret, "Thread %"PRIu32" WANTS LOCKS: %s%s", iter_threads->val->id, tmp2, new_line);
-                free(tmp2);
-
-            }
-            sll_next(iter_threads);
-        }
-//#else
-//		while (iter_threads != NULL)
-//		{
-//			ret = np_str_concatAndFree(ret, "Thread %"PRIu32" %s", iter_threads->val->id, new_line);
-//			sll_next(iter_threads);
-//		}
-//#endif
-        ret = np_str_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
+        ret = __np_threads_print_locks(context, ret, new_line);
+    }
+    if(force && ret == NULL){
+        ret = __np_threads_print_locks(context, ret, new_line);
     }
 #endif
 
@@ -873,7 +888,7 @@ char* np_threads_print(np_state_t * context, bool asOneLine) {
         while (thread_iter != NULL) {
             np_thread_t * thread = thread_iter->val;      
             assert(thread != NULL);          
-            _LOCK_ACCESS(&thread->job_lock) {
+            _TRYLOCK_ACCESS(&thread->job_lock) {
                 double perc_0=0, perc_1=0,perc_2=0;
                 np_threads_busyness_statistics(context, thread, &perc_0, &perc_1, &perc_2);
 

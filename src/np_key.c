@@ -30,6 +30,7 @@
 #include "np_msgproperty.h"
 #include "np_key.h"
 #include "np_route.h"
+#include "np_statistics.h"
 #include "np_jobqueue.h"
 #include "np_constants.h"
 
@@ -113,6 +114,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
     if(destroy) {        
         keyident = _np_key_as_str(to_destroy);
+
         log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
 
         log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, np_memory_get_refcount(to_destroy));
@@ -122,6 +124,8 @@ void _np_key_destroy(np_key_t* to_destroy) {
 
         _np_route_leafset_update(to_destroy, false, &deleted, &added);
         _np_route_update(to_destroy, false, &deleted, &added);
+        _np_set_latency(to_destroy->dhkey, 0);
+        _np_set_success_avg(to_destroy->dhkey, 0);
         _np_network_disable(to_destroy->network);
 
         if(to_destroy->is_in_keycache) {

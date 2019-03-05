@@ -272,7 +272,7 @@ _LOCK_MODULE(np_keycache_t)
 // print the complete object list and statistics
 
 NP_API_PROTEC
-char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine);
+char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine, bool force);
 
 /*
     TSP = ThreadSafeProperty

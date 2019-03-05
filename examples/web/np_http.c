@@ -111,6 +111,7 @@ JSON_Value* _np_generate_error_json(const char* error,const char* details) {
 // static char* HTML_DEFAULT_PAGE    = "<html><head><title>neuropil</title></head><body></body></html>";
 static char* HTML_NOT_IMPLEMENTED =
         "<html><head><title>neuropil</title></head><body>not implemented</body></html>";
+#define MODULE_NOT_READY(MODULE) "<html><head><title>neuropil</title></head><body>module "TO_STRING(MODULE)" not ready. Please initiate module first</body></html>"
 
 #define HTTP_CRLF "\r\n"
 
@@ -347,41 +348,55 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
         client->status = RESPONSE;
     } else {
         switch (client->ht_request.ht_method) {
-        case (htp_method_GET): {            
-            if (np_module_initiated(sysinfo)) {
-
-                client->ht_response.ht_header = np_tree_create();
-                #define CHECK_PATH(prefix) strncmp("/"prefix,client->ht_request.ht_path,strlen(prefix)) == 0
-                if(CHECK_PATH("metrics")){
+        case (htp_method_GET): {                    
+            client->ht_response.ht_header = np_tree_create();
+            #define CHECK_PATH(prefix) strncmp("/"prefix,client->ht_request.ht_path,strlen(prefix)) == 0
+            if(CHECK_PATH("metrics")){
+                if(np_module_initiated(statistics)){
                     client->ht_response.ht_body = np_statistics_prometheus_export(context);
                     client->ht_response.ht_status = HTTP_CODE_OK;
                     np_tree_insert_str( client->ht_response.ht_header, "Content-Type",
                     np_treeval_new_s("text/plain; version=0.0.4"));
-                } else if(CHECK_PATH("sysinfo")){
+                } else {
+                    client->ht_response.ht_body = strdup(MODULE_NOT_READY(statistics));
+                    client->ht_response.ht_header = np_tree_create();
+                    client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
+                    client->ht_response.cleanup_body = false;
+                    client->status = RESPONSE;                
+                }
+            } else if(CHECK_PATH("sysinfo")){
+                if(np_module_initiated(sysinfo)) {
                     ht_response_t res = _np_http_handle_sysinfo(context, client);
                     client->ht_response.ht_body = res.ht_body;
                     client->ht_response.ht_status = res.ht_status;
                     np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
                     np_treeval_new_s("application/json"));
-                }else{
-                    client->ht_response.ht_body = strdup(client->ht_request.ht_path);
-                    client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
-                    np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
-                    np_treeval_new_s("application/json"));
+                } else {
+                    client->ht_response.ht_body = strdup(MODULE_NOT_READY(sysinfo));
+                    client->ht_response.ht_header = np_tree_create();
+                    client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
+                    client->ht_response.cleanup_body = false;
+                    client->status = RESPONSE;                
                 }
-                np_tree_insert_str( client->ht_response.ht_header,
-                    "Access-Control-Allow-Origin", np_treeval_new_s("*"));
-                np_tree_insert_str( client->ht_response.ht_header,
-                    "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
-                client->ht_response.cleanup_body = true;
-                client->status = RESPONSE;
+            }else{
+                client->ht_response.ht_body = strdup(client->ht_request.ht_path);
+                client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
+                np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
+                np_treeval_new_s("application/json"));
+            }
+            np_tree_insert_str( client->ht_response.ht_header,
+                "Access-Control-Allow-Origin", np_treeval_new_s("*"));
+            np_tree_insert_str( client->ht_response.ht_header,
+                "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
+            client->ht_response.cleanup_body = true;
+            client->status = RESPONSE;
 
-                break;
-            }            
+            break;
+                        
         }
 
         default:
-            client->ht_response.ht_body = HTML_NOT_IMPLEMENTED;
+            client->ht_response.ht_body = strdup(HTML_NOT_IMPLEMENTED);
             client->ht_response.ht_header = np_tree_create();
             client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
             client->ht_response.cleanup_body = false;

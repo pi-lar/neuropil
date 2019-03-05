@@ -1223,7 +1223,7 @@ void __np_example_helper_loop(np_state_t* context) {
 #ifdef DEBUG
         if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) {
             if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console)) {
-                memory_str = np_threads_print_locks(context, false);
+                memory_str = np_threads_print_locks(context, false, false);
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)){
                         mvwprintw(ud->__np_top_right_win, 0, 0, "%s", memory_str);
@@ -1235,7 +1235,7 @@ void __np_example_helper_loop(np_state_t* context) {
                 free(memory_str);
             }
             if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
-                memory_str = np_threads_print_locks(context, true);
+                memory_str = np_threads_print_locks(context, true, false);
                 if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
                 free(memory_str);
             }

@@ -633,7 +633,7 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
                 np_threads_busyness_stat(context, my_thread); 
             }
             else
-            {
+            {                
                 // wait for time x to be unlocked again
                 _LOCK_MODULE(np_jobqueue_t)
                 {
@@ -652,7 +652,7 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
                 		np_threads_busyness(context, my_thread, true);
                 		log_debug_msg(LOG_JOBS | LOG_VERBOSE, "JobManager waited for %f sec", np_time_now()-now);
                 	}
-                }
+                }                
                 //np_time_sleep(0.005);
                 _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
                 {
