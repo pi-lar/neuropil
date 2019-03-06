@@ -104,7 +104,7 @@ bool _np_statistics_init(np_state_t* context) {
         _module->_per_dhkey_metrics = np_tree_create();
         _module->startup_time = np_time_now();
 
-        _module->_prometheus_context = prometheus_create_context(get_timestamp);        
+        _module->_prometheus_context = prometheus_create_context(get_timestamp);
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"uptime");
 
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"forwarded_msgs_sum");

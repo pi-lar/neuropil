@@ -888,7 +888,7 @@ char* np_threads_print(np_state_t * context, bool asOneLine) {
         while (thread_iter != NULL) {
             np_thread_t * thread = thread_iter->val;      
             assert(thread != NULL);          
-            _TRYLOCK_ACCESS(&thread->job_lock) {
+            _LOCK_ACCESS(&thread->job_lock) {
                 double perc_0=0, perc_1=0,perc_2=0;
                 np_threads_busyness_statistics(context, thread, &perc_0, &perc_1, &perc_2);
 

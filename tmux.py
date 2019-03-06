@@ -88,7 +88,7 @@ else:
         prefix_bootstrap = ('valgrind --leak-check=full ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
         if args.perf:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
-        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.path + f'neuropil_node -b {port} -t {threads} -p {port_type_server}  -d {loglevel} -u {publish_domain} -o {sysinfo} {httpdomain} -s {statistics} {autoclose} 2> error.log')
+        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.path + f'neuropil_node -b {port} -t {threads} -p {port_type_server}  -d {loglevel} -u {publish_domain} -o {sysinfo} {httpdomain} -s {statistics} {autoclose} ')
         if args.v or args.vs:
             time.sleep(4)
         else:
