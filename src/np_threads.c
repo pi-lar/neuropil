@@ -559,6 +559,7 @@ void _np_thread_t_del(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
     np_thread_t* thread = (np_thread_t*)data;
 #ifdef NP_THREADS_CHECK_THREADING
+     
 
     assert(thread->has_lock != NULL);
     //_LOCK_ACCESS(&thread->locklists_lock)
@@ -580,6 +581,7 @@ void _np_thread_t_del(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP
 
         sll_free(char_ptr, thread->want_lock);
     }
+    _np_threads_mutex_destroy(context, &thread->locklists_lock);
 
 #endif
 
@@ -699,15 +701,20 @@ np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, n
     new_thread->run_fn = fn;
     new_thread->thread_type = type;
     new_thread->_busy = false;
-    
-
+    int r;
 
     //TSP_SCOPE(np_module(threads)->threads) cannot be used due to recusion
-    if (0 == pthread_mutex_lock(&np_module(threads)->threads_mutex.lock))
+    if (0 == (r = pthread_mutex_lock(&np_module(threads)->threads_mutex.lock)))
     {
         sll_append(np_thread_ptr, np_module(threads)->threads, new_thread);
         pthread_mutex_unlock(&np_module(threads)->threads_mutex.lock);
     }
+    #ifdef DEBUG
+    else{
+        log_error("Mutex returned %d",r);
+        abort();
+    }
+    #endif
     if(auto_run) {
         _np_thread_run(new_thread);
     }

@@ -64,6 +64,54 @@ prometheus_context* prometheus_create_context(get_time_callback time){
     ret->time = time;
     return ret;
 }
+
+
+void prometheus_destroy_label(prometheus_label* l){
+    free(l);
+}
+void prometheus_destroy_sub_metric(prometheus_sub_metric* sm);
+void prometheus_destroy_metric(prometheus_metric* m){
+    
+    prometheus_item * item = NULL, *item_old;    
+    item = m->labels;
+    while(item!=NULL){
+        item_old = item;
+        prometheus_destroy_label((prometheus_label*)item->data);
+        item = item->next;
+        free(item_old);
+    }
+    item = m->sub_metrics;
+    while(item!=NULL){
+        item_old = item;
+        prometheus_destroy_sub_metric((prometheus_sub_metric*)item->data);
+        item = item->next;
+        free(item_old);
+    }
+
+    pthread_mutexattr_destroy(&m->rw_lock_attr);
+    pthread_mutex_destroy(&m->rw_lock);
+    free(m);
+}
+void prometheus_destroy_sub_metric(prometheus_sub_metric* sm){    
+    free(sm);
+}
+
+void prometheus_destroy_context(prometheus_context * c){
+    prometheus_item * item = NULL, *item_old;
+    
+    item = c->metrics;
+    while(item!=NULL){
+        item_old = item;
+        prometheus_destroy_metric((prometheus_metric*)item->data);
+        item = item->next;
+        free(item_old);
+    }
+
+    pthread_mutexattr_destroy(&c->w_lock_attr);
+    pthread_mutex_destroy(&c->w_lock);
+    free(c);
+}
+
 prometheus_metric* prometheus_register_metric(prometheus_context* c, char name[255]){
     prometheus_metric* ret = calloc(1,sizeof(prometheus_metric));
     strncpy(ret->name, name, 255);
@@ -83,6 +131,7 @@ prometheus_metric* prometheus_register_metric(prometheus_context* c, char name[2
 
     return ret;
 }
+
 prometheus_metric* prometheus_register_sub_metric_time(prometheus_metric* base, uint16_t interval_sec){
     prometheus_sub_metric* ret = calloc(1,sizeof(prometheus_sub_metric));
     ret->type = prometheus_sub_metric_type_time;

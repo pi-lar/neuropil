@@ -23,6 +23,7 @@ typedef struct prometheus_label_s {
 typedef uint64_t (*get_time_callback)();
 
 prometheus_context* prometheus_create_context(get_time_callback time);
+void prometheus_destroy_context(prometheus_context * c);
 
 prometheus_metric* prometheus_register_metric(prometheus_context* c, char name[255]);
 

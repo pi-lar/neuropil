@@ -277,6 +277,24 @@ void _np_statistics_destroy(np_state_t* context){
         
         NP_PERFORMANCE_POINT_DESTROY();
 
+         prometheus_destroy_context(_module->_prometheus_context);
+
+        np_tree_elem_t* tmp = NULL;
+
+        RB_FOREACH(tmp, np_tree_s, _module->_per_dhkey_metrics)
+        {
+            free(tmp->val.value.v);
+        }
+
+        
+        RB_FOREACH(tmp, np_tree_s, _module->_per_subject_metrics)
+        {
+            free(tmp->val.value.v);
+        }
+
+         np_tree_free(_module->_per_dhkey_metrics);
+         np_tree_free(_module->_per_subject_metrics);
+
         np_module_free(statistics);
     }
 }

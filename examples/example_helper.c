@@ -85,6 +85,7 @@ void example_helper_destroy(np_context* context){
         
         np_set_userdata(context, NULL);
         _np_threads_mutex_destroy(context, ud->__log_mutex);
+        free(ud->opt_http_domain);
         free(ud->__log_mutex);
         free(ud->__log_buffer);
         free(ud);

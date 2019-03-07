@@ -106,7 +106,7 @@ else:
             nn = session.new_window(attach=False, window_name=windowName )
             node_port = port+i+start_bootstrapper
             node_http_port = port+i+start_bootstrapper+count
-            nn.attached_pane.send_keys("  " + ('valgrind ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path +
+            nn.attached_pane.send_keys("  " + ('valgrind --leak-check=full ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path +
             f'neuropil_node -b {node_port} -u {publish_domain} -t {threads} -p {port_type_client} -o {sysinfo_client} -d {loglevel} {join_client} {httpdomain} -e {node_http_port} -s {statistics} {autoclose}')
 
     if not args.k:        
