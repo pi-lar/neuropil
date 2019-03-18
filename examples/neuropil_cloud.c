@@ -39,7 +39,7 @@ int main(int argc, char **argv)
     char* opt_cloud_size = "32";
     char* logpath = ".";
     
-    example_user_context* user_context_template;
+    example_user_context* user_context_template = NULL;
     if ((user_context_template = parse_program_args(
         __FILE__,
         argc,
@@ -106,7 +106,11 @@ int main(int argc, char **argv)
             np_example_helper_allow_everyone(nodes[i]);
             np_statistics_set_node_description(nodes[i], user_context->node_description);
             char port_tmp[8]={0};
-            sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);            
+            if(user_context_template->opt_http_port != NULL){
+                sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);            
+            }else{
+                sprintf(port_tmp,"%d", HTTP_PORT + i);            
+            }
             user_context->_np_httpserver_active = example_http_server_init(nodes[i], user_context_template->opt_http_domain,port_tmp);
             example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);            
         }
