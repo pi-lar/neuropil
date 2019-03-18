@@ -72,11 +72,15 @@ build_bindings_python = bool(int(ARGUMENTS.get('python_binding', build_bindings)
 
 # use clang to compile the source code
 if build_tests_enable_test_coverage:
+    '''
     default_env = Environment(CC = 'gcc', tools = ['default', 'gcccov'])
     # Generate correct dependencies of `*.gcno' and `*.gcda' files on object
     # files being built from now on.
     default_env.GCovInjectObjectEmitters()
     default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage'], LDFLAGS = ['--coverage'], LIBS="gcov")
+    '''
+    default_env = Environment(CC = 'gcc')
+    default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage','-fprofile-arcs','-ftest-coverage'], LDFLAGS = ['--coverage'], LIBS="gcov") 
 else:
     default_env = Environment(CC = 'clang')
 
