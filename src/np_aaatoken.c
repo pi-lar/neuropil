@@ -1352,8 +1352,10 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
     ASSERT(signee->private_key_is_set == true, "Cannot sign extensions without private key");
     ASSERT(signee->crypto.ed25519_secret_key_is_set == true, "Cannot sign extensions without private key");
 
+    ASSERT(self->crypto.ed25519_public_key_is_set == true, "cannot sign token without public key");
+
     // update public key and issuer fingerprint with data take from signee
-    memcpy((char*)self->crypto.derived_kx_public_key, (char*)signee->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
+    // memcpy((char*)self->crypto.derived_kx_public_key, (char*)signee->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
 
     // create the hash of the core token data
     unsigned char* hash = _np_aaatoken_get_hash(self);
@@ -1362,7 +1364,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
 
     // prevent fingerprint recursion
     if (self != signee) {
-    		// check issuer field
+    	// check issuer field
         char signee_token_fp[65];
         signee_token_fp [64] = '\0';
         np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
@@ -1521,7 +1523,9 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
     memcpy(dest->public_key, src->crypto.ed25519_public_key, NP_PUBLIC_KEY_BYTES);
     assert(crypto_sign_SECRETKEYBYTES == NP_SECRET_KEY_BYTES);
     memcpy(dest->secret_key, src->crypto.ed25519_secret_key, NP_SECRET_KEY_BYTES);
-    
+
+    memcpy(dest->signature, src->signature, NP_SIGNATURE_BYTES);
+
     // TODO: warning/error if NP_EXTENSION_BYTES < src->extensions->byte_size 
     cmp_ctx_t cmp;
     _np_obj_buffer_container_t buffer_container;
@@ -1533,6 +1537,9 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
     np_tree_serialize(context, src->extensions, &cmp);
     dest->extension_length = src->extensions->byte_size;
     assert(dest->extension_length <= NP_EXTENSION_BYTES);
+
+    memcpy(dest->ext_signature, src->signature_extensions, NP_SIGNATURE_BYTES);
+
     return dest;
 }
 

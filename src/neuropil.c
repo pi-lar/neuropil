@@ -358,6 +358,25 @@ enum np_return np_node_fingerprint(np_context* ac, np_id (*id)){
  
 }
 
+enum np_return np_sign_identity(np_context* ac, struct np_token* identity)
+{
+    np_ctx_cast(ac); 
+
+    enum np_return ret = np_ok;
+    if(identity == NULL) {
+        ret = np_invalid_argument;
+    } else {
+        np_ident_private_token_t* id_token = np_token_factory_new_identity_token(context, 20.0, NULL);
+        
+        np_user4aaatoken(id_token, identity);
+        _np_aaatoken_set_signature(id_token, context->my_identity->aaa_token);
+        np_aaatoken4user(identity, id_token);
+
+        np_unref_obj(np_aaatoken_t, id_token, "np_token_factory_new_identity_token");
+    }
+    return ret;
+}
+
 enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id))
 {
     np_ctx_cast(ac); 
@@ -372,7 +391,7 @@ enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bo
 
         _np_aaatoken_set_signature(imported_token, imported_token);
         if (include_attributes)
-    			_np_aaatoken_update_extensions_signature(imported_token, imported_token);
+    		_np_aaatoken_update_extensions_signature(imported_token, imported_token);
 
         np_dhkey_t fp = np_aaatoken_get_fingerprint(imported_token, include_attributes);
 
