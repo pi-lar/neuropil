@@ -1,17 +1,19 @@
 PLATFORM ?= $(shell uname -s)
 
-CC=clang
+# CC=clang
 # CC=./checker-277/libexec/ccc-analyzer
-# CC=/usr/local/Cellar/llvm/7.0.1/bin/clang
+CC=/usr/local/opt/llvm/bin/clang
+# /usr/local/Cellar/llvm/7.0.1/bin/clang
 
 # CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
-CFLAGS = -c -Wall -Wextra -g -gdwarf-2 -std=c99 -O1 -DDEBUG -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+CFLAGS = -c -Wall -Wextra -g -gdwarf-2 -std=c99 -fprofile-instr-generate -O1 -DDEBUG -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
 # CFLAGS+=--analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o build/html
 # CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
 # CFLAGS=-c -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
-LDFLAGS=
 
-CLANG_SANITIZER=-fsanitize=fuzzer,address -fno-omit-frame-pointer -fprofile-instr-generate 
+LDFLAGS=-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib -fprofile-instr-generate
+
+CLANG_SANITIZER=-fsanitize=fuzzer,address -fno-omit-frame-pointer 
 
 ifneq (,$(findstring FreeBSD, $(PLATFORM)))
   override LDFLAGS+=-lutil
@@ -33,7 +35,7 @@ endif
 endif
 
 # adjust these settings to your location of libsodium and libcriterion
-INCLUDES=-I./framework -I./include -I/usr/local/include -I./tpl/criterion-v2.3.2/include
+INCLUDES=-I./framework -I./include -I./tpl/criterion-v2.3.2/include  -I/usr/include -I/usr/local/opt/llvm/include 
 
 SODIUM_LIBRARIES=-L/usr/local/lib -lsodium
 CRITERION_LIBRARIES=-L./tpl/criterion-v2.3.2/lib -lcriterion
