@@ -1353,18 +1353,17 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
     ASSERT(signee->crypto.ed25519_secret_key_is_set == true, "Cannot sign extensions without private key");
 
     ASSERT(self->crypto.ed25519_public_key_is_set == true, "cannot sign token without public key");
-
-    // update public key and issuer fingerprint with data take from signee
-    // memcpy((char*)self->crypto.derived_kx_public_key, (char*)signee->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES);
+    int ret = 0;
 
     // create the hash of the core token data
     unsigned char* hash = _np_aaatoken_get_hash(self);
-    // sign the core token
-    int ret = __np_aaatoken_generate_signature(context, hash, signee->crypto.ed25519_secret_key, self->signature);
-
-    // prevent fingerprint recursion
-    if (self != signee) {
+    if (self == signee) {
+        // sign the core token
+        ret = __np_aaatoken_generate_signature(context, hash, signee->crypto.ed25519_secret_key, self->signature);
+        // prevent fingerprint recursion
     	// check issuer field
+        self->issuer_token = self;
+    } else {
         char signee_token_fp[65];
         signee_token_fp [64] = '\0';
         np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
@@ -1376,14 +1375,11 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
         // copy public key
         memcpy(signer_pubsig, signee->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
         // add signature of signer to extensions
-        __np_aaatoken_generate_signature(context, self->signature, signee->crypto.ed25519_secret_key, signer_pubsig + crypto_sign_PUBLICKEYBYTES );
+        ret = __np_aaatoken_generate_signature(context, self->signature, signee->crypto.ed25519_secret_key, signer_pubsig + crypto_sign_PUBLICKEYBYTES );
         // insert into extension table
         np_tree_replace_str(self->extensions, signee_token_fp, np_treeval_new_bin(signer_pubsig, 96));
 
         self->issuer_token = signee;
-    }
-    else {
-        self->issuer_token = self;
     }
 
     free(hash);
@@ -1561,12 +1557,13 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
     strncpy(dest->subject, src->subject, 255);
 
     // copy public key
-    // memcpy(dest->crypto.ed25519_public_key, src->public_key, NP_PUBLIC_KEY_BYTES);
-    // dest->crypto.ed25519_public_key_is_set = true;
+    memcpy(dest->crypto.ed25519_public_key, src->public_key, NP_PUBLIC_KEY_BYTES);
+    dest->crypto.ed25519_public_key_is_set = true;
 
+    memcpy(dest->signature, src->signature, NP_SIGNATURE_BYTES);
     // copy private key (if not NULL)
     // uint8_t null_secret_key[NP_SECRET_KEY_BYTES] = { 0 };
-//    if (memcmp(src->secret_key, null_secret_key, NP_SECRET_KEY_BYTES) != 0) {
+    // if (memcmp(src->secret_key, null_secret_key, NP_SECRET_KEY_BYTES) != 0) {
 //        memcpy(dest->crypto.ed25519_secret_key, src->secret_key, NP_SECRET_KEY_BYTES);
 //
 //        dest->crypto.ed25519_secret_key_is_set = true;
@@ -1581,6 +1578,8 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
     buffer_container.obj = dest;
     cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
     np_tree_deserialize(context, dest->extensions, &cmp);
+
+    memcpy(dest->signature_extensions, src->ext_signature, NP_SIGNATURE_BYTES);
 
     _np_aaatoken_update_scope(dest);
 

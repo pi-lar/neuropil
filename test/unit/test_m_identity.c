@@ -44,6 +44,8 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 
 	// now tell the context to use this identity
 	np_use_identity(context, my_token_1);
+	// we need to sign our own token to be able to distribute it to peers as a trusted 'ca'
+	np_sign_identity(context, &my_token_1, true, true);
 
 	// extract fingerprint of issuing token
 	np_id my_token_fp;
@@ -51,17 +53,26 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 
 	// store the secret token in a file
 	if ( NULL != (buffer = fopen("./.np_id", "wb")) ) {
-		// and wipe out the secret key from the token
-		fwrite(&my_token_1, sizeof(struct np_token), 1, buffer);
+		// convert to base64
+		size_t base64_length = sodium_base64_encoded_len(NP_SECRET_KEY_BYTES, sodium_base64_VARIANT_ORIGINAL);
+		char base64_array[base64_length];
+		sodium_bin2base64(base64_array, base64_length, (unsigned char*) &my_token_1.secret_key, NP_SECRET_KEY_BYTES, sodium_base64_VARIANT_ORIGINAL);
+		fwrite(base64_array, base64_length, 1, buffer);
 		fclose(buffer);
 	}
 
 	// store the public token in a file
 	if ( NULL != (buffer = fopen("./.np_id.pub", "wb")) ) {
-		struct np_token pub_token = my_token_1;
-		memset(pub_token.secret_key, 0, NP_SECRET_KEY_BYTES);
+		struct np_token pub_token = {0};
+		memcpy(&pub_token, &my_token_1, sizeof(struct np_token));
 		// and wipe out the secret key from the token
-		fwrite(&pub_token, sizeof(struct np_token), 1, buffer);
+		memset(pub_token.secret_key, 0, NP_SECRET_KEY_BYTES);
+		// convert to base64
+		size_t token_length = sizeof(struct np_token);
+		size_t base64_length = sodium_base64_encoded_len(token_length, sodium_base64_VARIANT_ORIGINAL);
+		char base64_array[base64_length];
+		sodium_bin2base64(base64_array, base64_length, (unsigned char*) &pub_token, token_length, sodium_base64_VARIANT_ORIGINAL);
+		fwrite(base64_array, base64_length, 1, buffer);
 		fclose(buffer);
 	}
 
@@ -80,7 +91,12 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	np_id_str(my_token_fp_str, my_token_fp);
 	strncpy(my_token_2.issuer, my_token_fp_str, 64);
 	
-	np_sign_identity(context, &my_token_2);
+	// update 1: own signature to match changed issuer and subject field
+	np_sign_identity(context, &my_token_2, true, false);
+	// update 2: with additional issuer signature in the extenions
+	np_sign_identity(context, &my_token_2, false, false);
+	// update 3: create a signature for the extensions as well
+	np_sign_identity(context, &my_token_2, true, true);
 
 	np_id my_token_2_fp;
 	np_token_fingerprint(context, my_token_2, true, &my_token_2_fp);
@@ -88,7 +104,12 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 
 	// store the secret token in a file
 	if ( NULL != (buffer = fopen(my_token_fp_str, "wb")) ) {
-		fwrite(&my_token_1, sizeof(struct np_token), 1, buffer);
+		// convert to base64
+		size_t token_length = sizeof(struct np_token);
+		size_t base64_length = sodium_base64_encoded_len(token_length, sodium_base64_VARIANT_ORIGINAL);
+		char base64_array[base64_length];
+		sodium_bin2base64(base64_array, base64_length, (unsigned char*) &my_token_2, token_length, sodium_base64_VARIANT_ORIGINAL);
+		fwrite(base64_array, base64_length, 1, buffer);
 		fclose(buffer);
 	}
 }
