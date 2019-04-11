@@ -45,7 +45,7 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	// now tell the context to use this identity
 	np_use_identity(context, my_token_1);
 	// we need to sign our own token to be able to distribute it to peers as a trusted 'ca'
-	np_sign_identity(context, &my_token_1, true, true);
+	np_sign_identity(context, &my_token_1, true);
 
 	// extract fingerprint of issuing token
 	np_id my_token_fp;
@@ -91,12 +91,12 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	np_id_str(my_token_fp_str, my_token_fp);
 	strncpy(my_token_2.issuer, my_token_fp_str, 64);
 	
-	// update 1: own signature to match changed issuer and subject field
-	np_sign_identity(context, &my_token_2, true, false);
-	// update 2: with additional issuer signature in the extenions
-	np_sign_identity(context, &my_token_2, false, false);
-	// update 3: create a signature for the extensions as well
-	np_sign_identity(context, &my_token_2, true, true);
+	// update 1: own signature to match changed issuer and subject field (add own signature)
+	np_sign_identity(context, &my_token_2, true);
+	// update 2: with additional issuer signature in the extenions (issuer signs our token-2 signature)
+	np_sign_identity(context, &my_token_2, false);
+	// update 3: create a signature for the extensions as well (signe the issuer signature)
+	np_sign_identity(context, &my_token_2, true);
 
 	np_id my_token_2_fp;
 	np_token_fingerprint(context, my_token_2, true, &my_token_2_fp);

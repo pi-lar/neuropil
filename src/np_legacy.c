@@ -345,8 +345,8 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: void _np_set_identity(np_aaatoken_t* identity){");
 
-	_np_aaatoken_set_signature(identity, identity);
-	_np_aaatoken_update_extensions_signature(identity, identity);
+	_np_aaatoken_set_signature(identity, NULL);
+	_np_aaatoken_update_extensions_signature(identity);
 
     // build a hash to find a place in the dhkey table, not for signing !
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
@@ -354,7 +354,6 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
     // np_key_t* old_ident = context->my_identity;
 
-    identity->type |= np_aaatoken_type_identity;
     np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
 
 	//    if (old_ident != NULL && old_ident->aaa_token != NULL && identity != old_ident->aaa_token) {

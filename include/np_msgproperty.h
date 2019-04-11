@@ -374,7 +374,7 @@ NP_API_INTERN
 bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
 #define _NP_URN_PREFIX						"urn:np:"
-#define _NP_URN_MSG_PREFIX					""
+#define _NP_URN_MSG_PREFIX					"" // TODO: _NP_URN_PREFIX"msg:"
 #define _NP_URN_NODE_PREFIX					_NP_URN_PREFIX"node:"
 #define _NP_URN_IDENTITY_PREFIX				_NP_URN_PREFIX"id:"
 #define _DEFAULT							"_NP.DEFAULT"

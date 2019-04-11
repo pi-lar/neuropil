@@ -358,7 +358,7 @@ enum np_return np_node_fingerprint(np_context* ac, np_id (*id)){
  
 }
 
-enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign, bool include_attributes)
+enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign)
 {
     np_ctx_cast(ac); 
 
@@ -366,21 +366,17 @@ enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool 
     if(identity == NULL) {
         ret = np_invalid_argument;
     } else {
-        np_ident_private_token_t* id_token = NULL;
-        // could be better: use fingerprint of a token to lookup an existing token in our tree ...
+        np_ident_private_token_t* id_token = NULL;        
         if (self_sign) {
-            id_token = np_token_factory_new_identity_token(context, 20.0, identity->secret_key);        
+            id_token = np_token_factory_new_identity_token(context, identity->expires_at, identity->secret_key);
             np_user4aaatoken(id_token, identity);
-            _np_aaatoken_set_signature(id_token, id_token);
+            _np_aaatoken_set_signature(id_token, NULL);
+            _np_aaatoken_update_extensions_signature(id_token);
         } else {
-            id_token = np_token_factory_new_identity_token(context, 20.0, NULL);        
+            id_token = np_token_factory_new_identity_token(context, 20.0, NULL);
             np_user4aaatoken(id_token, identity);
             _np_aaatoken_set_signature(id_token, context->my_identity->aaa_token);
         }
-        // must be done anyway (sign new issuer fingerprint, or to update the signature because of external changed data)
-        if (include_attributes && self_sign)
-        	_np_aaatoken_update_extensions_signature(id_token, id_token);
-
         np_aaatoken4user(identity, id_token);
 
         np_unref_obj(np_aaatoken_t, id_token, "np_token_factory_new_identity_token");
@@ -421,8 +417,8 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
     enum np_return ret = np_ok;
 
     np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key);
+    
     np_user4aaatoken(imported_token, &identity);
-
     _np_set_identity(ac, imported_token);
 
     np_unref_obj(np_aaatoken_t, imported_token, "np_token_factory_new_identity_token");

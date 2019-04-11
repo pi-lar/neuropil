@@ -159,7 +159,7 @@ extern "C" {
     enum np_return np_use_identity(np_context* ac, struct np_token identity);
 
     NP_API_EXPORT
-    enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign, bool include_attributes);
+    enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign);
 
     NP_API_EXPORT
     enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
