@@ -9,9 +9,9 @@
 #include <stddef.h>
 
 #include <inttypes.h>
-
-#include <sodium.h>
 #include <unistd.h>
+
+#include "sodium.h"
 
 #include "neuropil.h"
 #include "np_legacy.h"
