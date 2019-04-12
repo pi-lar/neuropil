@@ -789,6 +789,7 @@ example_user_context* parse_program_args(
                 port_pid += 1024;
             }
             asprintf(port, "%d", port_pid);
+            user_context->opt_http_port = *port;
         }
         /** \endcode */
     }
