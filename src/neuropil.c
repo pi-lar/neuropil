@@ -452,18 +452,30 @@ bool np_has_receiver_for(np_context*ac, const char * subject) {
 }
 
 enum np_return np_join(np_context* ac, const char* address) {
-    enum np_return ret = np_ok;
-    np_ctx_cast(ac);
-    char* safe_address = strndup(address, 500);
-
-    np_send_join(context, safe_address);
-
-    free(safe_address);
-    return ret;
+  
+  if (address == NULL)             return np_invalid_argument;
+  if (strnlen(address,500) <=  10) return np_invalid_argument;
+  if (strnlen(address,500) >= 500) return np_invalid_argument;
+  
+  char *nts = memchr(address,'\0', strnlen(address, 500));
+  if (nts == NULL) return np_invalid_argument;
+  
+  enum np_return ret = np_ok;
+  np_ctx_cast(ac);
+  
+  char* safe_address = strndup(address, 500);
+  np_send_join(context, safe_address);
+  
+  // free(safe_address);
+  return ret;
 }
 
 enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length) {
-    char* safe_subject = strndup(subject,255);
+
+	if (subject == NULL) return np_invalid_argument;
+	if (strnlen(subject,500) == 0) return np_invalid_argument;
+
+	char* safe_subject = strndup(subject,255);
     enum np_return ret = np_send_to(ac, safe_subject, message, length, NULL);
     free(safe_subject);
     return ret;
