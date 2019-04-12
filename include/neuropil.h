@@ -82,9 +82,10 @@ extern "C" {
 
     // Protocol constants
     enum np_limits {
+        NP_SECRET_KEY_BYTES = 64,
+        NP_SIGNATURE_BYTES = 64,
         NP_PUBLIC_KEY_BYTES = 32,
         NP_FINGERPRINT_BYTES = 32,
-        NP_SECRET_KEY_BYTES = 64,
         NP_UUID_BYTES = 37,
         NP_EXTENSION_BYTES = 10240,
     } NP_CONST_ENUM;
@@ -125,12 +126,14 @@ extern "C" {
         char issuer[65]; // todo: has to be np_id		
         char realm[255]; // todo: has to be np_id		
         char audience[255]; // todo: has to be np_id		
-
         double  issued_at, not_before, expires_at;
-        unsigned char extensions[NP_EXTENSION_BYTES];
-        size_t  extension_length;
         unsigned char public_key[NP_PUBLIC_KEY_BYTES],
                 secret_key[NP_SECRET_KEY_BYTES];
+        unsigned char signature[NP_SIGNATURE_BYTES];
+
+        size_t  extension_length;
+        unsigned char extensions[NP_EXTENSION_BYTES];
+        unsigned char ext_signature[NP_SIGNATURE_BYTES];
     } NP_PACKED(1);
     
     struct np_message {
@@ -161,6 +164,9 @@ extern "C" {
 
     NP_API_EXPORT
     enum np_return np_use_identity(np_context* ac, struct np_token identity);
+
+    NP_API_EXPORT
+    enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign);
 
     NP_API_EXPORT
     enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));

@@ -345,34 +345,29 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: void _np_set_identity(np_aaatoken_t* identity){");
 
-	_np_aaatoken_set_signature(identity, identity);
-	_np_aaatoken_update_extensions_signature(identity, identity);
+	_np_aaatoken_set_signature(identity, NULL);
 
     // build a hash to find a place in the dhkey table, not for signing !
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
-
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
     // np_key_t* old_ident = context->my_identity;
-
-    identity->type |= np_aaatoken_type_identity;
     np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
 
-	//    if (old_ident != NULL && old_ident->aaa_token != NULL && identity != old_ident->aaa_token) {
-	//        old_ident->aaa_token->type &= ~np_aaatoken_type_identity;
-	//    }
     np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, my_identity_key);
+    
+    if (context->my_node_key != NULL &&
+        _np_key_cmp(my_identity_key, context->my_node_key) != 0) {
+        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
+        np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
+        _np_aaatoken_update_extensions_signature(context->my_node_key->aaa_token);
 
-    if (_np_key_cmp(my_identity_key, context->my_node_key) != 0) {
-/*
-        if (context->my_node_key != NULL && context->my_node_key->node != NULL) {
-            np_node_t* tmp_node = NULL;
-            np_new_obj(np_node_t, tmp_node);
-            _np_node_update(tmp_node, _np_network_parse_protocol_string("pas4"), "localhost", "3333");
-            _np_context_create_new_nodekey(context, tmp_node);
-            np_unref_obj(np_node_t, tmp_node, ref_obj_creation);
-          }
-*/
+        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
+        np_aaatoken_set_partner_fp(context->my_node_key->aaa_token, ident_dhkey);
     }
+
+	_np_aaatoken_update_extensions_signature(identity);
+    identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
+
     _np_statistics_update_prometheus_labels(context, NULL);
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 

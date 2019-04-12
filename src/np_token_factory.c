@@ -31,93 +31,7 @@
 #include "np_memory.h"
 #include "np_statistics.h"
 
-np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken_scope scope)
-{
-    np_ctx_memory(source);
-    np_aaatoken_t* ret = NULL;
-
-    /// contract begin
-    ASSERT(source != NULL, "source token cannot be NULL");
-
-    switch (scope)
-    {
-    case np_aaatoken_scope_private:
-        ASSERT(source->scope == np_aaatoken_scope_private, "Can only derive a private token from another private token. current token scope: %"PRIu8, source->scope);
-        ASSERT(
-            FLAG_CMP(source->type, np_aaatoken_type_identity) || FLAG_CMP(source->type, np_aaatoken_type_node),
-            "Can only derive a private token from a node or identity token. current token type: %"PRIu8, source->type);
-        break;
-    case np_aaatoken_scope_public:
-        ASSERT(source->scope <= np_aaatoken_scope_public, "Can only derive a public token from a private or public token. current token scope: %"PRIu8, source->scope);
-        break;
-    default:
-        log_msg(LOG_ERROR, "scope to derive token to is unknown. scope: %"PRIu8, scope);
-        abort();
-        break;
-    }
-    /// end of contract
-
-    // create token
-    np_new_obj(np_aaatoken_t, ret, FUNC);
-
-    strncpy(ret->realm, source->realm, 255);
-    strncpy(ret->issuer, source->issuer, 65);
-    strncpy(ret->subject, source->subject, 255);
-    strncpy(ret->audience, source->audience, 255);
-
-    ret->not_before = source->not_before;
-    ret->expires_at = source->expires_at;
-    ret->issued_at  = source->issued_at;
-    ret->version = source->version;
-    ret->state = source->state;
-
-    memcpy(ret->crypto.ed25519_public_key, source->crypto.ed25519_public_key, sizeof source->crypto.ed25519_public_key);
-
-    if(scope != np_aaatoken_scope_private) {
-        memset(ret->crypto.ed25519_secret_key, 0, sizeof ret->crypto.ed25519_secret_key);
-        ret->private_key_is_set = false;
-        ret->crypto.ed25519_secret_key_is_set = false;
-    }
-    else
-    {
-        memcpy(ret->crypto.ed25519_secret_key, source->crypto.ed25519_secret_key, sizeof source->crypto.ed25519_secret_key);
-        ret->private_key_is_set = true;
-        ret->crypto.ed25519_secret_key_is_set = true;
-    }
-
-    // np_tree_copy( source->extensions, ret->extensions);
-    ret->scope = scope;
-
-    return (ret);
-}
-
-np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* source) {
-    np_ctx_memory(source);
-    np_ident_public_token_t* ret = NULL;
-
-    ASSERT(FLAG_CMP(source->type, np_aaatoken_type_identity), "Can only directly derive ident token from ident token. current token type: %"PRIu8, source->type);
-
-    ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
-    ret->type = np_aaatoken_type_identity;
-
-    ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
-    return ret;
-}
-
-np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* source) {
-    np_ctx_memory(source);
-    np_node_public_token_t* ret = NULL;
-
-    ASSERT(FLAG_CMP(source->type , np_aaatoken_type_node), "Can only directly derive node token from node token. current token type: %"PRIu8, source->type);
-
-    ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
-    ret->type = np_aaatoken_type_node;
-
-    ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
-    _np_aaatoken_trace_info("build_node", ret);
-    return ret;
-}
-
+// create a new aaa token
 np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
 {
     np_aaatoken_t* ret = NULL;
@@ -144,7 +58,102 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char
 
     ret->private_key_is_set = true;
     ret->scope = np_aaatoken_scope_private;
+    ret->issuer_token = ret;
 
+    return ret;
+}
+
+np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken_scope scope)
+{
+    np_ctx_memory(source);
+    np_aaatoken_t* ret = NULL;
+
+    /// contract begin
+    ASSERT(source != NULL, "source token cannot be NULL");
+
+    switch (scope)
+    {
+    case np_aaatoken_scope_private:
+        ASSERT(source->scope == np_aaatoken_scope_private, "Can only derive a private token from another private token. current token scope: %"PRIu8, source->scope);
+        ASSERT(
+            FLAG_CMP(source->type, np_aaatoken_type_identity) || FLAG_CMP(source->type, np_aaatoken_type_node),
+            "Can only derive a private token from a node or identity token. current token type: %"PRIu8, source->type);
+        break;
+    case np_aaatoken_scope_private_available:
+        ASSERT(source->scope <= np_aaatoken_scope_private, "Can only derive a protected token from a private token. current token scope: %"PRIu8, source->scope);
+        break;
+    case np_aaatoken_scope_public:
+        ASSERT(source->scope <= np_aaatoken_scope_private_available, "Can only derive a public token from a protected or private token. current token scope: %"PRIu8, source->scope);
+        break;
+    default:
+        log_msg(LOG_ERROR, "scope to derive token to is unknown. scope: %"PRIu8, scope);
+        abort();
+        break;
+    }
+    /// end of contract
+
+    // create token
+    np_new_obj(np_aaatoken_t, ret, FUNC);
+
+    strncpy(ret->realm, source->realm, 255);
+    strncpy(ret->issuer, source->issuer, 65);
+    strncpy(ret->subject, source->subject, 255);
+    strncpy(ret->audience, source->audience, 255);
+
+    ret->not_before = source->not_before;
+    ret->expires_at = source->expires_at;
+    ret->issued_at  = source->issued_at;
+    ret->version = source->version;
+    ret->state = source->state;
+
+    memcpy(ret->crypto.ed25519_public_key, source->crypto.ed25519_public_key, sizeof source->crypto.ed25519_public_key);
+    ret->crypto.ed25519_public_key_is_set = true;
+
+    if(scope != np_aaatoken_scope_private) {
+        memset(ret->crypto.ed25519_secret_key, 0, sizeof ret->crypto.ed25519_secret_key);
+        ret->crypto.ed25519_secret_key_is_set = false;
+        ret->private_key_is_set = false;
+    }
+    else
+    {
+        memcpy(ret->crypto.ed25519_secret_key, source->crypto.ed25519_secret_key, sizeof source->crypto.ed25519_secret_key);
+        ret->crypto.ed25519_secret_key_is_set = true;
+        ret->private_key_is_set = true;
+    }
+
+    ret->scope = scope;
+    ret->type  = source->type;
+    if (source->private_key_is_set) {
+        ret->issuer_token = source;
+    }
+
+    return (ret);
+}
+
+np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* source) {
+    np_ctx_memory(source);
+    np_ident_public_token_t* ret = NULL;
+
+    ASSERT(FLAG_CMP(source->type, np_aaatoken_type_identity), "Can only directly derive ident token from ident token. current token type: %"PRIu8, source->type);
+
+    ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
+    _np_aaatoken_set_signature(ret, NULL);
+
+    ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
+    return ret;
+}
+
+np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* source) {
+    np_ctx_memory(source);
+    np_node_public_token_t* ret = NULL;
+
+    ASSERT(FLAG_CMP(source->type , np_aaatoken_type_node), "Can only directly derive node token from node token. current token type: %"PRIu8, source->type);
+
+    ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
+    _np_aaatoken_set_signature(ret, NULL);
+
+    ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
+    _np_aaatoken_trace_info("build_node", ret);
     return ret;
 }
 
@@ -158,21 +167,19 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     np_waitref_obj(np_key_t, context->my_identity, my_identity, "np_waitref_obj");
     np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "np_waitref_obj");
 
-    ret = __np_token_factory_derive(my_identity->aaa_token, np_aaatoken_scope_public);
+    ret = __np_token_factory_derive(my_identity->aaa_token, np_aaatoken_scope_private_available);
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
     ret->type = np_aaatoken_type_message_intent;
 
+    // fill in token metadata for message identification
     char msg_id_subject[255];
     snprintf(msg_id_subject, 255, _NP_URN_MSG_PREFIX"%s", msg_request->msg_subject);
-
-    // create token
     strncpy(ret->issuer, (char*)_np_key_as_str(my_identity), 65);
     strncpy(ret->subject, msg_id_subject, 255);
     if (NULL != msg_request->msg_audience)
     {
         strncpy(ret->audience, (char*)msg_request->msg_audience, 255);
     }
-
     // TODO: how to allow the possible transmit jitter ?
     ret->not_before = np_time_now();
     int expire_sec = ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl) + msg_request->token_min_ttl);
@@ -183,20 +190,11 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     if (my_identity->aaa_token->expires_at < ret->expires_at) {
         ret->expires_at = my_identity->aaa_token->expires_at;
     }
-
     // add e2e encryption details for sender
-//    memcpy((char*)ret->crypto.ed25519_public_key,
-//        (char*)my_identity->aaa_token->crypto.ed25519_public_key,
-//        crypto_sign_PUBLICKEYBYTES);
-
-    // private key is only required for signing later, will not be send over the wire
-    // memcpy((char*)ret->private_key,
-    //	(char*)my_identity->aaa_token->private_key,
-    //	crypto_sign_SECRETKEYBYTES);
-
-    ret->issuer_token = my_identity->aaa_token;
-    ret->scope = np_aaatoken_scope_private_available;
-
+    memcpy((char*)ret->crypto.ed25519_public_key,
+           (char*)my_identity->aaa_token->crypto.ed25519_public_key,
+           crypto_sign_PUBLICKEYBYTES);
+    
     np_tree_replace_str( ret->extensions, "mep_type",
         np_treeval_new_ul(msg_request->mep_type));
     np_tree_replace_str( ret->extensions, "ack_mode",
@@ -212,8 +210,9 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 
     // fingerprinting and signing the token
-    _np_aaatoken_set_signature(ret, my_identity->aaa_token);
-	_np_aaatoken_update_extensions_signature(ret,  my_identity->aaa_token);
+    _np_aaatoken_set_signature(ret, NULL);
+    // _np_aaatoken_set_signature(ret);
+	_np_aaatoken_update_extensions_signature(ret);
 
     np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
     np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
@@ -235,16 +234,14 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
     ASSERT(FLAG_CMP(my_node_token->type, np_aaatoken_type_node), "Can only derive handshake token from node token. current token type: %"PRIu8, my_node_token->type);
     ASSERT(my_node_token->scope == np_aaatoken_scope_private, "Can only derive handshake token from private token. current token scope: %"PRIu8, my_node_token->scope);
 
-    ret = __np_token_factory_derive(my_node_token, np_aaatoken_scope_private);
+    ret = __np_token_factory_derive(my_node_token, np_aaatoken_scope_private_available);
     ret->type = np_aaatoken_type_handshake;
 
     np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token, false);
     _np_dhkey_str(&node_dhkey, ret->issuer);
 
-    _np_aaatoken_set_signature(ret, my_node_key->aaa_token);
-    // clear tree here to prevent too large handshake token (remove additional signer extension value)
-    np_tree_clear(ret->extensions);
-	_np_aaatoken_update_extensions_signature(ret, my_node_key->aaa_token);
+    _np_aaatoken_set_signature(ret, NULL);
+	_np_aaatoken_update_extensions_signature(ret);
 
 #ifdef DEBUG
     char my_token_fp_s[65] = { 0 };
@@ -293,18 +290,17 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
     np_node_private_token_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at, NULL);
     ret->type = np_aaatoken_type_node;
 
-    _np_aaatoken_set_signature(ret, ret);
+    _np_aaatoken_set_signature(ret, NULL);
 
     // add needed data for join requests
     if (context->my_identity != NULL                &&
-    		context->my_identity != context->my_node_key)
+    	context->my_identity != context->my_node_key)
     {
          np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(ret, false);
          np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
 
          np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
          np_aaatoken_set_partner_fp(ret, ident_dhkey);
-         _np_aaatoken_update_extensions_signature(context->my_identity->aaa_token, context->my_identity->aaa_token);
 
 #ifdef DEBUG
         char tmp_ident[65];
@@ -318,7 +314,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
 #endif
     }
 
-    _np_aaatoken_update_extensions_signature(ret, ret);
+    _np_aaatoken_update_extensions_signature(ret);
 
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
     _np_aaatoken_trace_info("build_node", ret);
@@ -336,8 +332,8 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
     np_aaatoken_t* ret = __np_token_factory_new(context, issuer, node_subject, expires_at, secret_key);
     ret->type = np_aaatoken_type_identity;
     
-    _np_aaatoken_set_signature(ret, ret);
-    _np_aaatoken_update_extensions_signature(ret, ret); 
+    _np_aaatoken_set_signature(ret, NULL);
+    _np_aaatoken_update_extensions_signature(ret); 
 
 #ifdef DEBUG
     char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';

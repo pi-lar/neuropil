@@ -194,11 +194,11 @@ struct np_aaatoken_s
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
 	bool private_key_is_set;
+	
 	np_aaatoken_t* issuer_token;
 
 	bool is_signature_verified;
 	bool is_signature_extensions_verified;
-
 
 } NP_API_EXPORT;
 
@@ -263,7 +263,7 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self);
 NP_API_INTERN
 void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
 NP_API_INTERN
-void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
+void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self);
 NP_API_INTERN
 unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self);
 NP_API_INTERN
