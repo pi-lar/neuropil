@@ -27,23 +27,33 @@ extern "C" {
 #define NULL (void*)0
 #endif
 
-    //
-    // int __attribute__((overloadable)) square(int);
+//
+// int __attribute__((overloadable)) square(int);
+
+#ifndef NP_CONST_ENUM
+    #if defined(__APPLE__) && defined(__MACH__)
+        #define NP_CONST_ENUM __attribute__((enum_extensibility(closed),flag_enum))
+    #else
+        #define NP_CONST_ENUM
+    #endif
+#endif
+
 #ifndef NP_ENUM
     #if defined(__APPLE__) && defined(__MACH__)
-        #define NP_ENUM __attribute__ ((flag_enum))
+        #define NP_ENUM __attribute__((flag_enum))
     #else
         #define NP_ENUM 
     #endif
 #endif
 
-#define NP_CONST __attribute__ ((const))
-#define NP_PURE  __attribute__ ((pure))
+#define NP_CONST __attribute__((const))
+#define NP_PURE  __attribute__((pure))
 
 #ifndef NP_PACKED
-#define NP_PACKED(x)  __attribute__ ((packed, aligned(x)))
+#define NP_PACKED(x)  __attribute__((packed, aligned(x)))
 #endif
-#define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
+
+#define NP_DEPRECATED __attribute__((deprecated("!!! DEPRECATED !!!")))
 
 
 #if defined(TEST_COMPILE) || defined(DEBUG)
@@ -71,17 +81,14 @@ extern "C" {
 #endif
 
     // Protocol constants
-    enum {
-        NP_SECRET_KEY_BYTES = 64,
+    enum np_limits {
         NP_PUBLIC_KEY_BYTES = 32,
         NP_FINGERPRINT_BYTES = 32,
-        NP_UUID_BYTES = 37
-    }NP_ENUM;
+        NP_SECRET_KEY_BYTES = 64,
+        NP_UUID_BYTES = 37,
+        NP_EXTENSION_BYTES = 10240,
+    } NP_CONST_ENUM;
 
-    // Implementation defined limits
-    enum {
-         NP_EXTENSION_BYTES = 10240
-    };
 
     enum np_status {
         np_error = 0,
@@ -89,7 +96,7 @@ extern "C" {
         np_running,
         np_stopped,
         np_shutdown,		
-    } NP_ENUM;
+    } NP_CONST_ENUM;
 
     enum np_return {
         np_ok = 0,
@@ -98,7 +105,7 @@ extern "C" {
         np_invalid_argument,
         np_invalid_operation,
         np_startup
-    } NP_ENUM;    
+    } NP_CONST_ENUM;
 
     NP_API_EXPORT
     const char *np_error_str(enum np_return e);
@@ -236,83 +243,6 @@ extern "C" {
         void np_destroy(np_context*ac, bool gracefully);
     NP_API_EXPORT
         bool np_id_equals(np_id first, np_id second);
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _NP_INTERFACE_H_ */
-//
-// neuropil is copyright 2016-2018 by pi-lar GmbH
-// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
-//
-
-/* neuropil API v2 */
-
-#ifndef _NP_INTERFACE_H_
-#define _NP_INTERFACE_H_
-
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define NEUROPIL_RELEASE	"neuropil_0.8.0"
-
-#define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2019 neuropil.org, Cologne, Germany"
-#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2019 pi-lar GmbH, Cologne, Germany"
-
-
-    /* just in case NULL is not defined */
-#ifndef NULL
-#define NULL (void*)0
-#endif
-
-    //
-    // int __attribute__((overloadable)) square(int);
-
-#if defined(__APPLE__) && defined(__MACH__)
-    #define NP_ENUM __attribute__ ((flag_enum))
-#else
-    #define NP_ENUM 
-#endif
-
-#define NP_CONST __attribute__ ((const))
-#define NP_PURE  __attribute__ ((pure))
-
-#define NP_PACKED(x)  __attribute__ ((packed(), aligned(x)))
-#define NP_DEPRECATED __attribute__ ((deprecated("!!! DEPRECATED !!!")))
-
-
-
-#if defined(TEST_COMPILE) || defined(DEBUG)
-#define NP_UNUSED     __attribute__ ((unused))
-#define NP_API_HIDDEN __attribute__ ((visibility ("default")))
-#define NP_API_PROTEC __attribute__ ((visibility ("default")))
-#define NP_API_INTERN __attribute__ ((visibility ("default")))
-#else
-#ifndef NP_UNUSED
-#define NP_UNUSED     __attribute__ ((unused))
-#endif
-#ifndef NP_API_PROTEC
-#define NP_API_PROTEC __attribute__ ((visibility ("default")))
-#endif
-#ifndef NP_API_HIDDEN
-#define NP_API_HIDDEN __attribute__ ((visibility ("default")))
-#endif
-#ifndef NP_API_INTERN
-#define NP_API_INTERN __attribute__ ((visibility ("default")))
-#endif
-#endif
-
-#ifndef NP_API_EXPORT
-#define NP_API_EXPORT __attribute__ ((visibility ("default")))
-#endif
-
-#include "np_ffi.h"
-
 #ifdef __cplusplus
 }
 #endif
