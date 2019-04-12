@@ -63,6 +63,9 @@ void _np_dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
 NP_API_INTERN
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
+NP_API_INTERN
+void _np_dhkey_hamming_distance(uint16_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y);
+
 /* key_between: test, left, right
  * check to see if the value in #test# falls in the range from #left# clockwise
  * around the ring to #right#.

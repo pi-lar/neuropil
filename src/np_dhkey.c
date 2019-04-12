@@ -167,10 +167,10 @@ bool  _np_dhkey_init (NP_UNUSED np_state_t* context)
 
     return true;
 }
+
 void _np_dhkey_destroy (np_state_t* context){
     //nothing to implement for now
 }
-
 
 np_dhkey_t np_dhkey_min(NP_UNUSED np_state_t* context)  {
     log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmin()  {"); return __dhkey_min;  };
@@ -182,9 +182,23 @@ np_dhkey_t np_dhkey_max(NP_UNUSED np_state_t* context)  {
 // TODO: the distance of two hash keys could be implemented much better
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {	
-    _np_dhkey_sub(diff, k1, k2);		
+    _np_dhkey_sub(diff, k1, k2);
 }
 
+void _np_dhkey_hamming_distance(uint16_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y)
+{
+    *diff = 0;
+    for (uint8_t k = 0; k < 8; ++k)
+    {
+        uint32_t val = x->t[k] ^ y->t[k];
+        // Count the number of bits set
+        while (val != 0)
+        {
+            (*diff)++;
+            val &= val - 1;
+        }
+    }
+}
 
 bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const bool includeBounds)
 {
