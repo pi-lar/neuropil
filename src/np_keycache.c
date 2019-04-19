@@ -81,7 +81,6 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
         else {
             np_ref_obj(np_key_t, key);
         }
-
         key->last_update = np_time_now();
     }
     // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create end");
@@ -95,10 +94,11 @@ np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey)
 
     np_new_obj(np_key_t, key);
     key->dhkey = search_dhkey;
-    key->last_update = np_time_now();
+    key->created_at = np_time_now();
+    key->last_update = key->created_at;
 
     ref_replace_reason(np_key_t, key, ref_obj_creation, FUNC);
-    _np_keycache_add(key);
+    // _np_keycache_add(key);
     
     return key;
 }

@@ -111,12 +111,17 @@ extern "C" {
     NP_API_INTERN
         char* np_memory_get_id(void * item);
     NP_API_INTERN
+        uint8_t np_memory_get_type(void * item);
+
+    NP_API_INTERN
         void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, bool del_container);
 
     // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE)												\
 void _##TYPE##_new(np_state_t * context, uint8_t type, size_t size, void* data);			\
 void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);			\
+
+#define NP_CAST(OBJ, TYPE, VAR) TYPE* VAR = (TYPE*) OBJ; 
 
     // macro definitions to generate implementation of prototypes
     // empty by design, forces developers to write new and delete callback functions for memory types
@@ -135,10 +140,8 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason) \
     np_memory_ref_replace_reason(np_obj, old_reason, new_reason);
-
 #else
 #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
-
 #define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
     char new_reason[0];																										
 #endif

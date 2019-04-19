@@ -20,40 +20,53 @@
 #include "np_types.h"
 #include "np_node.h"
 
+#include "util/np_event.h"
+#include "util/np_statemachine.h"
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 enum np_key_type {
+
 	np_key_type_unknown			= 0x000,
+	// 
 	np_key_type_alias			= 0x001,
 	np_key_type_node            = 0x002,
 	// no detection available (only local)
 	np_key_type_wildcard        = 0x004,
 
-	//DETECTION NOT IMPLEMENTED
+	// DETECTION NOT IMPLEMENTED
 	np_key_type_ident			= 0x008,
-	//DETECTION NOT IMPLEMENTED
+	// DETECTION NOT IMPLEMENTED
 	np_key_type_subject			= 0x010,
 };
+
+
 struct np_key_s
 {
-	              // link to memory management and ref counter
-
+	// link to memory management and ref counter
 	double created_at;
-	bool in_destroy;
+	bool   in_destroy;
 
 	SPLAY_ENTRY(np_key_s) link; // link for cache management
+
+	np_util_statemachine_t sm;
 
 	/*
 	only available for subject key
 	use _np_key_get_dhkey()
 	*/
 	np_dhkey_t dhkey;
-	double last_update;
 	char*      dhkey_str;
 
-	bool is_in_keycache;
+	double last_update;
+	bool   is_in_keycache;
+
+	np_sll_t(void_ptr, entities); // link to components attached to this key id
+
+
 	/*
 	only available for node key
 	*/
@@ -68,9 +81,9 @@ struct np_key_s
 	*/
 	np_aaatoken_t* aaa_token; // link to aaatoken for this key (if it exists)
 
-	np_pll_t(np_aaatoken_ptr, local_mx_tokens); // link to runtime interest data on which this node is interested in
-
 	// required structure if this node becomes a mitm for message exchange
+	np_pll_t(np_aaatoken_ptr, local_mx_tokens); // link to runtime interest data on which this node is interested in
+	
 	np_msgproperty_t* recv_property;
 	np_msgproperty_t* send_property;
 

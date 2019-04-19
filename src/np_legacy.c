@@ -341,45 +341,7 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
  * @param identity
  */
 void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
-{
-    np_ctx_cast(ac);
-    log_trace_msg(LOG_TRACE, "start: void _np_set_identity(np_aaatoken_t* identity){");
-
-	_np_aaatoken_set_signature(identity, NULL);
-
-    // build a hash to find a place in the dhkey table, not for signing !
-    np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
-    np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
-    // np_key_t* old_ident = context->my_identity;
-    np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);	
-
-    np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, my_identity_key);
-    
-    if (context->my_node_key != NULL &&
-        _np_key_cmp(my_identity_key, context->my_node_key) != 0) {
-        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
-        np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
-        _np_aaatoken_update_extensions_signature(context->my_node_key->aaa_token);
-
-        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
-        np_aaatoken_set_partner_fp(context->my_node_key->aaa_token, ident_dhkey);
-    }
-
-	_np_aaatoken_update_extensions_signature(identity);
-    identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
-
-    _np_statistics_update_prometheus_labels(context, NULL);
-    np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
-
-#ifdef DEBUG
-    char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
-    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
-
-    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
-    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
-
-    log_debug_msg(LOG_DEBUG, "     identity token: my cu pk: %s ### my ed pk: %s\n", curve25519_pk, ed25519_pk);
-#endif
+{    
 
 }
 

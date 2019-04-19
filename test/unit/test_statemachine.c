@@ -3,58 +3,123 @@
 
 #include <criterion/criterion.h>
 
-#include "statemachine/statemachine.h"
+#include "util/np_event.h"
+#include "util/np_statemachine.h"
 
-TestSuite(np_fwk_statemachine_t);
+
+TestSuite(np_util_statemachine_t);
 
 enum NP_TEST_STATEMACHINE_STATES{
     IDLE,
     RUNNING,
     INVALID
 };
+
 int job = 0;
 
-void action(np_fwk_statemachine_t* statemachine, unsigned char* userdata){
-
+void _noop_state_action(np_util_statemachine_t* statemachine, const np_util_event_t *event) {
+    // empty by design
 }
 
-bool has_job(np_fwk_statemachine_t* statemachine, unsigned char* userdata){
- return job > 0;
-}
-bool invalid_condition(np_fwk_statemachine_t* statemachine, unsigned char* userdata){
- return false;
-}
-
-Test(np_fwk_statemachine_t, _np_fwk_statemachine_t, .description = "test the statemachine implementation"){
-  
-    np_fwk_statemachine_t sm = NP_FWK_STATEMACHINE_INIT(IDLE, NULL,
-        NP_FWK_STATEMACHINE_RULE(IDLE,    RUNNING, action, has_job),
-        NP_FWK_STATEMACHINE_RULE(IDLE,    INVALID, action, invalid_condition),
-        NP_FWK_STATEMACHINE_RULE(RUNNING, IDLE,    action, NULL),
-    );
-
-    struct np_fwk_statemachine_result_s result;
-    bool auto_transition_result;
+void action(np_util_statemachine_t* statemachine, const np_util_event_t *event) {
     
-    cr_assert(np_fwk_statemachine_get_state(&sm) == IDLE, "State of sm needs to be IDLE");
+}
+
+bool has_job(np_util_statemachine_t* statemachine, const np_util_event_t *event) {
+    return (job > 0);
+}
+
+bool invalid_condition(np_util_statemachine_t* statemachine, const np_util_event_t *event) {
+    return false;
+}
+
+Test(np_util_statemachine_t, np_util_statemachine_t, .description = "test the statemachine implementation") {
+    
+    np_util_statemachine_t sm;
+    NP_UTIL_STATEMACHINE_INIT(sm, IDLE, NULL);
+    
+    NP_UTIL_STATEMACHINE_STATE(&sm, IDLE, "idle", _noop_state_action, _noop_state_action, _noop_state_action);
+        NP_UTIL_STATEMACHINE_TRANSITION(&sm, IDLE,    RUNNING, action, has_job);
+        NP_UTIL_STATEMACHINE_TRANSITION(&sm, IDLE,    INVALID, action, invalid_condition);
+
+    NP_UTIL_STATEMACHINE_STATE(&sm, RUNNING, "running", _noop_state_action, _noop_state_action, _noop_state_action);
+        NP_UTIL_STATEMACHINE_TRANSITION(&sm, RUNNING, IDLE,    action, NULL);
+
+    NP_UTIL_STATEMACHINE_STATE(&sm, INVALID, "invalid", _noop_state_action, _noop_state_action, _noop_state_action);
+    
+    
+    struct np_util_statemachine_result_s result;
+    bool auto_transition_result;
+    np_util_event_t ev = { .type=internal };
+
+    cr_assert(np_util_statemachine_get_state(&sm) == IDLE, "State of sm needs to be IDLE");
     job = 1;
-    auto_transition_result = np_fwk_statemachine_invoke_auto_transitions(&sm); // IDLE -> RUNNING (ok as condition is met)
+    
+    auto_transition_result = np_util_statemachine_invoke_auto_transition(&sm, ev); // IDLE -> RUNNING (ok as condition is met)
     cr_assert(auto_transition_result == true ,"Do transition as condition is met");
-    cr_assert(np_fwk_statemachine_get_state(&sm) == RUNNING,"State of sm needs to be RUNNING");
+    cr_assert(np_util_statemachine_get_state(&sm) == RUNNING,"State of sm needs to be RUNNING");
     job = 0;
-    auto_transition_result = np_fwk_statemachine_invoke_auto_transitions(&sm); // Nothing
-    cr_assert(auto_transition_result == false ,"Do nothing as no condition is set");
-    cr_assert(np_fwk_statemachine_get_state(&sm) == RUNNING,"State of sm needs to be RUNNING");
-
-    result = np_fwk_statemachine_transition(&sm, IDLE); // RUNNING -> IDLE (ok, as per rule)
-    cr_assert(result.success == true,"Success attribute has to be true not %"PRIu8,result.success);
-    cr_assert(result.error_code == NO_ERROR,"Errorcode attribute has to be NO_ERROR not %"PRIu16, result.error_code);
-
-    result = np_fwk_statemachine_transition(&sm, IDLE); // IDLE -> IDLE (nok, no rule set)
+    
+    auto_transition_result = np_util_statemachine_invoke_auto_transitions(&sm); // Nothing
+    cr_assert(auto_transition_result == true ,"Do nothing as no condition is set");
+    cr_assert(np_util_statemachine_get_state(&sm) == IDLE,"State of sm needs to be RUNNING");
+    
+    result = np_util_statemachine_transition(&sm, RUNNING); // IDLE -> RUNNING (not ok, as per rule)
+    cr_assert(result.success == false,"Success attribute has to be true not %"PRIu8,result.success);
+    cr_assert(result.error_code == CONDITION_NOT_MET,"Errorcode attribute has to be CONDITION_NOT_MET not %"PRIu16, result.error_code);
+    
+    result = np_util_statemachine_transition(&sm, IDLE); // IDLE -> IDLE (nok, no rule set)
     cr_assert(result.success ==  false,"Success attribute has to be false not %"PRIu8,result.success);
     cr_assert(result.error_code == NO_RULE,"Errorcode attribute has to be NO_RULE not %"PRIu16, result.error_code);
     
-    result = np_fwk_statemachine_transition(&sm, INVALID); // IDLE -> INVALID (nok, rule condition not ok)
+    result = np_util_statemachine_transition(&sm, INVALID); // IDLE -> INVALID (nok, rule condition not ok)
     cr_assert(result.success ==  false,"Success attribute has to be false not %"PRIu8,result.success);
-    cr_assert(result.error_code == CONDITION_NOT_MET,"Errorcode attribute has to be CONDITION_NOT_MET not %"PRIu16, result.error_code);   
+    cr_assert(result.error_code == CONDITION_NOT_MET,"Errorcode attribute has to be CONDITION_NOT_MET not %"PRIu16, result.error_code);
 }
+
+enum NP_TEST_STATEMACHINE_TOKEN_STATES{
+    INITIAL = 0,
+    PRIVATE_IDENTITY,
+    PUBLIC_IDENTITY,
+    PUBLIC_IDENTITY_AUTHENTICATED,
+    MESSAGE_IDENTITY,
+    IDENTITY_INVALID,
+    INVALID_IDENTITY,
+    MAX_STATES
+};
+
+Test(np_util_statemachine_t, _np_util_statemachine_token, .description = "test the token statemachine implementation"){
+    
+    CTX() {
+    np_aaatoken_t *token;
+    np_new_obj(np_aaatoken_t, token);
+
+    np_util_statemachine_t sm;
+    NP_UTIL_STATEMACHINE_INIT(sm, INITIAL, token);
+    
+    NP_UTIL_STATEMACHINE_STATE(&sm, INITIAL, "INITIAL", _noop_state_action, _noop_state_action, _noop_state_action);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, INITIAL,          PRIVATE_IDENTITY, action, _np_private_key_available);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, INITIAL,          PUBLIC_IDENTITY,  action, _np_aaatoken_is_valid);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, INITIAL,          MESSAGE_IDENTITY, action, _np_is_discovery_message);
+    
+    NP_UTIL_STATEMACHINE_STATE(&sm, PRIVATE_IDENTITY, "PRIVATE", _noop_state_action, _noop_state_action, _noop_state_action);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, PRIVATE_IDENTITY, IDENTITY_INVALID, action, _np_aaatoken_is_valid);
+
+    NP_UTIL_STATEMACHINE_STATE(&sm, PUBLIC_IDENTITY, "PUBLIC", _noop_state_action, _noop_state_action, _noop_state_action);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, PUBLIC_IDENTITY,  IDENTITY_INVALID, action, _np_aaatoken_is_valid);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, PUBLIC_IDENTITY,  PUBLIC_IDENTITY_AUTHENTICATED, action, _is_authenticated);
+    
+    NP_UTIL_STATEMACHINE_STATE(&sm, PUBLIC_IDENTITY_AUTHENTICATED, "PUBLIC_AUTHENTICATED", _noop_state_action, _noop_state_action, _noop_state_action);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, PUBLIC_IDENTITY_AUTHENTICATED, PUBLIC_IDENTITY,  action, _is_not_authenticated);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, PUBLIC_IDENTITY_AUTHENTICATED, IDENTITY_INVALID, action, _token_is_not_valid);
+
+    NP_UTIL_STATEMACHINE_STATE(&sm, IDENTITY_INVALID, "INVALID", _noop_state_action, _noop_state_action, _noop_state_action);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&sm, IDENTITY_INVALID, INITIAL,          action, NULL);
+
+    np_util_event_t ev = { .type=noop };
+    np_util_statemachine_invoke_auto_transition(&sm, ev);
+
+    ev = (struct np_util_event_s) { .type=token };
+    np_util_statemachine_invoke_auto_transition(&sm, ev);
+    }
+};

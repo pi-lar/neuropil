@@ -34,10 +34,106 @@
 #include "np_jobqueue.h"
 #include "np_constants.h"
 
+#include "util/np_event.h"
+#include "util/np_statemachine.h"
+
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
+
+enum NP_KEY_STATES {
+    IN_SETUP = 0,
+    IN_USE,
+    IN_DESTROY,
+    MAX_STATES
+};
+
+void __keystate_noop(np_util_statemachine_t* statemachine, const np_util_event_t *event) {
+    // empty by design
+}
+
+bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
+
+    np_ctx_decl(event.context);
+
+    bool ret = false;
+    
+    ret  = (event.type == internal);
+    ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
+
+    NP_CAST(event.user_data, np_aaatoken_t, identity);
+    ret &= _np_aaatoken_is_valid(identity, np_aaatoken_type_identity);
+
+    return ret;
+}
+
+bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_decl(event.context);
+
+    bool ret = false;
+    
+    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+    NP_CAST(my_identity_key->aaa_token, np_aaatoken_t, identity);
+
+    ret = !_np_aaatoken_is_valid(identity, np_aaatoken_type_identity);
+
+    return ret;
+}
+
+void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{    
+    log_trace_msg(LOG_TRACE, "start: void _np_set_identity(np_aaatoken_t* identity){");
+    np_ctx_decl(event.context);
+    
+    NP_CAST(event.user_data, np_aaatoken_t, identity);
+    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+
+    // np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);
+    np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, my_identity_key);
+
+    _np_keycache_add(my_identity_key);
+    sll_append(void_ptr, my_identity_key->entities, identity);
+}
+
+void __np_identity_enter(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_decl(event.context);
+
+    NP_CAST(event.user_data, np_aaatoken_t, identity);
+    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+
+    if (context->my_node_key != NULL &&
+        _np_key_cmp(my_identity_key, context->my_node_key) != 0) {
+        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
+        np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
+        _np_aaatoken_update_extensions_signature(context->my_node_key->aaa_token);
+
+        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
+        np_aaatoken_set_partner_fp(context->my_node_key->aaa_token, ident_dhkey);
+    }
+
+	_np_aaatoken_update_extensions_signature(identity);
+    identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
+
+    _np_statistics_update_prometheus_labels(context, NULL);
+#ifdef DEBUG
+    char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
+    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
+
+    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+
+    log_debug_msg(LOG_DEBUG, "     identity token: my cu pk: %s ### my ed pk: %s\n", curve25519_pk, ed25519_pk);
+#endif
+}
+
+bool __is_message_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
+    return (event.type == message) && 
+            np_memory_get_type(event.user_data == np_memory_types_np_aaatoken_t);
+}
+
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
@@ -71,8 +167,7 @@ void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const c
 {
     np_state_t* context = NULL; 
     sll_iterator(np_key_ptr) iter = sll_first(sll_list);	
-    while (NULL !=
-        iter)
+    while (NULL != iter)
     {
         if (context == NULL && iter->val != NULL) {
             context = np_ctx_by_memory(iter->val);
@@ -202,16 +297,32 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
     np_key_t* new_key = (np_key_t*) key;
 
-    new_key->type = np_key_type_unknown;
-    new_key->in_destroy = false;
+    // new_key->type = np_key_type_unknown;
+    // new_key->in_destroy = false;
+    // new_key->is_in_keycache = false;
 
+    NP_UTIL_STATEMACHINE_INIT(new_key->sm, IN_SETUP, new_key);
+
+    NP_UTIL_STATEMACHINE_STATE(&new_key->sm, IN_SETUP, "IN_SETUP", __keystate_noop, __keystate_noop, __keystate_noop);
+        NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_SETUP, IN_USE, __np_set_identity, __is_identity_aaatoken);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_SETUP, IN_USE, __np_add_node, __is_node_aaatoken);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_SETUP, IN_USE, __np_add_node, __is_wildcard_node);
+        // NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_SETUP, IN_USE, __np_add_intent, __is_message_intent);
+
+    NP_UTIL_STATEMACHINE_STATE(&new_key->sm, IN_USE, "IN_USE", __keystate_noop, __np_identity_enter, __keystate_noop);
+        NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_USE, IN_DESTROY, __keystate_noop, __is_identity_invalid);
+
+    NP_UTIL_STATEMACHINE_STATE(&new_key->sm, IN_DESTROY, "IN_DESTROY", __keystate_noop, _np_key_destroy, __keystate_noop);
+        NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_DESTROY, IN_SETUP, __keystate_noop, NULL);
+
+    new_key->created_at = np_time_now();
     new_key->last_update = np_time_now();
-
     new_key->dhkey_str = NULL;
+    
+    sll_init(void_ptr, new_key->entities); // link to components attached to this key id
+
     new_key->node = NULL;		  // link to a neuropil node if this key represents a node
     new_key->network = NULL;      // link to a neuropil node if this key represents a node
-
-    new_key->is_in_keycache = false;
     new_key->aaa_token = NULL;
 
     // used internally only
@@ -224,7 +335,6 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
 
     new_key->parent_key = NULL;
-    new_key->created_at = np_time_now();
     log_debug_msg(LOG_KEY | LOG_DEBUG, "Created new key");
 
 }
@@ -245,7 +355,6 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
 
     // unref and delete of other object pointers has to be done outside of this function
     // otherwise double locking the memory pool will lead to a deadlock
-
     np_unref_obj(np_msgproperty_t, 	old_key->recv_property,ref_key_recv_property);
     np_unref_obj(np_msgproperty_t, 	old_key->send_property,ref_key_send_property);
     np_unref_obj(np_aaatoken_t,		old_key->aaa_token, ref_key_aaa_token);
