@@ -22,39 +22,35 @@ enum np_util_statemachine_error_codes {
 
 typedef struct np_util_statemachine_s np_util_statemachine_t;
 
-typedef bool (*np_util_statemachine_transition_condition)(np_util_statemachine_t *sm, const np_util_event_t ev);
-typedef void (*np_util_statemachine_transition_action)   (np_util_statemachine_t *sm, const np_util_event_t ev);
-
-typedef void (*np_util_statemachine_state_error)(np_util_statemachine_t *sm, const np_util_event_t ev);
-typedef void (*np_util_statemachine_state_enter)(np_util_statemachine_t *sm, const np_util_event_t ev);
-typedef void (*np_util_statemachine_state_exit)(np_util_statemachine_t *sm, const np_util_event_t ev);
-
+typedef bool (*np_util_statemachine_cond) (np_util_statemachine_t *sm, const np_util_event_t ev);
+typedef void (*np_util_statemachine_func) (np_util_statemachine_t *sm, const np_util_event_t ev);
 
 struct np_util_statemachine_transition_s {
     bool _active;
     uint8_t _source_state, _target_state;
-    np_util_statemachine_transition_action f_action;
-    np_util_statemachine_transition_condition f_condition;
+    np_util_statemachine_func f_action;
+    np_util_statemachine_cond f_condition;
 };
+typedef struct np_utile_statemachine_transition_s np_utile_statemachine_transition_t; 
 
 struct np_util_statemachine_state_s {
     uint8_t _state_id;
     char    _state_name[25];
-    np_util_statemachine_state_error f_error;
-    np_util_statemachine_state_enter f_enter;
-    np_util_statemachine_state_exit  f_exit;
+    np_util_statemachine_func f_error;
+    np_util_statemachine_func f_enter;
+    np_util_statemachine_func f_exit;
 
     uint8_t _transitions;
     struct np_util_statemachine_transition_s *_transition_table;
 };
+typedef struct np_util_statemachine_state_s np_util_statemachine_state_t; 
 
 struct np_util_statemachine_s {
     uint8_t _start_state;
     uint8_t _current_state;
     void *_user_data;
 
-    uint8_t _states;
-    struct np_util_statemachine_state_s *_state_table;
+    np_util_statemachine_state_t** _state_table;
 };
 
 struct np_util_statemachine_result_s {
@@ -66,8 +62,8 @@ struct np_util_statemachine_result_s {
 
 uint8_t np_util_statemachine_get_state(np_util_statemachine_t *machine);
 
-void np_util_statemachine_add_state(np_util_statemachine_t *machine, struct np_util_statemachine_state_s state);
-void np_util_statemachine_add_transition(np_util_statemachine_t *machine, uint8_t state, struct np_util_statemachine_transition_s trans);
+void np_util_statemachine_add_state(np_util_statemachine_state_t** states, struct np_util_statemachine_state_s state);
+void np_util_statemachine_add_transition(np_util_statemachine_state_t** states, uint8_t state, struct np_util_statemachine_transition_s trans);
 
 bool np_util_statemachine_invoke_auto_transition(np_util_statemachine_t *machine, const np_util_event_t event);
 
@@ -91,11 +87,10 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
         ._transition_table = NULL                                                           \
     })
 
-#define NP_UTIL_STATEMACHINE_INIT(MACHINE, START_STATE, USERDATA)              \
-    {      														      \
-        MACHINE._start_state = START_STATE; MACHINE._current_state = START_STATE;   \
-        MACHINE._user_data   = USERDATA;    MACHINE._states=0;                      \
-        MACHINE._state_table = NULL;                                          \
+#define NP_UTIL_STATEMACHINE_INIT(MACHINE, START_STATE, STATE_TABLE, USERDATA)              \
+    {      														                            \
+        MACHINE._start_state = START_STATE; MACHINE._current_state = START_STATE;           \
+        MACHINE._user_data   = USERDATA;    MACHINE._state_table = STATE_TABLE;             \
     }
 
 #ifdef __cplusplus

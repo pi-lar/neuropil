@@ -22,31 +22,36 @@ bool np_util_statemachine_invoke_auto_transition(np_util_statemachine_t *machine
     bool ret = false;
     unsigned int i = 0;
 
-    uint32_t state_offset = machine->_current_state*sizeof(struct np_util_statemachine_state_s);
-    struct np_util_statemachine_state_s* current_state = machine->_state_table+state_offset;
+    np_util_statemachine_state_t* current_state = machine->_state_table[machine->_current_state];
     struct np_util_statemachine_transition_s* transition = NULL;
 
     fprintf(stdout, "cs: %s\n", current_state->_state_name);
     while(i < current_state->_transitions ) {
 
-        fprintf(stdout, "cs: %s -> %d (%d)\n", current_state->_state_name, i, current_state->_transitions);
+        fprintf(stdout, "cs: %d.%25s -> %d (%d)\n", machine->_current_state, current_state->_state_name, i, current_state->_transitions);
         transition = current_state->_transition_table + (i*sizeof(struct np_util_statemachine_transition_s));
 
-        if (!transition->_active)  { i++; continue; }
-
-        if (transition->f_condition == NULL ||
-            transition->f_condition(machine, ev) )
+        if (transition->_active && 
+            (
+                transition->f_condition == NULL ||
+                transition->f_condition(machine, ev)
+            )
+           )
         {
             ret = true;
             
             bool process_enter_exit_states = (transition->_target_state != current_state->_state_id) ? true : false;
+            
             if (process_enter_exit_states) current_state->f_exit(machine, ev);
             
             transition->f_action(machine, ev);
             machine->_current_state = transition->_target_state;
 
-            state_offset = machine->_current_state*sizeof(struct np_util_statemachine_state_s);
-            current_state = machine->_state_table+state_offset;
+            current_state = machine->_state_table[machine->_current_state];
+
+            fprintf(stdout, "cs: %d.%25s -> %p / %p\n", machine->_current_state, current_state->_state_name,
+                    current_state, current_state->f_enter);
+
             if (process_enter_exit_states) current_state->f_enter(machine, ev);
 
             break; // exit while early after first successful transition
@@ -73,14 +78,15 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
     struct np_util_statemachine_result_s ret = no_rule_result;
     unsigned int i = 0;
 
-    uint32_t state_offset = machine->_current_state*sizeof(struct np_util_statemachine_state_s);
-    struct np_util_statemachine_state_s* current_state = machine->_state_table+state_offset;
+    np_util_statemachine_state_t* current_state = machine->_state_table[machine->_current_state];
     struct np_util_statemachine_transition_s* transition = NULL;
     
     while(i < current_state->_transitions) {
         
-        fprintf(stdout, "cs: %s -> %d (%d)\n", current_state->_state_name, i, current_state->_transitions);
+        fprintf(stdout, "cs: %25s -> %d (%d)\n", current_state->_state_name, i, current_state->_transitions);
         transition = current_state->_transition_table + (i*sizeof(struct np_util_statemachine_transition_s));
+        
+        fprintf(stdout, " t: %25s -> %p / %p\n", current_state->_state_name, current_state->_transition_table, transition);
 
         if (!transition->_active)  { i++; continue; }
 
@@ -95,8 +101,7 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
             machine->_current_state = transition->_target_state;
             ret = ok_result;
 
-            state_offset = machine->_current_state*sizeof(struct np_util_statemachine_state_s);
-            current_state = machine->_state_table+state_offset;
+            current_state = machine->_state_table[machine->_current_state];
             if (process_enter_exit_states) current_state->f_enter(machine, noop_event);
 
             break;
@@ -114,37 +119,54 @@ uint8_t np_util_statemachine_get_state(np_util_statemachine_t* machine) {
     return machine->_current_state;
 }
 
-void np_util_statemachine_add_state(np_util_statemachine_t *machine, struct np_util_statemachine_state_s state)
+void np_util_statemachine_add_state(np_util_statemachine_state_t** states, struct np_util_statemachine_state_s state)
 {
-    uint8_t num_states = ++machine->_states;
-    uint32_t offset = (num_states-1)*sizeof(struct np_util_statemachine_state_s);
+    size_t state_size = sizeof(struct np_util_statemachine_state_s);
 
-    fprintf(stdout, "s: %d.%s -> %p\n", num_states, state._state_name, machine->_state_table);
+    fprintf(stdout, "\n");
+    fprintf(stdout, " s: %d.%25s -> %p\n", state._state_id, state._state_name, states);
+    
+    states[state._state_id] = malloc( state_size);    
 
-    machine->_state_table = realloc(machine->_state_table, num_states*sizeof(struct np_util_statemachine_state_s));
+    states[state._state_id]->_state_id = state._state_id;
+    strncpy(states[state._state_id]->_state_name, state._state_name, 25);
+    states[state._state_id]->_transitions = 0;
+    states[state._state_id]->_transition_table = NULL;
+    states[state._state_id]->f_enter = state.f_enter;
+    states[state._state_id]->f_enter = state.f_error;
+    states[state._state_id]->f_exit  = state.f_exit;
 
-    fprintf(stdout, "s: %d.%s -> %p / %p\n", num_states, state._state_name, machine->_state_table, machine->_state_table+offset);
-
-    memcpy(machine->_state_table+offset, &state, sizeof(struct np_util_statemachine_state_s));
+    fprintf(stdout, " s: %d.%25s -> %p / %p\n", 
+            states[state._state_id]->_state_id, states[state._state_id]->_state_name,
+            states, states[state._state_id]);
 }
 
-void np_util_statemachine_add_transition(np_util_statemachine_t *machine, uint8_t state, struct np_util_statemachine_transition_s trans)
+void np_util_statemachine_add_transition(np_util_statemachine_state_t** states, uint8_t state, struct np_util_statemachine_transition_s trans)
 {
-    ASSERT(state < machine->_states, "adding transition to unknown state" );
+    np_util_statemachine_state_t* st = states[state];
+    
+    uint8_t count = st->_transitions;
+    size_t transition_size = sizeof(struct np_util_statemachine_transition_s);
+    size_t transition_offset = count*transition_size;
+    
+    fprintf(stdout, " t:   %25s -> %p / %d\n", st->_state_name, st->_transition_table, st->_transitions);
 
-    uint32_t state_offset = state*sizeof(struct np_util_statemachine_state_s);
-    struct np_util_statemachine_state_s* st = (struct np_util_statemachine_state_s*) machine->_state_table+state_offset;
+    struct np_util_statemachine_transition_s* new_transition = NULL;
+    
+    new_transition = calloc(count+1, transition_size);
+    for (uint8_t m = 0; m < st->_transitions; m++)
+        memcpy(new_transition+(m*transition_size), st->_transition_table+(m*transition_size), transition_size);
+    memcpy(new_transition, st->_transition_table, transition_offset);
+    free(st->_transition_table);
+    st->_transition_table = new_transition;
 
-    uint8_t count = ++st->_transitions;
-    uint32_t offset = (count-1)*sizeof(struct np_util_statemachine_transition_s);
+    new_transition = st->_transition_table+transition_offset;
+    memcpy(new_transition, &trans, transition_size);
 
-    fprintf(stdout, "t: %s -> %p\n", st->_state_name, st->_transition_table);
+    st->_transitions++;
 
-    st->_transition_table = realloc(st->_transition_table, count*sizeof(struct np_util_statemachine_transition_s));
-
-    fprintf(stdout, "t: %s -> %p / %p\n", st->_state_name, st->_transition_table, st->_transition_table+offset);
-
-    memcpy(st->_transition_table+offset,
-           &trans,
-           sizeof(struct np_util_statemachine_transition_s));
+    for (uint8_t m = 0; m < st->_transitions; m++) {
+        transition_offset = m*transition_size;
+        fprintf(stdout, " t:   %25s ->   %p\n", st->_state_name, st->_transition_table+transition_offset);
+    }
 }

@@ -34,7 +34,7 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	// first step: create a new private key, set some data to the token
 	// and use the token for the neuropil subsystem.
 	// create a new identity / private key us set to NULL
-	struct np_token my_token_1 = np_new_identity(context, 20.0, NULL);
+	struct np_token my_token_1 = np_new_identity(context, np_time_now() + 120.0, NULL);
 	// obfuscate our mail address
 	np_id my_name_id_1;
 	char* my_name_1 = "neuropil-root@neuropil.io";
@@ -77,7 +77,7 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	}
 
 	// create a second identity
-	struct np_token my_token_2 = np_new_identity(context, 20.0, NULL);
+	struct np_token my_token_2 = np_new_identity(context, np_time_now() + 60.0, NULL);
 	// obfuscate our mail address
 	np_id my_name_id_2;
 	char* my_name_2 = "neuropil@neuropil.io";

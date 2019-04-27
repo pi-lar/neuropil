@@ -342,7 +342,16 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
  */
 void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
 {    
+    np_ctx_cast(ac);
 
+    np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
+    np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
+
+    np_util_event_t ev = { .type=internal, .context=ac, .user_data=identity };
+    np_util_statemachine_invoke_auto_transition(&my_identity_key->sm, ev);
+
+    np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
+    np_unref_obj(np_aaatoken_t, identity, "np_token_factory_new_identity_token");
 }
 
 /**

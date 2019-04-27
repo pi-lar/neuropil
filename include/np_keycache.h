@@ -36,6 +36,9 @@ NP_API_INTERN
 void _np_keycache_destroy(np_state_t* context);
 
 NP_API_INTERN
+void _np_keycache_check_state(np_state_t* context, NP_UNUSED np_jobargs_t args);
+
+NP_API_INTERN
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t key);
 
 NP_API_INTERN

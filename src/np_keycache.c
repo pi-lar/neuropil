@@ -192,6 +192,20 @@ np_key_t* _np_keycache_find_by_details(
     return (ret);
 }
 
+void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
+{
+    np_key_t* return_key = NULL;
+    np_key_t *iter = NULL;
+
+    _LOCK_MODULE(np_keycache_t)
+    {
+        SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
+        {
+            np_util_statemachine_invoke_auto_transitions(&iter->sm);
+        }
+    }
+}
+
 np_key_t* _np_keycache_find_deprecated(np_state_t* context)
 {
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");

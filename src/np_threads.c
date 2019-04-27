@@ -19,20 +19,20 @@
 #include "pthread.h"
 
 #include "dtime.h"
-#include "np_legacy.h"
-#include "np_key.h"
-#include "np_types.h"
-#include "np_list.h"
-#include "np_util.h"
-#include "np_log.h"
-#include "np_settings.h"
-#include "np_msgproperty.h"
 #include "np_constants.h"
-#include "np_network.h"
-
-#include "np_jobqueue.h"
-#include "np_glia.h"
 #include "np_event.h"
+#include "np_glia.h"
+#include "np_jobqueue.h"
+#include "np_key.h"
+#include "np_keycache.h"
+#include "np_legacy.h"
+#include "np_list.h"
+#include "np_log.h"
+#include "np_msgproperty.h"
+#include "np_network.h"
+#include "np_settings.h"
+#include "np_types.h"
+#include "np_util.h"
 
 pthread_key_t  __pthread_thread_ptr_key;
 
@@ -825,6 +825,8 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
         }        
         
+
+        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, NP_LOG_FLUSH_INTERVAL, NP_LOG_FLUSH_INTERVAL, _np_glia_log_flush, "_np_glia_log_flush");
 

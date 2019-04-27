@@ -421,15 +421,7 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
     np_user4aaatoken(imported_token, &identity);
 	_np_aaatoken_set_signature(imported_token, NULL);
 
-    // build a hash to find a place in the dhkey table, not for signing !
-    np_dhkey_t search_key = np_aaatoken_get_fingerprint(imported_token, false);
-    np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
-
-    np_util_event_t ev = { .type=internal, .context=ac, .user_data=imported_token };
-    np_util_statemachine_invoke_auto_transition(my_identity_key, ev);
-
-    np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
-    np_unref_obj(np_aaatoken_t, imported_token, "np_token_factory_new_identity_token");
+    _np_set_identity(context, imported_token);
 
     log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
     return ret;
