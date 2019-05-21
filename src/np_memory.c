@@ -21,7 +21,7 @@
 #include "np_list.h"
 #include "np_types.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_key.h"
 #include "np_aaatoken.h"
 #include "np_threads.h"
@@ -257,16 +257,16 @@ bool _np_memory_init(np_state_t* context) {
 np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type##_t), items_per_block, min_items, new_fn, free_fn, clear_fn)
 #define register_defaultobj(type, count_of_itens_in_block, min_count) register(type, count_of_itens_in_block, min_count, _np_##type##_t_new, _np_##type##_t_del, np_memory_clear_space);	
 
-    register_defaultobj(message, 4, 10);
-    register_defaultobj(key, 4, 10);
-    register_defaultobj(msgproperty, 4, 10);
+    register_defaultobj(message, 4, 4);
+    register_defaultobj(key, 4, 4);
+    register_defaultobj(msgproperty, 4, 4);
     register_defaultobj(thread, 1, 1);
-    register_defaultobj(node, 4, 10);
-    register_defaultobj(network, 4, 10);
-    register_defaultobj(responsecontainer, 4, 10);
-    register_defaultobj(messagepart, 4, 150);
-    register_defaultobj(aaatoken, 4, 10);
-    register_defaultobj(crypto, 4, 10);
+    register_defaultobj(node, 4, 4);
+    register_defaultobj(network, 4, 4);
+    register_defaultobj(responsecontainer, 4, 4);
+    register_defaultobj(messagepart, 4, 20);
+    register_defaultobj(aaatoken, 4, 4);
+    register_defaultobj(crypto, 4, 4);
 
 #undef register
 #undef register_defaultobj
@@ -274,10 +274,16 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
     // np_memory_register_type(context, np_memory_types_np_job_t, sizeof(np_job_t), 4, JOBQUEUE_MAX_SIZE, NULL, NULL, np_memory_clear_space);
     // np_memory_register_type(context, np_memory_types_np_jobargs_t, sizeof(np_jobargs_t), 4, JOBQUEUE_MAX_SIZE/2, NULL, NULL, np_memory_clear_space);
 
-    np_memory_register_type(context, np_memory_types_BLOB_1024, MSG_CHUNK_SIZE_1024, 4, 150, NULL, NULL, np_memory_clear_space);
-    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40, 4, 50, NULL, NULL, np_memory_randomize_space);
+    np_memory_register_type(context, np_memory_types_BLOB_1024, MSG_CHUNK_SIZE_1024, 4, 20, NULL, NULL, np_memory_clear_space);
+    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40, 4, 20, NULL, NULL, np_memory_randomize_space);
 
     return true;
+}
+
+bool _np_memory_rtti_check(void* item, enum np_memory_types_e type) 
+{
+    np_memory_itemconf_t* item_conf = GET_CONF(item);
+    return (item_conf->container->type == type);
 }
 
 void __np_memory_space_increase(np_memory_container_t* container, uint32_t block_size) {
@@ -1038,6 +1044,14 @@ uint32_t np_memory_get_refcount(void * item) {
     if (item != NULL) {
         np_memory_itemconf_t* config = GET_CONF(item);
         ret = config->ref_count;
+    }
+    return ret;
+}
+uint8_t np_memory_get_type(void * item) {
+    uint8_t ret = 0;
+    if (item != NULL) {
+        np_memory_itemconf_t* config = GET_CONF(item);
+        ret = config->container->type;
     }
     return ret;
 }

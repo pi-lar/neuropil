@@ -14,10 +14,20 @@ extern "C" {
 
 // TODO: event definitions need to move to another file
 enum event_type {
-    noop = 0, // update time
-    internal, // no payload
-    message,  // payload of type message
-    token,    // payload of type token
+    evt_noop     = 0x0000, // update time
+
+    evt_internal = 0x0001, // no payload
+    evt_external = 0x0002, // no payload
+
+    evt_message  = 0x0010, // payload of type message / external
+    evt_token    = 0x0020, // payload of type token
+    evt_property = 0x0040, // payload of type msgproperty
+    evt_jobargs  = 0x0080, // only for migration: jobargs
+
+    evt_authn_ev = 0x0100,
+    evt_authz_ev = 0x0200,
+
+    evt_shutdown = 0x1000,
 };
 
 struct np_util_event_s {

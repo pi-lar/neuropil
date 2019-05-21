@@ -7,7 +7,7 @@
 
 #include "np_types.h"
 
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 
 #ifdef __cplusplus
 extern "C" {

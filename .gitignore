@@ -1,6 +1,7 @@
+DerivedData/*
+tpl/*
 *.o
 *.os
-*core*
 bin/*
 .eggs/
 build/

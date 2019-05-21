@@ -34,10 +34,8 @@ It should contain all required functions to send or receive messages.
 #include "np_treeval.h"
 #include "map.h"
 #include "np_scache.h"
-#include "np_msgproperty.h"
 
-
-
+#include "core/np_comp_msgproperty.h"
 
 
 #ifdef __cplusplus

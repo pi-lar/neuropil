@@ -17,7 +17,7 @@
 #include "np_jobqueue.h"
 #include "np_key.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_responsecontainer.h"
 
 #include "np_legacy.h"
@@ -52,7 +52,7 @@ void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_jobargs_t args)
 
                 np_message_add_on_timeout(out_msg, __np_bootstrap_on_timeout);
 
-                np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_PING_REQUEST);
+                np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_PING_REQUEST);
                 _np_job_submit_route_event(context, 0.0, prop, ((np_key_t*)iter->val.value.v), out_msg);
                 np_unref_obj(np_message_t, out_msg, ref_obj_creation);
             }

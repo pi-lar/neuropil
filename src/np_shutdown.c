@@ -22,7 +22,7 @@
 #include "np_list.h"
 #include "np_route.h"
 #include "np_tree.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_jobqueue.h"
 #include "np_util.h"
 #include "np_message.h"

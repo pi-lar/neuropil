@@ -34,7 +34,7 @@
 #include "np_message.h"
 #include "np_memory.h"
 
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_route.h"
@@ -48,6 +48,7 @@
 #include "np_responsecontainer.h"
 
 // TODO: make these configurable (via struct np_config)
+
 
 /**
  ** np_route:
@@ -125,7 +126,7 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
         // the message has to be handled by this node (e.g. msg interest messages)
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) internal routing for subject '%s'", msg_in->uuid, msg_subject);
                 
-        np_msgproperty_t* prop = np_msgproperty_get(context, INBOUND, msg_subject);
+        np_msgproperty_t* prop = _np_msgproperty_get(context, INBOUND, msg_subject);
         if(prop != NULL) {
             _np_job_submit_msgin_event(0.0, prop, my_key, args.msg, NULL);
         }
@@ -138,9 +139,9 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
             target_key = args.target;
         }
 
-        np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, msg_subject);
+        np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, msg_subject);
         if (NULL == prop) {
-            prop = np_msgproperty_get(context, OUTBOUND, _DEFAULT);
+            prop = _np_msgproperty_get(context, OUTBOUND, _DEFAULT);
         }
 
         if (args.is_resend == true) {
@@ -251,14 +252,13 @@ void _np_glia_send_pings(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
     sll_free(np_key_ptr, neighbour_keys);
 }
 
-void _np_glia_log_flush(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-    
+void _np_glia_log_flush(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
+{    
     _np_log_fflush(context, false);
 }
 
-void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-    
-
+void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t args)
+{
     /* send leafset exchange data every 3 times that pings the leafset */
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset exchange for neighbours started");
 
@@ -271,9 +271,8 @@ void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t a
     while (iter_keys != NULL)
     {
         // send a piggy message to the the nodes in our routing table
-        np_msgproperty_t* piggy_prop = np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
+        np_msgproperty_t* piggy_prop = _np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
         _np_job_submit_transform_event(context, 0.0, piggy_prop, iter_keys->val, NULL);
-
         i++;
         sll_next(iter_keys);
     }
@@ -307,7 +306,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED  np_jo
                 np_key_t* target = NULL;
                 target = _np_keycache_find_or_create(context, target_dhkey);
 
-                msg_prop = np_msgproperty_get(context, TRANSFORM, subject);
+                msg_prop = _np_msgproperty_get(context, TRANSFORM, subject);
 
                 if (NULL != msg_prop)
                 {
@@ -335,24 +334,24 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED  np_jo
             np_key_t* target = NULL;
             target = _np_keycache_find_or_create(context, target_dhkey);
 
-            msg_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-            if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+            msg_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+            /*if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
                 sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-            }
+            }*/
             // _np_out_sender_discovery(0.0, msg_prop, target, NULL);
             _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
 
-            msg_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-            if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+            msg_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+            /*if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
                 sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-            }
+            }*/
             _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
 
-            msg_prop = np_msgproperty_get(context, INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-            if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
+            msg_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+            /*if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
                 sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-            }
-            _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
+            }*/
+            // _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
 
             np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
         }
@@ -435,9 +434,7 @@ void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
 }
 
 void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
-{
-    
-
+{    
     np_key_t* old = NULL;
     double now = np_time_now();
 
@@ -471,41 +468,35 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t a
 
         if (NULL != old->recv_tokens)
         {
-            _LOCK_ACCESS(&old->recv_property->lock)
+            // check old receiver token structure
+            pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
+            while (NULL != iter)
             {
-                // check old receiver token structure
-                pll_iterator(np_aaatoken_ptr) iter = pll_first(old->recv_tokens);
-                while (NULL != iter)
+                np_aaatoken_t* tmp_token = iter->val;
+                if (true == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
                 {
-                    np_aaatoken_t* tmp_token = iter->val;
-                    if (true == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
-                    {
-                        log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
-                        delete_key &= false;
-                        break;
-                    }
-                    pll_next(iter);
+                    log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid receiver tokens: %s", _np_key_as_str(old));
+                    delete_key &= false;
+                    break;
                 }
+                pll_next(iter);
             }
         }
 
         if (NULL != old->send_tokens)
         {
-            _LOCK_ACCESS(&old->send_property->lock)
+            // check old sender token structure
+            pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
+            while (NULL != iter)
             {
-                // check old sender token structure
-                pll_iterator(np_aaatoken_ptr) iter = pll_first(old->send_tokens);
-                while (NULL != iter)
+                np_aaatoken_t* tmp_token = iter->val;
+                if (true == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
                 {
-                    np_aaatoken_t* tmp_token = iter->val;
-                    if (true == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
-                    {
-                        log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
-                        delete_key &= false;
-                        break;
-                    }
-                    pll_next(iter);
+                    log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid sender tokens: %s", _np_key_as_str(old));
+                    delete_key &= false;
+                    break;
                 }
+                pll_next(iter);
             }
         }
 
@@ -561,7 +552,7 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
     {
         np_tree_t* msg_body = np_tree_create();
         _np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
-        np_msgproperty_t* outprop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_PIGGY_REQUEST);
+        np_msgproperty_t* outprop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_PIGGY_REQUEST);
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending piggy msg (%"PRIu32" nodes) to %s", sll_size(sll_of_keys), _np_key_as_str(target_key));
 
         np_message_t* msg_out = NULL;
@@ -573,33 +564,6 @@ void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
 
     np_key_unref_list(sll_of_keys, source_sll_of_keys);
     sll_free(np_key_ptr, sll_of_keys);
-}
-
-void _np_send_subject_discovery_messages(np_state_t* context , np_msg_mode_type mode_type, const char* subject)
-{
-    // TODO: msg_tokens for either
-    // insert into msg token token renewal queue
-    _LOCK_MODULE(np_state_message_tokens_t) {
-        if (NULL == np_tree_find_str(context->msg_tokens, subject))
-        {
-            np_tree_insert_str( context->msg_tokens, subject, np_treeval_new_v(NULL));
-
-            np_msgproperty_t* msg_prop = np_msgproperty_get(context, mode_type, subject);
-            assert(msg_prop!=NULL);
-            msg_prop->mode_type |= TRANSFORM;
-            if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages, np_callback_t_sll_compare_type)) {
-                sll_append(np_callback_t, msg_prop->clb_transform, _np_out_discovery_messages);
-            }
-
-            np_dhkey_t target_dhkey = np_dhkey_create_from_hostport( subject, "0");
-            np_key_t* target = NULL;
-            target = _np_keycache_find_or_create(context, target_dhkey);
-
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "registering for message discovery token handling (%s)", subject);
-            _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
-            np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
-        }
-    }
 }
 
 // TODO: add a wrapper function which can be scheduled via jobargs
@@ -626,7 +590,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 
         if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
         {
-            np_msgproperty_t* handler = np_msgproperty_get(context, INBOUND, msg->msg_property->msg_subject);
+            np_msgproperty_t* handler = _np_msgproperty_get(context, INBOUND, msg->msg_property->msg_subject);
             if (handler != NULL)
             {
                 _np_in_new_msg_received(msg, handler, true);
@@ -647,7 +611,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 */
             np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
 
-            np_msgproperty_t* out_prop = np_msgproperty_get(context, OUTBOUND, subject);
+            np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
             _np_job_submit_route_event(context, 0.0, out_prop, NULL, msg);
 
             if (NULL != msg_prop->rep_subject &&

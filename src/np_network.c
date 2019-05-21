@@ -270,19 +270,20 @@ bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool re
             if(node_available) {
                 _LOCK_ACCESS(&(node->lock)) {
                     double now = np_time_now();
-                    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
+                    np_msgproperty_t* msg_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
                     assert(msg_prop != NULL);
 
                     if (response_handshake ||
                         node->_handshake_status == np_handshake_status_Disconnected ||
                         (node->_handshake_status == np_handshake_status_SelfInitiated &&
-                        (node->handshake_send_at + msg_prop->msg_ttl) < now
-                            )
+                            (node->handshake_send_at + msg_prop->msg_ttl) < now
                         )
+                    )
                     {
                         log_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_INFO, "requesting a %shandshake with %s:%s (%s)",
                             !response_handshake ? "new " : "",
                             node->dns_name, node->port, _np_key_as_str(node_key));
+
                         if (!response_handshake)
                         {
                             np_node_set_handshake(node, np_handshake_status_SelfInitiated);
@@ -441,17 +442,17 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
                                 a.3) the whole paket has been send
                         */
                         void* data_to_send = NULL;
-                        int data_counter = 0;
+                        // int data_counter = 0;
                         ssize_t written_per_data = 0, current_write_per_data = 0;
-                        double timeout = np_time_now() + 1.;
-                        do {
+                        // double timeout = np_time_now() + 1.;
+                        // do {
                             data_to_send = sll_head(void_ptr, key_network->out_events);
-                            written_per_data = 0;
+                            // written_per_data = 0;
 
                             if (data_to_send != NULL)
                             {
-                                int retry = 1;
-                                do {
+                            //     int retry = 1;
+                            //     do {
 
                                     /*
                                     Prep for UDP Passive
@@ -480,20 +481,20 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
                                         0
 #endif
                                     );
-                                    //}
-                                    if (current_write_per_data < 0) {
-                                        np_time_sleep(NP_SLEEP_MIN);
-                                    }
-                                    else if (current_write_per_data > 0)
+                                    // }
+                                    // if (current_write_per_data < 0) {
+                                    //     np_time_sleep(NP_SLEEP_MIN);
+                                    // }
+                                    if (current_write_per_data > 0)
                                     {
                                         written_per_data += current_write_per_data;
                                         _np_statistics_add_send_bytes(current_write_per_data);
                                     }
-                                } while (written_per_data < MSG_CHUNK_SIZE_1024 && retry-- > 0);
+                                // } while (written_per_data < MSG_CHUNK_SIZE_1024 && retry-- > 0);
 #ifdef DEBUG 
-                                if (retry != 10) {
-                                    log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send package in %"PRId32" parts", 10 - retry);
-                                }
+                                // if (retry != 10) {
+                                //     log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send package in %"PRId32" parts", 10 - retry);
+                                // }
 #endif
 
                                 if (written_per_data != MSG_CHUNK_SIZE_1024) {
@@ -509,7 +510,7 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
                                 }
                                 np_memory_free(context, data_to_send);
                             }
-                        } while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN_OUT && np_time_now() < timeout);
+                        // } while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN_OUT && np_time_now() < timeout);
 
 #ifdef DEBUG 
                         if (sll_size(key_network->out_events) > 0)
@@ -729,9 +730,9 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     int msgs_received = 0;
 
     // catch multiple msgs waiting in this pipe
-    double timeout_start = np_time_now();
+    // double timeout_start = np_time_now();
 
-    do {
+    // do {
         struct __np_network_data * data_container = calloc(1, sizeof(struct __np_network_data));
 
         data_container->key = key = (np_key_t*)event->data;
@@ -746,7 +747,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
         int16_t in_msg_len = 0;
 
         // catch a msg even if it was chunked into smaller byte parts by the underlying network
-        do {
+        // do {
             if (FLAG_CMP(ng->socket_type, TCP)) {
                 last_recv_result = recv(event->fd, ((char*)data_container->data)+in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
             } else {
@@ -755,12 +756,15 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             }
 
             if (last_recv_result < 0) {
-                break;
+                np_memory_free(context, data_container->data);
+                free(data_container);
+            		return;
+                // break;
             }
             in_msg_len += last_recv_result;
             _np_statistics_add_received_bytes(last_recv_result);
             // repeat if msg is not 1024 bytes in size and the timeout is not reached
-        } while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
+        // } while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
 
         if (FLAG_CMP(ng->socket_type, TCP)) {
 
@@ -777,6 +781,8 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                 if (0 != peer_result) {
                     log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
                         strerror(errno), errno);
+                    np_memory_free(context, data_container->data);
+                    free(data_container);
                     return;
                 }			
                 key = key->parent_key;
@@ -787,7 +793,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
         log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %"PRIi16" bytes via (fd: %d) ", in_msg_len, event->fd);
 
-        if (in_msg_len >= 0) {
+        if (in_msg_len == MSG_CHUNK_SIZE_1024) {
             msgs_received++;            
             data_container->in_msg_len = in_msg_len;
             if (!np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_network_handle_incomming_data, data_container, "_np_network_handle_incomming_data")) {
@@ -803,7 +809,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
         }
 
     // there may be more then one msg in our socket pipeline
-    } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC); 
+    // } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
     
 }
     

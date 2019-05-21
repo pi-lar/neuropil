@@ -24,7 +24,7 @@
 #include "np_statistics.h"
 #include "np_jobqueue.h"
 #include "np_threads.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_tree.h"
 #include "np_treeval.h"
 #include "np_shutdown.h"
@@ -118,9 +118,9 @@ np_context* np_new_context(struct np_settings * settings_in) {
         log_msg(LOG_ERROR, "neuropil_init: could not init memory");
         status = np_startup;
     }
-    else if (_np_msgproperty_init(context) == false)
+    else if (_np_time_init(context) == false)
     {
-        log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed");
+        log_msg(LOG_ERROR, "neuropil_init: could not init time cache");
         status = np_startup;
     }
     else if (_np_event_init(context) == false)
@@ -138,9 +138,9 @@ np_context* np_new_context(struct np_settings * settings_in) {
         log_msg(LOG_ERROR, "neuropil_init: could not init keycache");
         status = np_startup;
     }
-    else if (_np_time_init(context) == false)
+    else if (_np_msgproperty_init(context) == false)
     {
-        log_msg(LOG_ERROR, "neuropil_init: could not init time cache");
+        log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed");
         status = np_startup;
     }
     else {
@@ -254,7 +254,7 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
                     np_unref_obj(np_node_t, tmp_node, ref_obj_creation);
                 }
 
-                if (context->my_identity == NULL) // make ist selfsigned if no ident is given
+                if (context->my_identity == NULL) // make it selfsigned if no identy is given
                     _np_set_identity(context, context->my_node_key->aaa_token);
 
                 _np_network_set_key(my_network, context->my_node_key);
@@ -569,7 +569,8 @@ enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
 
     return ret;
 }
-enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
+enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback)
+{
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
@@ -577,18 +578,19 @@ enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback) {
 
     return ret;
 }
-
-struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject) {
+struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject) 
+{
     np_ctx_cast(ac);
     struct np_mx_properties ret = { 0 };
 
-    np_msgproperty_t* property = np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
+    np_msgproperty_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
     
     np_msgproperty4user(&ret, property);
 
     return ret;
 }
-enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties user_property) {
+enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties user_property) 
+{
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
     
@@ -596,13 +598,12 @@ enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct 
     struct np_mx_properties safe_user_property = user_property;
     safe_user_property.reply_subject[254] = 0;
  
-    np_msgproperty_t* property = np_msgproperty_get_or_create(context, DEFAULT_MODE,  subject);
+    np_msgproperty_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE,  subject);
 
     np_msgproperty_from_user(context, property, &safe_user_property);
 
     return ret;
 }
-
 enum np_return np_run(np_context* ac, double duration) {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;

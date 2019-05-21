@@ -22,7 +22,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_threads.h"
 #include "np_settings.h"
 #include "np_util.h"

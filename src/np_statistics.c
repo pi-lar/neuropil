@@ -10,7 +10,7 @@
 #include "np_legacy.h"
 #include "np_types.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_scache.h"
 #include "np_list.h"
 #include "np_threads.h"
@@ -335,12 +335,12 @@ void np_statistics_add_watch(np_state_t* context, char* subject) {
             np_time_now();
     }
 
-    if (false == container->watch_receive && np_msgproperty_get(context, INBOUND, key) != NULL) {
+    if (false == container->watch_receive && _np_msgproperty_get(context, INBOUND, key) != NULL) {
         container->watch_receive = true;
         np_add_receive_listener(context, _np_statistics_receive_msg_on_watched, NULL, key);
     }
 
-    if (false == container->watch_send && np_msgproperty_get(context, OUTBOUND, key) != NULL) {
+    if (false == container->watch_send && _np_msgproperty_get(context, OUTBOUND, key) != NULL) {
         container->watch_send = true;
         np_add_send_listener(context, _np_statistics_send_msg_on_watched, NULL, key);
     }

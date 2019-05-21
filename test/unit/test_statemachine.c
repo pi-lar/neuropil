@@ -49,11 +49,11 @@ Test(np_util_statemachine_t, np_util_statemachine_t, .description = "test the st
 
     NP_UTIL_STATEMACHINE_STATE(states, INVALID, "invalid", _noop_state_action, _noop_state_action, _noop_state_action);
 
-    NP_UTIL_STATEMACHINE_INIT(sm, IDLE, states, NULL);
+    NP_UTIL_STATEMACHINE_INIT(sm, NULL, IDLE, states, NULL);
 
     struct np_util_statemachine_result_s result;
     bool auto_transition_result;
-    np_util_event_t ev = { .type=internal };
+    np_util_event_t ev = { .type=evt_internal };
 
     cr_assert(np_util_statemachine_get_state(&sm) == IDLE, "State of sm needs to be IDLE");
     job = 1;
@@ -91,41 +91,41 @@ enum NP_TEST_STATEMACHINE_TOKEN_STATES{
     MAX_TOKEN_STATES
 };
 
-Test(np_util_statemachine_t, _np_util_statemachine_token, .description = "test the token statemachine implementation"){
-    
-    CTX() {
+Test(np_util_statemachine_t, _np_util_statemachine_token, .description = "test the token statemachine implementation")
+{    
+	CTX() {
         
-    np_aaatoken_t *aaatoken;
-    np_new_obj(np_aaatoken_t, aaatoken);
+        np_aaatoken_t *aaatoken;
+        np_new_obj(np_aaatoken_t, aaatoken);
 
-    np_util_statemachine_t sm;
-    np_util_statemachine_state_t* states[MAX_TOKEN_STATES];    
-    
-    NP_UTIL_STATEMACHINE_STATE(states, INITIAL, "INITIAL", _noop_state_action, _noop_state_action, _noop_state_action);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, INITIAL,          PRIVATE_IDENTITY, action, _np_private_key_available);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, INITIAL,          PUBLIC_IDENTITY,  action, _np_aaatoken_is_valid);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, INITIAL,          MESSAGE_IDENTITY, action, _np_is_discovery_message);
-    
-    NP_UTIL_STATEMACHINE_STATE(states, PRIVATE_IDENTITY, "PRIVATE", _noop_state_action, _noop_state_action, _noop_state_action);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, PRIVATE_IDENTITY, IDENTITY_INVALID, action, _np_aaatoken_is_valid);
+        np_util_statemachine_t sm = {0};
+        np_util_statemachine_state_t* states[MAX_TOKEN_STATES];    
+        
+        NP_UTIL_STATEMACHINE_STATE(states, INITIAL, "INITIAL", _noop_state_action, _noop_state_action, _noop_state_action);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, INITIAL,          PRIVATE_IDENTITY, action, _np_private_key_available);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, INITIAL,          PUBLIC_IDENTITY,  action, _np_aaatoken_is_valid);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, INITIAL,          MESSAGE_IDENTITY, action, _np_is_discovery_message);
+        
+        NP_UTIL_STATEMACHINE_STATE(states, PRIVATE_IDENTITY, "PRIVATE", _noop_state_action, _noop_state_action, _noop_state_action);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, PRIVATE_IDENTITY, IDENTITY_INVALID, action, _np_aaatoken_is_valid);
 
-    NP_UTIL_STATEMACHINE_STATE(states, PUBLIC_IDENTITY, "PUBLIC", _noop_state_action, _noop_state_action, _noop_state_action);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY,  IDENTITY_INVALID, action, _np_aaatoken_is_valid);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY,  PUBLIC_IDENTITY_AUTHENTICATED, action, _is_authenticated);
-    
-    NP_UTIL_STATEMACHINE_STATE(states, PUBLIC_IDENTITY_AUTHENTICATED, "PUBLIC_AUTHENTICATED", _noop_state_action, _noop_state_action, _noop_state_action);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY_AUTHENTICATED, PUBLIC_IDENTITY,  action, _is_not_authenticated);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY_AUTHENTICATED, IDENTITY_INVALID, action, _token_is_not_valid);
+        NP_UTIL_STATEMACHINE_STATE(states, PUBLIC_IDENTITY, "PUBLIC", _noop_state_action, _noop_state_action, _noop_state_action);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY,  IDENTITY_INVALID, action, _np_aaatoken_is_valid);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY,  PUBLIC_IDENTITY_AUTHENTICATED, action, _is_authenticated);
+        
+        NP_UTIL_STATEMACHINE_STATE(states, PUBLIC_IDENTITY_AUTHENTICATED, "PUBLIC_AUTHENTICATED", _noop_state_action, _noop_state_action, _noop_state_action);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY_AUTHENTICATED, PUBLIC_IDENTITY,  action, _is_not_authenticated);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, PUBLIC_IDENTITY_AUTHENTICATED, IDENTITY_INVALID, action, _token_is_not_valid);
 
-    NP_UTIL_STATEMACHINE_STATE(states, IDENTITY_INVALID, "INVALID", _noop_state_action, _noop_state_action, _noop_state_action);
-        // NP_UTIL_STATEMACHINE_TRANSITION(states, IDENTITY_INVALID, INITIAL,          action, NULL);
+        NP_UTIL_STATEMACHINE_STATE(states, IDENTITY_INVALID, "INVALID", _noop_state_action, _noop_state_action, _noop_state_action);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, IDENTITY_INVALID, INITIAL,          action, NULL);
 
-    NP_UTIL_STATEMACHINE_INIT(sm, INITIAL, states, aaatoken);
+        NP_UTIL_STATEMACHINE_INIT(sm, NULL, INITIAL, states, aaatoken);
 
-    np_util_event_t ev = { .type=noop };
-    np_util_statemachine_invoke_auto_transition(&sm, ev);
+        np_util_event_t ev = { .type=evt_noop };
+        np_util_statemachine_invoke_auto_transition(&sm, ev);
 
-    ev = (struct np_util_event_s) { .type=token };
-    np_util_statemachine_invoke_auto_transition(&sm, ev);
+        ev = (struct np_util_event_s) { .type=evt_token };
+        np_util_statemachine_invoke_auto_transition(&sm, ev);
     }
 };

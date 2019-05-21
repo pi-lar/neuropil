@@ -11,7 +11,7 @@
 #include "np_legacy.h"
 #include "np_types.h"
 #include "np_log.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_message.h"
 #include "np_memory.h"
 
@@ -104,13 +104,9 @@ void np_sysinfo_enable_client(np_state_t* context) {
     //_np_sysinfo_init_cache();
     
     bool created = false;
-    np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(context, OUTBOUND, _NP_SYSINFO_REPLY);
-    if(sysinfo_response_props == NULL){
-        np_new_obj(np_msgproperty_t, sysinfo_response_props);
-        created = true;
-    }
+    np_msgproperty_t* sysinfo_response_props = _np_msgproperty_get_or_create(context, OUTBOUND, _NP_SYSINFO_REPLY);
     
-    sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
+    // sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
     sysinfo_response_props->mep_type = ONE_WAY;
     sysinfo_response_props->ack_mode = ACK_NONE;
     sysinfo_response_props->retry    = 0;
@@ -122,10 +118,10 @@ void np_sysinfo_enable_client(np_state_t* context) {
     sysinfo_response_props->token_max_ttl = SYSINFO_MAX_TTL;
     sysinfo_response_props->token_min_ttl = SYSINFO_MIN_TTL;
 
-    np_msgproperty_register(sysinfo_response_props);
-    if(created) {
-        np_unref_obj(np_msgproperty_t, sysinfo_response_props, ref_obj_creation);        
-    }    
+    // np_msgproperty_register(sysinfo_response_props);
+    // if(created) {
+    // np_unref_obj(np_msgproperty_t, sysinfo_response_props, ref_obj_creation);        
+    // }    
 
     np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
                                  np_crypt_rand_mm(0, SYSINFO_PROACTIVE_SEND_IN_SEC*1000) / 1000.,
@@ -140,13 +136,13 @@ void np_sysinfo_enable_server(np_state_t* context) {
     _np_sysinfo_init_cache(context);
     bool created = false;
 
-    np_msgproperty_t* sysinfo_response_props = np_msgproperty_get(context, INBOUND, _NP_SYSINFO_REPLY);
-    if(sysinfo_response_props == NULL){
-        np_new_obj(np_msgproperty_t, sysinfo_response_props);
-        created = true;
-    }
+    np_msgproperty_t* sysinfo_response_props = _np_msgproperty_get_or_create(context, INBOUND, _NP_SYSINFO_REPLY);
+    // if(sysinfo_response_props == NULL){
+    //     np_new_obj(np_msgproperty_t, sysinfo_response_props);
+    //     created = true;
+    // }
     
-    sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
+    // sysinfo_response_props->msg_subject = strndup(_NP_SYSINFO_REPLY, 255);
     sysinfo_response_props->mep_type = ONE_WAY;
     sysinfo_response_props->ack_mode = ACK_NONE;
     sysinfo_response_props->retry    = 0;
@@ -158,11 +154,11 @@ void np_sysinfo_enable_server(np_state_t* context) {
     sysinfo_response_props->mode_type = INBOUND | ROUTE;
     sysinfo_response_props->max_threshold =  32/*expected count of nodes */ * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC);
     
-    np_msgproperty_register(sysinfo_response_props);
+    // np_msgproperty_register(sysinfo_response_props);
     
-    if(created) {
-        np_unref_obj(np_msgproperty_t, sysinfo_response_props, ref_obj_creation);        
-    }
+    // if(created) {
+    //     np_unref_obj(np_msgproperty_t, sysinfo_response_props, ref_obj_creation);        
+    // }
     np_add_receive_listener(context, _np_in_sysinforeply, NULL, _NP_SYSINFO_REPLY);
 }
 

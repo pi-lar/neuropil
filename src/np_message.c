@@ -28,7 +28,7 @@
 #include "np_keycache.h"
 #include "np_memory.h"
 
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_threads.h"

@@ -25,8 +25,6 @@
 #include "np_aaatoken.h"
 #include "np_network.h"
 #include "np_node.h"
-#include "np_msgproperty.h"
-
 
 static np_dhkey_t __dhkey_min;
 static np_dhkey_t __dhkey_half;

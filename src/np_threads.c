@@ -28,7 +28,7 @@
 #include "np_legacy.h"
 #include "np_list.h"
 #include "np_log.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_network.h"
 #include "np_settings.h"
 #include "np_types.h"
@@ -825,7 +825,6 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
         }        
         
-
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, NP_LOG_FLUSH_INTERVAL, NP_LOG_FLUSH_INTERVAL, _np_glia_log_flush, "_np_glia_log_flush");
@@ -835,14 +834,12 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_RESPONSECONTAINER_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC, _np_msgproperty_job_msg_uniquety, "_np_msgproperty_job_msg_uniquety");
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_SEND_PINGS_SEC, _np_glia_send_pings, "_np_glia_send_pings");
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_CHECK_ROUTES_SEC, _np_glia_check_neighbours, "_np_glia_check_neighbours");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_SEND_PIGGY_REQUESTS_SEC, _np_glia_send_piggy_requests, "_np_glia_send_piggy_requests");
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_4, 0.0, MISC_RETRANSMIT_MSG_TOKENS_SEC, _np_retransmit_message_tokens_jobexec, "_np_retransmit_message_tokens_jobexec");
 
         np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.0, MISC_SEND_UPDATE_MSGS_SEC, _np_glia_check_routes, "_np_glia_check_routes");
         

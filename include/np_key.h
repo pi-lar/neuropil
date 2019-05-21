@@ -50,9 +50,11 @@ struct np_key_s
 	double created_at;
 	bool   in_destroy;
 
-	SPLAY_ENTRY(np_key_s) link; // link for cache management
+	RB_ENTRY(np_key_s) link; // link for cache management
 
 	np_util_statemachine_t sm;
+
+    // np_mutex_t key_lock;
 
 	/*
 	only available for subject key
@@ -84,8 +86,8 @@ struct np_key_s
 	// required structure if this node becomes a mitm for message exchange
 	np_pll_t(np_aaatoken_ptr, local_mx_tokens); // link to runtime interest data on which this node is interested in
 	
-	np_msgproperty_t* recv_property;
-	np_msgproperty_t* send_property;
+	// np_msgproperty_t* recv_property;
+	// np_msgproperty_t* send_property;
 
 	np_pll_t(np_aaatoken_ptr, recv_tokens); // link to runtime interest data on which this node is interested in
 	np_pll_t(np_aaatoken_ptr, send_tokens); // link to runtime interest data on which this node is interested in

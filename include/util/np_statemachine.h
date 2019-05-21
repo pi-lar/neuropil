@@ -41,14 +41,16 @@ struct np_util_statemachine_state_s {
     np_util_statemachine_func f_exit;
 
     uint8_t _transitions;
-    struct np_util_statemachine_transition_s *_transition_table;
+    struct np_util_statemachine_transition_s* _transition_table;
 };
 typedef struct np_util_statemachine_state_s np_util_statemachine_state_t; 
 
 struct np_util_statemachine_s {
     uint8_t _start_state;
     uint8_t _current_state;
+
     void *_user_data;
+    void *_context;
 
     np_util_statemachine_state_t** _state_table;
 };
@@ -77,8 +79,11 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
 
 #define NP_UTIL_STATEMACHINE_TRANSITION(MACHINE, SOURCE_STATE, TARGET_STATE, ACTION, CONDITION)           \
     np_util_statemachine_add_transition(MACHINE, SOURCE_STATE, (struct np_util_statemachine_transition_s) \
-    { ._active=true, ._source_state=SOURCE_STATE, ._target_state=TARGET_STATE, .f_action=ACTION, .f_condition=CONDITION })
-
+    { \
+        ._active=true, ._source_state=SOURCE_STATE, ._target_state=TARGET_STATE, \
+        .f_action=ACTION, .f_condition=CONDITION \
+    }) 
+    
 #define NP_UTIL_STATEMACHINE_STATE(MACHINE, STATE, NAME, ERROR_FUNC, ENTER_FUNC, EXIT_FUNC) \
     np_util_statemachine_add_state(MACHINE, (struct np_util_statemachine_state_s)           \
     {                                                                                       \
@@ -87,10 +92,11 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
         ._transition_table = NULL                                                           \
     })
 
-#define NP_UTIL_STATEMACHINE_INIT(MACHINE, START_STATE, STATE_TABLE, USERDATA)              \
+#define NP_UTIL_STATEMACHINE_INIT(MACHINE, CONTEXT, START_STATE, STATE_TABLE, USERDATA)     \
     {      														                            \
         MACHINE._start_state = START_STATE; MACHINE._current_state = START_STATE;           \
         MACHINE._user_data   = USERDATA;    MACHINE._state_table = STATE_TABLE;             \
+        MACHINE._context     = CONTEXT;                                                     \
     }
 
 #ifdef __cplusplus

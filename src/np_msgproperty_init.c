@@ -5,7 +5,7 @@
 #include "np_types.h"
 #include "np_memory.h"
 
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_dendrit.h"
 #include "np_axon.h"
 #include "np_glia.h"
@@ -51,7 +51,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __handshake_properties->retry = 0;
     
     sll_append(np_callback_t, __handshake_properties->clb_inbound, _np_in_handshake);
-    sll_append(np_callback_t, __handshake_properties->clb_transform, _np_out_handshake);
     //sll_append(np_callback_t, __handshake_properties->clb_route, _np_never_called_jobexec_route);
     __handshake_properties->msg_ttl = 20.0;
     __handshake_properties->max_threshold = UINT16_MAX;
@@ -195,7 +194,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __piggy->retry = 0;
     sll_append(np_callback_t, __piggy->clb_inbound, _np_in_piggy);
     //default: sll_append(np_callback_t, __piggy->clb_outbound, _np_out);
-    sll_append(np_callback_t, __piggy->clb_transform, _np_send_rowinfo_jobexec);
     //default: sll_append(np_callback_t, __piggy->clb_route, _np_glia_route_lookup);
     __piggy->msg_ttl = 20.0;
     __piggy->max_threshold = UINT16_MAX;
@@ -315,7 +313,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authenticate->retry = 5;
     sll_append(np_callback_t, __authenticate->clb_inbound, _np_in_authenticate);
     //default: 	sll_append(np_callback_t, __authenticate->clb_outbound, _np_out);
-    sll_append(np_callback_t, __authenticate->clb_transform,_np_out_authentication_request);
     //default: sll_append(np_callback_t, __authenticate->clb_route, _np_glia_route_lookup);
     __authenticate->cache_policy = FIFO | OVERFLOW_PURGE;
     __authenticate->msg_ttl = 20.0;
@@ -336,7 +333,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authenticate_reply->retry = 5;
     sll_append(np_callback_t, __authenticate_reply->clb_inbound, _np_in_authenticate_reply);
     //default: 	sll_append(np_callback_t, __authenticate_reply->clb_outbound, _np_out);
-    sll_append(np_callback_t, __authenticate_reply->clb_transform, _np_out_authentication_reply);
     //default: sll_append(np_callback_t, __authenticate_reply->clb_route, _np_glia_route_lookup);
     __authenticate_reply->msg_ttl = 20.0;
     __authenticate_reply->max_threshold = UINT16_MAX;
@@ -356,7 +352,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authorize->retry = 5;
     sll_append(np_callback_t, __authorize->clb_inbound, _np_in_authorize);
     //default: 	sll_append(np_callback_t, __authorize->clb_outbound, _np_out);
-    sll_append(np_callback_t, __authorize->clb_transform, _np_out_authorization_request); 
     //default: sll_append(np_callback_t, __authorize->clb_route, _np_glia_route_lookup);	
     __authorize->cache_policy = FIFO | OVERFLOW_PURGE;
     __authorize->msg_ttl = 20.0;
@@ -377,7 +372,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authorize_reply->retry = 5;
     sll_append(np_callback_t, __authorize_reply->clb_inbound, _np_in_authorize_reply);
     //default: 	sll_append(np_callback_t, __authorize_reply->clb_outbound, _np_out);
-    sll_append(np_callback_t, __authorize_reply->clb_transform, _np_out_authorization_reply);
     //default: sll_append(np_callback_t, __authorize_reply->clb_route, _np_glia_route_lookup);
     __authorize_reply->msg_ttl = 20.0;
     __authorize_reply->max_threshold = UINT16_MAX;
@@ -397,7 +391,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __account->retry = 5;
     sll_append(np_callback_t, __account->clb_inbound,	_np_in_account);
     //default: 	sll_append(np_callback_t, __account->clb_outbound,	_np_out);
-    sll_append(np_callback_t, __account->clb_transform,	_np_out_accounting_request);
     //default: sll_append(np_callback_t, __account->clb_route,		_np_glia_route_lookup);
     __account->cache_policy = FIFO | OVERFLOW_PURGE;
     __account->msg_ttl = 20.0;

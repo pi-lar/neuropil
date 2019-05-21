@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
+
 #ifndef _NP_KEYCACHE_H_
 #define _NP_KEYCACHE_H_
 
@@ -27,8 +28,10 @@ extern "C" {
 
 
 // organize keys in a splay tree
-SPLAY_HEAD(st_keycache_s, np_key_s);
-SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
+// SPLAY_HEAD(st_keycache_s, np_key_s);
+// SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
+RB_HEAD(st_keycache_s, np_key_s);
+RB_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
 NP_API_INTERN
 bool _np_keycache_init(np_state_t* context);
@@ -45,7 +48,7 @@ NP_API_INTERN
 np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey);
 
 NP_API_INTERN
-np_key_t* _np_keycache_add(np_key_t* subject_key);
+np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find(np_state_t* context, np_dhkey_t key);

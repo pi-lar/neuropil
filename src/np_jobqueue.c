@@ -24,7 +24,7 @@
 #include "np_keycache.h"
 #include "np_key.h"
 #include "np_memory.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_message.h"
 #include "np_log.h"
 #include "np_list.h"
@@ -233,11 +233,12 @@ void _np_job_resubmit_route_event(np_state_t * context, double delay, np_msgprop
     jargs.is_resend = true;
     if (msg != NULL) msg->submit_type = np_message_submit_type_DIRECT;
     // create job itself
-    np_job_t new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route, "clb_route");
+/*    np_job_t new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE, prop->clb_route, "clb_route");
 
     if (!_np_job_queue_insert(context, new_job)) {
         _np_job_free(context, &new_job);
     }
+*/
 }
 
 bool _np_job_submit_route_event(np_state_t * context, double delay, np_msgproperty_t* prop, np_key_t* key, np_message_t* msg)
@@ -251,14 +252,14 @@ bool _np_job_submit_route_event(np_state_t * context, double delay, np_msgproper
     if (msg != NULL) msg->submit_type = np_message_submit_type_ROUTE;
 
     // create job itself
-    np_job_t new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE, prop->clb_route, "clb_route");
+/*    np_job_t new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE, prop->clb_route, "clb_route");
 
 
     if (!_np_job_queue_insert(context, new_job)) {
         ret = false;
         _np_job_free(context, &new_job);
     }
-
+*/
     return ret;
 }
 
@@ -316,12 +317,13 @@ bool _np_job_submit_transform_event(np_state_t * context, double delay, np_msgpr
     np_jobargs_t jargs = _np_job_create_args(context, NULL, key, prop, FUNC);
     jargs.custom_data = custom_data;
     // create job itself
-    np_job_t new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG, prop->clb_transform, "clb_transform");
+/*    np_job_t new_job = _np_job_create_job(context, delay, jargs, JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG, prop->clb_transform, "clb_transform");
 
     if (!_np_job_queue_insert(context, new_job)) {
         _np_job_free(context, &new_job);
         ret = false;
     }
+*/
     return ret;
 }
 

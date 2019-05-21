@@ -23,7 +23,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_threads.h"
 #include "np_settings.h"
 #include "np_util.h"
@@ -335,7 +335,8 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     double now = np_time_now();
     if (now > (token->expires_at))
     {
-        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed", token->uuid, token->subject, token->expires_at - now,token->expires_at, now);
+        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed",
+                token->uuid, token->subject, token->expires_at - now, now, token->expires_at);
         token->state &= AAA_INVALID;
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
         return (false);
@@ -542,7 +543,6 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
     
     _LOCK_MODULE(np_aaatoken_t)
     {
-
         if (NULL == subject_key->recv_tokens)
             pll_init(np_aaatoken_ptr, subject_key->recv_tokens);
 
@@ -550,7 +550,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
             pll_init(np_aaatoken_ptr, subject_key->send_tokens);
 
 
-        np_msgproperty_t* send_prop = np_msgproperty_get(context, OUTBOUND, subject);
+        np_msgproperty_t* send_prop = _np_msgproperty_get(context, OUTBOUND, subject);
         if (NULL != send_prop)
         {
             if(NULL == subject_key->send_property)
@@ -563,7 +563,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
             create_new_prop |= true;
         }
 
-        np_msgproperty_t* recv_prop = np_msgproperty_get(context, INBOUND, subject);
+        np_msgproperty_t* recv_prop = _np_msgproperty_get(context, INBOUND, subject);
         if (NULL != recv_prop)
         {
             if(NULL == subject_key->recv_property)
@@ -627,68 +627,62 @@ np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
                              pll_size(subject_key->send_tokens) );
 
     // insert new token
-    _LOCK_ACCESS(&subject_key->send_property->lock)
+    // update #2 subject specific data
+    subject_key->send_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & SENDER_MASK);
+    subject_key->send_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
+    subject_key->send_property->last_update = np_time_now();
+
+    uint16_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ui;
+
+    if (max_threshold > 0)
     {
-        // update #2 subject specific data
-        subject_key->send_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & SENDER_MASK);
-        subject_key->send_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
-        subject_key->send_property->last_update = np_time_now();
+        np_msg_mep_type sender_mep_type = subject_key->send_property->mep_type & SENDER_MASK;
 
-        uint16_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ui;
+        np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
+        np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
+        bool allow_dups = true;
 
-        if (max_threshold > 0)
+        if (SINGLE_SENDER == (SINGLE_SENDER & sender_mep_type))
         {
-            np_msg_mep_type sender_mep_type = subject_key->send_property->mep_type & SENDER_MASK;
-
-            np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
-            np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
-            bool allow_dups = true;
-
-            if (SINGLE_SENDER == (SINGLE_SENDER & sender_mep_type))
-            {
-                cmp_aaatoken_replace   = _np_aaatoken_cmp;
-                allow_dups = false;
-            }
-
-            // update #1 key specific data
-            np_ref_obj(np_aaatoken_t, token,"send_tokens");
-            ret = pll_replace(np_aaatoken_ptr, subject_key->send_tokens, token, cmp_aaatoken_replace);
-            if (NULL == ret)
-            {
-                pll_insert(np_aaatoken_ptr, subject_key->send_tokens, token, allow_dups, cmp_aaatoken_add);
-            }
-            else
-            {
-                token->state = ret->state;
-                np_ref_obj(np_aaatoken_t, ret, FUNC);
-                np_unref_obj(np_aaatoken_t, ret,"send_tokens");
-            }
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
-                    _np_key_as_str(subject_key) );
+            cmp_aaatoken_replace   = _np_aaatoken_cmp;
+            allow_dups = false;
         }
+
+        // update #1 key specific data
+        np_ref_obj(np_aaatoken_t, token,"send_tokens");
+        ret = pll_replace(np_aaatoken_ptr, subject_key->send_tokens, token, cmp_aaatoken_replace);
+        if (NULL == ret)
+        {
+            pll_insert(np_aaatoken_ptr, subject_key->send_tokens, token, allow_dups, cmp_aaatoken_add);
+        }
+        else
+        {
+            token->state = ret->state;
+            np_ref_obj(np_aaatoken_t, ret, FUNC);
+            np_unref_obj(np_aaatoken_t, ret,"send_tokens");
+        }
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
+                _np_key_as_str(subject_key) );
     }
 
     // check for outdated token
-    _LOCK_ACCESS(&subject_key->send_property->lock)
+    pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
+    while (NULL != iter)
     {
-        pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
-        while (NULL != iter)
-        {
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
-            np_aaatoken_t* tmp_token = iter->val;
-            pll_next(iter);
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
+        np_aaatoken_t* tmp_token = iter->val;
+        pll_next(iter);
 
-            if (NULL  != tmp_token &&
-                false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
-                pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tmp_token, _np_aaatoken_cmp_exact);
-                np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
-                break;
-            }
+        if (NULL  != tmp_token &&
+            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
+        {
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
+            pll_remove(np_aaatoken_ptr, subject_key->send_tokens, tmp_token, _np_aaatoken_cmp_exact);
+            np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
+            break;
         }
-        log_debug_msg(LOG_DEBUG, ".step3._np_aaatoken_add_sender %d", pll_size(subject_key->send_tokens));
     }
+    log_debug_msg(LOG_DEBUG, ".step3._np_aaatoken_add_sender %d", pll_size(subject_key->send_tokens));
 
     np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
@@ -724,40 +718,37 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, con
             "lookup in global sender msg token structures (%p)...",
             subject_key->send_property);
 
-    _LOCK_ACCESS(&(subject_key->send_property->lock))
+    log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_all_sender %d / %s", pll_size(subject_key->send_tokens), subject);
+    tmp = pll_first(subject_key->send_tokens);
+    while (NULL != tmp)
     {
-        log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_get_all_sender %d / %s", pll_size(subject_key->send_tokens), subject);
-        tmp = pll_first(subject_key->send_tokens);
-        while (NULL != tmp)
+        if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
         {
-            if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->val->issuer);
-            }
-            else
-            {
-                bool include_token = true;
-                if (audience != NULL && strlen(audience) > 0) {
-                    include_token =
-                            (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
-                            (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
-                }
-
-                if (include_token==true) {
-                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", tmp->val->issuer );
-                    // only pick key from a list if the subject msg_treshold is bigger than zero
-                    // and the sending threshold is bigger than zero as well
-                    // and we actually have a receiver node in the list
-                    np_ref_obj(np_aaatoken_t, tmp->val);
-                    sll_append(np_aaatoken_ptr, return_list, tmp->val);
-                }else{
-                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
-                }
-            }
-            pll_next(tmp);
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->val->issuer);
         }
-        log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_sender %d", pll_size(subject_key->send_tokens));
+        else
+        {
+            bool include_token = true;
+            if (audience != NULL && strlen(audience) > 0) {
+                include_token =
+                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
+                        (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
+            }
+
+            if (include_token==true) {
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid sender token (%s)", tmp->val->issuer );
+                // only pick key from a list if the subject msg_treshold is bigger than zero
+                // and the sending threshold is bigger than zero as well
+                // and we actually have a receiver node in the list
+                np_ref_obj(np_aaatoken_t, tmp->val);
+                sll_append(np_aaatoken_ptr, return_list, tmp->val);
+            }else{
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring sender token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
+            }
+        }
+        pll_next(tmp);
     }
+    log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_sender %d", pll_size(subject_key->send_tokens));
 
     np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
@@ -796,76 +787,73 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
     np_aaatoken_t* return_token = NULL;
     bool found_return_token = false;
 
-    _LOCK_ACCESS(&subject_key->send_property->lock)
-    {
 #ifdef DEBUG
-        char sender_dhkey_as_str[65];
-        _np_dhkey_str(sender_dhkey, sender_dhkey_as_str);
+    char sender_dhkey_as_str[65];
+    _np_dhkey_str(sender_dhkey, sender_dhkey_as_str);
 #endif
 
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender_token %d / %s", pll_size(subject_key->send_tokens), subject);
-        pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
-        while (NULL != iter &&
-               false == found_return_token)
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_get_sender_token %d / %s", pll_size(subject_key->send_tokens), subject);
+    pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->send_tokens);
+    while (NULL != iter &&
+            false == found_return_token)
+    {
+        return_token = iter->val;
+        if (false == _np_aaatoken_is_valid(return_token, np_aaatoken_type_message_intent))
         {
-            return_token = iter->val;
-            if (false == _np_aaatoken_is_valid(return_token, np_aaatoken_type_message_intent))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
-                return_token = NULL;
-                pll_next(iter);
-                continue;
-            }
-
-            np_dhkey_t partner_token_dhkey = np_aaatoken_get_partner_fp(return_token);
-            /* np_dhkey_t issuer_token_dhkey = { 0 };
-            _np_str_dhkey(return_token->issuer, &issuer_token_dhkey);
-
-            if (_np_dhkey_equal(&issuer_token_dhkey, &partner_token_dhkey))
-            {
-                char return_token_dhkey_as_str[65];
-                char return_token_dhkey_as_str[64] = '\0';
-                _np_dhkey_str(sender_dhkey, return_token_dhkey_as_str);
-                log_debug_msg(LOG_DEBUG,
-                              "comparing sender token (%s) for %s with send_dhkey: %s (target node match)",
-                              return_token->uuid, &return_token_dhkey_as_str, sender_dhkey_as_str);
-            }
-            else
-            {
-                log_debug_msg(LOG_DEBUG,
-                              "comparing sender token (%s) for %s with send_dhkey: %s (issuer match)",
-                              return_token->uuid, return_token->issuer, sender_dhkey_as_str);
-            }
-            */
-
-            // only pick key from a list if the subject msg_treshold is bigger than zero
-            // and we actually have the correct sender node in the list
-            if (false == _np_dhkey_equal(&partner_token_dhkey, sender_dhkey))
-            {
-                char partner_token_dhkey_str[65]; partner_token_dhkey_str[64] = '\0';
-                _np_dhkey_str(&partner_token_dhkey, partner_token_dhkey_str);
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                              "ignoring sender token for issuer %s (partner node: %s) / send_hk: %s (sender dhkey doesn't match)",
-                              return_token->issuer, partner_token_dhkey_str, sender_dhkey_as_str);
-                return_token = NULL;
-                pll_next(iter);
-                continue;
-            }
-
-            // last check: has the token received authn/authz already
-            if (IS_AUTHORIZED(return_token->state) && IS_AUTHENTICATED(return_token->state))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                              "found valid sender token (%s)", return_token->issuer);
-                found_return_token = true;
-                np_ref_obj(np_aaatoken_t, return_token);
-            } else {
-            		pll_next(iter);
-            		return_token = NULL;
-            }
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", return_token->issuer);
+            return_token = NULL;
+            pll_next(iter);
+            continue;
         }
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_get_sender_token %d", pll_size(subject_key->send_tokens));
+
+        np_dhkey_t partner_token_dhkey = np_aaatoken_get_partner_fp(return_token);
+        /* np_dhkey_t issuer_token_dhkey = { 0 };
+        _np_str_dhkey(return_token->issuer, &issuer_token_dhkey);
+
+        if (_np_dhkey_equal(&issuer_token_dhkey, &partner_token_dhkey))
+        {
+            char return_token_dhkey_as_str[65];
+            char return_token_dhkey_as_str[64] = '\0';
+            _np_dhkey_str(sender_dhkey, return_token_dhkey_as_str);
+            log_debug_msg(LOG_DEBUG,
+                            "comparing sender token (%s) for %s with send_dhkey: %s (target node match)",
+                            return_token->uuid, &return_token_dhkey_as_str, sender_dhkey_as_str);
+        }
+        else
+        {
+            log_debug_msg(LOG_DEBUG,
+                            "comparing sender token (%s) for %s with send_dhkey: %s (issuer match)",
+                            return_token->uuid, return_token->issuer, sender_dhkey_as_str);
+        }
+        */
+
+        // only pick key from a list if the subject msg_treshold is bigger than zero
+        // and we actually have the correct sender node in the list
+        if (false == _np_dhkey_equal(&partner_token_dhkey, sender_dhkey))
+        {
+            char partner_token_dhkey_str[65]; partner_token_dhkey_str[64] = '\0';
+            _np_dhkey_str(&partner_token_dhkey, partner_token_dhkey_str);
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+                            "ignoring sender token for issuer %s (partner node: %s) / send_hk: %s (sender dhkey doesn't match)",
+                            return_token->issuer, partner_token_dhkey_str, sender_dhkey_as_str);
+            return_token = NULL;
+            pll_next(iter);
+            continue;
+        }
+
+        // last check: has the token received authn/authz already
+        if (IS_AUTHORIZED(return_token->state) && IS_AUTHENTICATED(return_token->state))
+        {
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+                            "found valid sender token (%s)", return_token->issuer);
+            found_return_token = true;
+            np_ref_obj(np_aaatoken_t, return_token);
+        } else {
+                pll_next(iter);
+                return_token = NULL;
+        }
     }
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_get_sender_token %d", pll_size(subject_key->send_tokens));
 
     np_unref_obj(np_key_t, subject_key, "_np_keycache_find_or_create");
     return (return_token);
@@ -893,82 +881,76 @@ np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
                              pll_size(subject_key->recv_tokens) );
 
     // insert new token
-    _LOCK_ACCESS(&subject_key->recv_property->lock)
-    {
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_add_receiver %d / %s", pll_size(subject_key->recv_tokens), subject);
-        // update #2 subject specific data
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step1._np_aaatoken_add_receiver %d / %s", pll_size(subject_key->recv_tokens), subject);
+    // update #2 subject specific data
 //		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "receiver token %03x mask %03x",
 //										  subject_key->recv_property->mep_type, (RECEIVER_MASK | FILTER_MASK) );
 
-        subject_key->recv_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & RECEIVER_MASK);
+    subject_key->recv_property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & RECEIVER_MASK);
 
 //		log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "receiver token %03x %03x",
 //				                          subject_key->recv_property->mep_type, np_tree_find_str(token->extensions, "mep_type")->val.value.ul );
 
-        // subject_key->recv_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
-        subject_key->recv_property->last_update = np_time_now();
+    // subject_key->recv_property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
+    subject_key->recv_property->last_update = np_time_now();
 
-        uint16_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ui;
+    uint16_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ui;
 
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "adding receiver token %p threshold %d", token, max_threshold );
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "adding receiver token %p threshold %d", token, max_threshold );
 
-        if (max_threshold > 0)
-        {	// only add if there are messages to receive
-            np_msg_mep_type receiver_mep_type = (subject_key->recv_property->mep_type & RECEIVER_MASK);
-            
+    if (max_threshold > 0)
+    {	// only add if there are messages to receive
+        np_msg_mep_type receiver_mep_type = (subject_key->recv_property->mep_type & RECEIVER_MASK);
+        
 
-            np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
-            np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
-            bool allow_dups = true;
+        np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_aaatoken_cmp;
+        np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_aaatoken_cmp_exact;
+        bool allow_dups = true;
 
-            if (SINGLE_RECEIVER == (SINGLE_RECEIVER & receiver_mep_type))
-            {
-                cmp_aaatoken_replace   = _np_aaatoken_cmp;
-                allow_dups = false;
-            }
-
-            // update #1 key specific data
-            np_ref_obj(np_aaatoken_t, token,"recv_tokens");
-            ret = pll_replace(np_aaatoken_ptr, subject_key->recv_tokens, token, cmp_aaatoken_replace);
-            if (NULL == ret)
-            {
-                pll_insert(np_aaatoken_ptr, subject_key->recv_tokens, token, allow_dups, cmp_aaatoken_add);
-            }
-            else
-            {
-                token->state = ret->state;
-                np_ref_obj(np_aaatoken_t, ret, FUNC);
-                np_unref_obj(np_aaatoken_t, ret,"recv_tokens");
-            }
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
-                    _np_key_as_str(subject_key) );
+        if (SINGLE_RECEIVER == (SINGLE_RECEIVER & receiver_mep_type))
+        {
+            cmp_aaatoken_replace   = _np_aaatoken_cmp;
+            allow_dups = false;
         }
+
+        // update #1 key specific data
+        np_ref_obj(np_aaatoken_t, token,"recv_tokens");
+        ret = pll_replace(np_aaatoken_ptr, subject_key->recv_tokens, token, cmp_aaatoken_replace);
+        if (NULL == ret)
+        {
+            pll_insert(np_aaatoken_ptr, subject_key->recv_tokens, token, allow_dups, cmp_aaatoken_add);
+        }
+        else
+        {
+            token->state = ret->state;
+            np_ref_obj(np_aaatoken_t, ret, FUNC);
+            np_unref_obj(np_aaatoken_t, ret,"recv_tokens");
+        }
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single sender token for message hash %s",
+                _np_key_as_str(subject_key) );
     }
 
     // check for outdated token
-    _LOCK_ACCESS(&subject_key->recv_property->lock)
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_add_receiver %d", pll_size(subject_key->recv_tokens));
+
+    pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
+    while (NULL != iter)
     {
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step2._np_aaatoken_add_receiver %d", pll_size(subject_key->recv_tokens));
+        np_aaatoken_t* tmp_token = iter->val;
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
 
-        pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
-        while (NULL != iter)
+        pll_next(iter);
+
+        if (NULL  != tmp_token &&
+            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent) )
         {
-            np_aaatoken_t* tmp_token = iter->val;
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
-
-            pll_next(iter);
-
-            if (NULL  != tmp_token &&
-                false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent) )
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid receiver msg tokens %p", tmp_token);
-                pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tmp_token, _np_aaatoken_cmp_exact);
-                np_unref_obj(np_aaatoken_t, tmp_token,"recv_tokens");
-                break;
-            }
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "deleting old / invalid receiver msg tokens %p", tmp_token);
+            pll_remove(np_aaatoken_ptr, subject_key->recv_tokens, tmp_token, _np_aaatoken_cmp_exact);
+            np_unref_obj(np_aaatoken_t, tmp_token,"recv_tokens");
+            break;
         }
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step3._np_aaatoken_add_receiver %d", pll_size(subject_key->recv_tokens));
     }
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, ".step3._np_aaatoken_add_receiver %d", pll_size(subject_key->recv_tokens));
 
     np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
     log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
@@ -994,65 +976,62 @@ np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const 
     np_aaatoken_t* return_token = NULL;
     bool found_return_token = false;
 
-    _LOCK_ACCESS(&subject_key->recv_property->lock)
-    {
 
 #ifdef DEBUG
-        if(NULL != target) {
-            char targetnode_str[65];
-            _np_dhkey_str(target, targetnode_str);
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
-        }
+    if(NULL != target) {
+        char targetnode_str[65];
+        _np_dhkey_str(target, targetnode_str);
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "searching token for %s ", targetnode_str);
+    }
 #endif
 
-        pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
-        while (NULL != iter &&
-               false == found_return_token)
+    pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
+    while (NULL != iter &&
+            false == found_return_token)
+    {
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
+        return_token = iter->val;
+
+        if (false == _np_aaatoken_is_valid(return_token, np_aaatoken_type_message_intent))
         {
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
-            return_token = iter->val;
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid receiver msg tokens %p", return_token );
+            pll_next(iter);
+            return_token = NULL;
+            continue;
+        }
 
-            if (false == _np_aaatoken_is_valid(return_token, np_aaatoken_type_message_intent))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid receiver msg tokens %p", return_token );
+        np_dhkey_t recvtoken_issuer_key = np_dhkey_create_from_hash(return_token->issuer);
+
+        if (_np_dhkey_equal(&recvtoken_issuer_key, &context->my_identity->dhkey) ||
+                _np_dhkey_equal(&recvtoken_issuer_key, &context->my_node_key->dhkey) )
+        {
+            // only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
+            pll_next(iter);
+            return_token = NULL;
+            continue;
+        }
+        
+        if(NULL != target) {
+            if (!_np_dhkey_equal(&recvtoken_issuer_key, target)) {
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring %s receiver token for others nodes", return_token->issuer);
                 pll_next(iter);
                 return_token = NULL;
                 continue;
             }
+        }
 
-            np_dhkey_t recvtoken_issuer_key = np_dhkey_create_from_hash(return_token->issuer);
-
-            if (_np_dhkey_equal(&recvtoken_issuer_key, &context->my_identity->dhkey) ||
-            	    _np_dhkey_equal(&recvtoken_issuer_key, &context->my_node_key->dhkey) )
-            {
-                // only use the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
+        // last check: has the token received authn/authz already
+        if (IS_AUTHORIZED(return_token->state) && IS_AUTHENTICATED(return_token->state))
+        {
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
+                            "found valid receiver token (%s)", return_token->issuer );
+            found_return_token = true;
+            np_ref_obj(np_aaatoken_t, return_token);
+            break;
+        } else {
                 pll_next(iter);
                 return_token = NULL;
                 continue;
-            }
-            
-            if(NULL != target) {
-                if (!_np_dhkey_equal(&recvtoken_issuer_key, target)) {
-                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring %s receiver token for others nodes", return_token->issuer);
-                    pll_next(iter);
-                    return_token = NULL;
-                    continue;
-                }
-            }
-
-            // last check: has the token received authn/authz already
-            if (IS_AUTHORIZED(return_token->state) && IS_AUTHENTICATED(return_token->state))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                              "found valid receiver token (%s)", return_token->issuer );
-                found_return_token = true;
-                np_ref_obj(np_aaatoken_t, return_token);
-                break;
-            } else {
-            		pll_next(iter);
-            		return_token = NULL;
-            		continue;
-            }
         }
     }
 
@@ -1082,38 +1061,35 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, c
 
     pll_iterator(np_aaatoken_ptr) tmp = NULL;
 
-    _LOCK_ACCESS(&subject_key->recv_property->lock)
+    tmp = pll_first(subject_key->recv_tokens);
+    while (NULL != tmp)
     {
-        tmp = pll_first(subject_key->recv_tokens);
-        while (NULL != tmp)
+        if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
         {
-            if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver msg token as it is invalid" );
-            }
-            else
-            {
-                bool include_token = true;
-                if (audience != NULL && strlen(audience) > 0) {
-                    include_token =
-                            (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
-                            (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
-                }
-
-                if (include_token==true) {
-                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid receiver token (%s)", tmp->val->issuer );
-                    np_ref_obj(np_aaatoken_t, tmp->val);
-                    // only pick key from a list if the subject msg_treshold is bigger than zero
-                    // and the sending threshold is bigger than zero as well
-                    // and we actually have a receiver node in the list
-                    sll_append(np_aaatoken_ptr, return_list, tmp->val);
-                }else{
-                    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
-                }
-            }
-            pll_next(tmp);
-            // tmp = pll_head(np_aaatoken_ptr, subject_key->recv_tokens);
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver msg token as it is invalid" );
         }
+        else
+        {
+            bool include_token = true;
+            if (audience != NULL && strlen(audience) > 0) {
+                include_token =
+                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
+                        (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
+            }
+
+            if (include_token==true) {
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid receiver token (%s)", tmp->val->issuer );
+                np_ref_obj(np_aaatoken_t, tmp->val);
+                // only pick key from a list if the subject msg_treshold is bigger than zero
+                // and the sending threshold is bigger than zero as well
+                // and we actually have a receiver node in the list
+                sll_append(np_aaatoken_ptr, return_list, tmp->val);
+            }else{
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring receiver token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
+            }
+        }
+        pll_next(tmp);
+        // tmp = pll_head(np_aaatoken_ptr, subject_key->recv_tokens);
     }
 
     np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
@@ -1228,24 +1204,21 @@ np_aaatoken_t* _np_aaatoken_get_local_mx(np_state_t* context, const char* const 
     np_aaatoken_t* return_token = NULL;
     bool found_return_token = false;
 
-    _LOCK_ACCESS(&subject_key->send_property->lock)
+    pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->local_mx_tokens);
+    while (NULL != iter &&
+            false == found_return_token)
     {
-        pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->local_mx_tokens);
-        while (NULL != iter &&
-               false == found_return_token)
+        return_token = iter->val;
+        if (false == _np_aaatoken_is_valid(return_token, np_aaatoken_type_message_intent))
         {
-            return_token = iter->val;
-            if (false == _np_aaatoken_is_valid(return_token, np_aaatoken_type_message_intent))
-            {
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid local mx token for subject %s", return_token->subject);
-                pll_next(iter);
-                return_token = NULL;
-                continue;
-            }
-            found_return_token = true;
-            np_ref_obj(np_aaatoken_t, return_token);
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid local mx token (%s)", return_token->issuer);
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid local mx token for subject %s", return_token->subject);
+            pll_next(iter);
+            return_token = NULL;
+            continue;
         }
+        found_return_token = true;
+        np_ref_obj(np_aaatoken_t, return_token);
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found valid local mx token (%s)", return_token->issuer);
     }
 
     np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
@@ -1275,43 +1248,37 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token)
             subject_key->local_mx_tokens);
 
     // insert new token
-    _LOCK_ACCESS(&subject_key->send_property->lock)
-    {
-        np_aaatoken_t *tmp_token = NULL;
+    np_aaatoken_t *tmp_token = NULL;
 
-        // update #1 key specific data
-        np_ref_obj(np_aaatoken_t, token,ref_aaatoken_local_mx_tokens);
-        tmp_token = pll_replace(np_aaatoken_ptr, subject_key->local_mx_tokens, token, _np_aaatoken_cmp);
-        if (NULL == tmp_token)
-        {
-            pll_insert(np_aaatoken_ptr, subject_key->local_mx_tokens, token, false, _np_aaatoken_cmp);
-        }
-        else
-        {
-            np_unref_obj(np_aaatoken_t, tmp_token, ref_aaatoken_local_mx_tokens);
-        }
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single mx token for message hash %s",
-                _np_key_as_str(subject_key) );
+    // update #1 key specific data
+    np_ref_obj(np_aaatoken_t, token,ref_aaatoken_local_mx_tokens);
+    tmp_token = pll_replace(np_aaatoken_ptr, subject_key->local_mx_tokens, token, _np_aaatoken_cmp);
+    if (NULL == tmp_token)
+    {
+        pll_insert(np_aaatoken_ptr, subject_key->local_mx_tokens, token, false, _np_aaatoken_cmp);
     }
+    else
+    {
+        np_unref_obj(np_aaatoken_t, tmp_token, ref_aaatoken_local_mx_tokens);
+    }
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "added new single mx token for message hash %s",
+            _np_key_as_str(subject_key) );
 
     // check for outdated token
-    _LOCK_ACCESS(&subject_key->send_property->lock)
+    pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->local_mx_tokens);
+    while (NULL != iter)
     {
-        pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->local_mx_tokens);
-        while (NULL != iter)
-        {
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking mx msg tokens %p/%p", iter, iter->val);
-            np_aaatoken_t* tmp_token = iter->val;
-            pll_next(iter);
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking mx msg tokens %p/%p", iter, iter->val);
+        np_aaatoken_t* tmp_token = iter->val;
+        pll_next(iter);
 
-            if (NULL  != tmp_token &&
-                false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent) )
-            {
-                log_msg(LOG_INFO, "deleting old / invalid mx msg token %p", tmp_token);
-                pll_remove(np_aaatoken_ptr, subject_key->local_mx_tokens, tmp_token, _np_aaatoken_cmp_exact);
-                np_unref_obj(np_aaatoken_t, tmp_token,ref_aaatoken_local_mx_tokens);
-                break;
-            }
+        if (NULL  != tmp_token &&
+            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent) )
+        {
+            log_msg(LOG_INFO, "deleting old / invalid mx msg token %p", tmp_token);
+            pll_remove(np_aaatoken_ptr, subject_key->local_mx_tokens, tmp_token, _np_aaatoken_cmp_exact);
+            np_unref_obj(np_aaatoken_t, tmp_token,ref_aaatoken_local_mx_tokens);
+            break;
         }
     }
 

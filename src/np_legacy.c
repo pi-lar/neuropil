@@ -33,7 +33,7 @@
 #include "np_memory.h"
 
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_network.h"
 #include "np_token_factory.h"
 #include "np_node.h"
@@ -90,7 +90,7 @@ bool _np_aaa_authorizefunc (np_context* ac, struct np_token* token )
 //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
     log_debug_msg(LOG_DEBUG, "realm authorization request for subject: %s", token->subject);
 
-    np_msgproperty_t* aaa_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+    np_msgproperty_t* aaa_props = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
     _np_job_submit_transform_event(context, 0.0, aaa_props, aaa_target, NULL);
 
     np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
@@ -130,7 +130,7 @@ bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
 //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
     log_debug_msg(LOG_DEBUG, "realm authentication request for subject: %s", token->subject);
 
-    np_msgproperty_t* aaa_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+    np_msgproperty_t* aaa_props = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
     _np_job_submit_transform_event(context, 0.0, aaa_props, aaa_target, NULL);
 
     np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
@@ -171,7 +171,7 @@ bool _np_aaa_accountingfunc (np_context*ac, struct  np_token* token)
 
     log_debug_msg(LOG_DEBUG, "realm accounting request for subject: %s", token->subject);
 
-    np_msgproperty_t* aaa_props = np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+    np_msgproperty_t* aaa_props = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
     _np_job_submit_transform_event(context, 0.0, aaa_props, aaa_target, NULL);
 
     np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
@@ -256,19 +256,19 @@ void np_enable_realm_server(np_context*ac )
     np_msgproperty_t* prop = NULL;
 
     // turn msg handlers for aaa to inbound msg as well
-    prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
+    prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
     if (NULL == prop->msg_audience)
     {
         prop->msg_audience = strndup(context->realm_name, 255);
     }
 
-    prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
+    prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
     if (NULL == prop->msg_audience)
     {
         prop->msg_audience = strndup(context->realm_name, 255);
     }
 
-    prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
+    prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
     if (NULL == prop->msg_audience)
     {
         prop->msg_audience = strndup(context->realm_name, 255);
@@ -292,7 +292,6 @@ void np_waitforjoin(np_context*ac)
     }
 }
 
-
 /**
 * Sets a callback for a given msg subject.
 * Each msg for the given subject may invoke this handler.
@@ -303,7 +302,7 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, INBOUND, subject);
+    np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, INBOUND, subject);
     
     log_debug(LOG_MISC, "Adding receive listener on subject %s / property %p", subject, msg_prop);
     
@@ -311,13 +310,14 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
     msg_handler->data = msg_handler_localdata;
     msg_handler->fn = msg_handler_fn;
 
-    sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
+    if (msg_prop != NULL) {
+        sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
 
-    if (false == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
-        sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
+        if (false == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
+            sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
+        }
     }
 }
-
 /**
 * Sets a callback for a given msg subject.
 * Each msg for the given subject may invoke this handler.
@@ -328,11 +328,12 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, OUTBOUND, subject);
+    np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, OUTBOUND, subject);
 
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
-    msg_handler->fn = msg_handler_fn;
+    msg_handler->fn   = msg_handler_fn;
+
     sll_append(np_usercallback_ptr, msg_prop->user_send_clb, msg_handler);
 }
 
@@ -347,92 +348,11 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
 
-    np_util_event_t ev = { .type=internal, .context=ac, .user_data=identity };
+    np_util_event_t ev = { .type=(evt_internal|evt_token), .context=ac, .user_data=identity };
     np_util_statemachine_invoke_auto_transition(&my_identity_key->sm, ev);
 
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
     np_unref_obj(np_aaatoken_t, identity, "np_token_factory_new_identity_token");
-}
-
-/**
- * Sets the property key for the subject np_msgproperty_t to a given value.
- * If the subject does not have a np_msgproperty_t a new one will be created and registered.
- * All primitive types properties can be edited.
- * @param subject
- * @param key
- * @param value
- */
-void np_set_mx_property(np_context*ac, char* subject, const char* key, np_treeval_t value)
-{
-    np_ctx_cast(ac);
-    log_trace_msg(LOG_TRACE, "start: void np_set_mx_property(char* subject, const char* key, np_treeval_t value){");
-    // TODO: rework key from char to enum
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
-    bool created = false;
-    if (NULL == msg_prop)
-    {
-        np_new_obj(np_msgproperty_t, msg_prop);
-        created = true;
-        msg_prop->msg_subject = strndup(subject, 255);
-
-        if(false == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)){
-            sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
-        }
-
-        np_msgproperty_register(msg_prop);
-    }
-
-    if (0 == strncmp(key, mode_type_str, strlen(mode_type_str)))
-    {
-        _np_msgproperty_t_set_mode_type(msg_prop, value.value.ush);
-    }
-    if (0 == strncmp(key, mep_type_str, strlen(mep_type_str)))
-    {
-        _np_msgproperty_t_set_mep_type(msg_prop, value.value.ush);
-    }
-    if (0 == strncmp(key, ack_mode_str, strlen(ack_mode_str)))
-    {
-        _np_msgproperty_t_set_ack_mode(msg_prop, value.value.ush);
-    }
-    if (0 == strncmp(key, msg_ttl_str, strlen(msg_ttl_str)))
-    {
-        _np_msgproperty_t_set_msg_ttl(msg_prop, value.value.d);
-    }
-    if (0 == strncmp(key, retry_str, strlen(retry_str)))
-    {
-        _np_msgproperty_t_set_retry(msg_prop, value.value.ush);
-    }
-    if (0 == strncmp(key, max_threshold_str, strlen(max_threshold_str)))
-    {
-        _np_msgproperty_t_set_max_threshold(msg_prop, value.value.ui);
-    }
-    if (0 == strncmp(key, partner_key_str, strlen(partner_key_str)))
-    {
-        _np_msgproperty_t_set_partner_key(msg_prop, value.value.dhkey);
-    }
-    if(created){
-        np_unref_obj(np_msgproperty_t, msg_prop, ref_obj_creation);
-    }
-}
-
-void np_rem_mx_property(np_context*ac, char* subject, const char* key)
-{
-    np_ctx_cast(ac);
-    log_trace_msg(LOG_TRACE, "start: void np_rem_mx_property(char* subject, const char* key){");
-    np_msgproperty_t* msg_prop = np_msgproperty_get(context, OUTBOUND, subject);
-    if (NULL == msg_prop)
-    {
-        return;
-    }
-
-    if (0 == strncmp(key, partner_key_str, strlen(partner_key_str)))
-    {
-        // _np_msgproperty_t_set_partner_key(msg_prop, 0);
-    }
-    else
-    {
-        log_msg(LOG_WARN, "cannot unset property %s", key);
-    }
 }
 
 np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, NP_UNUSED np_dhkey_t* target_key)
@@ -440,7 +360,7 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     np_message_t* ret = NULL;
     np_new_obj(np_message_t, ret);
 
-    np_msgproperty_t* msg_prop = np_msgproperty_get_or_create(context, OUTBOUND, subject);
+    np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, OUTBOUND, subject);
     
     np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
     ret->msg_property = msg_prop;
@@ -576,7 +496,7 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
     _np_message_create(msg_out, target->dhkey, context->my_node_key->dhkey, subject, jrb_data);
 
     log_debug_msg(LOG_DEBUG, "submitting request to target key %s", _np_key_as_str(target));
-    np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, subject);
+    np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, subject);
     _np_job_submit_msgout_event(context, 0.0, prop, target, msg_out);
 
     np_tree_free(jrb_my_node);
@@ -645,7 +565,7 @@ void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum ty
                 np_message_t* ack_msg = NULL;
                 np_new_obj(np_message_t, ack_msg);
 
-                np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
+                np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
 
                 _np_message_create(ack_msg, ack_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, NULL);
                 np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));

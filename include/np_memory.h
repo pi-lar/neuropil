@@ -95,11 +95,17 @@ extern "C" {
     Returns the context of a memory managed object
     */
     NP_API_INTERN
-        np_state_t* np_memory_get_context(void* item);
+    np_state_t* np_memory_get_context(void* item);
+    
+    NP_API_INTERN
+    bool _np_memory_rtti_check(void* item, enum np_memory_types_e type);
+
     NP_API_INTERN
     void np_memory_ref_replace_reason(void* item, const char* old_reason, const char* new_reason);
+    
     NP_API_INTERN
     uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason);
+    
     NP_API_INTERN
     void np_mem_refobj(np_state_t*context, void * item, const char* reason);
 
@@ -116,15 +122,15 @@ extern "C" {
     NP_API_INTERN
         void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, bool del_container);
 
-    // macro definitions to generate header prototype definitions
+// macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE)												\
 void _##TYPE##_new(np_state_t * context, uint8_t type, size_t size, void* data);			\
 void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);			\
 
 #define NP_CAST(OBJ, TYPE, VAR) TYPE* VAR = (TYPE*) OBJ; 
 
-    // macro definitions to generate implementation of prototypes
-    // empty by design, forces developers to write new and delete callback functions for memory types
+// macro definitions to generate implementation of prototypes
+// empty by design, forces developers to write new and delete callback functions for memory types
 #define _NP_GENERATE_MEMORY_IMPLEMENTATION(TYPE)
 
 #define _NP_REF_REASON_SEPERATOR_CHAR "___"

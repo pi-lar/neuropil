@@ -27,8 +27,12 @@
 #include "np_constants.h"
 #include "np_util.h"
 
+// RB_HEAD(rbt_msgproperty, np_msgproperty_s);
+// RB_PROTOTYPE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
+// RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
+
 typedef struct st_keycache_s st_keycache_t;
-SPLAY_GENERATE(st_keycache_s, np_key_s, link, _np_key_cmp);
+RB_GENERATE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
 np_module_struct(keycache) {
     np_state_t* context;	
@@ -43,7 +47,7 @@ bool _np_keycache_init(np_state_t* context)
         _module->__key_cache = (st_keycache_t*)malloc(sizeof(st_keycache_t));
         CHECK_MALLOC(_module->__key_cache);
 
-        SPLAY_INIT(_module->__key_cache);
+        RB_INIT(_module->__key_cache);
         ret = true;
     }
     return ret;
@@ -53,7 +57,7 @@ void _np_keycache_destroy(np_state_t* context){
         np_module_var(keycache);
         np_key_t *iter = NULL;
 
-        while((iter = SPLAY_ROOT(_module->__key_cache)) != NULL)
+        while((iter = RB_ROOT(_module->__key_cache)) != NULL)
         {
             _np_key_destroy(iter);
         }
@@ -72,7 +76,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
 
     _LOCK_MODULE(np_keycache_t)
     {
-        key = SPLAY_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
+        key = RB_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
         if (NULL == key)
         {
             key = _np_keycache_create(context, search_dhkey);
@@ -98,7 +102,7 @@ np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey)
     key->last_update = key->created_at;
 
     ref_replace_reason(np_key_t, key, ref_obj_creation, FUNC);
-    // _np_keycache_add(key);
+    _np_keycache_add(context, key);
     
     return key;
 }
@@ -111,7 +115,7 @@ np_key_t* _np_keycache_find(np_state_t* context, const np_dhkey_t search_dhkey)
 
     _LOCK_MODULE(np_keycache_t)
     {
-        return_key = SPLAY_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
+        return_key = RB_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
         if (NULL != return_key)
         {
             np_ref_obj(np_key_t, return_key);
@@ -140,7 +144,7 @@ np_key_t* _np_keycache_find_by_details(
 
     _LOCK_MODULE(np_keycache_t)
     {
-        SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
+        RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
             if(iter->in_destroy == false){
                 if(true == search_myself){
@@ -199,7 +203,7 @@ void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_jobargs_t args)
 
     _LOCK_MODULE(np_keycache_t)
     {
-        SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
+        RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
             np_util_statemachine_invoke_auto_transitions(&iter->sm);
         }
@@ -214,7 +218,7 @@ np_key_t* _np_keycache_find_deprecated(np_state_t* context)
     np_key_t *iter = NULL;
     _LOCK_MODULE(np_keycache_t)
     {
-        SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
+        RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
 
             // our own key / identity never deprecates
@@ -244,7 +248,7 @@ sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
     np_key_t *iter = NULL;
     _LOCK_MODULE(np_keycache_t)
     {
-        SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
+        RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
             if (_np_key_cmp(iter->parent_key, forKey) == 0 && iter->in_destroy == false)
             {
@@ -262,7 +266,7 @@ sll_return(np_key_ptr) _np_keycache_get_all(np_state_t* context)
     np_key_t *iter = NULL;
     _LOCK_MODULE(np_keycache_t)
     {
-        SPLAY_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
+        RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
             np_ref_obj(np_key_t, iter);
             sll_append(np_key_ptr, ret, iter);
@@ -279,9 +283,9 @@ np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t search_dhkey)
 
     _LOCK_MODULE(np_keycache_t)
     {
-        rem_key = SPLAY_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
+        rem_key = RB_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
         if (NULL != rem_key) {
-            SPLAY_REMOVE(st_keycache_s, np_module(keycache)->__key_cache, rem_key);
+            RB_REMOVE(st_keycache_s, np_module(keycache)->__key_cache, rem_key);
             rem_key->is_in_keycache = false;
             np_unref_obj(np_key_t, rem_key, ref_keycache);
         }
@@ -289,9 +293,8 @@ np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t search_dhkey)
     return rem_key;
 }
 
-np_key_t* _np_keycache_add(np_key_t* subject_key)
+np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key)
 {
-    np_ctx_memory(subject_key);
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
     //TODO: ist das notwendig? warum einen leeren key hinzufügen?
     if (NULL == subject_key)
@@ -302,7 +305,7 @@ np_key_t* _np_keycache_add(np_key_t* subject_key)
     
     _LOCK_MODULE(np_keycache_t)
     {
-        SPLAY_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
+        RB_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
         subject_key->last_update = np_time_now();
         subject_key->is_in_keycache = true;
     }

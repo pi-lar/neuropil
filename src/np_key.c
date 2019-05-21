@@ -27,169 +27,23 @@
 #include "np_token_factory.h"
 #include "np_network.h"
 #include "np_node.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_key.h"
 #include "np_route.h"
 #include "np_statistics.h"
 #include "np_jobqueue.h"
 #include "np_constants.h"
 
+#include "core/np_comp_msgproperty.h"
+
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
+
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
-
-enum NP_KEY_STATES {
-    IN_SETUP = 0,
-    IN_USE,
-    IN_DESTROY,
-    MAX_KEY_STATES
-};
-
-void __keystate_noop(np_util_statemachine_t* statemachine, const np_util_event_t event) {
-    // empty by design
-}
-
-bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
-
-    np_ctx_decl(event.context);
-    bool ret = false;
-    
-    if (!ret) ret  = (event.type == internal);
-    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
-    if ( ret) {
-        NP_CAST(event.user_data, np_aaatoken_t, identity);
-        ret &= (context->my_identity == NULL);
-        ret &= (identity->type == np_aaatoken_type_identity) || 
-               (identity->type == np_aaatoken_type_node);
-        ret &= _np_aaatoken_is_valid(identity, identity->type);
-    }
-    return ret;
-}
-
-bool __is_key_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_decl(event.context);
-    bool ret = false;
-
-    NP_CAST(statemachine->_user_data, np_key_t, my_key);
-    if (!ret) ret  = (my_key->last_update < (_np_time_now(context)+3600) );
-    if ( ret) ret &= (my_key->type == np_key_type_unknown);
-    if ( ret) ret &= (sll_size(my_key->entities) == 0);
-
-    return ret;
-}
-
-void __np_key_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    NP_CAST(statemachine->_user_data, np_key_t, my_key);
-    _np_key_destroy(my_key);
-}
-
-bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_decl(event.context);
-
-    bool ret = false;
-    
-    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
-    NP_CAST(my_identity_key->aaa_token, np_aaatoken_t, identity);
-
-    ret = !_np_aaatoken_is_valid(identity, np_aaatoken_type_identity);
-
-    return ret;
-}
-
-void __np_identity_enter(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{
-    np_ctx_decl(event.context);
-    
-    NP_CAST(event.user_data, np_aaatoken_t, identity);
-    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
-    
-    if (context->my_node_key != NULL &&
-        _np_key_cmp(my_identity_key, context->my_node_key) != 0) {
-        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
-        np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
-        _np_aaatoken_update_extensions_signature(context->my_node_key->aaa_token);
-        
-        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
-        np_aaatoken_set_partner_fp(context->my_node_key->aaa_token, ident_dhkey);
-    }
-    
-    _np_aaatoken_update_extensions_signature(identity);
-    identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
-    
-    _np_statistics_update_prometheus_labels(context, NULL);
-#ifdef DEBUG
-    char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
-    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
-    
-    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
-    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
-    
-    log_debug_msg(LOG_DEBUG, "identity token: my cu pk: %s ### my ed pk: %s\n", curve25519_pk, ed25519_pk);
-#endif
-}
-
-void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{    
-    np_ctx_decl(event.context);
-    log_debug_msg(LOG_DEBUG, "start: void _np_set_identity(np_aaatoken_t* identity){");
-
-    NP_CAST(event.user_data, np_aaatoken_t, identity);
-    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
-
-    np_ref_switch(np_aaatoken_t, my_identity_key->aaa_token, ref_key_aaa_token, identity);
-    np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, my_identity_key);
-
-    _np_keycache_add(my_identity_key);
-    sll_append(void_ptr, my_identity_key->entities, identity);
-    my_identity_key->type = np_key_type_ident;
-    
-    __np_identity_enter(statemachine, event);
-    
-}
-
-void __np_handle_event(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{ 
-    NP_CAST(statemachine->_user_data, np_key_t, my_key);
-    sll_iterator(void_ptr) iter = sll_first(my_key->entities);   
-    while (iter != NULL) {
-        // np_util_statemachine_invoke_auto_transition(iter->val, event);
-    }
-}
-
-bool __is_message_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
-    return (event.type == message) && 
-           (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
-}
-
-void __np_key_populate_states(np_key_t* key)
-{
-    static bool population_done = false;
-    static np_util_statemachine_state_t* states[MAX_KEY_STATES];
-
-    if (!population_done) {
-        NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP, "IN_SETUP", __keystate_noop, __keystate_noop, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP, IN_USE, __np_set_identity, __is_identity_aaatoken);
-            // NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_SETUP, IN_USE, __np_add_node, __is_node_aaatoken);
-            // NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_SETUP, IN_USE, __np_add_node, __is_wildcard_node);
-            // NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_SETUP, IN_USE, __np_add_intent, __is_message_intent);
-
-        NP_UTIL_STATEMACHINE_STATE(states, IN_USE, "IN_USE", __keystate_noop, __keystate_noop, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE, IN_USE    , __np_handle_event, NULL);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE, IN_DESTROY, __keystate_noop  , __is_key_invalid);
-
-        NP_UTIL_STATEMACHINE_STATE(states, IN_DESTROY, "IN_DESTROY", __keystate_noop, __np_key_destroy, __keystate_noop);
-            // NP_UTIL_STATEMACHINE_TRANSITION(&new_key->sm, IN_DESTROY, IN_SETUP, __keystate_noop, NULL);
-    }
-
-    NP_UTIL_STATEMACHINE_INIT(key->sm, IN_SETUP, states, key);
-}
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
@@ -202,6 +56,120 @@ int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 int8_t _np_key_cmp_inv(np_key_t* const k1, np_key_t* const k2)
 {	
     return -1 * _np_key_cmp(k1, k2);
+}
+
+// STATE MACHINE FUNCTIONS AND DEFINITIONS
+enum NP_KEY_STATES {
+    UNUSED = 0,
+    IN_SETUP,
+    IN_USE_IDENTITY,
+    IN_USE_WILDCARD,
+    IN_USE_NODE,
+    IN_USE_INTENT,
+    IN_USE_MSGPROPERTY,
+    IN_DESTROY,
+    MAX_KEY_STATES
+};
+
+void __keystate_noop(np_util_statemachine_t* statemachine, const np_util_event_t event) {
+    // empty by design
+}
+
+void __add_transitions_for(const np_key_t* my_key, enum np_key_type requested_type); 
+
+
+#include "core/np_comp_identity.c"
+#include "core/np_comp_node.c"
+
+// IN_USE_... -> IN_DESTROY transition conditions / actions
+bool __is_key_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_decl(event.context);
+    bool ret = false;
+
+    NP_CAST(statemachine->_user_data, np_key_t, my_key);
+    
+    if (!ret) ret  = (my_key->last_update < (_np_time_now(context)+3600) );
+    if ( ret) ret &= (my_key->type == np_key_type_unknown);
+    if ( ret) ret &= (sll_size(my_key->entities) == 0);
+
+    return ret;
+}
+
+// IN_DESTROY entry action
+void __np_key_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    NP_CAST(statemachine->_user_data, np_key_t, my_key);
+    _np_key_destroy(my_key);
+}
+
+void __add_transitions_for(const np_key_t* my_key, enum np_key_type requested_type) 
+{
+    assert( FLAG_CMP(my_key->type, requested_type) != np_key_type_unknown );
+    // potentially add transitions for state behaviour, unused yet
+    switch (requested_type) {
+        case np_key_type_ident:
+        case np_key_type_subject:
+        case np_key_type_wildcard:
+        case np_key_type_alias:
+        default:
+            break;
+    }
+}
+
+
+void __np_key_populate_states(np_key_t* key)
+{
+    np_ctx_memory(key);
+
+    static bool population_done = false;
+    static np_util_statemachine_state_t* states[MAX_KEY_STATES];
+
+    if (!population_done)
+    {
+        NP_UTIL_STATEMACHINE_STATE(states, UNUSED, "UNUSED", __keystate_noop, __keystate_noop, __keystate_noop );
+
+            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP, __np_node_set, __is_node_handshake_token );
+            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP, __np_node_set, __is_node_token           );
+
+            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_IDENTITY, __np_set_identity, __is_identity_aaatoken);
+
+            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_MSGPROPERTY, __np_set_property, __is_msgproperty);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_WILDCARD, __np_set_wildcard, __is_wildcard_node);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_INTENT, __np_set_intent, __is_intent_aaatoken);
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP, "IN_SETUP", __keystate_noop, __keystate_noop, __keystate_noop);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP, IN_SETUP, __np_node_handle_completion, NULL);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP, IN_USE_NODE, __np_node_update, __is_node_complete);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP, IN_DESTROY, __np_node_handle_leave, __is_node_join_nack);
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_IDENTITY, "IN_USE_IDENTITY", __keystate_noop, __keystate_noop, __keystate_noop);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_USE_IDENTITY, __np_identity_update, NULL);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY,      __np_identity_destroy, __is_identity_invalid);
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_WILDCARD, "IN_USE_WILDCARD", __keystate_noop, __keystate_noop, __keystate_noop);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_WILDCARD, IN_DESTROY, __np_add_node, __is_node_aaatoken);
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_NODE, "IN_USE_NODE", __keystate_noop, __keystate_noop, __keystate_noop);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_DESTROY, __np_node_handle_leave, __is_node_leaving);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_DESTROY, __np_node_destroy, __is_node_invalid);
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_INTENT, "IN_USE_INTENT", __keystate_noop, __keystate_noop, __keystate_noop);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_DESTROY, __np_add_node, __is_node_aaatoken);
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_MSGPROPERTY, "IN_USE_MSGPROPERTY", __keystate_noop, __keystate_noop, __keystate_noop);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_update, __is_msgproperty);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_msg,  __is_external_message);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_check,  NULL);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_DESTROY        , __keystate_noop , __is_key_invalid);
+   
+        NP_UTIL_STATEMACHINE_STATE(states, IN_DESTROY, "IN_DESTROY", __keystate_noop, __np_key_destroy, __keystate_noop);
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_DESTROY, UNUSED, __np_destroy, NULL);
+
+        population_done = true;
+    }
+
+    NP_UTIL_STATEMACHINE_INIT(key->sm, context, UNUSED, states, key);
 }
 
 char* _np_key_as_str(np_key_t* key)
@@ -251,7 +219,8 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
 /**
  * Destroys a key with all resources
  */
-void _np_key_destroy(np_key_t* to_destroy) {
+void _np_key_destroy(np_key_t* to_destroy) 
+{
     np_ctx_memory(to_destroy);
     char* keyident = NULL;
 
@@ -279,47 +248,36 @@ void _np_key_destroy(np_key_t* to_destroy) {
         _np_set_success_avg(to_destroy->dhkey, 0);
         _np_network_disable(to_destroy->network);
 
-        if(to_destroy->is_in_keycache) {
-            _np_keycache_remove(context, to_destroy->dhkey);
-        }
+        // if(to_destroy->is_in_keycache) {
+        //     _np_keycache_remove(context, to_destroy->dhkey);
+        // }
 
         // delete old receive tokens
         if (NULL != to_destroy->recv_tokens)
         {
-            if (to_destroy->recv_property != NULL) {
-                _LOCK_ACCESS(&to_destroy->recv_property->lock)
-                {
-                    pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
-                    while (NULL != iter)
-                    {
-                        np_unref_obj(np_aaatoken_t, iter->val, "recv_tokens");
-                        pll_next(iter);
-                    }
-                    pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
-                    to_destroy->recv_tokens = NULL;
-                }
+            pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
+            while (NULL != iter)
+            {
+                np_unref_obj(np_aaatoken_t, iter->val, "recv_tokens");
+                pll_next(iter);
             }
+            pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
+            to_destroy->recv_tokens = NULL;
         }
 
         // delete send tokens
         if (NULL != to_destroy->send_tokens)
         {
-            if (to_destroy->send_property != NULL) {
-                _LOCK_ACCESS(&to_destroy->send_property->lock)
-                {
-                    pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
-                    while (NULL != iter)
-                    {
-                        np_unref_obj(np_aaatoken_t, iter->val, "send_tokens");
-                        pll_next(iter);
-                    }
-                    pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
-                    to_destroy->send_tokens = NULL;
-                }
+            pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
+            while (NULL != iter)
+            {
+                np_unref_obj(np_aaatoken_t, iter->val, "send_tokens");
+                pll_next(iter);
             }
+            pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
+            to_destroy->send_tokens = NULL;
         }
     
-
         np_sll_t(np_key_ptr, aliasse) = _np_keycache_find_aliase(to_destroy);
         sll_iterator(np_key_ptr) iter = sll_first(aliasse);
 
@@ -351,6 +309,7 @@ void _np_key_destroy(np_key_t* to_destroy) {
 void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* key)
 {
     log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
+
     np_key_t* new_key = (np_key_t*) key;
 
     // new_key->type = np_key_type_unknown;
@@ -359,8 +318,11 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
 
     __np_key_populate_states(new_key);
 
-    new_key->created_at = np_time_now();
+    // _np_threads_mutex_init(context, &new_key->key_lock, "keylock");
+
+    new_key->created_at  = np_time_now();
     new_key->last_update = np_time_now();
+
     new_key->dhkey_str = NULL;
     
     sll_init(void_ptr, new_key->entities); // link to components attached to this key id
@@ -370,8 +332,8 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     new_key->aaa_token = NULL;
 
     // used internally only
-    new_key->recv_property = NULL;
-    new_key->send_property = NULL;
+    // new_key->recv_property = NULL;
+    // new_key->send_property = NULL;
 
     new_key->local_mx_tokens = NULL; // link to runtime interest data on which this node is interested in
 
@@ -399,8 +361,8 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
 
     // unref and delete of other object pointers has to be done outside of this function
     // otherwise double locking the memory pool will lead to a deadlock
-    np_unref_obj(np_msgproperty_t, 	old_key->recv_property, ref_key_recv_property);
-    np_unref_obj(np_msgproperty_t, 	old_key->send_property, ref_key_send_property);
+    // np_unref_obj(np_msgproperty_t, 	old_key->recv_property, ref_key_recv_property);
+    // np_unref_obj(np_msgproperty_t, 	old_key->send_property, ref_key_send_property);
     np_unref_obj(np_aaatoken_t,		old_key->aaa_token, ref_key_aaa_token);
 
     if (old_key->local_mx_tokens != NULL) {
@@ -411,6 +373,8 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
         }
         pll_free(np_aaatoken_ptr, old_key->local_mx_tokens);
     }
+
+    // _np_threads_mutex_destroy(context, &old_key->key_lock);
 }
 
 /**
@@ -448,15 +412,13 @@ np_key_t* _np_key_get_by_key_hash(np_state_t* context, char* targetDhkey)
 
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop) {
     np_ctx_memory(self);
-    np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);
-    prop->recv_key = self;
+    // np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);
 
 }
 
 void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
     np_ctx_memory(self);
-    np_ref_switch(np_msgproperty_t, self->send_property, ref_key_send_property, prop);
-    prop->send_key = self;
+    // np_ref_switch(np_msgproperty_t, self->send_property, ref_key_send_property, prop);
 }
 
 void _np_key_set_network(np_key_t* self, np_network_t* ng) {
