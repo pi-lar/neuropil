@@ -7,6 +7,7 @@
 // this file conatins the state machine conditions, transitions and states that a node can
 // have. It is included form np_key.c, therefore there are no extra #include directives.
 
+#include "np_axon.h"
 #include "np_aaatoken.h"
 #include "np_key.h"
 #include "np_keycache.h"
@@ -52,6 +53,7 @@ bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_ut
     }
     return ret;
 }
+
 bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -67,11 +69,17 @@ bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t
     }
     return ret;
 }
+
 bool __is_node_complete(np_util_statemachine_t* statemachine, const np_util_event_t event)
 { 
 
 }
-bool __is_node_join_nack(np_util_statemachine_t* statemachine, const np_util_event_t event) { }
+
+bool __is_node_join_nack(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+
+}
+
 bool __is_node_leave_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -86,6 +94,7 @@ bool __is_node_leave_message(np_util_statemachine_t* statemachine, const np_util
     }
     return ret;
 }
+
 // IN_USE -> IN_DESTROY transition condition / action #1
 bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
@@ -93,60 +102,102 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
 
     bool ret = false;
     
-    NP_CAST(statemachine->_user_data, np_key_t, my_node_key);
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
-    if (!ret) ret = (my_node_key->aaa_token != NULL);
+    if (!ret) ret = (node_key->aaa_token != NULL);
     if ( ret) {
-        NP_CAST(my_node_key->aaa_token, np_aaatoken_t, node);
-        ret &= (my_node_key->type == np_aaatoken_type_node);
+        NP_CAST(node_key->aaa_token, np_aaatoken_t, node);
+        ret &= (node_key->type == np_aaatoken_type_node);
         ret &= !_np_aaatoken_is_valid(node, np_aaatoken_type_node);
     }
     return ret;
 }
+
+bool __is_wildcard_key(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+
+    bool ret = false;
+    
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    NP_CAST(event.user_data, np_node_t, my_node);
+
+    if (!ret) ret  = (node_key->type == np_key_type_wildcard);
+    if ( ret) ret &= _np_memory_rtti_check(my_node, np_memory_types_np_node_t);
+    if ( ret) ret &= _np_node_check_address_validity(my_node);
+
+    return ret;
+}
+
+bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+
+}
+
 void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
     log_debug_msg(LOG_DEBUG, "start: void _np_set_node(np_aaatoken_t* node){");
 
-    NP_CAST(event.user_data, np_aaatoken_t, node);
-    NP_CAST(statemachine->_user_data, np_key_t, my_node_key);
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    NP_CAST(event.user_data, np_aaatoken_t, node_token);
 
-    // _np_keycache_add(my_node_key);
+    np_node_t* my_node = _np_node_from_token(node_token, node_token->type);
+    if (node_token->type == np_aaatoken_type_handshake) 
+    {
+        my_node->_handshake_status++;
+    }
 
-    sll_append(void_ptr, my_node_key->entities, node                                             );
-    sll_append(void_ptr, my_node_key->entities, _np_node_from_token(node, np_aaatoken_type_node) );
-    // sll_append(void_ptr, my_node_key->entities, NULL                                             );
+    sll_append(void_ptr, node_key->entities, node_token);
+    sll_append(void_ptr, node_key->entities, my_node);
 
-    my_node_key->type |= np_key_type_node;
-    node->state = AAA_VALID;
-    
-    __add_transitions_for(my_node_key, np_key_type_node);
+    node_key->type |= np_key_type_node;
+    node_token->state = AAA_VALID;
 }
+
+void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_DEBUG, "start: void _np_set_node(np_aaatoken_t* node){");
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    NP_CAST(event.user_data, np_node_t, node);
+
+    // _np_keycache_add(node_key);
+    sll_append(void_ptr, node_key->entities, node);   
+}
+
 void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
-    // handle leave event
+    // issue ping / piggy messages
+}
 
-    // handle ping reply
-
-    // send ping request
+void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   
 
 }
+
+void __np_node_update_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   
+    // comapare new and old node token, take over changes
+}
+
 void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 { 
     np_ctx_memory(statemachine->_user_data);
     log_debug_msg(LOG_DEBUG, "start: void _np_node_update(...) {");
 
-    NP_CAST(event.user_data, np_aaatoken_t, token);
-    NP_CAST(statemachine->_user_data, np_key_t, my_node_key);
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    NP_CAST(event.user_data, np_aaatoken_t, node_token);
 
     struct __np_node_trinity trinity = {0};
-    __np_key_to_trinity(my_node_key, &trinity);
+    __np_key_to_trinity(node_key, &trinity);
 
     if ( FLAG_CMP(event.type,evt_internal) )
     {   // self triggered event to handle node completion
         if (trinity.node->_handshake_status != np_handshake_status_Connected) 
         {
-            _np_network_send_handshake(context, my_node_key, false, NULL);
+            _np_network_send_handshake(context, node_key, false, NULL);
         } 
         else if (trinity.node->joined_network != true) 
         {
@@ -154,36 +205,138 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
         }
     }
 
-    if ( FLAG_CMP(event.type, evt_token) )
-    {   // external event received to complete the node configuration (join / join_ack)
+    if ( FLAG_CMP(event.type, evt_token) && FLAG_CMP(event.type, evt_external) )
+    {   // external token received to complete the node configuration (join / join_ack)
 
-        // np_key_t *added = NULL, *deleted = NULL;
-        // _np_route_leafset_update(my_node_key, true, added, deleted);
-        // TODO: error handling
-        // _np_route_update(my_node_key, true, added, deleted);
-        // TODO: error handling
     }
 }
-void __np_node_handle_leave(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{ }
+
+void __np_wildcard_finalize(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+
+    NP_CAST(statemachine->_user_data, np_key_t, wildcard_key);
+    NP_CAST(event.user_data, np_aaatoken_t, wildcard_token);
+
+    np_dhkey_t search_key = np_aaatoken_get_fingerprint(wildcard_token, false);
+    np_key_t* node_key = _np_keycache_find_or_create(context, search_key);
+
+    np_util_event_t ev = { .type=(evt_external|evt_token), .context=context, .user_data=wildcard_token };
+    np_util_statemachine_invoke_auto_transition(&node_key->sm, ev);
+
+    // we do not need this key anymore
+    wildcard_key->type = np_key_type_unknown;
+}
+
+bool __is_node_join(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    // join request or join ack
+}
+
 void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {    
     np_ctx_memory(statemachine->_user_data);
 
-    NP_CAST(statemachine->_user_data, np_key_t, my_node_key);
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
-    np_aaatoken_t* node_token = (np_aaatoken_t*) sll_head(void_ptr, my_node_key->entities);
-    np_node_t* node_struct = (np_node_t*) sll_head(void_ptr, my_node_key->entities);
-    np_network_t* node_network = (np_network_t*) sll_head(void_ptr, my_node_key->entities);
-    
-    // np_unref_obj(np_aaatoken_t, sll_first(my_node_key->entities), ref_key_aaa_token);
-    // np_unref_obj(np_node_t, sll_second(my_node_key->entities), ref_key_aaa_token);
-    // np_unref_obj(np_network_t, sll_last(my_node_key->entities), ref_key_aaa_token);
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(node_key, &trinity);
 
-    _np_keycache_remove(context, my_node_key->dhkey);
-    my_node_key->is_in_keycache = false;
+    _np_keycache_remove(context, node_key->dhkey);
+    node_key->is_in_keycache = false;
 
-    sll_clear(void_ptr, my_node_key->entities);
+    // TODO unref and clean trinity data structures
+    sll_clear(void_ptr, node_key->entities);
 
-    my_node_key->type = np_key_type_unknown;
+    node_key->type = np_key_type_unknown;
+}
+
+void __np_create_client_network (np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(node_key, &trinity);
+
+    if (NULL == trinity.network && NULL != trinity.node) 
+    {
+        // create outgoing network
+        np_network_t* my_network = NULL;
+        np_new_obj(np_network_t, my_network);
+        _np_network_init(my_network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, -1, UNKNOWN_PROTO);
+        _np_network_set_key(my_network, node_key);
+
+        sll_append(void_ptr, node_key->entities, my_network);
+
+        log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
+
+        _np_network_enable(my_network);
+        _np_network_start(my_network, true);
+    }
+
+    // send out handshake (reply or new)
+    np_jobargs_t args = { .target=node_key };
+
+    if (trinity.token->type == np_aaatoken_type_handshake) 
+    {
+        // add identitfcation for reply handshake
+        args.custom_data = strndup(trinity.token->uuid, NP_UUID_BYTES);
+
+        // create cryptio session key
+        np_aaatoken_t* my_token = sll_first(context->my_node_key->entities)->val;
+        trinity.node->session_key_is_set = 
+                    (0 == np_crypto_session(context, 
+                                            &my_token->crypto,
+                                            &trinity.node->session,
+                                            &trinity.token->crypto,
+                                            false ) 
+                    );
+    }
+
+    _np_out_handshake(context, args);
+
+    trinity.node->handshake_send_at = np_time_now();
+    trinity.node->_handshake_status++;
+    node_key->last_update = np_time_now();
+}
+
+bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    NP_CAST(statemachine->_user_data, np_key_t, node_key); 
+
+    if ( (node_key->created_at + 60) < np_time_now() ) return true;
+
+    return false;
+}
+
+void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+
+}
+
+np_network_t* _np_key_get_network(np_key_t* key) 
+{
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(key, &trinity);
+
+    return trinity.network;
+}
+
+np_node_t* _np_key_get_node(np_key_t* key) 
+{
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(key, &trinity);
+
+    return trinity.node;
+}
+
+np_aaatoken_t* _np_key_get_token(np_key_t* key) 
+{
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(key, &trinity);
+
+    return trinity.token;
 }

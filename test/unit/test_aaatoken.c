@@ -15,7 +15,7 @@
 #include "np_token_factory.h"
 #include "np_memory.h"
 
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_serialization.h"
@@ -41,7 +41,7 @@ Test(np_aaatoken_t, create_node_token, .description = "test the creation of a no
 		_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 		test_key->node = test_node;
 
-		test_token_1 = _np_token_factory_new_node_token(context, test_node);
+		test_token_1 = _np_token_factory_new_node_token(context, IPv4 | UDP, "localhost", "1111");
 		cr_assert(NULL != test_token_1, "expect the token to be not NULL");
 
 		// re-set the validity of this token for this test only	
@@ -106,7 +106,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description = "test the encoding and de
 		np_new_obj(np_node_t, test_node);
 		_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 
-		ref = _np_token_factory_new_node_token(context, test_node);
+		ref = _np_token_factory_new_node_token(context, IPv4 | UDP, "localhost", "1111");
 
 		np_new_obj(np_key_t, test_key);
 		test_key->dhkey = np_aaatoken_get_fingerprint(ref, false);

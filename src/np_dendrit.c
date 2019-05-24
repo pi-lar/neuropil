@@ -1814,7 +1814,7 @@ void _np_in_authenticate_reply(np_state_t* context, np_jobargs_t args)
                 if (0 == strncmp(tmp_token->uuid, authentication_token->uuid, 255))
                 {
                     tmp_token->state |= AAA_AUTHENTICATED;
-                    _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
+                    // _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
                     break;
                 }
                 // TODO: move to msgcache.h and change parameter
@@ -1828,7 +1828,7 @@ void _np_in_authenticate_reply(np_state_t* context, np_jobargs_t args)
                 if (0 == strncmp(tmp_token->uuid, authentication_token->uuid, 255))
                 {
                     tmp_token->state |= AAA_AUTHENTICATED;
-                    _np_msgproperty_check_sender_msgcache(subject_key->send_property);
+                    // _np_msgproperty_check_sender_msgcache(subject_key->send_property);
                     break;
                 }
                 // TODO: move to msgcache.h and change parameter
@@ -1984,7 +1984,7 @@ void _np_in_authorize_reply(np_state_t* context, np_jobargs_t args)
                 if (0 == strncmp(tmp_token->uuid, authorization_token->uuid, 255))
                 {
                     tmp_token->state |= AAA_AUTHORIZED;
-                    _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
+                    // _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
                     break;
                 }
                 // TODO: move to msgcache.h and change parameter
@@ -1998,7 +1998,7 @@ void _np_in_authorize_reply(np_state_t* context, np_jobargs_t args)
                 if (0 == strncmp(tmp_token->uuid, authorization_token->uuid, 255))
                 {
                     tmp_token->state |= AAA_AUTHORIZED;
-                    _np_msgproperty_check_sender_msgcache(subject_key->send_property);
+                    // _np_msgproperty_check_sender_msgcache(subject_key->send_property);
                     break;
                 }
                 pll_next(iter);
@@ -2311,7 +2311,8 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                 np_tree_elem_t* response_uuid = np_tree_find_str(args.msg->instructions, _NP_MSG_INST_RESPONSE_UUID);
                 np_tree_elem_t* remote_hs_prio = np_tree_find_str(args.msg->header, NP_HS_PRIO);
 
-                if (response_uuid != NULL && alias_key->node != NULL && alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) {
+                if (response_uuid != NULL && alias_key->node != NULL && alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) 
+                {
                     if (remote_hs_prio->val.value.ul < context->my_node_key->node->handshake_priority)
                     {
                         process_handshake = false;
@@ -2319,8 +2320,9 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                             "Handshake status contradiction. Handshake cannot be processed further. Remote-Prio: %"PRIu32" My-Prio: %"PRIu32" ",
                             remote_hs_prio->val.value.ul, context->my_node_key->node->handshake_priority
                         );
-                    }
-                    else {
+                    } 
+                    else
+                    {
                         np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);                        
                         log_debug_msg(LOG_HANDSHAKE,
                             "Handshake status contradiction. Resetting node to remote initiated. Remote-Prio: %"PRIu32" My-Prio: %"PRIu32" ",
@@ -2330,7 +2332,8 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                 }
             }
 
-            if (process_handshake) {
+            if (process_handshake) 
+            {
                 np_state_t* state = context;
                 np_waitref_obj(np_aaatoken_t, state->my_node_key->aaa_token, my_node_token, "np_waitref_my_node_key->aaa_token");
                 
@@ -2359,7 +2362,8 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                 np_ref_switch(np_aaatoken_t, alias_key->aaa_token, ref_key_aaa_token, handshake_token);
                 np_ref_switch(np_aaatoken_t, msg_source_key->aaa_token, ref_key_aaa_token, handshake_token);
 
-                if (alias_key->node != NULL && msg_source_key->node != NULL) {
+                if (alias_key->node != NULL && msg_source_key->node != NULL) 
+                {
                     alias_key->node->handshake_send_at = msg_source_key->node->handshake_send_at;
                 }
                 np_ref_switch(np_node_t, alias_key->node, ref_key_node, msg_source_key->node);
@@ -2383,20 +2387,25 @@ void _np_in_handshake(np_state_t* context, np_jobargs_t args)
                 msg_source_key->aaa_token->state |= AAA_VALID;
 
                 bool succ_registerd = false;
-                if (alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) {
+                if (alias_key->node->_handshake_status == np_handshake_status_SelfInitiated) 
+                {
                     np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
                     succ_registerd = true;
                 }
-                else if (alias_key->node->_handshake_status == np_handshake_status_RemoteInitiated) {
-                    if (_np_network_send_handshake(context, msg_source_key, true, args.msg->uuid)) {
+                else if (alias_key->node->_handshake_status == np_handshake_status_RemoteInitiated) 
+                {
+                    if (_np_network_send_handshake(context, msg_source_key, true, args.msg->uuid))
+                    {
                         if (context->settings->n_threads > 1) np_time_sleep(0.05);
                         np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
                         succ_registerd = true;
                     }
                 }
-                else if (alias_key->node->_handshake_status == np_handshake_status_Disconnected) {
+                else if (alias_key->node->_handshake_status == np_handshake_status_Disconnected)
+                {
                     np_node_set_handshake(alias_key->node, np_handshake_status_RemoteInitiated);
-                    if (_np_network_send_handshake(context, msg_source_key, true, args.msg->uuid)) {                        
+                    if (_np_network_send_handshake(context, msg_source_key, true, args.msg->uuid)) 
+                    { 
                         np_node_set_handshake(alias_key->node, np_handshake_status_Connected);
                         succ_registerd = true;
                     }

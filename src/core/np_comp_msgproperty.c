@@ -570,7 +570,7 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
         // Create a new msg token
         log_msg(LOG_AAATOKEN | LOG_DEBUG, "--- refresh for subject token: %25s --------", prop->msg_subject);
         np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(prop);
-        log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s) ", prop->msg_subject, msg_token_new->uuid, ret == NULL ? "-" : ret->uuid);		
+        log_debug_msg(LOG_AAATOKEN | LOG_ROUTING | LOG_DEBUG, "creating new token for subject %s (%s replaces %s)", prop->msg_subject, msg_token_new->uuid, ret == NULL ? "-" : ret->uuid);		
         _np_aaatoken_add_local_mx(msg_token_new->subject, msg_token_new);
         np_unref_obj(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx");
         ret = msg_token_new;		
@@ -586,6 +586,16 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
     ASSERT(_np_aaatoken_is_valid(ret, np_aaatoken_type_message_intent), "AAAToken needs to be valid");
     
     return ret;
+}
+
+bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    // check if it is an  user callback messages --> payload encrypted
+}
+
+void __np_property_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    // was np_dendrit->_np_in_callback_wrapper ...
 }
 
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
@@ -712,7 +722,7 @@ void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(event.user_data,          np_msgproperty_t, property);
 
     sll_append(void_ptr, my_property_key->entities, property);
-    log_debug_msg(LOG_DEBUG, "sto  :msgproperty %s: %p added to list: %p / %p\n", property->msg_subject, property, my_property_key, my_property_key->entities);
+    log_debug_msg(LOG_DEBUG, "sto  :msgproperty %s: %p added to list: %p / %p", property->msg_subject, property, my_property_key, my_property_key->entities);
     my_property_key->type |= np_key_type_subject;
 }
 
@@ -733,7 +743,7 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
 {
     np_ctx_memory(statemachine->_user_data);
 
-    log_debug_msg(LOG_TRACE, "start: void __np_property_check(...) {");
+    // log_debug_msg(LOG_TRACE, "start: void __np_property_check(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t,  my_property_key);    
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);

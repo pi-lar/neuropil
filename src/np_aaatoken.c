@@ -553,10 +553,10 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
         np_msgproperty_t* send_prop = _np_msgproperty_get(context, OUTBOUND, subject);
         if (NULL != send_prop)
         {
-            if(NULL == subject_key->send_property)
-            {
-                _np_key_set_send_property(subject_key, send_prop);
-            }
+            // if(NULL == subject_key->send_property)
+            // {
+            //     _np_key_set_send_property(subject_key, send_prop);
+            // }
         }
         else
         {
@@ -566,17 +566,17 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
         np_msgproperty_t* recv_prop = _np_msgproperty_get(context, INBOUND, subject);
         if (NULL != recv_prop)
         {
-            if(NULL == subject_key->recv_property)
-            {
-                _np_key_set_recv_property(subject_key, recv_prop);
-            }
+            // if(NULL == subject_key->recv_property)
+            // {
+            //     _np_key_set_recv_property(subject_key, recv_prop);
+            // }
         }
         else
         {
             create_new_prop |= true;
         }
 
-        if (true == create_new_prop && (NULL == subject_key->send_property || NULL == subject_key->recv_property))
+        // if (true == create_new_prop && (NULL == subject_key->send_property || NULL == subject_key->recv_property))
         {
             log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "creating ledger property for %s", subject);
 
@@ -594,13 +594,13 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
                 }
             }
 
-            if (NULL == subject_key->send_property) {
+/*             if (NULL == subject_key->send_property) {
                 _np_key_set_send_property(subject_key, prop);
             }
             if (NULL == subject_key->recv_property) {
                 _np_key_set_recv_property(subject_key, prop);
             }
-            if(created) {
+ */            if(created) {
                 np_unref_obj(np_msgproperty_t, prop, ref_obj_creation);
             }
         }
@@ -610,6 +610,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 // update internal structure and return a interest if a matching pair has been found
 np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 {
+    /*
     assert(token != NULL);
     np_state_t* context = np_ctx_by_memory(token);
     np_aaatoken_t * ret = NULL;
@@ -687,6 +688,7 @@ np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
     np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
     return ret;
+    */
 }
 
 /** np_get_sender_token
@@ -696,6 +698,7 @@ np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
  **/
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, const char* const subject, const char* const audience)
 {
+    /*
     np_sll_t(np_aaatoken_ptr, return_list) = NULL;
     sll_init(np_aaatoken_ptr, return_list);
 
@@ -753,6 +756,7 @@ sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, con
     np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
 
     return (return_list);
+    */
 }
 
 np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self){
@@ -763,6 +767,7 @@ np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self){
 
 np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* const subject, const np_dhkey_t* const sender_dhkey)
 {
+    /*
 	ASSERT (sender_dhkey != NULL, "sender_dhkey is a mandatory function argument");
 
     log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: np_aaatoken_t* _np_aaatoken_get_sender_token(char* subject, char* sender){");
@@ -825,7 +830,7 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
                             "comparing sender token (%s) for %s with send_dhkey: %s (issuer match)",
                             return_token->uuid, return_token->issuer, sender_dhkey_as_str);
         }
-        */
+        *//*
 
         // only pick key from a list if the subject msg_treshold is bigger than zero
         // and we actually have the correct sender node in the list
@@ -857,12 +862,13 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
 
     np_unref_obj(np_key_t, subject_key, "_np_keycache_find_or_create");
     return (return_token);
+    */
 }
 
 // update internal structure and clean invalid tokens
 np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
 {
-    assert(token != NULL);
+/*    assert(token != NULL);
     np_state_t* context = np_ctx_by_memory(token);
 
     np_aaatoken_t* ret = NULL;	
@@ -956,6 +962,7 @@ np_aaatoken_t *_np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token)
     log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .np_add_receiver_token");
 
     return ret;
+    */
 }
 
 np_aaatoken_t* _np_aaatoken_get_receiver(np_state_t* context, const char* const subject, np_dhkey_t* target)

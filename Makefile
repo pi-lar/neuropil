@@ -48,8 +48,9 @@ TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
 SOURCES_LIB  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_axon.c src/np_bootstrap.c src/np_dendrit.c src/np_crypto.c
+SOURCES_LIB += src/core/np_comp_identity.c src/core/np_comp_msgproperty.c src/core/np_comp_intent.c src/core/np_comp_node.c src/core/np_comp_alias.c
 SOURCES_LIB += src/np_dhkey.c src/np_event.c src/np_glia.c src/np_jobqueue.c src/np_key.c src/np_keycache.c src/np_legacy.c
-SOURCES_LIB += src/np_log.c src/np_memory.c src/np_message.c src/np_messagepart.c src/core/np_comp_msgproperty.c src/np_network.c
+SOURCES_LIB += src/np_log.c src/np_memory.c src/np_message.c src/np_messagepart.c src/np_network.c
 SOURCES_LIB += src/np_node.c src/np_pinging.c src/np_responsecontainer.c src/np_route.c src/np_scache.c src/np_serialization.c src/np_shutdown.c src/np_statistics.c
 SOURCES_LIB += src/np_sysinfo.c src/np_threads.c src/np_time.c src/np_token_factory.c src/np_tree.c src/np_treeval.c src/np_util.c
 SOURCES_LIB += src/event/ev.c src/gpio/bcm2835.c  src/json/parson.c src/msgpack/cmp.c src/util/np_statemachine.c

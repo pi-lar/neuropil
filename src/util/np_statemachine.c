@@ -23,42 +23,39 @@ bool np_util_statemachine_invoke_auto_transition(np_util_statemachine_t *machine
     unsigned int i = 0;
 
     np_util_statemachine_state_t* current_state = machine->_state_table[machine->_current_state];
-    struct np_util_statemachine_transition_s* transition = NULL;
+    struct np_util_statemachine_transition_s transition = {0};
 
     // fprintf(stdout, "cs: %s\n", current_state->_state_name);
     while(i < current_state->_transitions ) {
 
-        transition = &current_state->_transition_table[i];
+        transition = current_state->_transition_table[i];
 
         // fprintf(stdout, " t:   %25s ->   %p / %d -> %d (c: %p / a: %p)\n", 
         //         current_state->_state_name, transition, transition->_source_state, transition->_target_state,
         //         transition->f_condition, transition->f_action);
 
-        if (transition->_active && 
+        if (transition._active && 
             (
-                transition->f_condition == NULL ||
-                transition->f_condition(machine, ev)
+                transition.f_condition == NULL ||
+                transition.f_condition(machine, ev)
             )
            )
         {
             // fprintf(stdout, "cs: %d.%25s -> transition: %d\n", machine->_current_state, current_state->_state_name, i);
             ret = true;
             
-            bool process_enter_exit_states = (transition->_target_state != current_state->_state_id) ? true : false;
-            
+            transition.f_action(machine, ev);
+
+            bool process_enter_exit_states = (transition._target_state != current_state->_state_id) ? true : false;
             if (process_enter_exit_states) current_state->f_exit(machine, ev);
             
-            transition->f_action(machine, ev);
-            machine->_current_state = transition->_target_state;
-
+            machine->_current_state = transition._target_state;
             current_state = machine->_state_table[machine->_current_state];
-
-            // fprintf(stdout, "cs: %d.%25s -> %p / %p\n", machine->_current_state, current_state->_state_name,
-            //         current_state, current_state->f_enter);
-
+            // fprintf(stdout, "cs: %d.%25s -> %p / %p\n", 
+            //                 machine->_current_state, current_state->_state_name, current_state, current_state->f_enter);
             if (process_enter_exit_states) current_state->f_enter(machine, ev);
-
             break; // exit while early after first successful transition
+
         } else {
             // fprintf(stdout, "cs: %d.%25s -> transition: %d -> not met\n", machine->_current_state, current_state->_state_name, i);
         }
@@ -85,40 +82,40 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
     unsigned int i = 0;
 
     np_util_statemachine_state_t* current_state = machine->_state_table[machine->_current_state];
-    struct np_util_statemachine_transition_s* transition = NULL;
+    struct np_util_statemachine_transition_s transition = {0};
     
     while(i < current_state->_transitions) {
         
         // fprintf(stdout, "cs: %25s -> %d (%d)\n", current_state->_state_name, i, current_state->_transitions);
-        transition = &current_state->_transition_table[i]; // + (i*sizeof(struct np_util_statemachine_transition_s));
+        transition = current_state->_transition_table[i]; // + (i*sizeof(struct np_util_statemachine_transition_s));
         
         // fprintf(stdout, " t: %25s -> %p / %p\n", current_state->_state_name, current_state->_transition_table, transition);
 
-        if (!transition->_active)  { i++; continue; }
+        if (!transition._active)  { i++; continue; }
 
-        if (transition->_target_state == target_state &&
-            (transition->f_condition == NULL ||
-             transition->f_condition(machine, noop_event)) )
+        if (transition._target_state == target_state &&
+            (transition.f_condition == NULL ||
+             transition.f_condition(machine, noop_event)) )
         {
+            transition.f_action(machine, noop_event);
+
             // fprintf(stdout, "cs: %25s -> transition: %d\n", current_state->_state_name, i);
-            bool process_enter_exit_states = (transition->_target_state != current_state->_state_id) ? true : false;
+            bool process_enter_exit_states = (transition._target_state != current_state->_state_id) ? true : false;
             if (process_enter_exit_states) current_state->f_exit(machine, noop_event);
 
-            transition->f_action(machine, noop_event);
-            machine->_current_state = transition->_target_state;
-            ret = ok_result;
-
+            machine->_current_state = transition._target_state;
             current_state = machine->_state_table[machine->_current_state];
             // fprintf(stdout, "cs: %d.%25s -> %p / %p\n", machine->_current_state, current_state->_state_name,
             //         current_state, current_state->f_enter);
-
             if (process_enter_exit_states) current_state->f_enter(machine, noop_event);
+
+            ret = ok_result;
 
             break;
 
         } else {
-            if (transition->_target_state != target_state) { ret = no_rule_result;           i++;   }
-            else                                           { ret = condition_not_met_result; break; }
+            if (transition._target_state != target_state) { ret = no_rule_result;           i++;   }
+            else                                          { ret = condition_not_met_result; break; }
         }
         
     }
@@ -140,11 +137,13 @@ void np_util_statemachine_add_state(np_util_statemachine_state_t** states, struc
 
     states[state._state_id]->_state_id = state._state_id;
     strncpy(states[state._state_id]->_state_name, state._state_name, 25);
+
     states[state._state_id]->_transitions = 0;
     states[state._state_id]->_transition_table = NULL;
+
     states[state._state_id]->f_enter = state.f_enter;
-    states[state._state_id]->f_enter = state.f_error;
     states[state._state_id]->f_exit  = state.f_exit;
+    states[state._state_id]->f_error = state.f_error;
 
     /*
     fprintf(stdout, " s: %d.%25s -> %p / %p\n", 

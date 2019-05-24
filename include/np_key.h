@@ -31,44 +31,45 @@ extern "C" {
 enum np_key_type {
 
 	np_key_type_unknown			= 0x000,
-	// 
+	// np_comp_alias
 	np_key_type_alias			= 0x001,
+	// np_comp_node
 	np_key_type_node            = 0x002,
-	// no detection available (only local)
 	np_key_type_wildcard        = 0x004,
-
-	// DETECTION NOT IMPLEMENTED
+	// np_comp_identity
 	np_key_type_ident			= 0x008,
-	// DETECTION NOT IMPLEMENTED
+	// np_comp_msgproperty
 	np_key_type_subject			= 0x010,
+	// np_comp_intent
+	np_key_type_intent			= 0x020,
 };
 
 
 struct np_key_s
 {
 	// link to memory management and ref counter
-	double created_at;
-	bool   in_destroy;
-
 	RB_ENTRY(np_key_s) link; // link for cache management
 
+	// state machine
 	np_util_statemachine_t sm;
 
     // np_mutex_t key_lock;
-
-	/*
-	only available for subject key
-	use _np_key_get_dhkey()
-	*/
 	np_dhkey_t dhkey;
 	char*      dhkey_str;
 
+	double created_at;
 	double last_update;
+
 	bool   is_in_keycache;
+	bool   in_destroy;
+
+	enum np_key_type type;
+	np_key_t* parent_key; // reference to parent/partner key
 
 	np_sll_t(void_ptr, entities); // link to components attached to this key id
 
 
+	// deprecated from here on ...
 	/*
 	only available for node key
 	*/
@@ -92,12 +93,6 @@ struct np_key_s
 	np_pll_t(np_aaatoken_ptr, recv_tokens); // link to runtime interest data on which this node is interested in
 	np_pll_t(np_aaatoken_ptr, send_tokens); // link to runtime interest data on which this node is interested in
 
-	enum np_key_type type;
-
-	/*
-	 * Holds a reference to the parent if the key is an alias key.
-	 */
-	np_key_t* parent_key;
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);

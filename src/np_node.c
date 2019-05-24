@@ -181,7 +181,8 @@ np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 
     enum socket_type proto = PASSIVE | IPv4;
     if(s_hostproto!=NULL)
-    {	proto = _np_network_parse_protocol_string(s_hostproto);
+    {	
+        proto = _np_network_parse_protocol_string(s_hostproto);
     }
 
     if (NULL == node_key->node && NULL != s_hostname && NULL != s_hostport)
@@ -192,9 +193,10 @@ np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
         np_ref_switch(np_node_t, node_key->node, ref_key_node, newnode);
         np_unref_obj(np_node_t, newnode,ref_obj_creation);
     }
-    else {
-        // overwrite hostname only if it is not set yet
-        if (NULL != s_hostname && NULL != s_hostport && (NULL == node_key->node->dns_name || NULL == node_key->node->port)) {
+    else 
+    {   // overwrite hostname only if it is not set yet
+        if (NULL != s_hostname && NULL != s_hostport && (NULL == node_key->node->dns_name || NULL == node_key->node->port))
+        {
             _np_node_update(node_key->node, proto, s_hostname, s_hostport);
         }
     }
@@ -260,12 +262,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
         return NULL;
     }
 
-    //snprintf(node_subject, 255, _NP_URN_NODE_PREFIX "%s:%s:%s",
-    //	_np_network_get_protocol_string(source_node->protocol), source_node->dns_name, source_node->port);
     char* details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], sizeof(token->subject) - strlen(_NP_URN_NODE_PREFIX));
-    // char* detail_data = details;
-
-    log_debug_msg(LOG_DEBUG, "#  decoding node from token str: %s", details);
 
     // MANDATORY paramter
     uint8_t i_host_proto = UNKNOWN_PROTO;
@@ -276,6 +273,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
     if (s_host_proto != NULL) {
         i_host_proto = _np_network_parse_protocol_string(s_host_proto);
     } 
+
     if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL) {
         free(details);
         return NULL;
@@ -286,7 +284,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
      
     _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
     log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s",
-                   i_host_proto, s_host_name, s_host_port);
+                             i_host_proto, s_host_name, s_host_port);
        
     free(details);
 

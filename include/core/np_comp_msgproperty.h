@@ -420,6 +420,11 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
 NP_API_INTERN
 void __np_property_handle_msg(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
+NP_API_INTERN
+bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
 
 #ifdef __cplusplus
 }

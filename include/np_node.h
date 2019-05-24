@@ -24,10 +24,10 @@ extern "C" {
 #endif
 
 	enum np_handshake_status {
-		np_handshake_status_Disconnected = 0,
-		np_handshake_status_SelfInitiated,
-		np_handshake_status_RemoteInitiated,
-		np_handshake_status_Connected,
+		np_handshake_status_Disconnected    = 0,
+		np_handshake_status_SelfInitiated   = 1,
+		np_handshake_status_RemoteInitiated = 1,
+		np_handshake_status_Connected       = 2,
 	};
 	static const char* np_handshake_status_str[] = {
 		"Disconnected",

@@ -7,10 +7,12 @@
 // this file conatins the state machine conditions, transitions and states that an identity can
 // have. It is included form np_key.c, therefore there are no extra #include directives.
 
-#include "neuropil.h"
+#include "core/np_comp_identity.h"
 
+#include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_key.h"
+#include "np_keycache.h"
 #include "np_legacy.h"
 #include "np_memory.h"
 #include "util/np_event.h"
@@ -20,16 +22,20 @@
 // IN_SETUP -> IN_USE transition condition / action #1
 bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
 
-    np_ctx_decl(event.context);
+    np_ctx_memory(statemachine->_user_data);
+
+    log_debug_msg(LOG_DEBUG, "start: void __is_identity_aaatoken(...){");
+
     bool ret = false;
 
     if (!ret) ret  = FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_token);
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
-    if ( ret) {
+    if ( ret) 
+    {
         NP_CAST(event.user_data, np_aaatoken_t, identity);
-        ret &= (context->my_identity == NULL);
-        ret &= (identity->type == np_aaatoken_type_identity);
-        ret &= identity->private_key_is_set;
+        ret &= (  identity->type == np_aaatoken_type_identity                             ) ||
+               ( (identity->type == np_aaatoken_type_node) && identity->private_key_is_set);
+
         ret &= _np_aaatoken_is_valid(identity, identity->type);
     }
     return ret;
@@ -39,6 +45,8 @@ bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_e
 {
     np_ctx_memory(statemachine->_user_data);
 
+    log_debug_msg(LOG_DEBUG, "start: void __is_identity_invalid(...){");
+
     bool ret = false;
     
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
@@ -46,16 +54,25 @@ bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_e
     if (!ret) ret = (sll_size(my_identity_key->entities) == 1);
     if ( ret) {
         NP_CAST(sll_first(my_identity_key->entities)->val, np_aaatoken_t, identity);
-        ret &= (identity->type == np_aaatoken_type_identity);
+        ret &= (  identity->type == np_aaatoken_type_identity                             ) ||
+               ( (identity->type == np_aaatoken_type_node) && identity->private_key_is_set);
         ret &= !_np_aaatoken_is_valid(identity, identity->type);
     }
     return ret;
 }
+
+bool __is_identity_authn(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    
+}
+
 void __np_identity_update(np_util_statemachine_t* statemachine, const np_util_event_t event) { }
 
 void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {    
     np_ctx_memory(statemachine->_user_data);
+
+    log_debug_msg(LOG_DEBUG, "start: void __np_identity_destroy(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
@@ -74,20 +91,37 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
 {    
     np_ctx_memory(statemachine->_user_data);
 
-    log_debug_msg(LOG_DEBUG, "start: void _np_set_identity(np_aaatoken_t* identity){");
+    log_debug_msg(LOG_DEBUG, "start: void _np_set_identity(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     NP_CAST(event.user_data, np_aaatoken_t, identity);
 
     np_ref_switch(np_aaatoken_t, identity, ref_key_aaa_token, identity);
-    sll_append(void_ptr, my_identity_key->entities, identity);
 
-    my_identity_key->is_in_keycache = true;
-    my_identity_key->type |= np_key_type_ident;
-    
-    // context->my_identity = my_identity_key;
-    // np_ref_switch(np_key_t, context->my_identity, ref_state_identitykey, my_identity_key);
-    
+    if (identity->type == np_aaatoken_type_node) 
+    {
+        sll_append(void_ptr, my_identity_key->entities, identity);
+
+        context->my_node_key = my_identity_key;
+        if (NULL == context->my_identity) 
+        {
+            my_identity_key->type |= np_key_type_ident;
+            context->my_identity = my_identity_key;
+        }
+    }
+    else if(identity->type == np_aaatoken_type_identity)
+    {
+        sll_append(void_ptr, my_identity_key->entities, identity);
+
+        if ( identity->private_key_is_set && 
+             (NULL == context->my_identity || context->my_identity == context->my_node_key) )
+        {
+            context->my_identity = my_identity_key;
+        }
+    }
+
+    my_identity_key->is_in_keycache = true;            
+
     // to be moved
     if (context->my_node_key != NULL &&
         _np_key_cmp(my_identity_key, context->my_node_key) != 0) 
@@ -112,7 +146,36 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
     sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
     
-    log_debug_msg(LOG_DEBUG, "identity token: my cu pk: %s ### my ed pk: %s\n", curve25519_pk, ed25519_pk);
+    log_debug_msg(LOG_DEBUG, "identity token: my cu pk: %s ### my ed pk: %s", curve25519_pk, ed25519_pk);
 #endif
+}
 
+void __np_create_identity_network(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+
+    log_debug_msg(LOG_DEBUG, "start: void __np_create_identity_network(...){");
+
+    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+    NP_CAST(event.user_data, np_aaatoken_t, identity);
+
+    if (identity->type == np_aaatoken_type_node)
+    {
+        // create node structure (do we still need it ???)
+        np_node_t* my_node = _np_node_from_token(identity, np_aaatoken_type_node);
+        sll_append(void_ptr, my_identity_key->entities, my_node);
+
+        // create incoming network
+        np_network_t* my_network = NULL;
+        np_new_obj(np_network_t, my_network);
+        _np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, UNKNOWN_PROTO);
+        _np_network_set_key(my_network, my_identity_key);
+
+        sll_append(void_ptr, my_identity_key->entities, my_network);
+
+        log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
+
+        _np_network_enable(my_network);
+        _np_network_start(my_network, true);
+    }
 }

@@ -188,11 +188,9 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: void np_set_realm_name(const char* realm_name){");
     context->realm_name = strndup(realm_name, 255);
-
+    
+    /*    
     // create a new token
-    np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context, context->my_node_key->node);
-    auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;	
-
     np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token, false); // np_dhkey_create_from_hostport( my_node->dns_name, my_node->port);
     np_key_t* new_node_key = _np_keycache_find_or_create(context, my_dhkey);
 
@@ -226,6 +224,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
     log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s", _np_key_as_str(context->my_node_key));
 
     np_unref_obj(np_key_t, new_node_key,"_np_keycache_find_or_create");
+    */
 }
 /**
  * Enables this node as realm client.
@@ -234,6 +233,7 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 void np_enable_realm_client(np_context*ac)
 {
     np_ctx_cast(ac);
+
     np_set_authorize_cb(ac, _np_aaa_authorizefunc);
     np_set_authenticate_cb(ac, _np_aaa_authenticatefunc);
     np_set_accounting_cb(ac, _np_aaa_accountingfunc);
@@ -400,7 +400,7 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body
 
     np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
-
+/*
 void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
     np_ctx_cast(ac);
 
@@ -429,6 +429,7 @@ void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
     np_unref_obj(np_key_t, my_new_node_key, "_np_keycache_find_or_create");
     np_unref_obj(np_key_t, my_old_node_key, FUNC);
 }
+*/
 
 char* np_get_connection_string(np_context*ac){
     np_ctx_cast(ac);
@@ -472,11 +473,12 @@ char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char*
     return connection_str;
 }
 
-np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) {
-    log_trace_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* subject) {");
-
+np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) 
+{
     assert(target!= NULL);
-    np_state_t* context = np_ctx_by_memory(target);
+    np_ctx_memory(target);
+
+    log_trace_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* subject) {");
 
     np_tree_t* jrb_data     = np_tree_create();
     np_tree_t* jrb_my_node  = np_tree_create();

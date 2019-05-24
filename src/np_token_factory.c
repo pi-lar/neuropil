@@ -277,7 +277,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
     return ret;
 }
 
-np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, np_node_t* source_node)
+np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, enum socket_type protocol, const char* hostname, const char* port)
 {
     int rand_interval = ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) + NODE_MIN_TTL_SEC);
     double expires_at = np_time_now() + rand_interval;
@@ -285,35 +285,12 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, n
     char issuer[64] = { 0 };
     char node_subject[255];
     snprintf(node_subject, 255,  _NP_URN_NODE_PREFIX "%s:%s:%s",
-        _np_network_get_protocol_string(context, source_node->protocol), source_node->dns_name, source_node->port);
+        _np_network_get_protocol_string(context, protocol), hostname, port);
 
     np_node_private_token_t* ret = __np_token_factory_new(context,issuer, node_subject, expires_at, NULL);
     ret->type = np_aaatoken_type_node;
 
     _np_aaatoken_set_signature(ret, NULL);
-
-    // add needed data for join requests
-    if (context->my_identity != NULL                &&
-    	context->my_identity != context->my_node_key)
-    {
-         np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(ret, false);
-         np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
-
-         np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
-         np_aaatoken_set_partner_fp(ret, ident_dhkey);
-
-#ifdef DEBUG
-        char tmp_ident[65];
-        _np_dhkey_str(&ident_dhkey, tmp_ident);
-        char tmp_node[65];
-        _np_dhkey_str(&node_dhkey, tmp_node); 
-        log_debug_msg(LOG_AAATOKEN, "setting partner relationship for identity %s/%s and node %s/%s",
-            tmp_ident, context->my_identity->aaa_token->uuid,
-            tmp_node, ret->uuid
-        );
-#endif
-    }
-
     _np_aaatoken_update_extensions_signature(ret);
 
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);

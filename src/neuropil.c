@@ -169,10 +169,12 @@ np_context* np_new_context(struct np_settings * settings_in) {
     }
     return ((np_context*)context);
 }
-bool __np_is_already_listening(np_state_t* context){
-    bool ret = context->my_node_key != NULL && context->my_node_key->network != NULL;
-    return ret;
+
+bool __np_is_already_listening(np_state_t* context)
+{
+    return (context->my_node_key != NULL);
 }
+
 enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port) {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
@@ -210,99 +212,61 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
 
         if (ret == np_ok) {
             log_debug_msg(LOG_DEBUG, "building network base structure");
-            np_network_t* my_network = NULL;
-            np_new_obj(np_network_t, my_network);
+            // np_network_t* my_network = NULL;
+            // np_new_obj(np_network_t, my_network);
             // get public / local network interface id
-            char ng_host[255];			
+            char np_host[255];			
             bool has_host = true;
             if (NULL == host && port != 0) {
                 log_msg(LOG_INFO, "neuropil_init: resolve hostname");
-                if (np_get_local_ip(context, ng_host, 255) == false) {
-                    if (0 != gethostname(ng_host, 255)) {
-                        strncpy(ng_host,"localhost",255);
+                if (np_get_local_ip(context, np_host, 255) == false) {
+                    if (0 != gethostname(np_host, 255)) {
+                        strncpy(np_host,"localhost",255);
                     }
                 }
-            }else if (NULL != host)
-            {
-                strncpy(ng_host, host, 255);
-            }else{
+            } else if (NULL != host) {
+                strncpy(np_host, host, 255);
+            } else {
                 has_host = false;
             }
-            if (has_host) {
-                log_debug_msg(LOG_DEBUG, "initialise network (type:%d/%s/%s)", np_proto, _np_network_get_protocol_string(context, np_proto), protocol);
-                _LOCK_MODULE(np_network_t)
-                {
-                    _np_network_init(my_network, true, np_proto, ng_host, np_service, -1, UNKNOWN_PROTO);
-                }
 
-                log_debug_msg(LOG_DEBUG, "check for initialised network");
-                if (false == my_network->initialized)
-                {
-                    log_msg(LOG_ERROR, "neuropil_init: network_init failed, see log for details");
-                    ret = np_network_error;
-                }
-            }
-            if(ret == np_ok)
+            np_aaatoken_t* node_token = _np_token_factory_new_node_token(context, np_proto, np_host, np_service);
+            _np_set_identity(context, node_token);
+            
+            // initialize routing table
+            if (_np_route_init(context, context->my_node_key)== false)
             {
-                log_debug_msg(LOG_DEBUG, "building node base structure");
-
-                if (has_host) {
-                    np_node_t* tmp_node = NULL;
-                    np_new_obj(np_node_t, tmp_node);
-                    _np_node_update(tmp_node, np_proto, ng_host, np_service);
-                    _np_context_create_new_nodekey(context, tmp_node);
-                    np_unref_obj(np_node_t, tmp_node, ref_obj_creation);
-                }
-
-                if (context->my_identity == NULL) // make it selfsigned if no identy is given
-                    _np_set_identity(context, context->my_node_key->aaa_token);
-
-                _np_network_set_key(my_network, context->my_node_key);
-                np_ref_switch(np_network_t, context->my_node_key->network , ref_key_network, my_network);
-                
-                // initialize routing table
-                if (_np_route_init(context, context->my_node_key)== false)
-                {
-                    log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror(errno));
-                    ret = np_startup;
-                }
-                else {
-                    // initialize job queue
-                    if (_np_jobqueue_init(context) == false)
-                    {
-                        log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_init failed: %s", strerror(errno));
-                        ret = np_startup;
-                    }
-                    else if (_np_bootstrap_init(context)== false)
-                    {
-                        log_msg(LOG_ERROR, "neuropil_init: _np_bootstrap_init failed: %s", strerror(errno));
-                        ret = np_startup;
-                    }				                    
-                    else if (_np_statistics_init(context) == false) {
-                        log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
-                        ret = np_startup;
-                    }	
-                    // initialize message handling system
-                    else {
-                        context->msg_tokens     = np_tree_create();
-                        context->msg_part_cache = np_tree_create();
-
-                        _np_shutdown_init(context);
-
-                        log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
-                        if(has_host) _np_network_enable(my_network);
-
-                        np_threads_start_workers(context, context->settings->n_threads);
-                        _np_network_start(context->my_node_key->network, true);
-
-                        log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
-                        log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));
-                        _np_log_fflush(context, true);
-                    }
-
-                }
+                log_msg(LOG_ERROR, "neuropil_init: route_init failed: %s", strerror(errno));
+                ret = np_startup;
             }
-            np_unref_obj(np_network_t, my_network, ref_obj_creation);
+            else if (_np_jobqueue_init(context) == false)
+            {
+                log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_init failed: %s", strerror(errno));
+                ret = np_startup;
+            }
+            else if (_np_bootstrap_init(context)== false)
+            {
+                log_msg(LOG_ERROR, "neuropil_init: _np_bootstrap_init failed: %s", strerror(errno));
+                ret = np_startup;
+            }				                    
+            else if (_np_statistics_init(context) == false) 
+            {
+                log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
+                ret = np_startup;
+            } 
+            else 
+            {
+                    // initialize message handling system
+                context->msg_tokens     = np_tree_create();
+                context->msg_part_cache = np_tree_create();
+
+                _np_shutdown_init(context);
+                np_threads_start_workers(context, context->settings->n_threads);
+
+                log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
+                log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));
+                _np_log_fflush(context, true);
+            }
         }
         
         if (ret == np_ok) {
