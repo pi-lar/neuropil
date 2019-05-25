@@ -36,6 +36,12 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 NP_API_INTERN
 void __np_create_identity_network(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
+NP_API_INTERN
+bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+void __np_identity_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
 #ifdef __cplusplus
 }
 #endif

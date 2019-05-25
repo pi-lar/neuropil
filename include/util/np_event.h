@@ -26,13 +26,16 @@ enum event_type {
 
     evt_authn_ev = 0x0100,
     evt_authz_ev = 0x0200,
+    evt_accnt_ev = 0x0400,
 
     evt_shutdown = 0x1000,
 };
 
 struct np_util_event_s {
+    np_state_t* context; // really needed ?
+
+    np_dhkey_t target_dhkey;
     enum event_type type;
-    np_state_t* context;
     void *user_data;
 };
 

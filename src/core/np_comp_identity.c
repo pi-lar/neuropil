@@ -15,6 +15,7 @@
 #include "np_keycache.h"
 #include "np_legacy.h"
 #include "np_memory.h"
+#include "np_message.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
@@ -154,7 +155,7 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
 {
     np_ctx_memory(statemachine->_user_data);
 
-    log_debug_msg(LOG_DEBUG, "start: void __np_create_identity_network(...){");
+    log_debug_msg(LOG_TRACE, "start: void __np_create_identity_network(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     NP_CAST(event.user_data, np_aaatoken_t, identity);
@@ -179,3 +180,69 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
         _np_network_start(my_network, true);
     }
 }
+
+bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_unencrypted_np_message(...){");
+    bool ret = false;
+
+    if (!ret) ret  = FLAG_CMP(event.type, evt_external) && FLAG_CMP(event.type, evt_message);
+    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_message_t);
+    if ( ret) 
+    {
+        NP_CAST(event.user_data, np_message_t, message);
+        // TODO: // ret &= _np_message_validate_format(message);
+    }
+    return true;
+}
+
+void __np_identity_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_identity_extract_handshake(...){");
+
+    NP_CAST(event.user_data, np_message_t, message);
+
+    np_message_t* msg_in = NULL;
+    bool is_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, message);
+    if (is_deserialization_successful == false) 
+    {
+        log_msg(LOG_WARN, "error deserializing initial message from new partner node");
+        goto __np_cleanup__;
+    }
+    log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
+                  "deserialized message %s (source: \"%s\")", msg_in->uuid, np_network_get_desc(alias_key,tmp));
+    _np_message_trace_info("in", msg_in);
+
+    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE (%s)", msg_in->uuid);
+
+    char* str_msg_subject = msg_subject->val.value.s;
+
+    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
+
+    // wrap with bloom filter
+    if (0 != strncmp(str_msg_subject, _NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE, strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)) );
+        goto __np_cleanup__;
+
+    np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
+    if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in)) 
+    {
+        np_handshake_token_t* handshake_token = NULL;        
+        _np_message_deserialize_chunked(message);
+        handshake_token = np_token_factory_read_from_tree(context, message->body);
+
+        np_key_t* alias_key = _np_keycache_find_or_create(context, event.target_dhkey);
+        np_util_event_t handshake_evt = { .type=(evt_external|evt_token), .context=context, .user_data=handshake_token};
+        _np_util_statemachine_auto_transition(&alias_key->sm, handshake_evt);
+    }
+    else
+    {
+        log_msg(LOG_DEBUG, "duplicate handshake message detected, dropping it ...");
+        goto __np_cleanup__;
+    }
+
+    __np_cleanup__:
+        np_memory_free(context, message);
+        return;
+} 

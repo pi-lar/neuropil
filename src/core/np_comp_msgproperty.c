@@ -293,12 +293,14 @@ void np_msgproperty_register(np_msgproperty_t* msg_property)
 bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check)
 {
     bool ret = true;
-    if (self->unique_uuids_check) {
-
-        if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) {
+    if (self->unique_uuids_check) 
+    {
+        if (np_tree_find_str(self->unique_uuids, msg_to_check->uuid) == NULL) 
+        {
             np_tree_insert_str( self->unique_uuids, msg_to_check->uuid, np_treeval_new_d(_np_message_get_expiery(msg_to_check)));
         }
-        else {
+        else 
+        {
             ret = false;
         }
     }
@@ -770,7 +772,7 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
 }
 
 // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_msg,  __is_message);
-bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_user_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
 

@@ -409,7 +409,7 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
 NP_API_INTERN
 bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+bool __is_user_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
 
 NP_API_INTERN
 void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event); 
