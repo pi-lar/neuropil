@@ -64,14 +64,21 @@ enum NP_KEY_STATES {
     IN_SETUP_ALIAS,
     IN_SETUP_WILDCARD,
     IN_SETUP_IDENTITY,
-    IN_USE_IDENTITY, // user supplied identities and private key token
-    IN_USE_NODE,     // outbound encryption
-    IN_USE_ALIAS,    // inbound encryption
-    IN_USE_INTENT,   // intent exchange
-    IN_USE_MSGPROPERTY, // routing decisions / lookup
+    IN_USE_IDENTITY, // user supplied identities and private key nodes
+    IN_USE_NODE,     // holds connection status / outbound transport encryption
+    IN_USE_ALIAS,    // inbound decryption
+    IN_USE_INTENT,   // intent storage
+    IN_USE_MSGPROPERTY, // outbound payload encryption / routing decision / lookup
     IN_DESTROY,
     MAX_KEY_STATES
 };
+
+// parent_key hierarchy:
+// my_identity (1) -> (n) my_node_key (1) -> (n) node (1) -> (0|1) alias 
+// my_identity (1) -> (n) my_node_key (1) -> (n) mspgproperties (dht)
+// my_identity (1) -> (n) mspgproperties (usr)
+// my_node_key (1) -> (n) intents
+
 
 void __keystate_noop(np_util_statemachine_t* statemachine, const np_util_event_t event) {
     // empty by design
@@ -127,34 +134,36 @@ void __np_key_populate_states(np_key_t* key)
     {
         NP_UTIL_STATEMACHINE_STATE(states, UNUSED, "UNUSED", __keystate_noop, __keystate_noop, __keystate_noop ); // initial unused state
 
-            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_ALIAS, __np_identity_extract_handshake, __is_unencrypted_np_message); // check for local identity validity
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_WILDCARD, __np_wildcard_set, __is_wildcard_key    ); // handle internal wildcard key
+            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_ALIAS, __np_alias_set, __is_alias_handshake_token ); // handle external received handsjake token
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_NODE, __np_node_set, __is_node_handshake_token    ); // handle internal handshake token (after alias key has been created)
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_NODE, __np_node_set, __is_node_token              ); // handle node token (updates)
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_IDENTITY, __np_set_identity, __is_identity_aaatoken ); // create node or identity structures (private key is present)
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_MSGPROPERTY, __np_set_property, __is_msgproperty    ); // create msgproperty 
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_INTENT, __np_set_intent, __is_intent_token);     // message intent handling
 
-        NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP_ALIAS, "IN_SETUP_ALIAS", __keystate_noop, __keystate_noop, __keystate_noop); // create node as well and "steal" network sructure
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_ALIAS, IN_SETUP_ALIAS, __np_alias_set, __is_alias_handshake_token  ); // handle external received handsjake token
+        NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP_ALIAS, "IN_SETUP_ALIAS", __keystate_noop, __np_create_session, __keystate_noop); // create node as well and "steal" network sructure
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_ALIAS, IN_USE_ALIAS, __np_node_transfer_session, __is_join_message); // join acknowledge
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_ALIAS, IN_USE_ALIAS, __np_node_transfer_session, __is_msg_join_ack); // join acknowledge
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_ALIAS, IN_DESTROY, __np_node_handle_leave, __is_msg_join_nack); // join hasn't been acknowledged, drop everything
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP_NODE, "IN_SETUP_NODE", __keystate_noop, __np_create_client_network, __keystate_noop);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_send_direct, __is_handshake_message); // received remote handshake message
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_send_encrypted, __is_join_message); // received authn information (eventually through identity join)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_USE_NODE, __np_node_upgrade, __is_node_authn); // received authn information (eventually through identity join)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_update_token, __is_node_token); // received a full node token (join)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_DESTROY, __np_node_destroy, __is_node_invalid); // node is not used anymore
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_handle_completion, NULL); // check node status and send out handshake / join messages
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP_IDENTITY, "IN_SETUP_IDENTITY", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_IDENTITY, IN_USE_IDENTITY, __np_identity_update, __is_identity_authn); // identity has been authenticated (also authn partner node, there could be more than one token)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_IDENTITY, IN_DESTROY, __np_identity_destroy, __is_identity_invalid); // identity hasn't received an authn 
 
-        NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP_NODE, "IN_SETUP_NODE", __keystate_noop, __np_create_client_network, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_USE_NODE, __np_node_upgrade, __is_node_authn); // received authn information (eventually through identity join)
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_update_token, __is_node_token); // received a full node token (join)
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_DESTROY, __np_node_destroy, __is_node_invalid); // node is not used anymore
-
         NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP_WILDCARD, "IN_SETUP_WILDCARD", __keystate_noop, __np_create_client_network, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_WILDCARD, IN_DESTROY, __np_wildcard_finalize, __is_node_handshake_token ); // received a handshake token, transfer client network
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_WILDCARD, IN_SETUP_WILDCARD, __np_node_send_direct, __is_handshake_message); // received handshake message, send it out without encryption
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_WILDCARD, IN_DESTROY, __np_wildcard_finalize, __is_node_handshake_token ); // received a handshake token, finalize wildcard
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_WILDCARD, IN_DESTROY, __np_wildcard_destroy, __is_wildcard_invalid); // wildcards are only valid for a minute
-
-        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_IDENTITY, "IN_USE_IDENTITY", __keystate_noop, __np_create_identity_network, __keystate_noop); // create local network in case of node private key
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY,      __np_identity_destroy, __is_identity_invalid); // check for local identity validity
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_WILDCARD, IN_SETUP_WILDCARD, __np_node_handle_completion, NULL); // check node status and send out handshake / join messages
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_ALIAS, "IN_USE_ALIAS", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_decrypt, __is_crypted_message); // decrypt transport encryption
@@ -163,8 +172,15 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY, __np_handle_leave_msg, __is_leave_message); // node has left, invalidate node
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_NODE, "IN_USE_NODE", __keystate_noop, __keystate_noop, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_USE_NODE, __np_node_update, /* __is_np_message */ NULL); // i.e. send out ping messages
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_USE_NODE, __np_node_send_encrypted, __is_np_message); // received authn information (eventually through identity join)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_USE_NODE, __np_node_update, /* __is_np_message */ NULL); // i.e. send out ping / piggy messages
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_DESTROY, __np_node_destroy, __is_node_invalid); // check last ping received value, or node invalidated by leave message
+
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_IDENTITY, "IN_USE_IDENTITY", __keystate_noop, __np_create_identity_network, __keystate_noop); // create local network in case of node private key
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_USE_IDENTITY, __np_extract_handshake, __is_unencrypted_np_message); // check for local identity validity
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY,      __np_identity_handle_auth_nz, __is_auth_nz_request); // check for local identity validity
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY,      __np_identity_handle_account, __is_account_request); // check for local identity validity
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY,      __np_identity_destroy, __is_identity_invalid); // check for local identity validity
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_INTENT, "IN_USE_INTENT", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_receiver_update, __is_recveiver_intent_token); // add intent token
@@ -176,7 +192,8 @@ void __np_key_populate_states(np_key_t* key)
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_MSGPROPERTY, "IN_USE_MSGPROPERTY", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_decrypt, __is_payload_encrypted); // decrypt business payload
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_update, __is_msgproperty); // user changed mx_properties
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_msg,  __is_user_message); // call usr callback function
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_in_msg,  __is_external_message); // call usr callback function
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_out_msg,  __is_internal_message); // call usr callback function
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_check,  NULL); // send out intents
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_DESTROY        , __keystate_noop , __is_key_invalid);
    

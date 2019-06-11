@@ -282,8 +282,11 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
 
 bool _np_memory_rtti_check(void* item, enum np_memory_types_e type) 
 {
-    np_memory_itemconf_t* item_conf = GET_CONF(item);
-    return (item_conf->container->type == type);
+    if (item) {
+        np_memory_itemconf_t* item_conf = GET_CONF(item);
+        return (item_conf->container->type == type);
+    }
+    return false;
 }
 
 void __np_memory_space_increase(np_memory_container_t* container, uint32_t block_size) {

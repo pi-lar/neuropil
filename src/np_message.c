@@ -41,6 +41,7 @@
 #include "np_constants.h"
 #include "np_serialization.h"
 #include "np_statistics.h"
+
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
@@ -608,111 +609,109 @@ bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* bu
 {
     np_ctx_memory(msg);
     bool ret = false;
-    np_tryref_obj(np_message_t, msg, msgExisits, cached_msg, "np_tryref_obj_msg");
+    if(msg->bin_static == NULL)
+    {
+        cmp_ctx_t cmp;
+        _np_obj_buffer_container_t buffer_container;
+        buffer_container.buffer = buffer;
+        buffer_container.bufferCount = 0;
+        buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
+        buffer_container.obj = msg;
 
-    if(msgExisits) {		
-        if(cached_msg->bin_static == NULL){
-            cmp_ctx_t cmp;
-            _np_obj_buffer_container_t buffer_container;
-            buffer_container.buffer = buffer;
-            buffer_container.bufferCount = 0;
-            buffer_container.bufferMaxCount = MSG_CHUNK_SIZE_1024;
-            buffer_container.obj = cached_msg;
+        cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
 
-            cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
+        uint32_t array_size = 0;
 
-            uint32_t array_size = 0;
-
-            if (!cmp_read_array(&cmp, &array_size))
+        if (!cmp_read_array(&cmp, &array_size))
+        {
+            log_msg(LOG_WARN, "unrecognized first array element while deserializing message. error: %"PRIu8, cmp.error);											
+        }
+        else
+        {
+            if (array_size != 4)
             {
-                log_msg(LOG_WARN, "unrecognized first array element while deserializing message. error: %"PRIu8, cmp.error);											
-            }else{
+                log_msg(LOG_WARN, "wrong array length while deserializing message");
+            }
+            else
+            {   
+                if (np_tree_deserialize( context, msg->header, &cmp) == true) {
+                    msg->header->attr.immutable = false;
 
-                if (array_size != 4)
-                {
-                    log_msg(LOG_WARN, "wrong array length while deserializing message");
-                }else{
-                    
-                    if (np_tree_deserialize( context, cached_msg->header, &cmp) == true) {
-                        cached_msg->header->attr.immutable = false;
+                    // TODO: check if the complete buffer was read (byte count match)
+
+                    // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg instructions");
+                    if (np_tree_deserialize( context, msg->instructions, &cmp) == true) {
+                        msg->instructions->attr.immutable = false;
 
                         // TODO: check if the complete buffer was read (byte count match)
 
-                        // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg instructions");
-                        if (np_tree_deserialize( context, cached_msg->instructions, &cmp) == true) {
-                            cached_msg->instructions->attr.immutable = false;
+                        if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+                            msg->no_of_chunks = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+                        }
 
-                            // TODO: check if the complete buffer was read (byte count match)
+                        uint16_t chunk_id = 0;
+                        if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+                            chunk_id = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
+                        }
+                        else {
+                            log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+                                "_NP_MSG_INST_PARTS not available in msgs instruction tree"
+                            );
+                        }
+                        msg->is_single_part = true;
 
-                            if (NULL != np_tree_find_str(cached_msg->instructions, _NP_MSG_INST_PARTS)) {
-                                cached_msg->no_of_chunks = np_tree_find_str(cached_msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
-                            }
+                        if (0 == msg->no_of_chunks || 0 == chunk_id) {
+                            log_msg(LOG_WARN, 
+                                "no_of_chunks (%"PRIu16") or chunk_id (%"PRIu16") zero while deserializing message.", 
+                                msg->no_of_chunks, chunk_id);
+                        }
+                        else {
 
-                            uint16_t chunk_id = 0;
-                            if (NULL != np_tree_find_str(cached_msg->instructions, _NP_MSG_INST_PARTS)) {
-                                chunk_id = np_tree_find_str(cached_msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[1];
-                            }
-                            else {
-                                log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                                    "_NP_MSG_INST_PARTS not available in msgs instruction tree"
-                                );
-                            }
-                            cached_msg->is_single_part = true;
+                            np_messagepart_ptr part;
+                            np_new_obj(np_messagepart_t, part);
 
-                            if (0 == cached_msg->no_of_chunks || 0 == chunk_id) {
-                                log_msg(LOG_WARN, 
-                                    "no_of_chunks (%"PRIu16") or chunk_id (%"PRIu16") zero while deserializing message.", 
-                                    cached_msg->no_of_chunks, chunk_id);
-                            }
-                            else {
+                            part->header = msg->header;
+                            part->instructions = msg->instructions;
+                            part->part = chunk_id;
+                            part->msg_part = buffer;
 
-                                np_messagepart_ptr part;
-                                np_new_obj(np_messagepart_t, part);
-
-                                part->header = cached_msg->header;
-                                part->instructions = cached_msg->instructions;
-                                part->part = chunk_id;
-                                part->msg_part = buffer;
-
-                                _LOCK_ACCESS(&cached_msg->msg_chunks_lock) {
-                                    // insert new
-                                    np_ref_obj(np_messagepart_t, part, ref_message_messagepart);
-                                    if (false == pll_insert(np_messagepart_ptr, cached_msg->msg_chunks, part, false, _np_messagepart_cmp)) {
-                                        np_unref_obj(np_messagepart_t, part, ref_message_messagepart);
-                                        // new entry is rejected (already present)
-                                        log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "Msg part was rejected in _np_message_deserialize_header_and_instructions");
-                                    }
+                            _LOCK_ACCESS(&msg->msg_chunks_lock) {
+                                // insert new
+                                np_ref_obj(np_messagepart_t, part, ref_message_messagepart);
+                                if (false == pll_insert(np_messagepart_ptr, msg->msg_chunks, part, false, _np_messagepart_cmp)) {
+                                    np_unref_obj(np_messagepart_t, part, ref_message_messagepart);
+                                    // new entry is rejected (already present)
+                                    log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "Msg part was rejected in _np_message_deserialize_header_and_instructions");
                                 }
-                                if (cached_msg->bin_static != NULL) {
-                                    np_unref_obj(np_messagepart_t, cached_msg->bin_static, ref_message_bin_static);
-                                }
-                                ref_replace_reason(np_messagepart_t, part, ref_obj_creation, ref_message_bin_static);
-                                cached_msg->bin_static = part;
-
-                                log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, cached_msg->no_of_chunks);
-
-                                CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
-                                ASSERT(msg_uuid.type == np_treeval_type_char_ptr, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
-                                log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", cached_msg->uuid, np_treeval_to_str(msg_uuid, NULL));
-                                char* old = cached_msg->uuid;
-                                cached_msg->uuid = strdup(np_treeval_to_str(msg_uuid, NULL));
-                                free(old);
-
-                                ret = true;
-                                goto __np_wo_error;
-                            __np_cleanup__:
-                                log_msg(LOG_ERROR, "Message did not contain a UUID");
-                            __np_wo_error:
-                                ;
-
                             }
+                            if (msg->bin_static != NULL) {
+                                np_unref_obj(np_messagepart_t, msg->bin_static, ref_message_bin_static);
+                            }
+                            ref_replace_reason(np_messagepart_t, part, ref_obj_creation, ref_message_bin_static);
+                            msg->bin_static = part;
+
+                            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
+
+                            CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
+                            ASSERT(msg_uuid.type == np_treeval_type_char_ptr, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
+                            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, np_treeval_to_str(msg_uuid, NULL));
+                            char* old = msg->uuid;
+                            msg->uuid = strdup(np_treeval_to_str(msg_uuid, NULL));
+                            free(old);
+
+                            ret = true;
+                            goto __np_wo_error;
+                        __np_cleanup__:
+                            log_msg(LOG_ERROR, "Message did not contain a UUID");
+                        __np_wo_error:
+                            ;
+
                         }
                     }
                 }
-            }			
-            np_unref_obj(np_message_t, cached_msg, "np_tryref_obj_msg");
-        }
-    }
+            }
+        }		
+    }	
     return ret;
 }
 

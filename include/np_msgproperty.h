@@ -250,6 +250,7 @@ struct np_msgproperty_s
 
     // timestamp for cleanup thread
     double          last_update;
+    double          last_intent_update;
 
     // cache which will hold up to max_threshold messages
     np_msgcache_policy_type cache_policy;

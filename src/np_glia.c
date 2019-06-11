@@ -403,22 +403,24 @@ void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
                     sll_append(char_ptr, to_remove, jrb_ack_node->key.value.s);
                 }
             }
-            else {
+            else 
+            {
                 log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
-                    my_network->waiting->size,
-                    jrb_ack_node->key.value.s);
+                                         my_network->waiting->size, jrb_ack_node->key.value.s);
             }
             c++;
         };
     }
 
-    if (sll_size(to_remove) > 0) {
+    if (sll_size(to_remove) > 0) 
+    {
         sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
         log_debug_msg(LOG_WARN, "ACK_HANDLING removing %"PRIu32" (of %d) from ack table", sll_size(to_remove), c);
         while (iter_to_rm != NULL)
         {
             np_responsecontainer_t *responsecontainer = _np_responsecontainers_get_by_uuid(context, iter_to_rm->val);
-            _LOCK_ACCESS(&my_network->waiting_lock) {
+            _LOCK_ACCESS(&my_network->waiting_lock)
+            {
                 np_tree_del_str(my_network->waiting, iter_to_rm->val);
             }
             np_unref_obj(np_responsecontainer_t, responsecontainer, "_np_responsecontainers_get_by_uuid");
@@ -457,7 +459,8 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t a
         }
 
         np_tryref_obj(np_aaatoken_t, old->aaa_token, tokenExists,  aaa_token, "np_tryref_old->aaa_token");
-        if(tokenExists) {
+        if(tokenExists) 
+        {
             if (true == _np_aaatoken_is_valid(aaa_token, np_aaatoken_type_undefined))
             {
                 log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key cancelled because of valid aaa_token structure: %s", _np_key_as_str(old));

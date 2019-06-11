@@ -31,6 +31,8 @@
 #include "np_message.h"
 
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
+
 #include "np_memory.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -42,6 +44,7 @@
 #include "np_token_factory.h"
 #include "np_list.h"
 #include "np_key.h"
+#include "np_keycache.h"
 #include "np_dhkey.h"
 #include "np_util.h"
 #include "np_responsecontainer.h"
@@ -74,30 +77,31 @@ void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproper
         msg_out->msg_property = prop;
     }
     // Call user handler for send msgs
-    sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(prop->user_send_clb);
-    while (iter_usercallbacks != NULL)
-    {
-        iter_usercallbacks->val->fn(context, msg_out, (msg_out == NULL ? NULL : msg_out->body), iter_usercallbacks->val->data);
-        sll_next(iter_usercallbacks);
-    }
+    // sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(prop->user_send_clb);
+    // while (iter_usercallbacks != NULL)
+    // {
+    //     iter_usercallbacks->val->fn(context, msg_out, (msg_out == NULL ? NULL : msg_out->body), iter_usercallbacks->val->data);
+    //     sll_next(iter_usercallbacks);
+    // }
 }
 
 /**
  ** _np_network_append_msg_to_out_queue: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void _np_out_ack(np_state_t* context, np_jobargs_t args)
+void _np_out_ack(np_state_t* context, np_util_event_t msg_event)
 {
-    
-
-    log_trace_msg(LOG_TRACE, "start: void _np_send_ack(np_state_t* context, np_jobargs_t args){");
+    /*
+    log_trace_msg(LOG_TRACE, "start: void _np_send_ack(np_state_t* context, np_util_event_t msg_event){");
     np_waitref_obj(np_key_t, context->my_node_key, my_key,"np_waitref_key");
     np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
+
+    np_jobargs_t args = { .msg=msg_event.user_data };
 
     uint32_t seq = 0;
     _LOCK_ACCESS(&my_network->access_lock)
     {
-        /* get/set sequence number to keep increasing sequence numbers per node */
+        // get/set sequence number to keep increasing sequence numbers per node
         seq = my_network->seqend;
         np_tree_replace_str(args.msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
         my_network->seqend++;
@@ -129,15 +133,17 @@ void _np_out_ack(np_state_t* context, np_jobargs_t args)
     }
     np_unref_obj(np_key_t, my_key,"np_waitref_key");
     np_unref_obj(np_network_t, my_network,"np_waitref_network");
+    */
 }
 
 /**
  ** _np_network_append_msg_to_out_queue: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void _np_out(np_state_t* context, np_jobargs_t args)
+void _np_out(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_jobargs_t args){");
+    /*
+    log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_util_event_t msg_event){");
     // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 1");
 
     uint32_t seq = 0;
@@ -297,7 +303,7 @@ void _np_out(np_state_t* context, np_jobargs_t args)
                 _LOCK_ACCESS(&my_network->access_lock)
                 {
                     // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 8");
-                    /* get/set sequence number to keep increasing sequence numbers per node */
+                    // get/set sequence number to keep increasing sequence numbers per node
                     seq = my_network->seqend;
                     np_tree_replace_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
                     my_network->seqend++;
@@ -324,7 +330,7 @@ void _np_out(np_state_t* context, np_jobargs_t args)
             np_tree_elem_t *tmp1, *tmp2;
             if ((tmp1 = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TTL)) == NULL ||
                 (tmp2 = np_tree_find_str(msg_out->instructions, _NP_MSG_INST_TSTAMP)) == NULL ||
-                ((tmp1->val.value.d + tmp2->val.value.d) > ttl_of_msg_via_property/*compare expiers_at values*/)
+                ((tmp1->val.value.d + tmp2->val.value.d) > ttl_of_msg_via_property)
             ) {
                 np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
                 np_tree_replace_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args.properties->msg_ttl));
@@ -440,9 +446,78 @@ void _np_out(np_state_t* context, np_jobargs_t args)
         np_unref_obj(np_key_t, my_key, "np_waitref_key");		
     }
     // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
+    */
 }
 
-void _np_out_handshake(np_state_t* context, np_jobargs_t args)
+void _np_out_handshake(np_state_t* context, const np_util_event_t event)
+{
+    log_debug_msg(LOG_TRACE, "start: void _np_out_handshake(...) {");
+
+    np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+    np_node_t* target_node = _np_key_get_node(target_key);
+    np_node_t* my_node = _np_key_get_node(context->my_node_key);
+
+    NP_PERFORMANCE_POINT_START(handshake_out);
+    if (_np_node_check_address_validity(target_node))
+    {
+        // get our node identity from the cache			
+        np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context);
+        np_msgproperty_t* hs_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
+
+        // create real handshake message ...
+        np_message_t* hs_message = NULL;
+        np_new_obj(np_message_t, hs_message);
+
+        np_tree_insert_str( hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
+        np_tree_insert_str( hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(context->my_node_key->dhkey) );
+            
+        np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
+        np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(hs_prop->ack_mode));
+        np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(hs_prop->token_max_ttl + 0.0));
+        np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
+
+        np_tree_insert_str( my_token->extensions, NP_HS_PRIO, np_treeval_new_ul(my_node->handshake_priority));
+        if (event.user_data != NULL)
+        {
+            np_tree_insert_str(my_token->extensions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(event.user_data));
+            free(event.user_data);
+        }
+        _np_aaatoken_update_extensions_signature(my_token);
+        
+        np_aaatoken_encode(hs_message->body, my_token);
+        np_unref_obj(np_aaatoken_t, my_token, "_np_token_factory_new_handshake_token");
+
+        _np_message_calculate_chunking(hs_message);
+
+        bool serialize_ok = _np_message_serialize_chunked(hs_message);
+
+        if (hs_message->no_of_chunks != 1 || serialize_ok == false) 
+        {
+            log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
+            np_unref_obj(np_message_t, hs_message, ref_obj_creation);                
+        }
+        else
+        {   
+            /* send data if handshake status is still just initialized or less */
+            log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
+                "sending handshake message %s to %s", // (%s:%s)",
+                hs_message->uuid, _np_key_as_str(target_key)/*, hs_node->dns_name, hs_node->port*/);
+
+            np_util_event_t handshake_send_evt = { .type=(evt_internal|evt_message), .user_data=hs_message, .context=context };
+            np_util_statemachine_invoke_auto_transition(&target_key->sm, handshake_send_evt);
+
+            // __np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
+            np_unref_obj(np_message_t, hs_message, ref_obj_creation);
+        }
+    }
+    else
+    {
+            log_msg(LOG_ERROR, "target node is not valid");
+    }
+    NP_PERFORMANCE_POINT_END(handshake_out);
+}
+/*
+void _np_out_handshake(np_state_t* context, np_util_event_t msg_event)
 {
     NP_PERFORMANCE_POINT_START(handshake_out);
     NP_PERFORMANCE_POINT_START(handshake_out_lock);
@@ -479,11 +554,13 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
 
             bool serialize_ok = _np_message_serialize_chunked(hs_message);
 
-            if (hs_message->no_of_chunks != 1) {
+            if (hs_message->no_of_chunks != 1) 
+            {
                 log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
                 np_unref_obj(np_message_t, hs_message, ref_obj_creation);                
             }
-            else {
+            else
+            {
                 if (true == serialize_ok)
                 {
                     bool network_error = false;
@@ -517,19 +594,21 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
                         }
                     }
                     
-                    if (!network_error) {
+                    if (!network_error) 
+                    {
                         // construct target address and send it out
                         // np_node_t* hs_node = args.target->node;
 
-                        /* send data if handshake status is still just initialized or less */
+                        // send data if handshake status is still just initialized or less
                         log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
                             "sending handshake message %s to %s",// (%s:%s)",
-                            hs_message->uuid, _np_key_as_str(args.target)/*, hs_node->dns_name, hs_node->port*/);
+                            hs_message->uuid, _np_key_as_str(args.target));
 
                         char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
 
                         NP_PERFORMANCE_POINT_START(handshake_out_msg_chunks_lock);
-                        _LOCK_ACCESS(&hs_message->msg_chunks_lock) {
+                        _LOCK_ACCESS(&hs_message->msg_chunks_lock)
+                        {
                             NP_PERFORMANCE_POINT_END(handshake_out_msg_chunks_lock);
                             memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
                         }
@@ -539,14 +618,16 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
                         {
                             NP_PERFORMANCE_POINT_END(handshake_out_events_lock);
 
-                            if (NULL != args.target->network->out_events) {
+                            if (NULL != args.target->network->out_events)
+                            {
                                 sll_append(
                                     void_ptr,
                                     args.target->network->out_events,
                                     (void*)packet);
                                 _np_network_start(args.target->network, true);
                             }
-                            else {
+                            else 
+                            {
                                 log_msg(LOG_ERROR, "Dropping data package due to not initialized out_events");
                                 np_memory_free(context, packet);
                             }
@@ -561,10 +642,12 @@ void _np_out_handshake(np_state_t* context, np_jobargs_t args)
     }
     NP_PERFORMANCE_POINT_END(handshake_out);
 }
+*/
 
-void _np_out_discovery_messages(np_state_t* context, np_jobargs_t args)
+void _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event)
 {    
-    log_trace_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_state_t* context, np_jobargs_t args){");
+    /*
+    log_trace_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event){");
     np_message_intent_public_token_t* msg_token = NULL;
 
     if (_np_route_my_key_has_connection(context))
@@ -663,12 +746,14 @@ void _np_out_discovery_messages(np_state_t* context, np_jobargs_t args)
     } else {
         log_msg(LOG_AAATOKEN | LOG_DEBUG, "--- cont refresh: but no connections left ...");
     }
+    */
 }
 
 // deprecated
-void _np_out_receiver_discovery(np_state_t* context, np_jobargs_t args)
-{    
-    log_trace_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_state_t* context, np_jobargs_t args){");
+void _np_out_receiver_discovery(np_state_t* context, np_util_event_t msg_event)
+{  
+    /*  
+    log_trace_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_state_t* context, np_util_event_t msg_event){");
     // create message interest in authentication request
     np_aaatoken_t* msg_token = NULL;
 
@@ -701,13 +786,14 @@ void _np_out_receiver_discovery(np_state_t* context, np_jobargs_t args)
     np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
     np_unref_obj(np_aaatoken_t, msg_token,"_np_aaatoken_get_sender_token");
+    */
 }
 
 // deprecated
-void _np_out_sender_discovery(np_state_t* context, np_jobargs_t args)
+void _np_out_sender_discovery(np_state_t* context, np_util_event_t msg_event)
 {
-    
-    log_trace_msg(LOG_TRACE, "start: void _np_out_sender_discovery(np_state_t* context, np_jobargs_t args){");
+   /* 
+    log_trace_msg(LOG_TRACE, "start: void _np_out_sender_discovery(np_state_t* context, np_util_event_t msg_event){");
     // create message interest in authentication request
     np_aaatoken_t* msg_token = NULL;
 
@@ -739,12 +825,13 @@ void _np_out_sender_discovery(np_state_t* context, np_jobargs_t args)
     np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
     np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_receiver");
+    */
 }
 
-void _np_out_authentication_request(np_state_t* context, np_jobargs_t args)
+void _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event)
 {
-    
-    log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_request(np_state_t* context, np_jobargs_t args){");
+ /*   
+    log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event){");
 
     np_dhkey_t target_dhkey = { 0 };
 
@@ -793,12 +880,13 @@ void _np_out_authentication_request(np_state_t* context, np_jobargs_t args)
     np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
+    */
 }
 
-void _np_out_authentication_reply(np_state_t* context, np_jobargs_t args)
+void _np_out_authentication_reply(np_state_t* context, np_util_event_t msg_event)
 {
-    
-    log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_reply(np_state_t* context, np_jobargs_t args){");
+    /*
+    log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_reply(np_state_t* context, np_util_event_t msg_event){");
 
     np_dhkey_t target_dhkey;
 
@@ -830,12 +918,13 @@ void _np_out_authentication_reply(np_state_t* context, np_jobargs_t args)
         _np_out_receiver_discovery(context, jargs);
     }
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
+    */
 }
 
-void _np_out_authorization_request(np_state_t* context, np_jobargs_t args)
+void _np_out_authorization_request(np_state_t* context, np_util_event_t msg_event)
 {
-     
-    log_trace_msg(LOG_TRACE, "start: void _np_out_authorization_request(np_state_t* context, np_jobargs_t args){");
+     /*
+    log_trace_msg(LOG_TRACE, "start: void _np_out_authorization_request(np_state_t* context, np_util_event_t msg_event){");
 
     np_dhkey_t target_dhkey = { 0 };
 
@@ -869,10 +958,11 @@ void _np_out_authorization_request(np_state_t* context, np_jobargs_t args)
     }
     np_unref_obj(np_message_t, msg_out,ref_obj_creation);
     np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
+    */
 }
 
-void _np_out_authorization_reply(np_state_t* context, np_jobargs_t args)
-{
+void _np_out_authorization_reply(np_state_t* context, np_util_event_t msg_event)
+{/*
     np_dhkey_t target_dhkey = { 0 };
 
     np_msg_mep_type mep_reply_sticky = np_tree_find_str(args.target->aaa_token->extensions, "mep_type")->val.value.ul & STICKY_REPLY;
@@ -903,11 +993,12 @@ void _np_out_authorization_reply(np_state_t* context, np_jobargs_t args)
         _np_out_receiver_discovery(context, jargs);
     }
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
+*/
 }
 
-void _np_out_accounting_request(np_state_t* context, np_jobargs_t args)
+void _np_out_accounting_request(np_state_t* context, np_util_event_t msg_event)
 {
-    
+   /* 
     np_dhkey_t target_dhkey = { 0 };
 
     if (0 < strlen(context->my_identity->aaa_token->realm) )
@@ -942,4 +1033,5 @@ void _np_out_accounting_request(np_state_t* context, np_jobargs_t args)
     np_unref_obj(np_message_t, msg_out,ref_obj_creation);
 
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
+    */
 }

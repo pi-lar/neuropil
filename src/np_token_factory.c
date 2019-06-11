@@ -23,6 +23,7 @@
 #include "np_keycache.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
 #include "np_threads.h"
 #include "np_settings.h"
 #include "np_util.h"
@@ -222,14 +223,17 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     return (ret);
 }
 
-np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context ) {
-
-    NP_PERFORMANCE_POINT_START(tokenfactory_new_handshake);
+np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context) 
+{
+    /// NP_PERFORMANCE_POINT_START(tokenfactory_new_handshake);
 
     np_handshake_token_t* ret = NULL;
 
-    np_waitref_obj(np_key_t, context->my_node_key, my_node_key);
-    np_waitref_obj(np_aaatoken_t, my_node_key->aaa_token, my_node_token);
+    np_aaatoken_t* my_node_token = _np_key_get_token(context->my_node_key);
+    log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, my_node_token, my_node_token->type);
+
+    // np_waitref_obj(np_key_t, context->my_node_key, my_node_key);
+    // np_waitref_obj(np_aaatoken_t, my_node_key->aaa_token, my_node_token);
 
     ASSERT(FLAG_CMP(my_node_token->type, np_aaatoken_type_node), "Can only derive handshake token from node token. current token type: %"PRIu8, my_node_token->type);
     ASSERT(my_node_token->scope == np_aaatoken_scope_private, "Can only derive handshake token from private token. current token scope: %"PRIu8, my_node_token->scope);
@@ -247,9 +251,10 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
     char my_token_fp_s[65] = { 0 };
     np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret, false);
     _np_dhkey_str(&my_token_fp, my_token_fp_s);
-    log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(my_node_key));
+    log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(context->my_node_key));
     // ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key and handshake partner key has to be the same");
 #endif // DEBUG
+
 
 #ifdef DEBUG
     bool valid = _np_aaatoken_is_valid(ret, np_aaatoken_type_handshake);
@@ -263,16 +268,16 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context 
 
 	log_debug_msg(LOG_DEBUG,
 		"(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %"PRId32,
-		ret->uuid, valid != 0? " not":"", pk_hex, signature_hex, ret);
+		ret->uuid, (valid==true)?"":" not", pk_hex, signature_hex, ret);
 #endif
 
-    np_unref_obj(np_aaatoken_t, my_node_token, FUNC);
-    np_unref_obj(np_key_t, my_node_key, FUNC);
+    // np_unref_obj(np_aaatoken_t, my_node_token, FUNC);
+    // np_unref_obj(np_key_t, my_node_key, FUNC);
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
 
     _np_aaatoken_trace_info("build_handshake", ret);
 
-    NP_PERFORMANCE_POINT_END(tokenfactory_new_handshake);
+    // NP_PERFORMANCE_POINT_END(tokenfactory_new_handshake);
 
     return ret;
 }
@@ -295,6 +300,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, e
 
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
     _np_aaatoken_trace_info("build_node", ret);
+
     return (ret);
 }
 

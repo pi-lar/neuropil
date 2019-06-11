@@ -7,62 +7,66 @@
 
 #include "np_types.h"
 
+#include "np_dhkey.h"
+#include "util/np_event.h"
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // input message handlers
 NP_API_INTERN
-void _np_in_handshake(np_state_t* context, np_jobargs_t args);
+void _np_in_handshake(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
 void _np_in_received(np_state_t* context, np_key_t* alias_key, void* data_blob);
 
 NP_API_INTERN
-void _np_in_piggy (np_state_t* context, np_jobargs_t args);
+void _np_in_piggy (np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_update (np_state_t* context, np_jobargs_t args);
+void _np_in_update (np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_ack(np_state_t* context, np_jobargs_t args);
+void _np_in_ack(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
 void __np_in_ack_handle(np_message_t * msg);
 
 NP_API_INTERN
-void _np_in_join_req(np_state_t* context, np_jobargs_t args);
+void _np_in_join_req(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_join_ack (np_state_t* context, np_jobargs_t args);
+void _np_in_join_ack (np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_join_nack (np_state_t* context, np_jobargs_t args);
+void _np_in_join_nack (np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
-void _np_in_leave_req(np_state_t* context, np_jobargs_t args);
+void _np_in_leave_req(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
-void _np_in_discover_receiver(np_state_t* context, np_jobargs_t args);
+void _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_discover_sender(np_state_t* context, np_jobargs_t args);
+void _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_available_sender(np_state_t* context, np_jobargs_t args);
+void _np_in_available_sender(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_available_receiver(np_state_t* context, np_jobargs_t args);
+void _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
-void _np_in_authenticate(np_state_t* context, np_jobargs_t args);
+void _np_in_authenticate(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_authenticate_reply(np_state_t* context, np_jobargs_t args);
+void _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
-void _np_in_authorize(np_state_t* context, np_jobargs_t args);
+void _np_in_authorize(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_authorize_reply(np_state_t* context, np_jobargs_t args);
+void _np_in_authorize_reply(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
-void _np_in_account(np_state_t* context, np_jobargs_t args);
+void _np_in_account(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
-void _np_in_signal_np_receive (np_state_t* context, np_jobargs_t args);
+void _np_in_signal_np_receive (np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_callback_wrapper(np_state_t* context, np_jobargs_t args);
+void _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
 void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, bool allow_destination_ack);
 

@@ -22,6 +22,7 @@
 bool __is_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_intent_token(...){");
 
     bool ret = false;
     

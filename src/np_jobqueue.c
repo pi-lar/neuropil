@@ -24,6 +24,7 @@
 #include "np_keycache.h"
 #include "np_key.h"
 #include "np_memory.h"
+#include "util/np_event.h"
 #include "core/np_comp_msgproperty.h"
 #include "np_message.h"
 #include "np_log.h"
@@ -55,11 +56,13 @@ int8_t _np_job_compare_job_scheduling(np_job_t job1, np_job_t new_job)
     return (ret);
 }
 
-bool np_job_t_compare(np_job_t i, np_job_t j) {
+bool np_job_t_compare(np_job_t i, np_job_t j) 
+{
     return (_np_job_compare_job_scheduling(j, i) == -1);
 }
 
-uint16_t np_job_t_binheap_get_priority (np_job_t job) {
+uint16_t np_job_t_binheap_get_priority (np_job_t job) 
+{
     //TODO: reactivate prio increase
     return (uint16_t)PRIORITY_MOD_LEVEL_6 - job.priority;
     double tmp = job.exec_not_before_tstamp - _np_time_now(NULL);
@@ -88,7 +91,7 @@ np_module_struct(jobqueue)
 
 static np_jobargs_t __null_args = { .msg = NULL, .custom_data = NULL, .is_resend=false, .properties=NULL, .target=NULL };
 
-np_job_t _np_job_create_job(np_state_t * context, double delay, np_jobargs_t jargs, double priority_modifier, np_sll_t(np_callback_t, callbacks), const char* callbacks_ident)
+np_job_t _np_job_create_job(np_state_t * context, double delay, np_jobargs_t jargs, double priority_modifier, np_sll_t(np_evt_callback_t, callbacks), const char* callbacks_ident)
 {
     log_trace_msg(LOG_TRACE, "start: np_job_t* _np_job_create_job(double delay, np_jobargs_t* jargs){");
     // create job itself
@@ -129,7 +132,7 @@ np_job_t _np_job_create_job(np_state_t * context, double delay, np_jobargs_t jar
 void _np_job_free(np_state_t* context, np_job_t* n)
 {
     _np_job_free_args(context, n->args);
-    if(n->__del_processorFuncs) sll_free(np_callback_t, n->processorFuncs);    
+    if(n->__del_processorFuncs) sll_free(np_evt_callback_t, n->processorFuncs);    
 }
 
 np_jobargs_t _np_job_create_args(np_state_t* context, np_message_t* msg, np_key_t* key, np_msgproperty_t* prop, const char* reason_desc)
@@ -343,13 +346,13 @@ void _np_job_submit_msgout_event(np_state_t * context, double delay, np_msgprope
     }
 }
 
-void np_job_submit_event_periodic(np_state_t * context, double priority, double first_delay, double interval, np_callback_t callback, const char* ident)
+void np_job_submit_event_periodic(np_state_t * context, double priority, double first_delay, double interval, np_evt_callback_t callback, const char* ident)
 {
     log_debug_msg(LOG_JOBS | LOG_DEBUG, "np_job_submit_event_periodic");
 
-    np_sll_t(np_callback_t, callbacks);
-    sll_init(np_callback_t, callbacks);
-    sll_append(np_callback_t, callbacks, callback);
+    np_sll_t(np_evt_callback_t, callbacks);
+    sll_init(np_evt_callback_t, callbacks);
+    sll_append(np_evt_callback_t, callbacks, callback);
 
     np_job_t new_job = _np_job_create_job(context, first_delay, __null_args, priority * JOBQUEUE_PRIORITY_MOD_BASE_STEP, callbacks, ident);
     new_job.type = 2;
@@ -364,14 +367,14 @@ void np_job_submit_event_periodic(np_state_t * context, double priority, double 
     
 }
 
-bool np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident)
+bool np_job_submit_event(np_state_t* context, double priority, double delay, np_evt_callback_t callback, void* data, const char* ident)
 {
     bool ret = true;
     log_debug_msg(LOG_JOBS | LOG_DEBUG, "np_job_submit_event");
 
-    np_sll_t(np_callback_t, callbacks);
-    sll_init(np_callback_t, callbacks);
-    sll_append(np_callback_t, callbacks, callback);
+    np_sll_t(np_evt_callback_t, callbacks);
+    sll_init(np_evt_callback_t, callbacks);
+    sll_append(np_evt_callback_t, callbacks, callback);
 
     np_jobargs_t jargs = _np_job_create_args(context, NULL, NULL, NULL, ident);
 
@@ -770,11 +773,11 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
         log_msg(LOG_JOBS | LOG_DEBUG, "start internal job callback function (@%f) %s", n1, job_to_execute.ident);
 #endif
 
-     sll_iterator(np_callback_t) iter = sll_first(job_to_execute.processorFuncs);
+     sll_iterator(np_evt_callback_t) iter = sll_first(job_to_execute.processorFuncs);
      while (iter != NULL)
     {
         if (iter->val != NULL) {
-            iter->val(context, job_to_execute.args);
+            iter->val(context, job_to_execute.evt);
         }
         sll_next(iter);
     }

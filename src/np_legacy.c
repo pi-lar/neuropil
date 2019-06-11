@@ -34,6 +34,7 @@
 
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
 #include "np_network.h"
 #include "np_token_factory.h"
 #include "np_node.h"
@@ -53,7 +54,7 @@
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_ptr);
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_callback_t);
+NP_SLL_GENERATE_IMPLEMENTATION(np_evt_callback_t);
 
 
 /**
@@ -313,8 +314,8 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
     if (msg_prop != NULL) {
         sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
 
-        if (false == sll_contains(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_callback_t_sll_compare_type)) {
-            sll_append(np_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
+        if (false == sll_contains(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type)) {
+            sll_append(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
         }
     }
 }
@@ -365,8 +366,8 @@ np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *bod
     np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
     ret->msg_property = msg_prop;
 
-    if (false == sll_contains(np_callback_t, msg_prop->clb_outbound, _np_out, np_callback_t_sll_compare_type)) {
-        sll_append(np_callback_t, msg_prop->clb_outbound, _np_out);
+    if (false == sll_contains(np_evt_callback_t, msg_prop->clb_outbound, _np_out, np_evt_callback_t_sll_compare_type)) {
+        sll_append(np_evt_callback_t, msg_prop->clb_outbound, _np_out);
     }
 
     np_tree_insert_str( ret->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s((char*)subject));
@@ -389,7 +390,8 @@ void np_send_msg(np_context*ac, const char* subject, np_tree_t *body, np_dhkey_t
     np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
 
-void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body) {
+void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body)
+{
     np_ctx_cast(ac);
     np_dhkey_t* sender = _np_message_get_sender(original);
     np_message_t* msg = _np_prepare_msg(context, original->msg_property->rep_subject, body, sender);
@@ -431,28 +433,34 @@ void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
 }
 */
 
-char* np_get_connection_string(np_context*ac){
+char* np_get_connection_string(np_context*ac) 
+{
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
 
     return np_get_connection_string_from(context->my_node_key, true);
 }
 
-char* np_get_connection_string_from(np_key_t* node_key, bool includeHash) {
+char* np_get_connection_string_from(np_key_t* node_key, bool includeHash) 
+{
     np_ctx_memory(node_key);
     log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, bool includeHash){");
 
+    assert (FLAG_CMP(node_key->type, np_key_type_node) || FLAG_CMP(node_key->type, np_key_type_wildcard) );
+
+    np_node_t* node_data = _np_key_get_node(node_key);
     return (
             np_build_connection_string(
                     includeHash == true ? _np_key_as_str(node_key) : NULL,
-                    _np_network_get_protocol_string(context, node_key->node->protocol),
-                    node_key->node->dns_name,
-                    node_key->node->port,
+                    _np_network_get_protocol_string(context, node_data->protocol),
+                    node_data->dns_name,
+                    node_data->port,
                     includeHash)
-            );
+        );
 }
 
-char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, bool includeHash) {
+char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, bool includeHash)
+{
     log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, bool includeHash){");
     char* connection_str;
 
@@ -507,7 +515,8 @@ np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* s
     return msg_out;	
 }
 
-void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
+void _np_send_simple_invoke_request(np_key_t* target, const char* type) 
+{
     assert(target != NULL);
     np_state_t* context = np_ctx_by_memory(target);
     np_message_t*  msg = _np_send_simple_invoke_request_msg(target, type);
@@ -524,27 +533,33 @@ void _np_send_simple_invoke_request(np_key_t* target, const char* type) {
 void np_send_join(np_context*ac, const char* node_string)
 {
     np_ctx_cast(ac);	
-    _LOCK_MODULE(np_handshake_t) {
-        if (node_string[0] == '*') {
-            const char* node_string_2 = node_string + 2;
-            log_msg(LOG_INFO, "Assumed wildcard join for \"%s\"", node_string);
-            // node_string2 += 2;
-            np_send_wildcard_join(ac, node_string_2);
 
-        }
-        else {
-            np_key_t* node_key = NULL;
+    np_node_t* new_node = _np_node_decode_from_str(context, node_string);
 
-            
-            node_key = _np_node_decode_from_str(context, node_string);
-            //_np_network_send_handshake(context, node_key, false);
-            _np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
-
-            np_unref_obj(np_key_t, node_key, "_np_node_decode_from_str"); // _np_node_decode_from_str
-        }
+    // TODO: use sscanf !
+    // int n = sscanf("string", "%64s%*[:]%4s%*[:]%s%*[:]%d", hash_str, proto, dns/ip, port); // n == 4
+    // int n = sscanf("string", "%*[*]%*[:]%4s%*[:]%s%*[:]%d", proto, dns/ip, port); // n == 3
+    
+    np_dhkey_t search_key = {0};
+    if (node_string[0] == '*') 
+    {
+        search_key = np_dhkey_create_from_hostport( "*", node_string+2);
+    } 
+    else
+    {
+        search_key = np_dhkey_create_from_hash(node_string);
     }
+    np_key_t* node_key = _np_keycache_find_or_create(context, search_key);
+
+    np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=new_node };
+    np_util_statemachine_invoke_auto_transition(&node_key->sm, new_node_evt);
+
+    // np_send_wildcard_join(ac, node_string);
+    // _np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
+
     np_bootstrap_add(context, node_string);
 }
+
 /**
 * Sends a ACK msg for the given message.
 * @param msg_to_ack
@@ -554,9 +569,10 @@ void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum ty
     assert(msg_to_ack != NULL);
     np_state_t* context = np_ctx_by_memory(msg_to_ack);
 
-    CHECK_STR_FIELD_BOOL(msg_to_ack->instructions, _NP_MSG_INST_ACK, msg_ack_mode,"NO ACK MODE DEFINED FOR msg %s",msg_to_ack->uuid) 
+    CHECK_STR_FIELD_BOOL(msg_to_ack->instructions, _NP_MSG_INST_ACK, msg_ack_mode, "NO ACK MODE DEFINED FOR msg %s", msg_to_ack->uuid) 
     {
-        if(FLAG_CMP(msg_ack_mode->val.value.ush, type)) {
+        if(FLAG_CMP(msg_ack_mode->val.value.ush, type)) 
+        {
             uint32_t seq = 0;
 
             CHECK_STR_FIELD_BOOL(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to, "ACK target missing for msg %s", msg_to_ack->uuid)
@@ -575,11 +591,12 @@ void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum ty
 
                 // send the ack out
                 // no direct connection possible, route through the dht
-                if(_np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg)){
+                if(_np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg))
+                {
                     log_info(LOG_ROUTING,
-                     "ACK_HANDLING route  send ack (%s) for message (%s / %s)",
-                     ack_msg->uuid, msg_to_ack->uuid, 
-                     (msg_to_ack->msg_property ? msg_to_ack->msg_property->msg_subject : "?")
+                             "ACK_HANDLING route  send ack (%s) for message (%s / %s)",
+                             ack_msg->uuid, msg_to_ack->uuid, 
+                             (msg_to_ack->msg_property ? msg_to_ack->msg_property->msg_subject : "?")
                     );
                 }
                 np_unref_obj(np_message_t, ack_msg, ref_obj_creation);

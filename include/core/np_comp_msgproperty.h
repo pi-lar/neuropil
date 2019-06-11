@@ -288,8 +288,8 @@ struct np_msgproperty_s
     np_sll_t(np_message_ptr, msg_cache_out);
 
     // callback function(s) to invoke when a message is received
-    np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
-    np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
+    np_sll_t(np_evt_callback_t, clb_inbound);			// internal neuropil supplied
+    np_sll_t(np_evt_callback_t, clb_outbound);			// internal neuropil supplied
 
     np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
     np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
@@ -403,13 +403,18 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src);
 NP_API_INTERN
 void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src);
 
+NP_API_INTERN
+np_dhkey_t _np_msgproperty_dhkey(np_msg_mode_type mode_type, const char* subject);
+
 /**
  ** state machine functions and definitions
  */
 NP_API_INTERN
 bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-bool __is_user_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+NP_API_INTERN
+bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
 
 NP_API_INTERN
 void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event); 
@@ -418,7 +423,9 @@ void __np_property_update(np_util_statemachine_t* statemachine, const np_util_ev
 NP_API_INTERN
 void __np_property_check(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-void __np_property_handle_msg(np_util_statemachine_t* statemachine, const np_util_event_t event);
+void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
 bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event);

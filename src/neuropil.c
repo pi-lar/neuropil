@@ -14,31 +14,37 @@
 #include "sodium.h"
 
 #include "neuropil.h"
-#include "np_legacy.h"
 
-#include "np_util.h"
+#include "np_dhkey.h"
+
+#include "util/np_event.h"
+#include "core/np_comp_node.h"
+
+#include "np_aaatoken.h"
+#include "np_bootstrap.h"
+#include "np_event.h"
+#include "np_jobqueue.h"
 #include "np_key.h"
+#include "np_keycache.h"
+#include "np_legacy.h"
+#include "np_log.h"
+#include "np_memory.h"
+#include "np_message.h"
 #include "np_network.h"
 #include "np_route.h"
-#include "np_event.h"
+#include "np_serialization.h"
 #include "np_statistics.h"
-#include "np_jobqueue.h"
+#include "np_shutdown.h"
+#include "np_sysinfo.h"
 #include "np_threads.h"
-#include "core/np_comp_msgproperty.h"
+#include "np_time.h"
+#include "np_token_factory.h"
 #include "np_tree.h"
 #include "np_treeval.h"
-#include "np_shutdown.h"
-#include "np_aaatoken.h"
-#include "np_message.h"
-#include "np_bootstrap.h"
-#include "np_keycache.h"
 #include "np_types.h"
-#include "np_memory.h"
-#include "np_log.h"
-#include "np_serialization.h"
-#include "np_token_factory.h"
-#include "np_sysinfo.h"
-#include "np_time.h"
+#include "np_util.h"
+
+#include "core/np_comp_msgproperty.h"
 
 
 static const char *error_strings[] = {
@@ -332,7 +338,7 @@ enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool 
     } else {
         np_ident_private_token_t* id_token = NULL;        
         if (self_sign) {
-            id_token = np_token_factory_new_identity_token(context, identity->expires_at, identity->secret_key);
+            id_token = np_token_factory_new_identity_token(context, identity->expires_at, &identity->secret_key);
             np_user4aaatoken(id_token, identity);
             _np_aaatoken_set_signature(id_token, NULL);
             _np_aaatoken_update_extensions_signature(id_token);
@@ -438,14 +444,14 @@ bool np_has_receiver_for(np_context*ac, const char * subject) {
     return ret;
 }
 
-enum np_return np_join(np_context* ac, const char* address) {
-  
+enum np_return np_join(np_context* ac, const char* address) 
+{  
   if (address == NULL)             return np_invalid_argument;
   if (strnlen(address,500) <=  10) return np_invalid_argument;
   if (strnlen(address,500) >= 500) return np_invalid_argument;
   
-  char *nts = memchr(address,'\0', strnlen(address, 500));
-  if (nts == NULL) return np_invalid_argument;
+  // char *nts = memchr(address,'\0', strnlen(address, 500));
+  // if (nts == NULL) return np_invalid_argument;
   
   enum np_return ret = np_ok;
   np_ctx_cast(ac);
@@ -573,7 +579,7 @@ enum np_return np_run(np_context* ac, double duration) {
     enum np_return ret = np_ok;
     np_thread_t * thread = _np_threads_get_self(context);
     if (!__np_is_already_listening(context)) {
-        ret = np_listen(ac, _np_network_get_protocol_string(context, PASSIVE | IPv4), "localhost", 3333);
+        ret = np_listen(ac, _np_network_get_protocol_string(context, PASSIVE | IPv4), "localhost", 31415);
     }
 
     if(ret == np_ok) {
@@ -648,7 +654,7 @@ void np_destroy(np_context*ac, bool gracefully)
      
     //sodium_destroy() /*not available*/
         
-    _np_network_set_key(context->my_node_key->network, NULL);    
+    // _np_network_set_key(context->my_node_key->network, NULL);    
     np_unref_obj(np_key_t, context->my_node_key, ref_state_nodekey);    
     np_unref_obj(np_key_t, context->my_identity, ref_state_identitykey);    
 

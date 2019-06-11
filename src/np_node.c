@@ -58,7 +58,8 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     entry->success_win_index = 0;
     np_node_set_handshake(entry, np_handshake_status_Disconnected);
 
-    entry->handshake_send_at = 0;
+    entry->handshake_send_at = 0.0;
+    entry->join_send_at = 0.0;
     entry->joined_network = false;	
     entry->handshake_priority = randombytes_random();
 
@@ -145,7 +146,7 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
  * Example: _np_node_decode_from_str("04436571312f73109f697851cfd0529a06ae66080dc9f07581f45526691d4290:udp4:example.com:1234");
  * The key always requires a 64 char hash value as first parameter
  **/
-np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
+np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 {
     assert (key != 0);
 
@@ -173,40 +174,46 @@ np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 
     // string encoded data contains key, eventually plus hostname and hostport
     // key string is mandatory !
-    log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
+    log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
-    np_dhkey_t search_key = np_dhkey_create_from_hash(s_hostkey);
-    np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
+    /* np_dhkey_t search_key = {0};
+    
+    if (s_hostkey[0] == '*') 
+    {
+        search_key = np_dhkey_create_from_hostport( "*", key+2);
+    } 
+    else
+    {
+        search_key = np_dhkey_create_from_hash(s_hostkey);
+    }
 
+    np_key_t* node_key = _np_keycache_find(context, search_key);
+    
+    if (node_key == NULL) 
+    {
+    */
+    //     node_key    = _np_keycache_find_or_create(context, search_key);
+
+    np_node_t* new_node;
+    np_new_obj(np_node_t, new_node);
 
     enum socket_type proto = PASSIVE | IPv4;
-    if(s_hostproto!=NULL)
+    if(s_hostproto != NULL)
     {	
         proto = _np_network_parse_protocol_string(s_hostproto);
     }
+    _np_node_update(new_node, proto, s_hostname, s_hostport);
 
-    if (NULL == node_key->node && NULL != s_hostname && NULL != s_hostport)
-    {
-        np_node_t* newnode;
-        np_new_obj(np_node_t, newnode);
-        _np_node_update(newnode, proto, s_hostname, s_hostport);
-        np_ref_switch(np_node_t, node_key->node, ref_key_node, newnode);
-        np_unref_obj(np_node_t, newnode,ref_obj_creation);
-    }
-    else 
-    {   // overwrite hostname only if it is not set yet
-        if (NULL != s_hostname && NULL != s_hostport && (NULL == node_key->node->dns_name || NULL == node_key->node->port))
-        {
-            _np_node_update(node_key->node, proto, s_hostname, s_hostport);
-        }
-    }
-
+        // np_ref_switch(np_node_t, new_node, ref_key_node, new_node);
+        // np_unref_obj(np_node_t, new_node, ref_obj_creation);
+    // }
     free (key_dup);
 
     ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", FUNC);
 
-    return (node_key);
+    return (new_node);
 }
+
 
 np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 {
@@ -375,6 +382,7 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
     
     return (node_key);
 }
+
 int _np_node_cmp(np_node_t* a, np_node_t* b) {
 
     int ret = ( (a == NULL) || (b == NULL) );
@@ -407,6 +415,11 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
      old = node->port; 
     node->port = strndup(port, strlen(port));
     if(old)free(old);
+
+    if (FLAG_CMP(proto, PASSIVE)) 
+    {
+        node->handshake_priority = 0;
+    } 
 }
 
 

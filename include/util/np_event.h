@@ -6,7 +6,8 @@
 #define _NP_UTIL_EVENT_H_
 
 #include <stdbool.h>
-#include "np_memory.h"
+
+#include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,8 +17,9 @@ extern "C" {
 enum event_type {
     evt_noop     = 0x0000, // update time
 
-    evt_internal = 0x0001, // no payload
-    evt_external = 0x0002, // no payload
+    evt_internal = 0x0001, // internal generated event
+    evt_external = 0x0002, // external generated event
+    // evt_trigger  = 0x0004, // no payload, just a trigger to do something
 
     evt_message  = 0x0010, // payload of type message / external
     evt_token    = 0x0020, // payload of type token
@@ -38,8 +40,6 @@ struct np_util_event_s {
     enum event_type type;
     void *user_data;
 };
-
-typedef struct np_util_event_s np_util_event_t;
 
 #ifdef __cplusplus
 }

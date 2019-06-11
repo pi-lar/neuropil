@@ -15,6 +15,9 @@
 
 #include "np_aaatoken.h"
 
+#include "np_dhkey.h"
+#include "util/np_event.h"
+
 #include "dtime.h"
 #include "np_log.h"
 #include "np_legacy.h"
@@ -307,10 +310,12 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensi
 bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type)
 {
     log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: bool _np_aaatoken_is_valid(np_aaatoken_t* token){");
+    
     if (NULL == token) return false;
+
     np_state_t* context = np_ctx_by_memory(token);
 
-    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
+    log_debug_msg(LOG_DEBUG, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
 
 
     if (FLAG_CMP(token->type, expected_type) == false)
@@ -326,7 +331,8 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
         return (false);
     }
-    else {
+    else 
+    {
         log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has expected type");
     }
 
@@ -335,13 +341,14 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     double now = np_time_now();
     if (now > (token->expires_at))
     {
-        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed",
+        log_msg(LOG_WARN, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed",
                 token->uuid, token->subject, token->expires_at - now, now, token->expires_at);
         token->state &= AAA_INVALID;
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
         return (false);
     }
-    else {
+    else 
+    {
         log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
     }
 
@@ -376,7 +383,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
             if (ret < 0)
             {
-                log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": checksum verification failed", token->uuid, token->subject);
+                log_msg(LOG_WARN, "token (%s) for subject \"%s\": checksum verification failed", token->uuid, token->subject);
                 log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
                 token->state &= AAA_INVALID;
                 return (false);
@@ -385,7 +392,8 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             token->is_signature_verified = true;
         }
 
-        if (token->is_signature_extensions_verified == false) {
+        if (token->is_signature_extensions_verified == false) 
+        {
             unsigned char* hash = __np_aaatoken_get_extensions_hash(token);
 
             // verify inserted signature first
@@ -415,7 +423,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             free(hash);
             if (ret < 0)
             {
-                log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": extension signature checksum verification failed", token->uuid, token->subject);
+                log_msg(LOG_WARN, "token (%s) for subject \"%s\": extension signature checksum verification failed", token->uuid, token->subject);
                 log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
                 token->state &= AAA_INVALID;
                 
@@ -428,27 +436,28 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     /*
         If we received a full token we may already got a handshake token,
         if so we need to validate the new tokens signature against the already received token sig
-        and an successfully verifying the new tokens identity is the same as the handshaketokens
+        and an successfully verifying the new token identity is the same as in the handshake token
     */
-    if (FLAG_CMP(token ->type, np_aaatoken_type_node)) {
+    if (FLAG_CMP(token->type, np_aaatoken_type_node)) {
 
-        // check for already received handshaketoken
+        // check for already received handshake token
 		np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token, false);
+        np_key_t* handshake_key = _np_keycache_find(context, handshake_token_dhkey);
 
-        np_key_t* handshake_token_key = _np_keycache_find(context, handshake_token_dhkey);
-        if (handshake_token_key != NULL && handshake_token_key->aaa_token != NULL && handshake_token_key->aaa_token != token /*reference compare!*/ &&
-            FLAG_CMP(handshake_token_key->aaa_token->type, np_aaatoken_type_handshake) /*&& _np_aaatoken_is_valid(handshake_token_key ->aaa_token)*/) {
-
-            //FIXME: Change to signature check with other tokens pub key
-            if (memcmp(handshake_token_key->aaa_token->crypto.derived_kx_public_key, token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES *(sizeof(unsigned char))) != 0) {
-
-                np_unref_obj(np_key_t, handshake_token_key, "_np_keycache_find");
-                log_msg(LOG_WARN, "Someone tried to impersonate a token (%s). verification failed", token->uuid);
-                return (false);
+        if (handshake_key != NULL) {
+            np_aaatoken_t* existing_token = _np_key_get_token(handshake_key);
+            if (existing_token != NULL && existing_token != token /*reference compare!*/ &&
+                FLAG_CMP(existing_token->type, np_aaatoken_type_handshake) /*&& _np_aaatoken_is_valid(handshake_token)*/)
+            {   //FIXME: Change to signature check with other tokens pub key
+                if (memcmp(existing_token->crypto.derived_kx_public_key, token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES *(sizeof(unsigned char))) != 0) 
+                {
+                    np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
+                    log_msg(LOG_WARN, "Someone tried to impersonate a token (%s). verification failed", token->uuid);
+                    return (false);
+                }
             }
-
         }
-        np_unref_obj(np_key_t, handshake_token_key, "_np_keycache_find");
+        np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
     }
 
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token checksum verification completed");
@@ -470,7 +479,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
         }
         else
         {
-            log_msg(LOG_AAATOKEN | LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+            log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
             log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
             token->state &= AAA_INVALID;
             return (false);
@@ -610,6 +619,7 @@ void _np_aaatoken_create_ledger(np_key_t* subject_key, const char* const subject
 // update internal structure and return a interest if a matching pair has been found
 np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
 {
+    return NULL;
     /*
     assert(token != NULL);
     np_state_t* context = np_ctx_by_memory(token);
@@ -698,10 +708,12 @@ np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token)
  **/
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, const char* const subject, const char* const audience)
 {
-    /*
+
     np_sll_t(np_aaatoken_ptr, return_list) = NULL;
     sll_init(np_aaatoken_ptr, return_list);
 
+    return return_list;
+    /*
     np_key_t* subject_key = NULL;
     np_dhkey_t search_key = np_dhkey_create_from_hostport( subject, "0");
 
@@ -767,6 +779,7 @@ np_dhkey_t _np_aaatoken_get_issuer(np_aaatoken_t* self){
 
 np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* const subject, const np_dhkey_t* const sender_dhkey)
 {
+    return NULL;
     /*
 	ASSERT (sender_dhkey != NULL, "sender_dhkey is a mandatory function argument");
 
@@ -812,25 +825,24 @@ np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* co
         }
 
         np_dhkey_t partner_token_dhkey = np_aaatoken_get_partner_fp(return_token);
-        /* np_dhkey_t issuer_token_dhkey = { 0 };
-        _np_str_dhkey(return_token->issuer, &issuer_token_dhkey);
+        // np_dhkey_t issuer_token_dhkey = { 0 };
+        // _np_str_dhkey(return_token->issuer, &issuer_token_dhkey);
 
-        if (_np_dhkey_equal(&issuer_token_dhkey, &partner_token_dhkey))
-        {
-            char return_token_dhkey_as_str[65];
-            char return_token_dhkey_as_str[64] = '\0';
-            _np_dhkey_str(sender_dhkey, return_token_dhkey_as_str);
-            log_debug_msg(LOG_DEBUG,
-                            "comparing sender token (%s) for %s with send_dhkey: %s (target node match)",
-                            return_token->uuid, &return_token_dhkey_as_str, sender_dhkey_as_str);
-        }
-        else
-        {
-            log_debug_msg(LOG_DEBUG,
-                            "comparing sender token (%s) for %s with send_dhkey: %s (issuer match)",
-                            return_token->uuid, return_token->issuer, sender_dhkey_as_str);
-        }
-        *//*
+        // if (_np_dhkey_equal(&issuer_token_dhkey, &partner_token_dhkey))
+        // {
+        //     char return_token_dhkey_as_str[65];
+        //     char return_token_dhkey_as_str[64] = '\0';
+        //     _np_dhkey_str(sender_dhkey, return_token_dhkey_as_str);
+        //     log_debug_msg(LOG_DEBUG,
+        //                     "comparing sender token (%s) for %s with send_dhkey: %s (target node match)",
+        //                     return_token->uuid, &return_token_dhkey_as_str, sender_dhkey_as_str);
+        // }
+        // else
+        // {
+        //     log_debug_msg(LOG_DEBUG,
+        //                     "comparing sender token (%s) for %s with send_dhkey: %s (issuer match)",
+        //                     return_token->uuid, return_token->issuer, sender_dhkey_as_str);
+        // }
 
         // only pick key from a list if the subject msg_treshold is bigger than zero
         // and we actually have the correct sender node in the list

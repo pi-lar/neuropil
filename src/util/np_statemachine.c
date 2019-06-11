@@ -10,7 +10,7 @@
 #include "util/np_statemachine.h"
 
 
-const struct np_util_event_s noop_event = { .type = evt_noop };
+// const struct np_util_event_s noop_event = { .type = evt_noop, .user_data=NULL };
 
 const struct np_util_statemachine_result_s ok_result                = { .success = true,  .error_code = NO_ERROR          };
 const struct np_util_statemachine_result_s condition_not_met_result = { .success = false, .error_code = CONDITION_NOT_MET };
@@ -36,19 +36,19 @@ bool np_util_statemachine_invoke_auto_transition(np_util_statemachine_t *machine
 
         if (transition._active && 
             (
-                transition.f_condition == NULL ||
-                transition.f_condition(machine, ev)
+                transition.f_condition == NULL || transition.f_condition(machine, ev)
             )
            )
         {
             // fprintf(stdout, "cs: %d.%25s -> transition: %d\n", machine->_current_state, current_state->_state_name, i);
             ret = true;
             
+            // first call the action
             transition.f_action(machine, ev);
 
             bool process_enter_exit_states = (transition._target_state != current_state->_state_id) ? true : false;
             if (process_enter_exit_states) current_state->f_exit(machine, ev);
-            
+
             machine->_current_state = transition._target_state;
             current_state = machine->_state_table[machine->_current_state];
             // fprintf(stdout, "cs: %d.%25s -> %p / %p\n", 
@@ -57,7 +57,7 @@ bool np_util_statemachine_invoke_auto_transition(np_util_statemachine_t *machine
             break; // exit while early after first successful transition
 
         } else {
-            // fprintf(stdout, "cs: %d.%25s -> transition: %d -> not met\n", machine->_current_state, current_state->_state_name, i);
+            // log_debug(LOG_DEBUG, "cs: %d.%25s -> transition: %d -> not met\n", machine->_current_state, current_state->_state_name, i);
         }
         i++;
     }
@@ -66,13 +66,16 @@ bool np_util_statemachine_invoke_auto_transition(np_util_statemachine_t *machine
 
 bool np_util_statemachine_invoke_auto_transitions(np_util_statemachine_t* machine)
 {
-    bool result, ret = np_util_statemachine_invoke_auto_transition(machine, noop_event);
-    if(ret) {
-        do {
-            result = np_util_statemachine_invoke_auto_transition(machine, noop_event);
-        }
-        while(result);
-    }
+    bool result = false;
+    np_util_event_t noop_event = { .type = evt_noop, .user_data=NULL };
+    bool ret = np_util_statemachine_invoke_auto_transition(machine, noop_event);
+
+    // if(ret) {
+    // do {
+    //      result = np_util_statemachine_invoke_auto_transition(machine, noop_event);
+    // }
+    // while(result);
+    // }
     return ret;
 }
 
@@ -93,10 +96,13 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
 
         if (!transition._active)  { i++; continue; }
 
+        np_util_event_t noop_event = { .type = evt_noop, .user_data=NULL };
+
         if (transition._target_state == target_state &&
             (transition.f_condition == NULL ||
              transition.f_condition(machine, noop_event)) )
         {
+            // first call the action
             transition.f_action(machine, noop_event);
 
             // fprintf(stdout, "cs: %25s -> transition: %d\n", current_state->_state_name, i);

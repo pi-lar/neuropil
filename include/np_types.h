@@ -16,6 +16,9 @@
 /*
  *  simple types / typedefs
  */
+
+typedef struct np_util_event_s np_util_event_t;
+
 typedef struct np_responsecontainer_s np_responsecontainer_t;
 
 typedef struct np_aaatoken_s np_aaatoken_t;

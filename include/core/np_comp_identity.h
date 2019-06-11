@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
+#include "np_dhkey.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
@@ -38,9 +39,18 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
 
 NP_API_INTERN
 bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
-void __np_identity_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_auth_nz_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_identity_handle_auth_nz(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN 
+void __np_identity_handle_account(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
 
 #ifdef __cplusplus
 }

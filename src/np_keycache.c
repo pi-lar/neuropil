@@ -15,6 +15,8 @@
 
 #include "np_keycache.h"
 
+#include "core/np_comp_node.h"
+
 #include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_log.h"
@@ -205,7 +207,11 @@ void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_jobargs_t args)
     {
         RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
+            // log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
             np_util_statemachine_invoke_auto_transitions(&iter->sm);
+            
+            np_aaatoken_t* my_node_token = _np_key_get_token(context->my_node_key);
+            log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, my_node_token, my_node_token->type);
         }
     }
 }

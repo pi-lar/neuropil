@@ -7,9 +7,10 @@
 #define _NP_JOBQUEUE_H
 
 #include "np_memory.h"
-
 #include "np_types.h"
 
+#include "np_dhkey.h"
+#include "util/np_event.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +28,7 @@ struct np_jobargs_s
     np_key_t* target;
     void* custom_data;	
 };
+
 /* job_queue np_job_t structure */
 struct np_job_s
 {
@@ -34,9 +36,10 @@ struct np_job_s
     double exec_not_before_tstamp;
     double interval;
     bool is_periodic;
-    sll_return(np_callback_t) processorFuncs;
+    sll_return(np_evt_callback_t) processorFuncs;
     bool __del_processorFuncs;
     np_jobargs_t args;
+    np_util_event_t evt;
     double priority;
 
     double search_min_priority;
@@ -67,10 +70,10 @@ NP_API_INTERN
     bool _np_job_queue_insert(np_state_t* context, np_job_t new_job);
 
 NP_API_INTERN
-    void np_job_submit_event_periodic(np_state_t* context, double priority, double first_delay, double interval, np_callback_t callback, const char* ident);
+    void np_job_submit_event_periodic(np_state_t* context, double priority, double first_delay, double interval, np_evt_callback_t callback, const char* ident);
 
 NP_API_INTERN
-bool np_job_submit_event(np_state_t* context, double priority, double delay, np_callback_t callback, void* data, const char* ident);
+bool np_job_submit_event(np_state_t* context, double priority, double delay, np_evt_callback_t callback, void* data, const char* ident);
 
 
 NP_API_INTERN

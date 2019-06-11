@@ -18,8 +18,7 @@
 #include "sodium.h"
 #include "msgpack/cmp.h"
 
-#include "np_msgproperty.h"
-
+#include "core/np_comp_msgproperty.h"
 #include "np_legacy.h"
 
 #include "dtime.h"
@@ -29,6 +28,7 @@
 #include "np_dendrit.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"
+#include "np_keycache.h"
 #include "np_tree.h"
 #include "np_memory.h"
 
@@ -44,6 +44,8 @@
 #include "np_types.h"
 #include "np_token_factory.h"
 
+#include "util/np_statemachine.h"
+#include "util/np_event.h"
 
 #define NR_OF_ELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
@@ -61,15 +63,14 @@ _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, max_threshold, uint16_t);
 
 _NP_GENERATE_PROPERTY_SETVALUE_IMPL(np_msgproperty_t, partner_key, np_dhkey_t);
 
-RB_HEAD(rbt_msgproperty, np_msgproperty_s);
+
+// RB_HEAD(rbt_msgproperty, np_msgproperty_s);
 // RB_PROTOTYPE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
-RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
+// RB_GENERATE(rbt_msgproperty, np_msgproperty_s, link, _np_msgproperty_comp);
 
-typedef struct rbt_msgproperty rbt_msgproperty_t;
-
+// typedef struct rbt_msgproperty rbt_msgproperty_t;
 np_module_struct(msgproperties) {
-    np_state_t * context;
-    rbt_msgproperty_t* __msgproperty_table;
+     np_state_t * context;
 };
 
 /**
@@ -80,15 +81,8 @@ bool _np_msgproperty_init (np_state_t* context)
 {
     if (!np_module_initiated(msgproperties)) {
         np_module_malloc(msgproperties);
-        _module->__msgproperty_table = (rbt_msgproperty_t*)malloc(sizeof(rbt_msgproperty_t));
-        CHECK_MALLOC(_module->__msgproperty_table);
-
-        if (NULL == _module->__msgproperty_table) return false;
-
-        RB_INIT(_module->__msgproperty_table);
 
         // NEUROPIL_INTERN_MESSAGES
-
         np_sll_t(np_msgproperty_ptr, msgproperties);
         msgproperties = default_msgproperties(context);
         sll_iterator(np_msgproperty_ptr) __np_internal_messages = sll_first(msgproperties);
@@ -97,15 +91,30 @@ bool _np_msgproperty_init (np_state_t* context)
         {
             np_msgproperty_t* property = __np_internal_messages->val;
             property->is_internal = true;
+            
             if (strlen(property->msg_subject) > 0)
             {
                 log_debug_msg(LOG_DEBUG, "register handler: %s", property->msg_subject);
-                RB_INSERT(rbt_msgproperty, _module->__msgproperty_table, property);
-            }
 
+                // fprintf(stdout, "register handler (rx): %s\n", property->msg_subject);
+
+                // receiving property
+                np_dhkey_t search_key_rx = np_dhkey_create_from_hostport(property->msg_subject, "local_rx");
+                np_key_t* my_property_key_rx = _np_keycache_find_or_create(context, search_key_rx);
+                np_util_event_t ev_rx = { .type=(evt_property|evt_internal), .context=context, .user_data=property };
+                np_util_statemachine_invoke_auto_transition(&my_property_key_rx->sm, ev_rx);
+                np_ref_obj(np_msgproperty_t, property, ref_system_msgproperty); 
+
+                // fprintf(stdout, "register handler (tx): %s\n", property->msg_subject);
+                // sending property
+                np_dhkey_t search_key_tx = np_dhkey_create_from_hostport(property->msg_subject, "local_tx");
+                np_key_t* my_property_key_tx = _np_keycache_find_or_create(context, search_key_tx);
+                np_util_event_t ev_tx = { .type=(evt_property|evt_internal), .context=context, .user_data=property };
+                np_util_statemachine_invoke_auto_transition(&my_property_key_tx->sm, ev_tx);
+                np_ref_obj(np_msgproperty_t, property, ref_system_msgproperty); 
+            }            
             sll_next(__np_internal_messages);
         }
-
         sll_free(np_msgproperty_ptr, msgproperties);
     }
     return true;
@@ -113,13 +122,23 @@ bool _np_msgproperty_init (np_state_t* context)
 void _np_msgproperty_destroy (np_state_t* context)
 {
     if (np_module_initiated(msgproperties)) {
-        np_module_var(msgproperties);
+        // np_module_var(msgproperties);
         
-        
-        np_msgproperty_t* iter_prop = RB_MIN(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table);        
-        while(iter_prop != NULL){            
-            RB_REMOVE(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table,iter_prop);
+        // NEUROPIL_INTERN_MESSAGES
+        np_sll_t(np_msgproperty_ptr, msgproperties);
+        msgproperties = default_msgproperties(context);
+        sll_iterator(np_msgproperty_ptr) __np_internal_messages = sll_first(msgproperties);
+        while (__np_internal_messages != NULL) {
+            np_msgproperty_t* property = __np_internal_messages->val;
+            np_dhkey_t search_key_rx = np_dhkey_create_from_hostport(property->msg_subject, "local_rx");
+            _np_keycache_remove(context, search_key_rx);
 
+            np_dhkey_t search_key_tx = np_dhkey_create_from_hostport(property->msg_subject, "local_tx");
+            _np_keycache_remove(context, search_key_tx);
+
+            sll_next(__np_internal_messages);
+        }
+        /*
             sll_iterator(np_message_ptr) iter_prop_msg_cache_in = sll_first(iter_prop->msg_cache_in);
             while (iter_prop_msg_cache_in != NULL)
             {
@@ -131,15 +150,15 @@ void _np_msgproperty_destroy (np_state_t* context)
 
             np_unref_obj(np_msgproperty_t, iter_prop, ref_system_msgproperty); 
             iter_prop = RB_MIN(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table);
-        }
-
+        */
         // ? RB_FREE(_module->__msgproperty_table);
 
-        free(_module->__msgproperty_table);
+        // free(_module->__msgproperty_table);
 
         np_module_free(msgproperties);
     }    
 }
+
 /**
  ** registers the handler function #func# with the message type #type#,
  ** it also defines the acknowledgment requirement for this type
@@ -149,14 +168,48 @@ np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type mode_
     log_trace_msg(LOG_TRACE, "start: np_msgproperty_t* np_msgproperty_get(context, np_msg_mode_type mode_type, const char* subject){");
     assert(subject != NULL);
 
-    np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
-    return RB_FIND(rbt_msgproperty,np_module(msgproperties)->__msgproperty_table, &prop);
+    if (FLAG_CMP(mode_type, INBOUND) )
+    {   // search receiving property
+        np_dhkey_t search_key_rx = np_dhkey_create_from_hostport(subject, "local_rx");
+        np_key_t* my_property_key_rx = _np_keycache_find(context, search_key_rx);
+
+        if (my_property_key_rx == NULL) return NULL;
+        
+        log_debug_msg(LOG_DEBUG, "get i: msgproperty %s: get %p from list: %p (%d)", subject, sll_first(my_property_key_rx->entities), my_property_key_rx, sll_size(my_property_key_rx->entities));
+        // NP_CAST(sll_first(my_property_key_rx->entities), np_msgproperty_t, property);
+        // if (np_memory_get_type(property) == np_memory_types_np_msgproperty_t)
+        assert((np_memory_get_type(sll_first(my_property_key_rx->entities)->val) == np_memory_types_np_msgproperty_t));
+        return sll_first(my_property_key_rx->entities)->val;
+        // else 
+        // return NULL;
+    }
+
+    if (FLAG_CMP(mode_type, OUTBOUND) )
+    {
+        // search sending property
+        np_dhkey_t search_key_tx = np_dhkey_create_from_hostport(subject, "local_tx");
+        np_key_t* my_property_key_tx = _np_keycache_find(context, search_key_tx);
+
+        if (my_property_key_tx == NULL) return NULL;
+
+        log_debug_msg(LOG_DEBUG, "get o: msgproperty %s: get %p from list: %p(%d)", subject, sll_first(my_property_key_tx->entities), my_property_key_tx, sll_size(my_property_key_tx->entities));
+        // NP_CAST(sll_first(my_property_key_tx->entities), np_msgproperty_t, property);
+        // if (np_memory_get_type(property) == np_memory_types_np_msgproperty_t)
+        assert((np_memory_get_type(sll_first(my_property_key_tx->entities)->val) == np_memory_types_np_msgproperty_t));
+        return sll_first(my_property_key_tx->entities)->val;
+        // else 
+        // return NULL;
+    }
+    
+    log_debug_msg(LOG_DEBUG, "get i: msgproperty %s: wrong mode type\n", subject);
+    // np_msgproperty_t prop = { .msg_subject=(char*) subject, .mode_type=mode_type };
+    return NULL; // RB_FIND(rbt_msgproperty,np_module(msgproperties)->__msgproperty_table, &prop);
 }
 np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_type mode_type, const char* subject)
 {
-    np_msgproperty_t* ret = np_msgproperty_get(context, DEFAULT_MODE, subject);
-
+    np_msgproperty_t* ret = np_msgproperty_get(context, mode_type, subject);
     bool created= false;
+
     if (NULL == ret)
     {
         log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect %"PRIu8" creation of msgproperty %s", mode_type, subject);	
@@ -167,17 +220,20 @@ np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_
         ret->mep_type = ANY_TO_ANY;
         np_msgproperty_register(ret);
     } 
-    if(!FLAG_CMP(ret->mode_type, mode_type))
-    {
-        log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect %"PRIu8" configuration of msgproperty %s", mode_type, subject);	
-        ret->mode_type |= mode_type;
-        _np_msgproperty_update_disovery(context,ret);
-    }
-    if(created){
+
+    // if(!FLAG_CMP(ret->mode_type, mode_type))
+    // {
+    // log_msg(LOG_INFO | LOG_MSGPROPERTY, "Indirect %"PRIu8" configuration of msgproperty %s", mode_type, subject);	
+    // ret->mode_type |= mode_type;
+    // _np_msgproperty_update_disovery(context,ret);
+    // }
+
+    if(created) {
         np_unref_obj(np_msgproperty_t, ret, ref_obj_creation);
     }
     return ret;
 }
+
 int16_t _np_msgproperty_comp(const np_msgproperty_t* const search_filter, const np_msgproperty_t* const prop2)
 {
     int16_t ret = -1;
@@ -200,6 +256,7 @@ int16_t _np_msgproperty_comp(const np_msgproperty_t* const search_filter, const 
 void _np_msgproperty_register_job(np_state_t * context, np_jobargs_t args) {
     _np_msgproperty_update_disovery(context, (np_msgproperty_t*)args.custom_data);
 }
+
 void _np_msgproperty_update_disovery(np_state_t * context, np_msgproperty_t* msgprop) {
     np_message_intent_public_token_t* token = _np_msgproperty_upsert_token(msgprop);
     if (FLAG_CMP(msgprop->mode_type, OUTBOUND)) {
@@ -215,18 +272,34 @@ void _np_msgproperty_update_disovery(np_state_t * context, np_msgproperty_t* msg
     np_unref_obj(np_aaatoken_t, token, "_np_msgproperty_upsert_token");
 }
 
-void np_msgproperty_register(np_msgproperty_t* msgprops)
+void np_msgproperty_register(np_msgproperty_t* msg_property)
 {
-    np_ctx_memory(msgprops);
+    np_ctx_memory(msg_property);
     log_trace_msg(LOG_TRACE, "start: void np_msgproperty_register(np_msgproperty_t* msgprops){ ");
-    log_debug_msg(LOG_DEBUG, "registering user property: %s ", msgprops->msg_subject);
+    log_debug_msg(LOG_DEBUG, "registering user property: %s ", msg_property->msg_subject);
 
-    np_ref_obj(np_msgproperty_t, msgprops, ref_system_msgproperty); 
-    RB_INSERT(rbt_msgproperty, np_module(msgproperties)->__msgproperty_table, msgprops);
+    if (strlen(msg_property->msg_subject) > 0)
+    {
+        log_debug_msg(LOG_DEBUG, "register handler: %s", msg_property->msg_subject);
 
-    //np_job_submit_event(context, PRIORITY_MOD_LEVEL_2, 0, _np_msgproperty_register_job, msgprops, "_np_msgproperty_register_job");
-    _np_msgproperty_update_disovery(context, msgprops);
+        if (FLAG_CMP(msg_property->mode_type, INBOUND) ) {
+            // receiving property
+            np_dhkey_t search_key_rx = np_dhkey_create_from_hostport(msg_property->msg_subject, "local_rx");
+            np_key_t* my_property_key_rx = _np_keycache_find_or_create(context, search_key_rx);
+            np_util_event_t ev_rx = { .type=(evt_property|evt_internal), .context=context, .user_data=msg_property };
+            np_util_statemachine_invoke_auto_transition(&my_property_key_rx->sm, ev_rx);
+            np_ref_obj(np_msgproperty_t, msg_property, ref_system_msgproperty); 
+        }
 
+        if (FLAG_CMP(msg_property->mode_type, OUTBOUND) ) {
+            // sending property
+            np_dhkey_t search_key_tx = np_dhkey_create_from_hostport(msg_property->msg_subject, "local_tx");
+            np_key_t* my_property_key_tx = _np_keycache_find_or_create(context, search_key_tx);
+            np_util_event_t ev_tx = { .type=(evt_property|evt_internal), .context=context, .user_data=msg_property };
+            np_util_statemachine_invoke_auto_transition(&my_property_key_tx->sm, ev_tx);
+            np_ref_obj(np_msgproperty_t, msg_property, ref_system_msgproperty); 
+        }
+    }            
 }
 
 void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)
@@ -253,6 +326,7 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
 
     prop->is_internal = false;
     prop->last_update = np_time_now();
+    prop->last_intent_update = np_time_now();
 
     sll_init(np_callback_t, prop->clb_inbound);
     sll_init(np_callback_t, prop->clb_transform);
@@ -283,6 +357,7 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     prop->current_sender_token = NULL;
     prop->current_receive_token = NULL;
 }
+
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
     np_ctx_memory(self);
     _LOCK_ACCESS(&self->unique_uuids_lock) {
@@ -290,6 +365,7 @@ void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
         self->unique_uuids_check = false;
     }
 }
+
 void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self) {
     np_ctx_memory(self);
     _LOCK_ACCESS(&self->unique_uuids_lock){
@@ -315,6 +391,7 @@ bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* ms
     }
     return ret;
 }
+
 void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove)
 {	
     np_ctx_memory(self);
@@ -325,16 +402,14 @@ void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_me
     }
 }
 
-void _np_msgproperty_job_msg_uniquety(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-    
-
+void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t args) 
+{
     // TODO: iter over msgproeprties and remove expired msg uuid from unique_uuids
     // RB_INSERT(rbt_msgproperty, __msgproperty_table, property);
-
-    np_msgproperty_t* iter_prop = NULL;
+    np_msgproperty_t* iter_prop = args.properties;
     double now;
-    RB_FOREACH(iter_prop, rbt_msgproperty, np_module(msgproperties)->__msgproperty_table)
-    {
+    // RB_FOREACH(iter_prop, rbt_msgproperty, np_module(msgproperties)->__msgproperty_table)
+    // {
         if (iter_prop->unique_uuids_check) {
             sll_init_full(char_ptr, to_remove);
 
@@ -362,7 +437,7 @@ void _np_msgproperty_job_msg_uniquety(np_state_t* context, NP_UNUSED  np_jobargs
             }
             sll_free(char_ptr, to_remove);
         }
-    }
+    // }
 }
 
 void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)
@@ -536,8 +611,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhk
     }
 }
 
-void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in)
-{
+void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in) {
     np_ctx_memory(msg_prop);
     _LOCK_ACCESS(&msg_prop->lock)
     {
@@ -700,7 +774,8 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
         ref_replace_reason(np_aaatoken_t, ret, "_np_aaatoken_get_local_mx", FUNC);
     }
 
-    _LOCK_ACCESS(&prop->lock) {
+    _LOCK_ACCESS(&prop->lock) 
+    {
         np_tree_find_str(ret->extensions, "msg_threshold")->val.value.ui = prop->msg_threshold;
     }
     log_msg(LOG_AAATOKEN | LOG_DEBUG, "--- done refresh for subject token: %25s new token has uuid %s", prop->msg_subject, ret->uuid);
@@ -709,7 +784,6 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
     
     return ret;
 }
-
 
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src) {
 

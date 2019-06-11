@@ -53,6 +53,7 @@ struct np_node_s
 	double handshake_send_at; 		
 	uint32_t handshake_priority;
 
+	double join_send_at;
 	bool joined_network; 
 	np_crypto_session_t session;
 	bool session_key_is_set;
@@ -96,7 +97,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
  **
  **/
 NP_API_INTERN
-np_key_t* _np_node_decode_from_str (np_state_t* context, const char *key);
+np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key);
 
 NP_API_INTERN
 sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, np_tree_t* data);

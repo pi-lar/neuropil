@@ -56,10 +56,10 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     prop->last_update = np_time_now();
     prop->last_intent_update = np_time_now();
 
-    sll_init(np_callback_t, prop->clb_inbound);
+    sll_init(np_evt_callback_t, prop->clb_inbound);
+    sll_init(np_evt_callback_t, prop->clb_outbound);
 
-    sll_init(np_callback_t, prop->clb_outbound);
-    sll_append(np_callback_t, prop->clb_outbound, _np_out);
+    // sll_append(np_evt_callback_t, prop->clb_outbound, _np_out);
 
     sll_init(np_usercallback_ptr, prop->user_receive_clb);
     sll_init(np_usercallback_ptr, prop->user_send_clb);
@@ -124,8 +124,8 @@ void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     np_unref_obj(np_aaatoken_t, prop->current_receive_token, ref_msgproperty_current_recieve_token);
     np_unref_obj(np_aaatoken_t, prop->current_sender_token, ref_msgproperty_current_sender_token);
 
-    sll_free(np_callback_t, prop->clb_outbound);
-    sll_free(np_callback_t, prop->clb_inbound);
+    sll_free(np_evt_callback_t, prop->clb_outbound);
+    sll_free(np_evt_callback_t, prop->clb_inbound);
 }
 
 /**
@@ -288,6 +288,15 @@ void np_msgproperty_register(np_msgproperty_t* msg_property)
             np_ref_obj(np_msgproperty_t, msg_property, ref_system_msgproperty); 
         }
     }            
+}
+
+np_dhkey_t _np_msgproperty_dhkey(np_msg_mode_type mode_type, const char* subject) 
+{
+    if (mode_type == INBOUND)
+        return np_dhkey_create_from_hostport(subject, "local_rx");
+    else
+        return np_dhkey_create_from_hostport(subject, "local_tx");
+
 }
 
 bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check)
@@ -592,11 +601,19 @@ np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t*
 
 bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
-    // check if it is an  user callback messages --> payload encrypted
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_payload_encrypted(...){");
+    bool ret = false;
+    // check if it is an user callback messages --> payload encrypted
+
+    return ret;
 }
 
 void __np_property_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_property_decrypt(...){");
+
     // was np_dendrit->_np_in_callback_wrapper ...
 }
 
@@ -705,6 +722,8 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
 // NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_MSGPROPERTY, __np_set_property, __is_msgproperty);
 bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_msgproperty(...){");
     // np_ctx_memory(statemachine->_user_data);
     bool ret = false;
     
@@ -744,8 +763,7 @@ void __np_property_update(np_util_statemachine_t* statemachine, const np_util_ev
 void __np_property_check(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-
-    // log_debug_msg(LOG_TRACE, "start: void __np_property_check(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_property_check(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t,  my_property_key);    
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
@@ -764,7 +782,7 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
     if (property->is_internal == false &&
         (now - property->last_intent_update) > property->token_min_ttl) 
     {
-        _np_out_discovery_messages(context, args);
+        _np_out_discovery_messages(context, event);
         property->last_intent_update = now;
     }
 
@@ -772,34 +790,35 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
 }
 
 // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_msg,  __is_message);
-bool __is_user_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_external_message(...){");
 
     bool ret = false;
     
-    if (!ret) ret  = FLAG_CMP(event.type, evt_jobargs) && FLAG_CMP(event.type, evt_external);
+    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_message_t);
 
     // if ( ret) ret &= property->is_internal;
     return ret;
 }
 
-void __np_property_handle_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_in_msg(...) {");
 
-    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_msg(...) {");
-
-    NP_CAST(statemachine->_user_data, np_key_t,   my_property_key);    
+    NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
-    NP_CAST(event.user_data, np_jobargs_t, my_jobargs);
+    NP_CAST(event.user_data, np_message_t, message);
 
-    sll_iterator(np_callback_t) iter = sll_first(property->clb_inbound);
+    sll_iterator(np_evt_callback_t) iter = sll_first(property->clb_inbound);
     while (iter != NULL)
     {
-        if (iter->val != NULL) {
-            iter->val(context, *my_jobargs);
+        if (iter->val != NULL) 
+        {
+            iter->val(context, event);
         }
         sll_next(iter);
     }
@@ -813,5 +832,50 @@ void __np_property_handle_msg(np_util_statemachine_t* statemachine, const np_uti
             }
             sll_next(iter);
         }
+    }
+}
+
+bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_internal_message(...) {");
+
+    bool ret = false;
+    
+    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_internal);
+    // if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_message_t);
+
+    return ret;
+} 
+
+void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_out_msg(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t,   my_property_key);    
+    NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
+    NP_CAST(event.user_data, np_jobargs_t, my_jobargs);
+
+    if (property->is_internal == false) 
+    {
+        sll_iterator(np_usercallback_ptr) iter = sll_first(property->user_send_clb);
+        while (iter != NULL)
+        {
+            if (iter->val != NULL) 
+            {
+                // iter->val(context, my_jobargs->msg);
+            }
+            sll_next(iter);
+        }
+    }
+
+    sll_iterator(np_evt_callback_t) iter = sll_first(property->clb_outbound);
+    while (iter != NULL)
+    {
+        if (iter->val != NULL) {
+            iter->val(context, event);
+        }
+        sll_next(iter);
     }
 }

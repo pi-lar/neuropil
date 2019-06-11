@@ -91,7 +91,6 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {    
     np_ctx_memory(statemachine->_user_data);
-
     log_debug_msg(LOG_DEBUG, "start: void _np_set_identity(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
@@ -99,26 +98,29 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
 
     np_ref_switch(np_aaatoken_t, identity, ref_key_aaa_token, identity);
 
-    if (identity->type == np_aaatoken_type_node) 
+    if (FLAG_CMP(identity->type, np_aaatoken_type_node) )
     {
-        sll_append(void_ptr, my_identity_key->entities, identity);
+        my_identity_key->type |= np_key_type_node;
 
+        sll_append(void_ptr, my_identity_key->entities, identity);
         context->my_node_key = my_identity_key;
+
         if (NULL == context->my_identity) 
         {
             my_identity_key->type |= np_key_type_ident;
             context->my_identity = my_identity_key;
         }
+        log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, identity, identity->type);
     }
-    else if(identity->type == np_aaatoken_type_identity)
+    else if(FLAG_CMP(identity->type, np_aaatoken_type_identity) )
     {
         sll_append(void_ptr, my_identity_key->entities, identity);
 
-        if ( identity->private_key_is_set && 
-             (NULL == context->my_identity || context->my_identity == context->my_node_key) )
+        if (NULL == context->my_identity || context->my_identity == context->my_node_key)
         {
             context->my_identity = my_identity_key;
         }
+        log_debug_msg(LOG_DEBUG, "context->my_identity =  %p %p %d", context->my_identity, identity, identity->type);
     }
 
     my_identity_key->is_in_keycache = true;            
@@ -154,13 +156,12 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
 void __np_create_identity_network(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-
     log_debug_msg(LOG_TRACE, "start: void __np_create_identity_network(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     NP_CAST(event.user_data, np_aaatoken_t, identity);
 
-    if (identity->type == np_aaatoken_type_node)
+    if (FLAG_CMP(identity->type, np_aaatoken_type_node))
     {
         // create node structure (do we still need it ???)
         np_node_t* my_node = _np_node_from_token(identity, np_aaatoken_type_node);
@@ -169,12 +170,13 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
         // create incoming network
         np_network_t* my_network = NULL;
         np_new_obj(np_network_t, my_network);
-        _np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, UNKNOWN_PROTO);
+        _np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, my_node->protocol);
         _np_network_set_key(my_network, my_identity_key);
 
         sll_append(void_ptr, my_identity_key->entities, my_network);
+        np_ref_obj(np_network_t, my_network, "__np_create_identity_network");
 
-        log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
+        log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
 
         _np_network_enable(my_network);
         _np_network_start(my_network, true);
@@ -184,35 +186,39 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
 bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_unencrypted_np_message(...){");
+    log_debug_msg(LOG_TRACE, "start: bool __is_unencrypted_np_message(...) {");
+    
     bool ret = false;
 
-    if (!ret) ret  = FLAG_CMP(event.type, evt_external) && FLAG_CMP(event.type, evt_message);
-    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_message_t);
+    if (!ret) ret  = (FLAG_CMP(event.type, evt_external) && FLAG_CMP(event.type, evt_message));
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_BLOB_1024);
     if ( ret) 
     {
-        NP_CAST(event.user_data, np_message_t, message);
+        // NP_CAST(event.user_data, np_message_t, message);
         // TODO: // ret &= _np_message_validate_format(message);
     }
-    return true;
+    return ret;
 }
 
-void __np_identity_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_debug_msg(LOG_TRACE, "start: void __np_identity_extract_handshake(...){");
 
-    NP_CAST(event.user_data, np_message_t, message);
+    NP_CAST(event.user_data, void_ptr, raw_message);
 
     np_message_t* msg_in = NULL;
-    bool is_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, message);
+    np_new_obj(np_message_t, msg_in);
+
+    bool is_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, raw_message);
     if (is_deserialization_successful == false) 
     {
         log_msg(LOG_WARN, "error deserializing initial message from new partner node");
         goto __np_cleanup__;
     }
+
     log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
-                  "deserialized message %s (source: \"%s\")", msg_in->uuid, np_network_get_desc(alias_key,tmp));
+                  "deserialized message %s (source: \"%s\")", msg_in->uuid, event.user_data);
     _np_message_trace_info("in", msg_in);
 
     CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE (%s)", msg_in->uuid);
@@ -222,19 +228,20 @@ void __np_identity_extract_handshake(np_util_statemachine_t* statemachine, const
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
 
     // wrap with bloom filter
-    if (0 != strncmp(str_msg_subject, _NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE, strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)) );
-        goto __np_cleanup__;
+    if (0 != strncmp(str_msg_subject, _NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE, strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)) ) goto __np_cleanup__;
 
     np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
     if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in)) 
     {
         np_handshake_token_t* handshake_token = NULL;        
-        _np_message_deserialize_chunked(message);
-        handshake_token = np_token_factory_read_from_tree(context, message->body);
+        _np_message_deserialize_chunked(msg_in);
 
-        np_key_t* alias_key = _np_keycache_find_or_create(context, event.target_dhkey);
-        np_util_event_t handshake_evt = { .type=(evt_external|evt_token), .context=context, .user_data=handshake_token};
-        _np_util_statemachine_auto_transition(&alias_key->sm, handshake_evt);
+        np_dhkey_t handshake_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_HANDSHAKE);
+        np_key_t*  handshake_key      = _np_keycache_find(context, handshake_dhkey);
+
+        np_util_event_t handshake_evt = { .type=(evt_external|evt_message), .context=context, 
+                                          .user_data=msg_in, .target_dhkey=event.target_dhkey};
+        np_util_statemachine_invoke_auto_transition(&handshake_key->sm, handshake_evt);
     }
     else
     {
@@ -243,6 +250,16 @@ void __np_identity_extract_handshake(np_util_statemachine_t* statemachine, const
     }
 
     __np_cleanup__:
-        np_memory_free(context, message);
+        np_memory_free(context, raw_message);
+        np_unref_obj(np_message_t, msg_in, "");
         return;
 } 
+
+bool __is_auth_nz_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{}
+void __np_identity_handle_auth_nz(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{}
+bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{} // check for local identity validity 
+void __np_identity_handle_account(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{}
