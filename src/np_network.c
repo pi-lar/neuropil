@@ -827,7 +827,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container->data, 
                                          .context=context, .target_dhkey=search_key };
 
-            np_key_t*  alias_key = _np_keycache_find(context, search_key);
+            np_key_t* alias_key = _np_keycache_find(context, search_key);
 
             if (NULL == alias_key || FLAG_CMP(ng->socket_type, TCP) )
             {

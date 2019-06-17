@@ -283,8 +283,8 @@ np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check)
     return ret;
 }
 
-double _np_message_get_expiery(const np_message_t* const self) {
-
+double _np_message_get_expiery(const np_message_t* const self) 
+{
     np_ctx_memory(self); 
     double now = np_time_now();
     double ret = now;
@@ -334,11 +334,11 @@ bool _np_message_is_expired(const np_message_t* const self)
 
 bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t args)
 {	
-    
-
     cmp_ctx_t cmp;
     np_messagepart_ptr part = NULL;
-    _LOCK_ACCESS(&args.msg->msg_chunks_lock){
+
+    _LOCK_ACCESS(&args.msg->msg_chunks_lock)
+    {
         assert(args.msg->msg_chunks != NULL);
         pll_iterator(np_messagepart_ptr) first =  pll_first(args.msg->msg_chunks);
         assert(first != NULL);
@@ -443,8 +443,7 @@ bool _np_message_serialize_chunked(np_message_t* msg)
 
         // current_chunk_size = cmp.buf - part->msg_part;
         if (NULL == bin_header)
-        {
-            // TODO: optimize memory handling and allocate memory during serialization
+        {   // TODO: optimize memory handling and allocate memory during serialization
             bin_header = malloc(msg->header->byte_size);
             CHECK_MALLOC(bin_header);
 
@@ -870,13 +869,29 @@ bool _np_message_deserialize_chunked(np_message_t* msg)
  */
 void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data)
 {
-    // np_ctx_memory(msg);
+    np_ctx_memory(msg);
     // np_message_t* new_msg;
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
+    np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
 
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(to));
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(from));
+
+    // insert a uuid if not yet present
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
+    // insert timestamp and time-to-live
+    double now = np_time_now();
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(out_prop->msg_ttl));
+    // insert msg acknowledgement indicator
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(out_prop->ack_mode));
+    // insert message chunking placeholder
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
+    // set re-send count to zero if not yet present
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
+    // placeholder for incrementing sequence counter
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
 
     if (the_data != NULL)
     {

@@ -93,8 +93,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __join_req->ack_mode = ACK_NONE;
     __join_req->retry = 5;
 
-    sll_append(np_evt_callback_t, __join_req->clb_inbound, _np_in_join_req);
-    // sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out_join_req);
+    sll_append(np_evt_callback_t, __join_req->clb_inbound,  _np_in_join_req);
+    sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out_join_req);
 
     //default: sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out);
     //sll_append(np_evt_callback_t, __join_req->clb_transform, _np_never_called_jobexec_transform);

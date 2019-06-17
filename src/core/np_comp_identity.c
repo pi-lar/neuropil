@@ -24,7 +24,6 @@
 bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
 
     np_ctx_memory(statemachine->_user_data);
-
     log_debug_msg(LOG_DEBUG, "start: void __is_identity_aaatoken(...){");
 
     bool ret = false;
@@ -41,11 +40,11 @@ bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_
     }
     return ret;
 }
+
 // IN_USE -> IN_DESTROY transition condition / action #1
 bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-
     log_debug_msg(LOG_DEBUG, "start: void __is_identity_invalid(...){");
 
     bool ret = false;
@@ -58,7 +57,10 @@ bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_e
         ret &= (  identity->type == np_aaatoken_type_identity                             ) ||
                ( (identity->type == np_aaatoken_type_node) && identity->private_key_is_set);
         ret &= !_np_aaatoken_is_valid(identity, identity->type);
+        
+        log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", my_identity_key, identity, identity->type);
     }
+
     return ret;
 }
 
@@ -72,12 +74,11 @@ void __np_identity_update(np_util_statemachine_t* statemachine, const np_util_ev
 void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {    
     np_ctx_memory(statemachine->_user_data);
-
     log_debug_msg(LOG_DEBUG, "start: void __np_identity_destroy(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
-    NP_CAST( sll_first(my_identity_key->entities)->val, np_aaatoken_t, identity );
+    NP_CAST( sll_first(my_identity_key->entities)->val, np_aaatoken_t, identity);
     np_unref_obj(np_aaatoken_t, identity, ref_key_aaa_token);
 
     _np_keycache_remove(context, my_identity_key->dhkey);
@@ -96,29 +97,32 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     NP_CAST(event.user_data, np_aaatoken_t, identity);
 
-    np_ref_switch(np_aaatoken_t, identity, ref_key_aaa_token, identity);
-
     if (FLAG_CMP(identity->type, np_aaatoken_type_node) )
     {
         my_identity_key->type |= np_key_type_node;
 
         sll_append(void_ptr, my_identity_key->entities, identity);
+        np_ref_obj(np_aaatoken_t, identity, "__np_set_identity");
+    
         context->my_node_key = my_identity_key;
 
         if (NULL == context->my_identity) 
         {
             my_identity_key->type |= np_key_type_ident;
             context->my_identity = my_identity_key;
+            np_ref_obj(np_aaatoken_t, identity, "__ref_my_identity");
         }
         log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, identity, identity->type);
     }
     else if(FLAG_CMP(identity->type, np_aaatoken_type_identity) )
     {
         sll_append(void_ptr, my_identity_key->entities, identity);
-
+        np_ref_obj(np_aaatoken_t, identity, "__np_set_identity");
+    
         if (NULL == context->my_identity || context->my_identity == context->my_node_key)
         {
             context->my_identity = my_identity_key;
+            np_ref_obj(np_aaatoken_t, identity, "__ref_my_identity");
         }
         log_debug_msg(LOG_DEBUG, "context->my_identity =  %p %p %d", context->my_identity, identity, identity->type);
     }
@@ -140,7 +144,7 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     _np_aaatoken_update_extensions_signature(identity);
     identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
     
-    _np_statistics_update_prometheus_labels(context, NULL);
+    // _np_statistics_update_prometheus_labels(context, NULL);
 
 #ifdef DEBUG
     char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';

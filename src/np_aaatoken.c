@@ -83,11 +83,16 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
     aaa_token->type = np_aaatoken_type_undefined;
     aaa_token->scope = np_aaatoken_scope_undefined;
     aaa_token->issuer_token = aaa_token;
+    
+    log_debug_msg(LOG_DEBUG, "token %p / extensions %p", aaa_token, aaa_token->extensions);
+
 }
 
 void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
+
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
+    log_debug_msg(LOG_DEBUG, "token %p / extensions %p", aaa_token, aaa_token->extensions);
 
     
     // clean up extensions
@@ -117,7 +122,8 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
 {
     log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");
 
-    if(trace) _np_aaatoken_trace_info("encode", token);
+    np_state_t* context = np_ctx_by_memory(token);
+    // if(trace) _np_aaatoken_trace_info("encode", token);
     // included into np_token_handshake
     
     np_tree_replace_str( data, "np.t.type", np_treeval_new_ush(token->type));
@@ -132,6 +138,8 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
     np_tree_replace_str( data, "np.t.ia",   np_treeval_new_d(token->issued_at));
     np_tree_replace_str( data, "np.t.nb",   np_treeval_new_d(token->not_before));
     np_tree_replace_str( data, "np.t.si",   np_treeval_new_bin(token->signature, crypto_sign_BYTES));
+
+    log_debug_msg(LOG_DEBUG, "token %p / extensions %p", token, token->extensions);
 
     np_tree_replace_str( data, "np.t.e",    np_treeval_new_tree(token->extensions));
 

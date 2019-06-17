@@ -47,6 +47,7 @@
 #include "np_util.h"
 #include "np_shutdown.h"
 #include "np_bootstrap.h"
+#include "np_tree.h"
 
 #include "np_settings.h"
 #include "np_constants.h"
@@ -483,36 +484,6 @@ char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char*
 
 np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) 
 {
-    assert(target!= NULL);
-    np_ctx_memory(target);
-
-    log_trace_msg(LOG_TRACE, "start: void _np_send_simple_invoke_request(np_key_t* target, const char* subject) {");
-
-    np_tree_t* jrb_data     = np_tree_create();
-    np_tree_t* jrb_my_node  = np_tree_create();
-    np_tree_t* jrb_my_ident = NULL;
-
-    np_aaatoken_encode(jrb_my_node, context->my_node_key->aaa_token);
-    np_tree_insert_str( jrb_data, "_np.token.node", np_treeval_new_tree(jrb_my_node));
-
-    if(_np_key_cmp(context->my_identity, context->my_node_key) != 0){
-        jrb_my_ident = np_tree_create();
-        np_aaatoken_encode(jrb_my_ident, context->my_identity->aaa_token);
-        np_tree_insert_str(jrb_data, "_np.token.ident", np_treeval_new_tree(jrb_my_ident));
-    }
-
-    np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out, FUNC);
-    _np_message_create(msg_out, target->dhkey, context->my_node_key->dhkey, subject, jrb_data);
-
-    log_debug_msg(LOG_DEBUG, "submitting request to target key %s", _np_key_as_str(target));
-    np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, subject);
-    _np_job_submit_msgout_event(context, 0.0, prop, target, msg_out);
-
-    np_tree_free(jrb_my_node);
-    if (NULL != jrb_my_ident) np_tree_free(jrb_my_ident);
-
-    return msg_out;	
 }
 
 void _np_send_simple_invoke_request(np_key_t* target, const char* type) 
@@ -569,13 +540,13 @@ void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum ty
     assert(msg_to_ack != NULL);
     np_state_t* context = np_ctx_by_memory(msg_to_ack);
 
-    CHECK_STR_FIELD_BOOL(msg_to_ack->instructions, _NP_MSG_INST_ACK, msg_ack_mode, "NO ACK MODE DEFINED FOR msg %s", msg_to_ack->uuid) 
+    CHECK_STR_FIELD_BOOL(msg_to_ack->instructions, _NP_MSG_INST_ACK, msg_ack_mode, "NO ACK MODE DEFINED FOR msg") 
     {
         if(FLAG_CMP(msg_ack_mode->val.value.ush, type)) 
         {
             uint32_t seq = 0;
 
-            CHECK_STR_FIELD_BOOL(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to, "ACK target missing for msg %s", msg_to_ack->uuid)
+            CHECK_STR_FIELD_BOOL(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to, "ACK target missing for msg")
             {
                 np_dhkey_t ack_dhkey = ack_to->val.value.dhkey;
 

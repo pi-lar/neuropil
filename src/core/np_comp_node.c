@@ -251,20 +251,20 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
          (trinity.node->handshake_send_at + hs_prop->msg_ttl) < now       )
     {
         np_key_t* hs_key = _np_keycache_find(context, hs_dhkey);
-        np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=NULL, .target_dhkey=node_key->dhkey };
+        np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=hs_key, .target_dhkey=node_key->dhkey };
         np_util_statemachine_invoke_auto_transition(&hs_key->sm, handshake_event);
 
-        trinity.node->handshake_send_at = np_time_now();
         trinity.node->_handshake_status++;
+        trinity.node->handshake_send_at = np_time_now();
         
         log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now         : %p / %p %d", node_key, trinity.node, trinity.node->_handshake_status);
-    } 
+    }
     else if (trinity.node->joined_network == false && 
             (trinity.node->join_send_at + join_prop->msg_ttl) < now ) 
     {
         np_key_t* join_key = _np_keycache_find(context, join_dhkey);
-        np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=NULL, .target_dhkey=node_key->dhkey };
-        np_util_statemachine_invoke_auto_transition(&join_key->sm, handshake_event);
+        np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=join_key, .target_dhkey=node_key->dhkey };
+        np_util_statemachine_invoke_auto_transition(&join_key->sm, join_event);
 
         trinity.node->join_send_at = np_time_now();
     }
@@ -411,71 +411,74 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
     log_debug_msg(LOG_TRACE, "start: void __np_node_send_encrypted(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
-    NP_CAST(event.user_data, np_message_t, message);
+    NP_CAST(event.user_data, np_messagepart_t, part);
 
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
-    int part = 0;
-    pll_iterator(np_messagepart_ptr) iter = pll_first(message->msg_chunks);
-    while (NULL != iter )
+    struct __np_node_trinity my_trinity = {0};
+    __np_key_to_trinity(context->my_node_key, &my_trinity);
+
+    // replace with our onw local sequence number for next hop
+    np_tree_replace_str(part->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(my_trinity.network->seqend++));
+    // increase resend counter for hop measurement
+    np_tree_elem_t* jrb_send_counter = np_tree_find_str(part->instructions, _NP_MSG_INST_SEND_COUNTER);
+    jrb_send_counter->val.value.ush++;
+    
+    // add protection from replay attacks ...
+    unsigned char nonce[crypto_secretbox_NONCEBYTES];
+    // TODO: move nonce to np_node_t and re-use it with increments ?
+    randombytes_buf(nonce, sizeof(nonce));
+
+    _np_crypto_
+    unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
+    int encryption = crypto_secretbox_easy(enc_msg,
+        part->msg_part,
+        MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
+        nonce,
+        trinity.node->session.session_key_to_write
+    );
+
+    log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
+        "HANDSHAKE SECRET: using shared secret from target %s on system %s to encrypt data (msg: %s)",
+        _np_key_as_str(node_key), _np_key_as_str(context->my_node_key), part->uuid);
+
+    if (encryption != 0)
     {
-        part++;
+        log_msg(LOG_ERROR,
+            "incorrect encryption of message (%s) (not sending to %s:%s)",
+            part->uuid, trinity.node->dns_name, trinity.node->port);
+    } 
+    else
+    {
+        unsigned char* enc_buffer = np_memory_new(context, np_memory_types_BLOB_1024);
+        
+        uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
+        memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
+        memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
-        // add protection from replay attacks ...
-        unsigned char nonce[crypto_secretbox_NONCEBYTES];
-        // TODO: move nonce to np_node_t and re-use it with increments ?
-        randombytes_buf(nonce, sizeof(nonce));
+        /* send data */
+        if (NULL != trinity.network->out_events) {
+            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %d) %p (%d bytes) to queue for %s:%s", part->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port);
+            char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
 
-        unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
-        int encryption = crypto_secretbox_easy(enc_msg,
-            (const unsigned char*)iter->val,
-            MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
-            nonce,
-            trinity.node->session.session_key_to_write
-        );
-
-        log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
-            "HANDSHAKE SECRET: using shared secret from target %s on system %s to encrypt data (msg: %s)",
-            _np_key_as_str(node_key), _np_key_as_str(context->my_node_key), message->uuid);
-
-        if (encryption != 0)
-        {
-            log_msg(LOG_ERROR,
-                "incorrect encryption of message (%s) (not sending to %s:%s)",
-                message->uuid, trinity.node->dns_name, trinity.node->port);
-        } 
-        else
-        {
-            unsigned char* enc_buffer = np_memory_new(context, np_memory_types_BLOB_1024);
+            log_debug_msg(LOG_NETWORK | LOG_DEBUG,
+                "(msg: %s) %s",
+                part->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
             
-            uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
-            memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
-            memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
-
-            /* send data */
-            if (NULL != trinity.network->out_events) {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %d) %p (%d bytes) to queue for %s:%s", message->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port);
-                char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
-
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                    "(msg: %s) %s",
-                    message->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
-                
-                sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);                                    
-                _np_network_start(trinity.network, false);
+            sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);                                    
+            _np_network_start(trinity.network, false);
 #ifdef DEBUG
-                if(!trinity.network->is_running){
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) cannot be send (now) as network is not running", message->uuid);
-                }
-#endif
-            } else {
-                log_debug_msg(LOG_INFO, "Dropping data package for msg %s due to not initialized out_events", message->uuid);
-                np_memory_free(context, enc_buffer);
+            if(!trinity.network->is_running){
+                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) cannot be send (now) as network is not running", part->uuid);
             }
+#endif
+        } else {
+            log_debug_msg(LOG_INFO, "Dropping data package for msg %s due to not initialized out_events", part->uuid);
+            np_memory_free(context, enc_buffer);
         }
-        pll_next(iter);
     }
+    free(part->uuid);
 }
 
 bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -502,20 +505,24 @@ bool __is_handshake_message(np_util_statemachine_t* statemachine, const np_util_
     bool ret = false;
     
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
-    NP_CAST(event.user_data, np_message_t, hs_message);
 
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_message));
     if ( ret) ret &= (node_key->type == np_key_type_wildcard || node_key->type == np_key_type_node);
-    if ( ret) ret &= _np_memory_rtti_check(hs_message, np_memory_types_np_message_t);
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
     if ( ret) {
-        /* TODO: make it working and better! 
-        char str_msg_subject[65];
+        
+        NP_CAST(event.user_data, np_message_t, hs_message);
+
+        /* TODO: make it working and better! */
         CHECK_STR_FIELD_BOOL(hs_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
-            ret &= (0 == strncmp(str_msg_subject, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
+            ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
+            goto __np_return__;
         }
-        */
+        __np_cleanup__:
+            ret = false;
     }
-    return ret;
+    __np_return__:
+        return ret;
 }
 
 bool __is_join_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -524,19 +531,20 @@ bool __is_join_message(np_util_statemachine_t* statemachine, const np_util_event
     log_debug_msg(LOG_TRACE, "start: bool __is_join_message(...) {");
 
     bool ret = false;
-    
-    NP_CAST(event.user_data, np_message_t, hs_message);
 
     if (!ret) ret  = FLAG_CMP(event.type, evt_message);
     if ( ret) ret &= (FLAG_CMP(event.type, evt_internal) || FLAG_CMP(event.type, evt_external));
-    if ( ret) ret &= _np_memory_rtti_check(hs_message, np_memory_types_np_message_t);
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
     if ( ret) {
-        /* TODO: make it working and better! 
-        char str_msg_subject[65];
-        CHECK_STR_FIELD_BOOL(hs_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
-            ret &= (0 == strncmp(str_msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_HANDSHAKE)) );
+        NP_CAST(event.user_data, np_messagepart_t, join_message);
+        /* TODO: make it working and better! */
+        CHECK_STR_FIELD_BOOL(join_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
+            ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) );
+            goto __np_return__;
         }
-        */
+        __np_cleanup__:
+            ret = false;
     }
-    return ret;
+    __np_return__:
+        return ret;
 }

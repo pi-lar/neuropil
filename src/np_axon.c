@@ -142,9 +142,7 @@ void _np_out_ack(np_state_t* context, np_util_event_t msg_event)
  **/
 void _np_out(np_state_t* context, np_util_event_t msg_event)
 {
-    /*
-    log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_util_event_t msg_event){");
-    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 1");
+/*    log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_util_event_t msg_event){");
 
     uint32_t seq = 0;
     np_message_t* msg_out = args.msg;
@@ -344,7 +342,6 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
 
             bool reschedule_msg_transmission = false;
 
-
             if (true == ack_to_is_me || (!is_forward && sll_size(msg_out->on_reply) > 0))
             {
                 if (false == is_resend && false == is_forward)
@@ -449,6 +446,57 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
     */
 }
 
+void _np_out_join_req(np_state_t* context, const np_util_event_t event)
+{
+    log_trace_msg(LOG_TRACE, "start: void _np_out_join_req(...) {");
+
+    np_tree_t* jrb_data     = np_tree_create();
+    np_tree_t* jrb_my_node  = np_tree_create();
+    np_tree_t* jrb_my_ident = NULL;
+
+    NP_CAST(event.user_data, np_key_t, property_key);
+    np_key_t* target = _np_keycache_find(context, event.target_dhkey);
+
+    // TODO: each step could be done ia a separate callback of type np_evt_callback_T
+    // problem: how to pass the data back and forth
+
+    // 1: create join payload
+    np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
+    np_tree_insert_str( jrb_data, "_np.token.node", np_treeval_new_tree(jrb_my_node));
+
+    if(_np_key_cmp(context->my_identity, context->my_node_key) != 0) {
+        jrb_my_ident = np_tree_create();
+        np_aaatoken_encode(jrb_my_ident, _np_key_get_token(context->my_identity));
+        np_tree_insert_str(jrb_data, "_np.token.ident", np_treeval_new_tree(jrb_my_ident));
+    }
+
+    // 2: create message  and add payload
+    np_message_t* msg_out = NULL;
+    np_new_obj(np_message_t, msg_out, FUNC);
+    _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_JOIN_REQUEST, jrb_data);
+
+    // 3: chunk the message if required
+    // TODO: send two separate messages?
+    _np_message_calculate_chunking(msg_out);
+    _np_message_serialize_chunked(msg_out);
+
+    // 4: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(msg_out->msg_chunks);
+
+    while (NULL != iter) {
+        iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting join request to target key %s / %p", _np_key_as_str(target), target);
+        np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+        np_util_statemachine_invoke_auto_transition(&target->sm, join_event);
+        pll_next(iter);
+    }
+
+    // 5 cleanup
+    np_unref_obj(np_key_t, target, "_np_keycache_find");
+    np_tree_free(jrb_my_node);
+    if (NULL != jrb_my_ident) np_tree_free(jrb_my_ident);
+}
+
 void _np_out_handshake(np_state_t* context, const np_util_event_t event)
 {
     log_debug_msg(LOG_TRACE, "start: void _np_out_handshake(...) {");
@@ -477,11 +525,12 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
         np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
 
         np_tree_insert_str( my_token->extensions, NP_HS_PRIO, np_treeval_new_ul(my_node->handshake_priority));
-        if (event.user_data != NULL)
+
+        /*if (event.user_data != NULL)
         {
             np_tree_insert_str(my_token->extensions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(event.user_data));
             free(event.user_data);
-        }
+        }*/
         _np_aaatoken_update_extensions_signature(my_token);
         
         np_aaatoken_encode(hs_message->body, my_token);

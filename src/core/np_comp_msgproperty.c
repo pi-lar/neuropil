@@ -736,7 +736,6 @@ bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_
 void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-
     log_debug_msg(LOG_TRACE, "start: void _np_set_property(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t,         my_property_key);
@@ -864,7 +863,7 @@ void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np
         {
             if (iter->val != NULL) 
             {
-                // iter->val(context, my_jobargs->msg);
+                // iter->val(context, event);
             }
             sll_next(iter);
         }
