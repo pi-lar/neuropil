@@ -251,8 +251,6 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* msg_token);
 NP_API_INTERN
-void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token);
-NP_API_INTERN
 int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 NP_API_INTERN
 void _np_aaatoken_update_scope(np_aaatoken_t* self);

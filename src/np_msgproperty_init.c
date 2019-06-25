@@ -108,22 +108,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     np_new_obj(np_msgproperty_t, __join_ack, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __join_ack);
 
-    __join_ack->msg_subject = strdup(_NP_MSG_JOIN_ACK);
-    __join_ack->rep_subject = NULL;
-    __join_ack->mode_type = INBOUND | OUTBOUND | ROUTE;
-    __join_ack->mep_type = ONE_WAY;
-    __join_ack->priority = 0;
-    __join_ack->ack_mode = ACK_NONE;
-    __join_ack->retry = 5;
-    sll_append(np_evt_callback_t, __join_ack->clb_inbound, _np_in_join_ack);
-    //default: sll_append(np_evt_callback_t, __join_ack->clb_outbound, _np_out);
-    //sll_append(np_evt_callback_t, __join_ack->clb_transform, _np_never_called_jobexec_transform);
-    //sll_append(np_evt_callback_t, __join_ack->clb_route, _np_never_called_jobexec_route);
-    __join_ack->msg_ttl = 5.0;
-    __join_ack->max_threshold = UINT16_MAX;
-    __join_ack->token_max_ttl = 30;
-    __join_ack->token_min_ttl = 20;
-
     np_msgproperty_t* __join_nack = NULL;
     np_new_obj(np_msgproperty_t, __join_nack, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __join_nack);

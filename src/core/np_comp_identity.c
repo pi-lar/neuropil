@@ -9,6 +9,8 @@
 
 #include "core/np_comp_identity.h"
 
+#include "stdint.h"
+#include "inttypes.h"
 #include "neuropil.h"
 #include "np_aaatoken.h"
 #include "np_key.h"
@@ -57,7 +59,7 @@ bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_e
         ret &= (  identity->type == np_aaatoken_type_identity                             ) ||
                ( (identity->type == np_aaatoken_type_node) && identity->private_key_is_set);
         ret &= !_np_aaatoken_is_valid(identity, identity->type);
-        
+        // ret &= (identity->expires_at < np_time_now());
         log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", my_identity_key, identity, identity->type);
     }
 
@@ -225,9 +227,8 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
                   "deserialized message %s (source: \"%s\")", msg_in->uuid, event.user_data);
     _np_message_trace_info("in", msg_in);
 
-    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE (%s)", msg_in->uuid);
-
-    char* str_msg_subject = msg_subject->val.value.s;
+    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE");
+    const char* str_msg_subject = msg_subject->val.value.s;
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
 
@@ -260,10 +261,51 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 } 
 
 bool __is_auth_nz_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{}
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_ERROR, "start: void __is_auth_nz_request(...){");
+
+    bool ret = false;
+    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+    
+    if (!ret) ret  = (FLAG_CMP(event.type, evt_authn) || FLAG_CMP(event.type, evt_authz) );
+    if ( ret) ret &=  FLAG_CMP(event.type, evt_external && FLAG_CMP(event.type, evt_token) );
+    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
+    if ( ret) {
+        NP_CAST(event.user_data, np_aaatoken_t, token);
+        ret &= (token->type == np_aaatoken_type_identity || token->type == np_aaatoken_type_node);
+        ret &= _np_aaatoken_is_valid(token, token->type);
+        log_debug_msg(LOG_ERROR, "context->my_node_key =  %p %p %d", my_identity_key, token, token->type);
+    }
+    return ret;
+}
+
 void __np_identity_handle_auth_nz(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{}
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_ERROR, "start: void __np_identity_handle_auth_nz(...){");
+
+    NP_CAST(event.user_data, np_aaatoken_t, authn_token);
+
+    if ( !FLAG_CMP(authn_token->state, AAA_AUTHENTICATED) ) 
+    {
+        log_debug_msg(LOG_DEBUG, "now checking (join/ident) authentication of token");
+        struct np_token tmp_user_token = { 0 };
+        bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, authn_token));
+        log_debug_msg(LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
+
+        if (true == join_allowed)
+        {
+            np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
+            np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+            np_util_statemachine_invoke_auto_transition(&target_key->sm, authn_event);
+            np_unref_obj(np_aaatoken_t, target_key, "_np_keycache_find");
+        }
+    }
+}
+
 bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {} // check for local identity validity 
+
 void __np_identity_handle_account(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {}

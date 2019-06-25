@@ -78,7 +78,7 @@ bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_e
 NP_API_INTERN
 bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-bool __is_join_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_join_out_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_handshake_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN

@@ -832,7 +832,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 
         // np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, 0.0, MISC_MEMORY_REFRESH_INTERVAL_SEC, _np_memory_job_memory_management, "_np_memory_job_memory_management");
 
-        // np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
+        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC, _np_event_cleanup_msgpart_cache, "_np_event_cleanup_msgpart_cache");
 
         // np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_RESPONSECONTAINER_CLEANUP_INTERVAL_SEC, _np_cleanup_ack_jobexec, "_np_cleanup_ack_jobexec");
         // np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_cleanup_keycache_jobexec, "_np_cleanup_keycache_jobexec");

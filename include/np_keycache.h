@@ -77,7 +77,7 @@ NP_API_INTERN
 np_key_t* _np_keycache_find_by_details(
 	np_state_t* context,
 	char* details_container, bool search_myself, 
-	enum np_handshake_status search_handshake_status, bool require_handshake_status, 
+	enum np_node_status search_handshake_status, bool require_handshake_status, 
 	bool require_dns, bool require_port, bool require_hash );
 
 NP_API_INTERN

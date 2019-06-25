@@ -824,10 +824,10 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
             // we registered this token info before in the first handshake message
             np_dhkey_t search_key = np_dhkey_create_from_hostport( data_container->ipstr, data_container->port);
+            np_key_t* alias_key = _np_keycache_find(context, search_key);
+
             np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container->data, 
                                          .context=context, .target_dhkey=search_key };
-
-            np_key_t* alias_key = _np_keycache_find(context, search_key);
 
             if (NULL == alias_key || FLAG_CMP(ng->socket_type, TCP) )
             {

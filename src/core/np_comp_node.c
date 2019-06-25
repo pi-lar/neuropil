@@ -162,7 +162,20 @@ bool __is_wildcard_key(np_util_statemachine_t* statemachine, const np_util_event
 
 bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
-    return false;
+    // { .type=(evt_internal|evt_token), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_node_authn(...) {");
+
+    bool ret = false;
+    
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    NP_CAST(event.user_data, np_node_t, my_node);
+
+    if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_token) );
+    if ( ret) ret &=  FLAG_CMP(event.type, evt_authn);
+    if ( ret) ret &= _np_memory_rtti_check(my_node, np_memory_types_np_aaatoken_t);
+
+    return ret;
 }
 
 void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -217,16 +230,6 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
     // issue ping / piggy messages
 }
 
-void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{   
-
-}
-
-void __np_node_update_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{   
-    // comapare new and old node token, take over changes
-}
-
 void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 { 
     np_ctx_memory(statemachine->_user_data);
@@ -247,7 +250,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
 
     log_debug_msg(LOG_DEBUG, "node_status: %d %f", trinity.node->_handshake_status, trinity.node->handshake_send_at);
 
-    if ( trinity.node->_handshake_status < np_handshake_status_Connected && 
+    if ( trinity.node->_handshake_status < np_status_Connected && 
          (trinity.node->handshake_send_at + hs_prop->msg_ttl) < now       )
     {
         np_key_t* hs_key = _np_keycache_find(context, hs_dhkey);
@@ -259,7 +262,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
         
         log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now         : %p / %p %d", node_key, trinity.node, trinity.node->_handshake_status);
     }
-    else if (trinity.node->joined_network == false && 
+    else if (trinity.node->_joined_status < np_status_Connected && 
             (trinity.node->join_send_at + join_prop->msg_ttl) < now ) 
     {
         np_key_t* join_key = _np_keycache_find(context, join_dhkey);
@@ -267,7 +270,53 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
         np_util_statemachine_invoke_auto_transition(&join_key->sm, join_event);
 
         trinity.node->join_send_at = np_time_now();
+        trinity.node->_joined_status++;
     }
+}
+
+void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_DEBUG, "start: void __np_node_upgrade(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+    NP_CAST(event.user_data, np_aaatoken_t, token);
+
+    // if this is an alias, trigger the state transition of the correpsonding node key
+    if (FLAG_CMP(alias_key->type, np_key_type_alias)) 
+    {
+        np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
+        np_key_t* node_key = _np_keycache_find(context, token_fp);
+
+        np_util_statemachine_invoke_auto_transition(&node_key->sm, event);
+
+        np_unref_obj(np_key_t, node_key, "_np_keycache_find");
+
+    } else {
+        // node key and alias key share the same data structures, updating once counts for both
+        struct __np_node_trinity trinity = {0};
+        __np_key_to_trinity(alias_key, &trinity);
+
+        // eventually send out our own data for mtls
+        __np_node_handle_completion(&alias_key->sm, event);
+
+        if (FLAG_CMP(trinity.token->type, np_aaatoken_type_handshake)) {
+            np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
+            token->state |= AAA_AUTHENTICATED;
+            trinity.token = token;
+            trinity.node->_joined_status++;
+            np_ref_obj(np_aaatoken_t, trinity.token, "__np_node_upgrade");
+        } 
+        if (FLAG_CMP(trinity.token->type, np_aaatoken_type_node) ) {
+            trinity.token->state |= AAA_AUTHENTICATED;    
+            trinity.node->_joined_status++;
+        }
+    }
+}
+
+void __np_node_update_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   
+    // comapare new and old node token, take over changes
 }
 
 void __np_wildcard_finalize(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -430,7 +479,6 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
     // TODO: move nonce to np_node_t and re-use it with increments ?
     randombytes_buf(nonce, sizeof(nonce));
 
-    _np_crypto_
     unsigned char enc_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES];
     int encryption = crypto_secretbox_easy(enc_msg,
         part->msg_part,
@@ -518,23 +566,23 @@ bool __is_handshake_message(np_util_statemachine_t* statemachine, const np_util_
             ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
             goto __np_return__;
         }
-        __np_cleanup__:
-            ret = false;
+        ret = false;
     }
     __np_return__:
         return ret;
 }
 
-bool __is_join_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_join_out_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_join_message(...) {");
+    log_debug_msg(LOG_TRACE, "start: bool __is_join_out_message(...) {");
 
     bool ret = false;
 
     if (!ret) ret  = FLAG_CMP(event.type, evt_message);
-    if ( ret) ret &= (FLAG_CMP(event.type, evt_internal) || FLAG_CMP(event.type, evt_external));
-    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
+    if ( ret) ret &= (event.user_data != NULL);
+
+    if ( ret) ret &= (FLAG_CMP(event.type, evt_internal) && _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t) );
     if ( ret) {
         NP_CAST(event.user_data, np_messagepart_t, join_message);
         /* TODO: make it working and better! */
@@ -542,8 +590,7 @@ bool __is_join_message(np_util_statemachine_t* statemachine, const np_util_event
             ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) );
             goto __np_return__;
         }
-        __np_cleanup__:
-            ret = false;
+        ret = false;
     }
     __np_return__:
         return ret;

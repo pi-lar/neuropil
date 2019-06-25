@@ -23,13 +23,13 @@
 extern "C" {
 #endif
 
-	enum np_handshake_status {
-		np_handshake_status_Disconnected    = 0,
-		np_handshake_status_SelfInitiated   = 1,
-		np_handshake_status_RemoteInitiated = 1,
-		np_handshake_status_Connected       = 2,
+	enum np_node_status {
+		np_status_Disconnected    = 0,
+		np_status_SelfInitiated   = 1,
+		np_status_RemoteInitiated = 1,
+		np_status_Connected       = 2,
 	};
-	static const char* np_handshake_status_str[] = {
+	static const char* np_node_status_str[] = {
 		"Disconnected",
 		"SelfInitiated",
 		"RemoteInitiated",
@@ -49,10 +49,11 @@ struct np_node_s
 	char* port;
 
 	// state extension
-	enum np_handshake_status _handshake_status;
+	enum np_node_status _handshake_status;
 	double handshake_send_at; 		
 	uint32_t handshake_priority;
 
+	enum np_node_status _joined_status; 
 	double join_send_at;
 	bool joined_network; 
 	np_crypto_session_t session;
@@ -142,7 +143,7 @@ int _np_node_cmp(np_node_t* a, np_node_t* b);
 #else
 #define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, NULL, 0)
 #endif
-void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func, int line);
+void _np_node_set_handshake(np_node_t* self, enum np_node_status set_to, char* func, int line);
 
 
 #ifdef __cplusplus

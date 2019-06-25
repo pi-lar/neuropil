@@ -242,7 +242,7 @@ bool _np_in_received_forwarding(
  ** is called by network_activate and will be passed received data and size from socket
  */
 void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
-{
+{/*
     log_trace_msg(LOG_TRACE, "start: void _np_in_received(np_jobargs_t* args){");
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "received msg");
     char* str_msg_subject;
@@ -284,7 +284,6 @@ void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
                                 msg_in->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, raw_msg, MSG_CHUNK_SIZE_1024)
                             );
                         #endif
-
                     }
                     np_memory_free(context, raw_msg);
                     
@@ -336,7 +335,7 @@ void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
                             }
                             else if(alias_key->node->joined_network || is_direct_msg)
                             {
-                                /* real receive part */
+                                // real receive part
                                 CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_TO, msg_to, "NO TO IN MESSAGE (%s)", msg_in->uuid) {
                                     CHECK_STR_FIELD_BOOL(msg_in->instructions, _NP_MSG_INST_TTL, msg_ttl, "NO TTL IN MESSAGE (%s)", msg_in->uuid) {
                                         CHECK_STR_FIELD_BOOL(msg_in->instructions, _NP_MSG_INST_TSTAMP, msg_tstamp, "NO TSTAMP IN MESSAGE (%s)", msg_in->uuid) {
@@ -364,12 +363,11 @@ void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
                                                     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) message ttl not expired", msg_in->uuid);
 
                                                     np_dhkey_t target_dhkey = msg_to->val.value.dhkey;
-                                                    /*
-                                                        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                                                            "target of msg (%s) is %s i am %s",
-                                                            msg_in->uuid, msg_to, _np_key_as_str(context->my_node_key)
-                                                        );
-                                                    */
+                                                    
+                                                    //    log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                                                    //        "target of msg (%s) is %s i am %s",
+                                                    //        msg_in->uuid, msg_to, _np_key_as_str(context->my_node_key)
+                                                    //    );
 
                                                     // check if inbound subject handler exists
                                                     np_msgproperty_t* handler = _np_msgproperty_get(context, INBOUND, str_msg_subject);
@@ -420,6 +418,7 @@ void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
     }
     // __np_return__:
     return;
+    */
 }
 
 void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, bool allow_destination_ack) {
@@ -711,50 +710,54 @@ void _np_in_leave_req(np_state_t* context, np_util_event_t msg_event)
  **/
 
 void _np_in_join_req(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_join_req(np_jobargs_t* args){");
+{
+    log_debug_msg(LOG_TRACE, "start: void _np_in_join_req(...){");
 
-    np_message_t* msg_out = NULL;
+    NP_CAST(msg_event.user_data, np_message_t, msg);
 
-    np_key_t* join_ident_key = NULL;
-    np_key_t* join_node_key = NULL;
-
+    np_key_t*  join_node_key = NULL;
     np_dhkey_t join_node_dhkey = { 0 };
     np_node_public_token_t* join_node_token = NULL;
+
     np_dhkey_t join_ident_dhkey = { 0 };
     np_ident_public_token_t* join_ident_token = NULL;
 
-    log_debug_msg(LOG_AAATOKEN | LOG_ROUTING , "check if node token is valid");
-    np_tree_elem_t* node_token_ele = np_tree_find_str(args.msg->body, "_np.token.node");
-    if (node_token_ele == NULL) {
+    np_util_event_t authn_event = { .context=context, .type=evt_authn|evt_external };
+    
+    np_tree_elem_t* node_token_ele = np_tree_find_str(msg->body, "_np.token.node");
+    if (node_token_ele == NULL) 
+    {
         // silently exit join protocol for invalid msg syntax
-        log_debug_msg(LOG_ROUTING | LOG_VERBOSE , "JOIN request: msg syntax");
+        log_debug_msg(LOG_TRACE, "JOIN request: bad msg syntax");
         goto __np_cleanup__;
     }
 
     join_node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
     if (join_node_token == NULL ) {
         // silently exit join protocol for unknown node tokens
-        log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: missing node token");
+        log_debug_msg(LOG_TRACE, "JOIN request: missing node token");
         goto __np_cleanup__;
     }
+
     if (!_np_aaatoken_is_valid(join_node_token, np_aaatoken_type_node)) {
         // silently exit join protocol for invalid token type
-        log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: invalid node token");
+        log_debug_msg(LOG_WARN, "JOIN request: invalid node token");
         goto __np_cleanup__;
     }
+
     log_debug_msg(LOG_AAATOKEN | LOG_ROUTING , "node token is valid");
     // build a hash to find a place in the dhkey table, not for signing !
     join_node_dhkey = np_aaatoken_get_fingerprint(join_node_token, false);
 
-    np_tree_elem_t* ident_token_ele = np_tree_find_str(args.msg->body, "_np.token.ident");	
+    np_tree_elem_t* ident_token_ele = np_tree_find_str(msg->body, "_np.token.ident");	
 
-    if (ident_token_ele != NULL) { // if not selfsigned
-
-    		join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
-        if (false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) {
+    if (ident_token_ele != NULL)
+    {    
+    	join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
+        if (false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) 
+        {
             // silently exit join protocol for invalid identity token
-            log_debug_msg(LOG_ROUTING | LOG_VERBOSE, "JOIN request: invalid identity token");
+            log_debug_msg(LOG_TRACE, "JOIN request: invalid identity token");
             goto __np_cleanup__;
         }
         log_debug_msg(LOG_AAATOKEN | LOG_ROUTING, "join token is valid");
@@ -764,7 +767,8 @@ void _np_in_join_req(np_state_t* context, np_util_event_t msg_event)
         np_dhkey_t zero_dhkey = { 0 };
         np_dhkey_t partner_of_ident_dhkey = np_aaatoken_get_partner_fp(join_ident_token);
         if (_np_dhkey_equal(&zero_dhkey,      &partner_of_ident_dhkey) == true ||
-        		_np_dhkey_equal(&join_node_dhkey, &partner_of_ident_dhkey) == false)  {
+        	_np_dhkey_equal(&join_node_dhkey, &partner_of_ident_dhkey) == false)  
+        {
             char fp_n[65], fp_p[65];
             _np_dhkey_str(&join_node_dhkey, fp_n);
             _np_dhkey_str(&partner_of_ident_dhkey, fp_p);
@@ -777,7 +781,8 @@ void _np_in_join_req(np_state_t* context, np_util_event_t msg_event)
 
         np_dhkey_t partner_of_node_dhkey = np_aaatoken_get_partner_fp(join_node_token);
         if (_np_dhkey_equal(&zero_dhkey,       &partner_of_node_dhkey) == true ||
-        		_np_dhkey_equal(&join_ident_dhkey, &partner_of_node_dhkey) == false)  {
+        	_np_dhkey_equal(&join_ident_dhkey, &partner_of_node_dhkey) == false) 
+        {
             char fp_i[65], fp_p[65];
             _np_dhkey_str(&join_ident_dhkey, fp_i);
             _np_dhkey_str(&partner_of_node_dhkey, fp_p);
@@ -787,38 +792,65 @@ void _np_in_join_req(np_state_t* context, np_util_event_t msg_event)
             );
             goto __np_cleanup__;
         }
-        // everything is fine and we can continue
-        join_ident_key = _np_keycache_find(context, join_ident_dhkey);
-        if (join_ident_key == NULL) {
-            join_ident_key = _np_keycache_find_or_create(context, join_ident_dhkey);
-        		np_ref_obj(np_aaatoken_t, join_ident_token, ref_key_aaa_token);
-        		join_ident_key->aaa_token = join_ident_token;
-        }
-    }
-    join_node_key = _np_keycache_find(context, join_node_dhkey);
-    if (join_node_key == NULL) {
-        // no handshake before join ? exit join protocol ...
-        goto __np_cleanup__;
-    }
-    else if (
-        join_node_key->node != NULL &&
-        join_node_key->node->joined_network == true)
-    {
-        // silently exit join protocol as we already joined this key
-        log_debug_msg(LOG_ROUTING | LOG_VERBOSE | LOG_DEBUG, "JOIN request: key already joined %s", _np_key_as_str(join_node_key));
-        goto __np_cleanup__;
-    }
 
-    _np_aaatoken_upgrade_handshake_token(join_node_key, join_node_token);
+        log_debug_msg(LOG_DEBUG, "JOIN request: identity %s would like to join", _np_key_as_str(join_node_key));
+        // everything is fine and we can continue        
+        authn_event.target_dhkey = join_ident_dhkey;
+        authn_event.user_data = join_ident_token;
+    }
+    
+    join_node_key = _np_keycache_find(context, join_node_dhkey);
+    if (join_node_key == NULL) 
+    {
+        // no handshake before join ? exit join protocol ...
+        log_debug_msg(LOG_DEBUG, "JOIN request: no corresponding node key found");
+        goto __np_cleanup__;
+    } 
+    else if (join_node_key != NULL && join_ident_token == NULL)
+    {   // pure node join without additional identity :-(
+        log_debug_msg(LOG_DEBUG, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
+        authn_event.target_dhkey = msg_event.target_dhkey;
+        authn_event.user_data = join_node_token;
+
+        np_util_statemachine_invoke_auto_transition(&context->my_identity->sm, authn_event);
+    }
+    else if(join_node_key != NULL && join_ident_token != NULL)
+    {   // update node token and wait for identity authentication
+        log_debug_msg(LOG_DEBUG, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
+        np_util_event_t token_event = { .context=context, .type=evt_token|evt_external };
+        token_event.target_dhkey = join_node_dhkey;
+        token_event.user_data = join_node_token;
+        // update node token
+        np_util_statemachine_invoke_auto_transition(&join_node_key->sm, token_event);
+        // identity authn
+        np_util_statemachine_invoke_auto_transition(&context->my_identity->sm, authn_event);
+    }
+    else
+    {   // silently exit join protocol as we already joined this key
+        log_debug_msg(LOG_DEBUG, "JOIN request: no corresponding identity key found");
+    }
+    
+    // authenticate identity key
+    
+    __np_cleanup__:
+        if (join_ident_token != NULL) {
+            np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
+            // np_unref_obj(np_key_t, join_ident_key, "_np_keycache_find_or_create");
+        }
+        np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
+        np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
+
+    return;
 
     // check for allowance of token by user defined function
+    /* 
     bool send_reply = false;
     if (join_ident_key != NULL)
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request: ident key %s", _np_key_as_str(join_ident_key));
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request:  node key %s", _np_key_as_str(join_node_key));
 
-
     struct np_token tmp_user_token = { 0 };
+
     if (NULL != join_ident_key && IS_NOT_AUTHENTICATED(join_ident_key->aaa_token->state) )
     {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
@@ -859,7 +891,6 @@ void _np_in_join_req(np_state_t* context, np_util_event_t msg_event)
 
     if (IS_AUTHENTICATED(join_node_key->aaa_token->state))
     {
-
         np_tree_t* jrb_me = np_tree_create();
         np_aaatoken_encode(jrb_me, context->my_node_key->aaa_token);
 
@@ -953,7 +984,8 @@ __np_cleanup__:
     np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
 
     np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-    return;*/
+    return;
+    */
 }
 
 /** _np_in_join_ack:
@@ -2101,7 +2133,7 @@ void _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     hs_event.type = (evt_internal | evt_token);
     np_util_statemachine_invoke_auto_transition(&hs_alias_key->sm, hs_event);
 
-    log_msg(LOG_ERROR, "Update alias done! %p", hs_alias_key);
+    log_debug_msg(LOG_TRACE, "Update alias done! %p", hs_alias_key);
 
     // finally delete possible wildcard key
     char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
@@ -2113,7 +2145,7 @@ void _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
         hs_event.type = (evt_external | evt_token);
         hs_event.user_data = handshake_token;
         np_util_statemachine_invoke_auto_transition(&hs_wildcard_key->sm, hs_event);
-        log_msg(LOG_ERROR, "Update wildcard done!");
+        log_debug_msg(LOG_TRACE, "Update wildcard done!");
     } 
     free(tmp_connection_str);
 

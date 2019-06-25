@@ -27,6 +27,7 @@
 #include "np_keycache.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
 #include "np_threads.h"
 #include "np_settings.h"
 #include "np_util.h"
@@ -100,22 +101,6 @@ void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, 
         np_tree_free(aaa_token->extensions_local);
     }
     np_tree_free(aaa_token->extensions);
-}
-
-void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token)
-{
-    np_state_t *context = np_ctx_by_memory(key_with_core_token);
-    ASSERT(FLAG_CMP(full_token->type ,np_aaatoken_type_node), "full_token needs to be a public node token");
-
-    np_tryref_obj(np_aaatoken_t, key_with_core_token->aaa_token, core_token_available, core_token);
-    if (!core_token_available || FLAG_CMP(core_token->type, np_aaatoken_type_handshake)) {
-        np_ref_switch(np_aaatoken_t, key_with_core_token->aaa_token, ref_key_aaa_token, full_token);
-    }
-    else {
-        log_debug_msg(LOG_ERROR, "trying to upgrade non handshake token on %s ",_np_key_as_str(key_with_core_token));
-    }
-
-    if(core_token_available) np_unref_obj(np_aaatoken_t, core_token, FUNC);
 }
 
 void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
@@ -446,17 +431,16 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
         if so we need to validate the new tokens signature against the already received token sig
         and an successfully verifying the new token identity is the same as in the handshake token
     */
-    if (FLAG_CMP(token->type, np_aaatoken_type_node)) {
-
-        // check for already received handshake token
+    if (FLAG_CMP(token->type, np_aaatoken_type_node))
+    {   // check for already received handshake token
 		np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token, false);
         np_key_t* handshake_key = _np_keycache_find(context, handshake_token_dhkey);
-
-        if (handshake_key != NULL) {
+        if (handshake_key != NULL)
+        {
             np_aaatoken_t* existing_token = _np_key_get_token(handshake_key);
-            if (existing_token != NULL && existing_token != token /*reference compare!*/ &&
+            if (existing_token != NULL && existing_token != token /* reference compare! */ &&
                 FLAG_CMP(existing_token->type, np_aaatoken_type_handshake) /*&& _np_aaatoken_is_valid(handshake_token)*/)
-            {   //FIXME: Change to signature check with other tokens pub key
+            {   // FIXME: Change to signature check with other tokens pub key
                 if (memcmp(existing_token->crypto.derived_kx_public_key, token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES *(sizeof(unsigned char))) != 0) 
                 {
                     np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
@@ -464,8 +448,8 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
                     return (false);
                 }
             }
+            np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
         }
-        np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
     }
 
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token checksum verification completed");
@@ -1493,7 +1477,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
     np_tree_free(data);
     info_str = np_str_concatAndFree(info_str, "): %s", self->uuid);
 
-    log_msg(LOG_AAATOKEN | LOG_INFO, "%s", info_str);
+    log_msg(LOG_INFO, "%s", info_str);
     free(info_str);
 }
 #endif

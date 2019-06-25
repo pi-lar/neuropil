@@ -26,9 +26,9 @@ enum event_type {
     evt_property = 0x0040, // payload of type msgproperty
     evt_jobargs  = 0x0080, // only for migration: jobargs
 
-    evt_authn_ev = 0x0100,
-    evt_authz_ev = 0x0200,
-    evt_accnt_ev = 0x0400,
+    evt_authn    = 0x0100,
+    evt_authz    = 0x0200,
+    evt_accnt    = 0x0400,
 
     evt_shutdown = 0x1000,
 };

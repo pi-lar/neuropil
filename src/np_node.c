@@ -56,8 +56,9 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
 
     entry->last_success = np_time_now();
     entry->success_win_index = 0;
-    np_node_set_handshake(entry, np_handshake_status_Disconnected);
+    np_node_set_handshake(entry, np_status_Disconnected);
 
+    entry->_joined_status = 0;
     entry->handshake_send_at = 0.0;
     entry->join_send_at = 0.0;
     entry->joined_network = false;	
@@ -176,24 +177,6 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     // key string is mandatory !
     log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
 
-    /* np_dhkey_t search_key = {0};
-    
-    if (s_hostkey[0] == '*') 
-    {
-        search_key = np_dhkey_create_from_hostport( "*", key+2);
-    } 
-    else
-    {
-        search_key = np_dhkey_create_from_hash(s_hostkey);
-    }
-
-    np_key_t* node_key = _np_keycache_find(context, search_key);
-    
-    if (node_key == NULL) 
-    {
-    */
-    //     node_key    = _np_keycache_find_or_create(context, search_key);
-
     np_node_t* new_node;
     np_new_obj(np_node_t, new_node);
 
@@ -204,9 +187,6 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     }
     _np_node_update(new_node, proto, s_hostname, s_hostport);
 
-        // np_ref_switch(np_node_t, new_node, ref_key_node, new_node);
-        // np_unref_obj(np_node_t, new_node, ref_obj_creation);
-    // }
     free (key_dup);
 
     ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", FUNC);
@@ -410,9 +390,9 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
 
     char* old = node->dns_name;	
     node->dns_name = strndup (hn, strlen(hn));
-    if (old)free(old);
+    if (old) free(old);
 
-     old = node->port; 
+    old = node->port; 
     node->port = strndup(port, strlen(port));
     if(old)free(old);
 
@@ -525,15 +505,15 @@ char * _np_node2str(np_node_t* self, char* buffer) {
     return buffer;
 }
 
-void _np_node_set_handshake(np_node_t* self, enum np_handshake_status set_to, char* func, int line)
+void _np_node_set_handshake(np_node_t* self, enum np_node_status set_to, char* func, int line)
 {
     np_ctx_memory(self);
     char tmp[500];
     log_debug_msg(LOG_HANDSHAKE, 
         "Setting handshake of node \"%s\" from \"%s\" to \"%s\" at \"%s:%d\"", 
         _np_node2str(self, tmp),
-        np_handshake_status_str[self->_handshake_status], 
-        np_handshake_status_str[set_to], 
+        np_node_status_str[self->_handshake_status], 
+        np_node_status_str[set_to], 
         func, line
     );
     self->_handshake_status = set_to;	
