@@ -197,7 +197,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
         np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
                                     .user_data=msg_to_submit, .target_dhkey=alias_key->dhkey};
-        np_util_statemachine_invoke_auto_transition(&alias_key->sm, in_message_evt);
+        _np_key_handle_event(alias_key, in_message_evt, false);
 
     } else {
         char tmp[255];
@@ -221,7 +221,8 @@ bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_ev
         NP_CAST(event.user_data, np_message_t, join_message);
         /* TODO: make it working and better! */
         CHECK_STR_FIELD_BOOL(join_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
-            ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) );
+            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_JOIN_REQUEST,  strlen(_NP_MSG_JOIN_REQUEST))  ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST)) );
             return ret;
         }
         ret = false;
@@ -244,7 +245,7 @@ void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_
         {
             np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
             np_key_t* subject_key = _np_keycache_find(context, subject_dhkey);
-            np_util_statemachine_invoke_auto_transition(&subject_key->sm, event);
+            _np_key_handle_event(subject_key, event, false);
         }
     }
 } 

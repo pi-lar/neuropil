@@ -92,10 +92,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __join_req->priority = 0;
     __join_req->ack_mode = ACK_NONE;
     __join_req->retry = 5;
-
-    sll_append(np_evt_callback_t, __join_req->clb_inbound,  _np_in_join_req);
-    sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out_join_req);
-
+    sll_append(np_evt_callback_t, __join_req->clb_inbound,  _np_in_join );
+    sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out_join);
     //default: sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out);
     //sll_append(np_evt_callback_t, __join_req->clb_transform, _np_never_called_jobexec_transform);
     //sll_append(np_evt_callback_t, __join_req->clb_route, _np_out);
@@ -103,30 +101,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __join_req->max_threshold = UINT16_MAX;
     __join_req->token_max_ttl = 30;
     __join_req->token_min_ttl = 20;
-
-    np_msgproperty_t* __join_ack = NULL;
-    np_new_obj(np_msgproperty_t, __join_ack, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __join_ack);
-
-    np_msgproperty_t* __join_nack = NULL;
-    np_new_obj(np_msgproperty_t, __join_nack, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __join_nack);
-
-    __join_nack->msg_subject = strdup(_NP_MSG_JOIN_NACK);
-    __join_nack->rep_subject = NULL;
-    __join_nack->mode_type = INBOUND | OUTBOUND | ROUTE;
-    __join_nack->mep_type = ONE_WAY;
-    __join_nack->priority = 0;
-    __join_nack->ack_mode = ACK_NONE;
-    __join_nack->retry = 5;
-    sll_append(np_evt_callback_t, __join_nack->clb_inbound, _np_in_join_nack);
-    //default: sll_append(np_evt_callback_t, __join_nack->clb_outbound, _np_out);
-    //sll_append(np_evt_callback_t, __join_nack->clb_transform, _np_never_called_jobexec_transform);
-    //sll_append(np_evt_callback_t, __join_nack->clb_route, _np_never_called_jobexec_route);
-    __join_nack->msg_ttl = 5.0;
-    __join_nack->max_threshold = UINT16_MAX;
-    __join_nack->token_max_ttl = 30;
-    __join_nack->token_min_ttl = 20;
 
     // leave the network and clean up the mess
     np_msgproperty_t* __leave_properties = NULL;
@@ -138,9 +112,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __leave_properties->mode_type = INBOUND | OUTBOUND | ROUTE;
     __leave_properties->mep_type = ONE_WAY;
     __leave_properties->priority = 0;
-    __leave_properties->ack_mode = ACK_DESTINATION;
+    __leave_properties->ack_mode = ACK_NONE;
     __leave_properties->retry = 5;
-    sll_append(np_evt_callback_t, __leave_properties->clb_inbound, _np_in_leave_req);
+    sll_append(np_evt_callback_t, __leave_properties->clb_inbound,  _np_in_leave );
+    sll_append(np_evt_callback_t, __leave_properties->clb_outbound, _np_out_leave);
     //default: sll_append(np_evt_callback_t, __leave_properties->clb_outbound, _np_out);
     //sll_append(np_evt_callback_t, __leave_properties->clb_transform, _np_never_called_jobexec_transform);
     //default: sll_append(np_evt_callback_t, __leave_properties->clb_route, _np_glia_route_lookup);

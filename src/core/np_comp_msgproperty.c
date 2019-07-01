@@ -59,8 +59,6 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     sll_init(np_evt_callback_t, prop->clb_inbound);
     sll_init(np_evt_callback_t, prop->clb_outbound);
 
-    // sll_append(np_evt_callback_t, prop->clb_outbound, _np_out);
-
     sll_init(np_usercallback_ptr, prop->user_receive_clb);
     sll_init(np_usercallback_ptr, prop->user_send_clb);
 
@@ -154,7 +152,7 @@ bool _np_msgproperty_init (np_state_t* context)
             np_dhkey_t search_key_rx = np_dhkey_create_from_hostport(property->msg_subject, "local_rx");
             np_key_t* my_property_key_rx = _np_keycache_find_or_create(context, search_key_rx);
             np_util_event_t ev_rx = { .type=(evt_property|evt_internal), .context=context, .user_data=property };
-            np_util_statemachine_invoke_auto_transition(&my_property_key_rx->sm, ev_rx);
+            _np_key_handle_event(my_property_key_rx, ev_rx, false);
             np_ref_obj(np_msgproperty_t, property, ref_system_msgproperty); 
 
             // fprintf(stdout, "register handler (tx): %s\n", property->msg_subject);
@@ -162,7 +160,7 @@ bool _np_msgproperty_init (np_state_t* context)
             np_dhkey_t search_key_tx = np_dhkey_create_from_hostport(property->msg_subject, "local_tx");
             np_key_t* my_property_key_tx = _np_keycache_find_or_create(context, search_key_tx);
             np_util_event_t ev_tx = { .type=(evt_property|evt_internal), .context=context, .user_data=property };
-            np_util_statemachine_invoke_auto_transition(&my_property_key_tx->sm, ev_tx);
+            _np_key_handle_event(my_property_key_tx, ev_tx, false);
             np_ref_obj(np_msgproperty_t, property, ref_system_msgproperty); 
         }            
         sll_next(__np_internal_messages);
@@ -275,7 +273,7 @@ void np_msgproperty_register(np_msgproperty_t* msg_property)
             np_dhkey_t search_key_rx = np_dhkey_create_from_hostport(msg_property->msg_subject, "local_rx");
             np_key_t* my_property_key_rx = _np_keycache_find_or_create(context, search_key_rx);
             np_util_event_t ev_rx = { .type=(evt_property|evt_internal), .context=context, .user_data=msg_property };
-            np_util_statemachine_invoke_auto_transition(&my_property_key_rx->sm, ev_rx);
+            _np_key_handle_event(my_property_key_rx, ev_rx, false);
             np_ref_obj(np_msgproperty_t, msg_property, ref_system_msgproperty); 
         }
 
@@ -284,7 +282,7 @@ void np_msgproperty_register(np_msgproperty_t* msg_property)
             np_dhkey_t search_key_tx = np_dhkey_create_from_hostport(msg_property->msg_subject, "local_tx");
             np_key_t* my_property_key_tx = _np_keycache_find_or_create(context, search_key_tx);
             np_util_event_t ev_tx = { .type=(evt_property|evt_internal), .context=context, .user_data=msg_property };
-            np_util_statemachine_invoke_auto_transition(&my_property_key_tx->sm, ev_tx);
+            _np_key_handle_event(my_property_key_tx, ev_tx, false);
             np_ref_obj(np_msgproperty_t, msg_property, ref_system_msgproperty); 
         }
     }            
@@ -817,6 +815,7 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
     {
         if (iter->val != NULL) 
         {
+            log_debug_msg(LOG_TRACE, "start: void __np_property_handle_in_msg(...) { % s", property->msg_subject);
             iter->val(context, event);
         }
         sll_next(iter);

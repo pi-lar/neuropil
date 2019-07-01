@@ -20,11 +20,13 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event);
 // void _np_out_handshake(np_state_t* context, np_util_event_t msg_event); 
 
 NP_API_INTERN
-void _np_out_join_req(np_state_t* context, const np_util_event_t event);
+void _np_out_join(np_state_t* context, const np_util_event_t event);
+NP_API_INTERN
+void _np_out_leave(np_state_t* context, const np_util_event_t event);
 
 // splits up message into parts and sends all parts to the next node
 NP_API_INTERN
-void _np_out (np_state_t* context, np_util_event_t msg_event);
+void _np_out(np_state_t* context, np_util_event_t msg_event);
 
 // send an acknowledgement to the target node
 NP_API_INTERN

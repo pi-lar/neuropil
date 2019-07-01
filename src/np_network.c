@@ -324,7 +324,7 @@ bool _np_network_append_msg_to_out_queue (np_key_t *node_key, np_message_t* msg)
     np_waitref_obj(np_node_t, node_key->node, target_node);
       
     // Send handshake info if necessary
-    if (target_node->_handshake_status == np_handshake_status_Connected)
+    if (target_node->_handshake_status == np_status_Connected)
     {
         np_waitref_obj(np_network_t, node_key->network, node_key_network);
 
@@ -832,12 +832,12 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             if (NULL == alias_key || FLAG_CMP(ng->socket_type, TCP) )
             {
                 // TODO: always enqueue via jobqueue
-                np_util_statemachine_invoke_auto_transition(&key->sm, in_event);
+                _np_key_handle_event(key, in_event, false);
             }
             else if (NULL != alias_key )
             {
                 // TODO: always enqueue via jobqueue
-                np_util_statemachine_invoke_auto_transition(&alias_key->sm, in_event);
+                _np_key_handle_event(alias_key, in_event, false);
             }
             else
             {

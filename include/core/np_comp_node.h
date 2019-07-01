@@ -89,6 +89,10 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
 NP_API_INTERN
 void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
+NP_API_INTERN
+bool __is_shutdown_event(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 #ifdef __cplusplus
 }

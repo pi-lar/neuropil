@@ -446,7 +446,46 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
     */
 }
 
-void _np_out_join_req(np_state_t* context, const np_util_event_t event)
+void _np_out_leave(np_state_t* context, const np_util_event_t event) 
+{
+    log_trace_msg(LOG_TRACE, "start: void _np_out_leave(...) {");
+
+    NP_CAST(event.user_data, np_key_t, property_key);
+    np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+
+    np_tree_t* jrb_data     = np_tree_create();
+    np_tree_t* jrb_my_node  = np_tree_create();
+    np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
+    np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
+
+    // 1: create nack message
+    np_message_t* msg_out = NULL;
+    np_new_obj(np_message_t, msg_out, FUNC);
+    _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_LEAVE_REQUEST, NULL);
+
+    // 2: chunk the message if required
+    _np_message_calculate_chunking(msg_out);
+    _np_message_serialize_chunked(msg_out);
+
+    // 3: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(msg_out->msg_chunks);
+
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting leave to target key %s / %p", _np_key_as_str(target_key), target_key);
+        np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=target_key->dhkey};
+        _np_key_handle_event(target_key, leave_event, false);
+
+        pll_next(iter);
+    }
+
+    // 5 cleanup
+    np_tree_free(jrb_my_node);
+    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+}
+
+void _np_out_join(np_state_t* context, const np_util_event_t event)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_out_join_req(...) {");
 
@@ -462,12 +501,12 @@ void _np_out_join_req(np_state_t* context, const np_util_event_t event)
 
     // 1: create join payload
     np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
-    np_tree_insert_str( jrb_data, "_np.token.node", np_treeval_new_tree(jrb_my_node));
+    np_tree_insert_str( jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
 
     if(_np_key_cmp(context->my_identity, context->my_node_key) != 0) {
         jrb_my_ident = np_tree_create();
         np_aaatoken_encode(jrb_my_ident, _np_key_get_token(context->my_identity));
-        np_tree_insert_str(jrb_data, "_np.token.ident", np_treeval_new_tree(jrb_my_ident));
+        np_tree_insert_str(jrb_data, _NP_URN_IDENTITY_PREFIX, np_treeval_new_tree(jrb_my_ident));
     }
 
     // 2: create message  and add payload
@@ -487,7 +526,7 @@ void _np_out_join_req(np_state_t* context, const np_util_event_t event)
         iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting join request to target key %s / %p", _np_key_as_str(target), target);
         np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
-        np_util_statemachine_invoke_auto_transition(&target->sm, join_event);
+        _np_key_handle_event(target, join_event, false);
         pll_next(iter);
     }
 
@@ -553,7 +592,7 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
                 hs_message->uuid, _np_key_as_str(target_key)/*, hs_node->dns_name, hs_node->port*/);
 
             np_util_event_t handshake_send_evt = { .type=(evt_internal|evt_message), .user_data=hs_message, .context=context };
-            np_util_statemachine_invoke_auto_transition(&target_key->sm, handshake_send_evt);
+            _np_key_handle_event(target_key, handshake_send_evt, false);
 
             // __np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
             np_unref_obj(np_message_t, hs_message, ref_obj_creation);

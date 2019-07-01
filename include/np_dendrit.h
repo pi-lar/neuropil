@@ -32,14 +32,9 @@ NP_API_INTERN
 void __np_in_ack_handle(np_message_t * msg);
 
 NP_API_INTERN
-void _np_in_join_req(np_state_t* context, np_util_event_t msg_event);
+void _np_in_join(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void _np_in_join_ack (np_state_t* context, np_util_event_t msg_event);
-NP_API_INTERN
-void _np_in_join_nack (np_state_t* context, np_util_event_t msg_event);
-
-NP_API_INTERN
-void _np_in_leave_req(np_state_t* context, np_util_event_t msg_event);
+void _np_in_leave(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
 void _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event);

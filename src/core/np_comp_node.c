@@ -79,6 +79,18 @@ bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_ut
     return ret;
 }
 
+bool __is_shutdown_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_node_handshake_token(...) {");
+    
+    bool ret = false;
+    
+    if (!ret) ret  = FLAG_CMP(event.type, evt_shutdown) && FLAG_CMP(event.type, evt_internal);
+    // if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
+    return ret;
+}
+
 bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -102,28 +114,6 @@ bool __is_node_complete(np_util_statemachine_t* statemachine, const np_util_even
     return false;
 }
 
-bool __is_node_join_nack(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{
-    return false;
-}
-
-bool __is_node_leave_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_node_leave_message(...) {");
-
-    bool ret = false;
-    
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
-    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
-    if ( ret) {
-        NP_CAST(event.user_data, np_aaatoken_t, node);
-        ret &= (node->type == np_aaatoken_type_node);
-        ret &= _np_aaatoken_is_valid(node, node->type);
-    }
-    return ret;
-}
-
 // IN_USE -> IN_DESTROY transition condition / action #1
 bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
@@ -134,11 +124,11 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
     
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
-    if (!ret) ret = (node_key->aaa_token != NULL);
+    if (!ret) ret  = (node_key->type == np_key_type_node);
+    if ( ret) ret &= (_np_key_get_token(node_key) != NULL);
     if ( ret) {
-        NP_CAST(node_key->aaa_token, np_aaatoken_t, node);
-        ret &= (node_key->type == np_aaatoken_type_node);
-        ret &= !_np_aaatoken_is_valid(node, np_aaatoken_type_node);
+        np_aaatoken_t* node_token = _np_key_get_token(node_key);
+        ret &= !_np_aaatoken_is_valid(node_token, node_token->type);
     }
     return ret;
 }
@@ -251,23 +241,23 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
     log_debug_msg(LOG_DEBUG, "node_status: %d %f", trinity.node->_handshake_status, trinity.node->handshake_send_at);
 
     if ( trinity.node->_handshake_status < np_status_Connected && 
-         (trinity.node->handshake_send_at + hs_prop->msg_ttl) < now       )
+         (trinity.node->handshake_send_at + hs_prop->msg_ttl) < now )
     {
         np_key_t* hs_key = _np_keycache_find(context, hs_dhkey);
         np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=hs_key, .target_dhkey=node_key->dhkey };
-        np_util_statemachine_invoke_auto_transition(&hs_key->sm, handshake_event);
+        _np_key_handle_event(hs_key, handshake_event, false);
 
         trinity.node->_handshake_status++;
         trinity.node->handshake_send_at = np_time_now();
         
         log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now         : %p / %p %d", node_key, trinity.node, trinity.node->_handshake_status);
     }
-    else if (trinity.node->_joined_status < np_status_Connected && 
+    else if (trinity.node->session_key_is_set == true &&  trinity.node->_joined_status < np_status_Connected && 
             (trinity.node->join_send_at + join_prop->msg_ttl) < now ) 
     {
         np_key_t* join_key = _np_keycache_find(context, join_dhkey);
         np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=join_key, .target_dhkey=node_key->dhkey };
-        np_util_statemachine_invoke_auto_transition(&join_key->sm, join_event);
+        _np_key_handle_event(join_key, join_event, false);
 
         trinity.node->join_send_at = np_time_now();
         trinity.node->_joined_status++;
@@ -288,7 +278,7 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
         np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
         np_key_t* node_key = _np_keycache_find(context, token_fp);
 
-        np_util_statemachine_invoke_auto_transition(&node_key->sm, event);
+        _np_key_handle_event(node_key, event, false);
 
         np_unref_obj(np_key_t, node_key, "_np_keycache_find");
 
@@ -330,14 +320,6 @@ void __np_wildcard_finalize(np_util_statemachine_t* statemachine, const np_util_
     wildcard_key->type = np_key_type_unknown;
 }
 
-bool __is_node_join(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_node_join(...) {");
-    return false;
-    // join request or join ack
-}
-
 void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {    
     np_ctx_memory(statemachine->_user_data);
@@ -348,13 +330,38 @@ void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
-    _np_keycache_remove(context, node_key->dhkey);
-    node_key->is_in_keycache = false;
-
-    // TODO unref and clean trinity data structures
+    _np_network_stop(trinity.network, true);    
     sll_clear(void_ptr, node_key->entities);
 
+    _np_keycache_remove(context, node_key->dhkey);
+    node_key->is_in_keycache = false;
     node_key->type = np_key_type_unknown;
+}
+
+void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_node_shutdown(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+    np_dhkey_t leave_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_LEAVE_REQUEST);
+    np_key_t* leave_prop_key = _np_keycache_find(context, leave_prop_dhkey);
+    
+    np_util_event_t leave_evt = { .type=(evt_internal|evt_message), .context=context, .user_data=node_key, .target_dhkey=node_key->dhkey };
+
+    _np_key_handle_event(leave_prop_key, leave_evt, false);
+    np_unref_obj(np_aaatoken_t, leave_prop_key, "_np_keycache_find");
+
+    // __np_node_destroy(statemachine, event);
+}
+
+bool __is_node_join(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_node_join(...) {");
+    return false;
+    // join request or join ack
 }
 
 void __np_create_client_network (np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -535,13 +542,18 @@ bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t
     log_debug_msg(LOG_TRACE, "start: bool __is_np_message(...) {");
 
     bool ret = false;
-    
-    NP_CAST(statemachine->_user_data, np_key_t, node_key);
-    NP_CAST(event.user_data, np_message_t, hs_message);
 
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_message));
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
     if ( ret) ret &= node_key->type == np_key_type_node;
-    if ( ret) ret &= _np_memory_rtti_check(hs_message, np_memory_types_np_message_t);
+
+    if ( ret) ret &= (event.user_data != NULL);
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
+    if ( ret) {
+        NP_CAST(event.user_data, np_messagepart_t, out_message);
+        // TODO: add bloom filter ?
+    }
     return ret;
 }
 
@@ -579,15 +591,16 @@ bool __is_join_out_message(np_util_statemachine_t* statemachine, const np_util_e
 
     bool ret = false;
 
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message);
+    if (!ret) ret  = ( FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_internal) );
     if ( ret) ret &= (event.user_data != NULL);
 
-    if ( ret) ret &= (FLAG_CMP(event.type, evt_internal) && _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t) );
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
     if ( ret) {
-        NP_CAST(event.user_data, np_messagepart_t, join_message);
+        NP_CAST(event.user_data, np_messagepart_t, out_message);
         /* TODO: make it working and better! */
-        CHECK_STR_FIELD_BOOL(join_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
-            ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_JOIN_REQUEST)) );
+        CHECK_STR_FIELD_BOOL(out_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
+            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_JOIN_REQUEST,  strlen(_NP_MSG_JOIN_REQUEST))  ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST)) );
             goto __np_return__;
         }
         ret = false;

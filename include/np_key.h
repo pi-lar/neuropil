@@ -68,6 +68,7 @@ struct np_key_s
 
 	np_sll_t(void_ptr, entities); // link to components attached to this key id
 
+    np_mutex_t key_lock;
 
 	// deprecated from here on ...
 	/*
@@ -122,6 +123,9 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
 
 NP_API_INTERN
 np_key_t* _np_key_get_by_key_hash(np_state_t* context,	char* targetDhkey);
+
+NP_API_INTERN
+void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force);
 
 NP_API_INTERN
 void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop);

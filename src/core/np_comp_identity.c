@@ -246,7 +246,7 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 
         np_util_event_t handshake_evt = { .type=(evt_external|evt_message), .context=context, 
                                           .user_data=msg_in, .target_dhkey=event.target_dhkey};
-        np_util_statemachine_invoke_auto_transition(&handshake_key->sm, handshake_evt);
+        _np_key_handle_event(handshake_key, handshake_evt, false);
     }
     else
     {
@@ -260,7 +260,7 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
         return;
 } 
 
-bool __is_auth_nz_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
+bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
     log_debug_msg(LOG_ERROR, "start: void __is_auth_nz_request(...){");
@@ -280,26 +280,95 @@ bool __is_auth_nz_request(np_util_statemachine_t* statemachine, const np_util_ev
     return ret;
 }
 
-void __np_identity_handle_auth_nz(np_util_statemachine_t* statemachine, const np_util_event_t event)
+bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_ERROR, "start: void __np_identity_handle_auth_nz(...){");
+    log_debug_msg(LOG_ERROR, "start: void __is_auth_nz_request(...){");
+
+    bool ret = false;
+    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+    
+    if (!ret) ret  = (FLAG_CMP(event.type, evt_authn) || FLAG_CMP(event.type, evt_authz) );
+    if ( ret) ret &=  FLAG_CMP(event.type, evt_external && FLAG_CMP(event.type, evt_token) );
+    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
+    if ( ret) {
+        NP_CAST(event.user_data, np_aaatoken_t, token);
+        ret &= (token->type == np_aaatoken_type_identity || token->type == np_aaatoken_type_node);
+        ret &= _np_aaatoken_is_valid(token, token->type);
+        log_debug_msg(LOG_ERROR, "context->my_node_key =  %p %p %d", my_identity_key, token, token->type);
+    }
+    return ret;
+}
+
+void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_ERROR, "start: void __np_identity_handle_authn(...){");
 
     NP_CAST(event.user_data, np_aaatoken_t, authn_token);
 
-    if ( !FLAG_CMP(authn_token->state, AAA_AUTHENTICATED) ) 
+    // transport layer encryption
+    if (authn_token->type == np_aaatoken_type_identity || authn_token->type == np_aaatoken_type_node)
     {
-        log_debug_msg(LOG_DEBUG, "now checking (join/ident) authentication of token");
-        struct np_token tmp_user_token = { 0 };
-        bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, authn_token));
-        log_debug_msg(LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
-
-        if (true == join_allowed)
+        if ( !FLAG_CMP(authn_token->state, AAA_AUTHENTICATED) ) 
         {
-            np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
-            np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
-            np_util_statemachine_invoke_auto_transition(&target_key->sm, authn_event);
-            np_unref_obj(np_aaatoken_t, target_key, "_np_keycache_find");
+            log_debug_msg(LOG_DEBUG, "now checking (join/ident) authentication of token");
+            struct np_token tmp_user_token = { 0 };
+            bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, authn_token));
+            log_debug_msg(LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
+
+            if (true == join_allowed && context->enable_realm_client == false)
+            {
+                np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
+
+                np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+                _np_key_handle_event(target_key, authn_event, false);
+                np_unref_obj(np_aaatoken_t, target_key, "_np_keycache_find");
+            }
+            else if (false == join_allowed && context->enable_realm_client == false) 
+            {
+                // np_dhkey_t leave_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_LEAVE_REQUEST);
+                // np_key_t* leave_key = _np_keycache_find(context, leave_dhkey);
+                np_dhkey_t leave_dhkey = np_aaatoken_get_fingerprint(authn_token, false);
+                np_key_t* leave_key = _np_keycache_find(context, leave_dhkey);
+
+                // np_util_event_t leave_evt = { .type=(evt_internal|evt_message), .context=context, .user_data=leave_key, .target_dhkey=target_dhkey };
+                np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .context=context, .user_data=NULL, .target_dhkey=leave_dhkey };
+
+                _np_key_handle_event(leave_key, shutdown_evt, true);
+                np_unref_obj(np_aaatoken_t, leave_key, "_np_keycache_find");
+            }
+        }
+    }
+    else if (authn_token->type == np_aaatoken_type_message_intent) 
+    {
+        // TODO: lookup hash of sending/receiving entitiy locally or in the dht
+    }
+}
+
+void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_ERROR, "start: void __np_identity_handle_authz(...){");
+
+    NP_CAST(event.user_data, np_aaatoken_t, authz_token);
+
+    if (authz_token->type == np_aaatoken_type_message_intent)
+    {
+        if ( !FLAG_CMP(authz_token->state, AAA_AUTHORIZED) )
+        {
+            log_debug_msg(LOG_DEBUG, "now checking (join/ident) authentication of token");
+            struct np_token tmp_user_token = { 0 };
+            bool access_allowed = context->authorize_func(context, np_aaatoken4user(&tmp_user_token, authz_token));
+            log_debug_msg(LOG_DEBUG, "authentication of token: %"PRIu8, access_allowed);
+
+            if (true == access_allowed && context->enable_realm_client == false)
+            {
+                np_util_event_t authz_event = { .type=(evt_internal|evt_token|evt_authz), .context=context, .user_data=authz_token, .target_dhkey=event.target_dhkey};
+                np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+                _np_key_handle_event(target_key, authz_event, true);
+                np_unref_obj(np_aaatoken_t, target_key, "_np_keycache_find");
+            }
         }
     }
 }

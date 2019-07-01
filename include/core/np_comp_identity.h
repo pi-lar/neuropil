@@ -43,9 +43,13 @@ NP_API_INTERN
 void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
-bool __is_auth_nz_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-void __np_identity_handle_auth_nz(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN 

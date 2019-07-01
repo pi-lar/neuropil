@@ -351,7 +351,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
 
     np_util_event_t ev = { .type=(evt_internal|evt_token), .context=ac, .user_data=identity };
-    np_util_statemachine_invoke_auto_transition(&my_identity_key->sm, ev);
+    _np_key_handle_event(my_identity_key, ev, false);
 
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
     np_unref_obj(np_aaatoken_t, identity, "np_token_factory_new_identity_token");
@@ -523,10 +523,7 @@ void np_send_join(np_context*ac, const char* node_string)
     np_key_t* node_key = _np_keycache_find_or_create(context, search_key);
 
     np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=new_node };
-    np_util_statemachine_invoke_auto_transition(&node_key->sm, new_node_evt);
-
-    // np_send_wildcard_join(ac, node_string);
-    // _np_send_simple_invoke_request(node_key, _NP_MSG_JOIN_REQUEST);
+    _np_key_handle_event(node_key, new_node_evt, false);
 
     np_bootstrap_add(context, node_string);
 }
