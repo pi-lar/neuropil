@@ -31,16 +31,7 @@ NP_API_INTERN
 void __np_create_session(np_util_statemachine_t* statemachine, const np_util_event_t event); // create node as well and "steal" network sructure
  
 NP_API_INTERN
-bool __is_msg_join_ack(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-void __np_node_transfer_session(np_util_statemachine_t* statemachine, const np_util_event_t event); // join acknowledge
-
-NP_API_INTERN
 bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-bool __is_msg_join_nack(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-void __np_node_handle_leave(np_util_statemachine_t* statemachine, const np_util_event_t event); // join hasn't been acknowledged, drop everything
 
 NP_API_INTERN
 bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
@@ -58,10 +49,9 @@ NP_API_INTERN
 void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event); // pass on to the specific message intent
 
 NP_API_INTERN
-bool __is_leave_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-void __np_handle_leave_msg(np_util_statemachine_t* statemachine, const np_util_event_t event); // node has left, invalidate node
-
+void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event); // handle external received handsjake token
 
 #ifdef __cplusplus
 }

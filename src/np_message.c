@@ -66,12 +66,12 @@ void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     
     TSP_INITD(msg_tmp->is_acked , false);    
     
-    sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
+    // sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
     TSP_INITD(msg_tmp->is_in_timeout, false);
-    sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
+    // sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
     
     TSP_INITD(msg_tmp->has_reply, false);
-    sll_init(np_message_on_reply_t, msg_tmp->on_reply);
+    // sll_init(np_message_on_reply_t, msg_tmp->on_reply);
 
     pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);	
     msg_tmp->bin_body = NULL;
@@ -102,9 +102,9 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
 
     log_debug_msg(LOG_MEMORY | LOG_DEBUG, "msg (%s) freeing memory", msg->uuid);
 
-    sll_free(np_responsecontainer_on_t, msg->on_ack);
-    sll_free(np_responsecontainer_on_t, msg->on_timeout);
-    sll_free(np_message_on_reply_t, msg->on_reply);
+    // sll_free(np_responsecontainer_on_t, msg->on_ack);
+    // sll_free(np_responsecontainer_on_t, msg->on_timeout);
+    // sll_free(np_message_on_reply_t, msg->on_reply);
 
     TSP_DESTROY(msg->is_acked);
     TSP_DESTROY(msg->is_in_timeout);
@@ -154,7 +154,6 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
 
 void _np_message_calculate_chunking(np_message_t* msg)
 {
-
     np_ctx_memory(msg);
     // np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
@@ -874,10 +873,10 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
     np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
 
+    // in the future: header
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(to));
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(from));
-
     // insert a uuid if not yet present
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
     // insert timestamp and time-to-live
@@ -888,6 +887,8 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(out_prop->ack_mode));
     // insert message chunking placeholder
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
+
+    // in the future: instructions
     // set re-send count to zero if not yet present
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
     // placeholder for incrementing sequence counter
@@ -1098,6 +1099,50 @@ char* _np_message_get_subject(const np_message_t* const self)
     return ret;
 }
 
+void _np_message_add_key_response_handler(const np_message_t* self) 
+{
+    np_ctx_memory(self);
+
+    np_responsecontainer_t* rh = NULL;
+    np_new_obj(np_responsecontainer_t, rh);
+
+    memcpy(rh->uuid, self->uuid, NP_UUID_BYTES);
+    rh->dest_dhkey = np_tree_find_str(self->header, _NP_MSG_HEADER_TO)->val.value.dhkey;
+    // rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
+    rh->send_at    =  np_tree_find_str(self->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+	rh->expires_at = rh->send_at + 
+                     np_tree_find_str(self->instructions, _NP_MSG_INST_TTL)->val.value.d;
+	rh->received_at = 0.0;
+
+    np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
+    np_key_t* ack_key = _np_keycache_find(context, ack_dhkey);
+
+    np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
+    _np_key_handle_event(ack_key, rh_event, false);
+}
+
+void _np_message_add_msg_response_handler(const np_message_t* self) 
+{
+    np_ctx_memory(self);
+
+    np_responsecontainer_t* rh = NULL;
+    np_new_obj(np_responsecontainer_t, rh);
+
+    memcpy(rh->uuid, self->uuid, 18);
+    // rh->dest_dhkey = np_tree_find_str(self->header, _NP_MSG_HEADER_TO)->val.value.dhkey;
+    rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
+    rh->send_at    =  np_tree_find_str(self->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+	rh->expires_at = rh->send_at + 
+                     np_tree_find_str(self->instructions, _NP_MSG_INST_TTL)->val.value.d;
+	rh->received_at = 0.0;
+
+    np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
+    np_key_t* ack_key = _np_keycache_find(context, ack_dhkey);
+
+    np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
+    _np_key_handle_event(ack_key, rh_event, false);
+}
+/*
 void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply) {
     np_ctx_memory(self);
     TSP_SCOPE(self->has_reply) {
@@ -1139,8 +1184,7 @@ void np_message_remove_on_ack(np_message_t* self, np_responsecontainer_on_t on_a
         sll_remove(np_responsecontainer_on_t, self->on_ack, on_ack, np_responsecontainer_on_t_sll_compare_type);
     }
 }
-
-
+*/
 
 np_dhkey_t* _np_message_get_sender(const np_message_t* const self){
     // np_ctx_memory(self);

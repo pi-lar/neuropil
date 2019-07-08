@@ -22,6 +22,8 @@
 #include "np_node.h"
 #include "np_list.h"
 
+#include "util/np_event.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,6 +42,9 @@ void _np_keycache_destroy(np_state_t* context);
 
 NP_API_INTERN
 void _np_keycache_check_state(np_state_t* context, NP_UNUSED np_jobargs_t args);
+
+NP_API_INTERN
+void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_event_t event, bool force);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t key);

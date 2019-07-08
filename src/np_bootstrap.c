@@ -31,14 +31,17 @@ np_module_struct(bootstrap)
 };
 
 void __np_bootstrap_on_timeout(const np_responsecontainer_t* const entry) {
+
     np_ctx_memory(entry);
-    log_msg(LOG_WARN | LOG_ROUTING, "Bootstrap Node (%s) not reachable anymore. Try to reconnect", _np_key_as_str(entry->dest_key));
-    char* reconnect = np_get_connection_string_from(entry->dest_key, true);
-    np_send_join(context, reconnect);
-    free(reconnect);
+
+    // log_msg(LOG_WARN | LOG_ROUTING, "Bootstrap Node (%s) not reachable anymore. Try to reconnect", _np_key_as_str(entry->dest_dhkey));
+    // char* reconnect = np_get_connection_string_from(entry->dest_key, true);
+    // np_send_join(context, reconnect);
+    // free(reconnect);
 }
 
-void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
+void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
+{
     TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
         np_tree_elem_t* iter = RB_MIN(np_tree_s, np_module(bootstrap)->bootstrap_points);
         while (iter != NULL) {
@@ -50,7 +53,7 @@ void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_jobargs_t args)
 
                 _np_message_create(out_msg, ((np_key_t*)iter->val.value.v)->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
-                np_message_add_on_timeout(out_msg, __np_bootstrap_on_timeout);
+                // np_message_add_on_timeout(out_msg, __np_bootstrap_on_timeout);
 
                 np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_PING_REQUEST);
                 _np_job_submit_route_event(context, 0.0, prop, ((np_key_t*)iter->val.value.v), out_msg);
@@ -64,9 +67,11 @@ void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_jobargs_t args)
 bool _np_bootstrap_init(np_state_t* context)
 {
     bool ret = false;
+
     if (!np_module_initiated(bootstrap)) {
         np_module_malloc(bootstrap);
         ret = true;
+
         TSP_INIT(_module->bootstrap_points);
         TSP_SCOPE(_module->bootstrap_points) {
             _module->bootstrap_points = np_tree_create();
@@ -90,13 +95,15 @@ void _np_bootstrap_destroy(np_state_t* context)
         np_module_free(bootstrap);
     }
 }
+
 void np_bootstrap_add(np_state_t* context, const char* connectionstr) {
 
-    TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
-
+    TSP_SCOPE(np_module(bootstrap)->bootstrap_points) 
+    {
         np_tree_insert_str(np_module(bootstrap)->bootstrap_points, connectionstr, np_treeval_new_v(NULL));
     }
 }
+
 void __np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed, char* connectionstr, np_key_t* replaced) {
     if (confirmed != replaced) {
         np_ref_obj(np_key_t, confirmed, ref_bootstrap_list);

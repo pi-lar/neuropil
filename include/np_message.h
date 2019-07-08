@@ -130,20 +130,24 @@ void _np_message_mark_as_incomming(np_message_t* msg);
 NP_API_INTERN
 np_dhkey_t* _np_message_get_sender(const np_message_t* const self);
 
+NP_API_INTERN
+void _np_message_add_key_response_handler(const np_message_t* self);
+NP_API_INTERN
+void _np_message_add_msg_response_handler(const np_message_t* self);
+/*
 NP_API_EXPORT
 void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply);
 NP_API_EXPORT
 void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove);
-
 NP_API_EXPORT
 void np_message_add_on_timeout(np_message_t* self, np_responsecontainer_on_t on_timeout);
 NP_API_EXPORT
 void np_message_remove_on_timeout(np_message_t* self, np_responsecontainer_on_t on_timeout);
-
 NP_API_EXPORT
 void np_message_add_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack);
 NP_API_EXPORT
 void np_message_remove_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack);
+*/
 
 NP_API_INTERN
 void _np_message_trace_info(char* desc, np_message_t * msg_in);

@@ -13,6 +13,7 @@
 #include "np_keycache.h"
 #include "np_legacy.h"
 #include "np_message.h"
+#include "np_responsecontainer.h"
 
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
@@ -140,7 +141,7 @@ bool __is_wildcard_key(np_util_statemachine_t* statemachine, const np_util_event
 
     bool ret = false;
     
-    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    // NP_CAST(statemachine->_user_data, np_key_t, node_key);
     NP_CAST(event.user_data, np_node_t, my_node);
 
     if (!ret) ret  = FLAG_CMP(event.type, evt_internal);
@@ -158,7 +159,7 @@ bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t
 
     bool ret = false;
     
-    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    // NP_CAST(statemachine->_user_data, np_key_t, node_key);
     NP_CAST(event.user_data, np_node_t, my_node);
 
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_token) );
@@ -217,7 +218,57 @@ void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event
 
 void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
-    // issue ping / piggy messages
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_DEBUG, "start: void __np_node_update(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    np_node_t* node = _np_key_get_node(node_key);
+    float total = 0.0;
+    
+    float old = node->success_avg;
+    for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
+    {
+        total += node->success_win[i];
+    }
+    node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
+
+    if (node->success_avg != old)
+    {
+        log_msg(LOG_INFO, "connection to node %s:%s success rate now: %1.2f (%2u / %2u)", 
+                node->dns_name, node->port, node->success_avg, node->success_win_index, node->success_win[node->success_win_index]);
+    }
+
+    total = 0.0; 
+    old = node->latency;
+    for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
+    {
+        total += node->latency_win[i];
+    }
+    node->latency = total / NP_NODE_SUCCESS_WINDOW;
+
+    if (node->latency != old)
+    {
+        log_msg(LOG_INFO, "connection to node %s:%s latency      now: %1.3f (update with: %1.3f)",
+                node->dns_name, node->port, node->latency, node->latency_win[node->latency_win_index]);                
+    }
+
+    // follow up actions
+    if ( 
+        (  node->success_avg                                                         > BAD_LINK)     &&
+        ( (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC*node->success_avg)  <= np_time_now() )
+       )
+    {   // issue ping messages
+        np_dhkey_t ping_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PING_REQUEST);
+        np_util_event_t ping_event = { .type=(evt_internal|evt_message), .target_dhkey=node_key->dhkey, .user_data=NULL, .context=context };
+        _np_keycache_handle_event(context, ping_dhkey, ping_event, false);
+    }
+
+    if (node->latency_win_index == (NP_NODE_SUCCESS_WINDOW-1) )
+    {   // issue piggy messages
+        np_dhkey_t piggy_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
+        np_util_event_t piggy_event = { .type=(evt_internal|evt_message), .target_dhkey=node_key->dhkey, .user_data=NULL, .context=context };
+        _np_keycache_handle_event(context, piggy_dhkey, piggy_event, false);
+    }
 }
 
 void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -267,13 +318,13 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
 void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_node_upgrade(...) {");
+    log_debug_msg(LOG_DEBUG, "start: void __np_node_upgrade(...) { %p", statemachine->_user_data);
 
-    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+    NP_CAST(statemachine->_user_data, np_key_t, alias_or_node_key);
     NP_CAST(event.user_data, np_aaatoken_t, token);
 
     // if this is an alias, trigger the state transition of the correpsonding node key
-    if (FLAG_CMP(alias_key->type, np_key_type_alias)) 
+    if (FLAG_CMP(alias_or_node_key->type, np_key_type_alias)) 
     {
         np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
         np_key_t* node_key = _np_keycache_find(context, token_fp);
@@ -285,22 +336,27 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
     } else {
         // node key and alias key share the same data structures, updating once counts for both
         struct __np_node_trinity trinity = {0};
-        __np_key_to_trinity(alias_key, &trinity);
+        __np_key_to_trinity(alias_or_node_key, &trinity);
 
         // eventually send out our own data for mtls
-        __np_node_handle_completion(&alias_key->sm, event);
+        __np_node_handle_completion(&alias_or_node_key->sm, event);
 
-        if (FLAG_CMP(trinity.token->type, np_aaatoken_type_handshake)) {
-            np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
-            token->state |= AAA_AUTHENTICATED;
-            trinity.token = token;
-            trinity.node->_joined_status++;
-            np_ref_obj(np_aaatoken_t, trinity.token, "__np_node_upgrade");
-        } 
-        if (FLAG_CMP(trinity.token->type, np_aaatoken_type_node) ) {
+        if (FLAG_CMP(trinity.token->type, np_aaatoken_type_node) ) 
+        {
             trinity.token->state |= AAA_AUTHENTICATED;    
             trinity.node->_joined_status++;
         }
+
+        if (FLAG_CMP(trinity.token->type, np_aaatoken_type_handshake)) 
+        {
+            np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
+            
+            sll_append(void_ptr, alias_or_node_key->entities, token);
+            np_ref_obj(np_aaatoken_t, token, "__np_node_upgrade");
+
+            token->state |= AAA_AUTHENTICATED;
+            trinity.node->_joined_status++;
+        } 
     }
 }
 
@@ -607,4 +663,35 @@ bool __is_join_out_message(np_util_statemachine_t* statemachine, const np_util_e
     }
     __np_return__:
         return ret;
+}
+
+void __np_node_handle_response(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_node_handle_response(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    np_node_t* node = _np_key_get_node(node_key);
+
+    node->success_win_index++;
+    if (node->success_win_index == NP_NODE_SUCCESS_WINDOW)
+        node->success_win_index = 0;
+
+    node->latency_win_index++;
+    if (node->latency_win_index == NP_NODE_SUCCESS_WINDOW)
+        node->latency_win_index = 0;
+
+    NP_CAST(event.user_data, np_responsecontainer_t, response);
+
+    if (FLAG_CMP(event.type, evt_response) )
+    {
+        node->last_success = np_time_now();
+        node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = 1;
+        node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = (response->received_at - response->send_at);
+    } 
+    else if (FLAG_CMP(event.type, evt_timeout))
+    {
+        node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] =   0;
+        node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = 1.0;
+    }
 }

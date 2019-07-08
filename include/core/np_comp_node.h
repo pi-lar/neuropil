@@ -94,6 +94,9 @@ bool __is_shutdown_event(np_util_statemachine_t* statemachine, const np_util_eve
 NP_API_INTERN
 void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
+NP_API_INTERN
+void __np_node_handle_response(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
 #ifdef __cplusplus
 }
 #endif

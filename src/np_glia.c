@@ -172,7 +172,7 @@ void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_ch
         if (NULL != tmp_node_key->node &&
             tmp_node_key->node->success_avg < BAD_LINK &&
             (np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-            tmp_node_key->node->_handshake_status == np_handshake_status_Connected
+            tmp_node_key->node->_handshake_status == np_status_Connected
             )
         {			
             if(context == NULL) context = np_ctx_by_memory(tmp_node_key);
@@ -219,69 +219,9 @@ void _np_glia_check_routes(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
     sll_free(np_key_ptr, table);
 }
 
-void _np_glia_send_pings(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-    // TODO: do a dynamic selection of keys
-    np_sll_t(np_key_ptr, routing_keys) = _np_route_get_table(context);
-    np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors(context);
-
-    np_sll_t(np_key_ptr, keys) = sll_merge(np_key_ptr, neighbour_keys, routing_keys, _np_key_cmp);
-
-    sll_iterator(np_key_ptr) iter = sll_first(keys);
-
-    double now = np_time_now();
-    while (iter != NULL) {
-
-        if(iter->val != context->my_node_key){
-            np_tryref_obj(np_node_t, iter->val->node, node_exists, node);
-            if(node_exists) {
-                if (
-                    node->joined_network                 
-                    && (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC) <= now
-                ) {
-                    _np_ping_send(context, iter->val);                
-                }
-                np_unref_obj(np_node_t, node, FUNC);
-            }
-        }
-        sll_next(iter);
-    }
-    sll_free(np_key_ptr, keys); // no ref
-    np_key_unref_list(routing_keys, "_np_route_get_table");
-    sll_free(np_key_ptr, routing_keys);
-    np_key_unref_list(neighbour_keys, "_np_route_neighbors");
-    sll_free(np_key_ptr, neighbour_keys);
-}
-
 void _np_glia_log_flush(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
 {    
     _np_log_fflush(context, false);
-}
-
-void _np_glia_send_piggy_requests(np_state_t* context, NP_UNUSED  np_jobargs_t args)
-{
-    /* send leafset exchange data every 3 times that pings the leafset */
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset exchange for neighbours started");
-
-    np_sll_t(np_key_ptr, routing_keys) = _np_route_get_table(context);
-    np_sll_t(np_key_ptr, neighbour_keys) = _np_route_neighbors(context);
-    np_sll_t(np_key_ptr, keys_merged) = sll_merge(np_key_ptr, routing_keys, neighbour_keys, _np_key_cmp);
-
-    int i = 0;
-    sll_iterator(np_key_ptr) iter_keys = sll_first(keys_merged);
-    while (iter_keys != NULL)
-    {
-        // send a piggy message to the the nodes in our routing table
-        np_msgproperty_t* piggy_prop = _np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-        _np_job_submit_transform_event(context, 0.0, piggy_prop, iter_keys->val, NULL);
-        i++;
-        sll_next(iter_keys);
-    }
-
-    sll_free(np_key_ptr, keys_merged);
-    np_key_unref_list(routing_keys, "_np_route_get_table");
-    sll_free(np_key_ptr, routing_keys);
-    np_key_unref_list(neighbour_keys, "_np_route_neighbors");
-    sll_free(np_key_ptr, neighbour_keys);
 }
 
 /**
@@ -365,6 +305,7 @@ void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED  np_jo
  ** the message gets deleted or dropped (if max redelivery has been reached)
  ** redelivery has two aspects -> simple resend or reroute because of bad link nodes in the routing table
  **/
+/* 
 void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
 {
     np_waitref_obj(np_key_t, context->my_node_key, my_key);
@@ -434,6 +375,7 @@ void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
     np_unref_obj(np_key_t, my_key, FUNC);
     np_unref_obj(np_network_t, my_network, FUNC);
 }
+*/
 
 void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
 {    
@@ -518,56 +460,6 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t a
     }
 }
 
-/**
- ** np_send_rowinfo:
- ** sends matching row of its table to the target node
- **/
-void _np_send_rowinfo_jobexec(np_state_t* context, np_jobargs_t args)
-{
-    
-    np_key_t* target_key = args.target;
-
-    // check for correct target
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "job submit route row info to %s:%s!",
-            target_key->node->dns_name, target_key->node->port);
-
-    np_sll_t(np_key_ptr, sll_of_keys) = NULL;
-    /* send one row of our routing table back to joiner #host# */
-    
-    char* source_sll_of_keys;
-    sll_of_keys = _np_route_row_lookup(target_key);
-    source_sll_of_keys = "_np_route_row_lookup";
-    //sll_of_keys = _np_route_get_table(context);
-    //source_sll_of_keys = "_np_route_get_table";
-    
-    
-    if (sll_size(sll_of_keys) <= 5)
-    {
-        // nothing found, send leafset to exchange some data at least
-        // prevents small clusters from not exchanging all data
-        np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
-        sll_free(np_key_ptr, sll_of_keys);
-        sll_of_keys = _np_route_neighbors(context);
-        source_sll_of_keys = "_np_route_neighbors";
-    }
-    
-    if (sll_size(sll_of_keys) > 0)
-    {
-        np_tree_t* msg_body = np_tree_create();
-        _np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
-        np_msgproperty_t* outprop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_PIGGY_REQUEST);
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending piggy msg (%"PRIu32" nodes) to %s", sll_size(sll_of_keys), _np_key_as_str(target_key));
-
-        np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out);
-        _np_message_create(msg_out, target_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PIGGY_REQUEST, msg_body);
-        _np_job_submit_msgout_event(context, NP_PI/500, outprop, target_key, msg_out);
-        np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-    }
-
-    np_key_unref_list(sll_of_keys, source_sll_of_keys);
-    sll_free(np_key_ptr, sll_of_keys);
-}
 
 // TODO: add a wrapper function which can be scheduled via jobargs
 bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)

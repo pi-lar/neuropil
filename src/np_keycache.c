@@ -200,7 +200,6 @@ np_key_t* _np_keycache_find_by_details(
 
 void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
 {
-    np_key_t* return_key = NULL;
     np_key_t *iter = NULL;
 
     _LOCK_MODULE(np_keycache_t)
@@ -208,10 +207,8 @@ void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_jobargs_t args)
         RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
             // log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
-            np_util_statemachine_invoke_auto_transitions(&iter->sm);
-            
-            np_aaatoken_t* my_node_token = _np_key_get_token(context->my_node_key);
-            log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, my_node_token, my_node_token->type);
+            np_util_statemachine_invoke_auto_transitions(&iter->sm);            
+            log_debug_msg(LOG_DEBUG, "sm %p %d %s", iter, iter->type, iter->sm._state_table[iter->sm._current_state]->_state_name);
         }
     }
 }
@@ -318,6 +315,16 @@ np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key)
     return subject_key;
 }
 
+void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_event_t event, bool force) 
+{
+    log_trace_msg(LOG_TRACE, "start: void _np_keycache_handle_event(...){");
+
+    np_key_t* key = _np_keycache_find(context, dhkey);
+    if (key != NULL) {
+        _np_key_handle_event(key, event, force);
+        np_unref_obj(np_key_t, key, "_np_keycache_find");
+    }
+}
 
 /** _np_keycache_find_closest_key_to:
  ** finds the closest node in the array of #hosts# to #key# and put that in min_key.

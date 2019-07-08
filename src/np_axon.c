@@ -91,49 +91,36 @@ void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproper
  **/
 void _np_out_ack(np_state_t* context, np_util_event_t msg_event)
 {
-    /*
     log_trace_msg(LOG_TRACE, "start: void _np_send_ack(np_state_t* context, np_util_event_t msg_event){");
-    np_waitref_obj(np_key_t, context->my_node_key, my_key,"np_waitref_key");
-    np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
 
-    np_jobargs_t args = { .msg=msg_event.user_data };
+    np_tree_t* msg_body = np_tree_create();
+    np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_event.user_data));
 
-    uint32_t seq = 0;
-    _LOCK_ACCESS(&my_network->access_lock)
-    {
-        // get/set sequence number to keep increasing sequence numbers per node
-        seq = my_network->seqend;
-        np_tree_replace_str(args.msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
-        my_network->seqend++;
-    }
-    double now = np_time_now();
-    np_tree_insert_str( args.msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(args.properties->ack_mode));
-    np_tree_insert_str( args.msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(args.properties->msg_ttl));
-    np_tree_insert_str( args.msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-
-    np_tree_insert_str(args.msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(args.properties->ack_mode));
-    np_tree_insert_str( args.msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(args.msg->uuid));
-    np_tree_insert_str( args.msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
-    np_tree_insert_str( args.msg->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
-    np_tree_elem_t* jrb_send_counter = np_tree_find_str(args.msg->instructions, _NP_MSG_INST_SEND_COUNTER);
-    jrb_send_counter->val.value.ush++;
+    np_message_t* msg_out;
+    np_new_obj(np_message_t, msg_out);
+    _np_message_create(msg_out, msg_event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
 
     // chunking for 1024 bit message size
-    _np_message_calculate_chunking(args.msg);
-    _np_message_serialize_chunked(args.msg);
-    bool send_ok = _np_network_append_msg_to_out_queue(args.target, args.msg);
-    if(send_ok) {
-        __np_axon_invoke_on_user_send_callbacks(args.msg, _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK));
-    } else {
-        np_tree_elem_t* target_uuid = np_tree_find_str(args.msg->instructions, _NP_MSG_INST_RESPONSE_UUID);
-        log_msg(LOG_ERROR, "msg (%s) ACK_HANDLING sending of ack message (%s) to %s:%s failed",
-                args.msg->uuid,
-                target_uuid->val.value.s,
-                args.target->node->dns_name, args.target->node->port);
+    _np_message_calculate_chunking(msg_out);
+    _np_message_serialize_chunked(msg_out);
+
+    np_key_t* target_key = _np_keycache_find(context, msg_event.target_dhkey);
+
+    // 3: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(msg_out->msg_chunks);
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting ack to target key %s / %p", _np_key_as_str(target_key), target_key);
+        np_util_event_t ack_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=msg_event.target_dhkey};
+        _np_key_handle_event(target_key, ack_event, false);
+
+        pll_next(iter);
     }
-    np_unref_obj(np_key_t, my_key,"np_waitref_key");
-    np_unref_obj(np_network_t, my_network,"np_waitref_network");
-    */
+    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+
+    // __np_axon_invoke_on_user_send_callbacks(args.msg, _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK));
+    np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 }
 
 /**
@@ -361,7 +348,7 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
                     np_ref_obj(np_message_t, responsecontainer->msg, ref_ack_msg);
 
                     // responsecontainer->expected_ack = 1; // msg_out->no_of_chunks ?
-                    log_debug_msg(LOG_DEBUG, "initial sending of message (%s/%s) with response",
+                    log_debug_msg(LOG_DEBUG, "initial   sending of message (%s/%s) with response",
                                              args.properties->msg_subject, args.msg->uuid);
 
 #ifdef DEBUG					
@@ -444,6 +431,93 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
     }
     // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
     */
+}
+
+void _np_out_ping(np_state_t* context, const np_util_event_t event) 
+{  
+    log_trace_msg(LOG_TRACE, "start: void _np_out_piggy(...) {");
+
+    np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+
+    np_message_t* msg_out = NULL;
+    np_new_obj(np_message_t, msg_out);
+    _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
+
+    // 2: chunk the message if required
+    _np_message_calculate_chunking(msg_out);
+    _np_message_serialize_chunked(msg_out);
+
+    _np_message_add_key_response_handler(msg_out);
+
+    // 3: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(msg_out->msg_chunks);
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting ping to target key %s / %p", _np_key_as_str(target_key), target_key);
+        np_util_event_t ping_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=target_key->dhkey};
+        _np_key_handle_event(target_key, ping_event, false);
+
+        pll_next(iter);
+    }
+
+    np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+}
+
+void _np_out_piggy(np_state_t* context, const np_util_event_t event) 
+{
+    log_trace_msg(LOG_TRACE, "start: void _np_out_piggy(...) {");
+    np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+
+    /* send one row of our routing table back to joiner #host# */    
+    np_sll_t(np_key_ptr, sll_of_keys) = NULL;
+    sll_of_keys = _np_route_row_lookup(target_key);
+    char* source_sll_of_keys = "_np_route_row_lookup";
+    
+    if (sll_size(sll_of_keys) <= 5)
+    {   // nothing found, send leafset to exchange some data at least
+        // prevents small clusters from not exchanging all data
+        np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
+        sll_free(np_key_ptr, sll_of_keys);
+        sll_of_keys = _np_route_neighbors(context);
+        source_sll_of_keys = "_np_route_neighbors";
+    }
+    
+    if (sll_size(sll_of_keys) > 0)
+    {
+        np_node_t* target_node = _np_key_get_node(target_key);
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "job submit piggyinfo to %s:%s!", target_node->dns_name, target_node->port);
+
+        np_tree_t* msg_body = np_tree_create();
+        _np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
+
+        np_message_t* msg_out = NULL;
+        np_new_obj(np_message_t, msg_out);
+        _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_PIGGY_REQUEST, msg_body);
+
+        // 2: chunk the message if required
+        _np_message_calculate_chunking(msg_out);
+        _np_message_serialize_chunked(msg_out);
+
+        // 3: send over the message parts
+        pll_iterator(np_messagepart_ptr) iter = pll_first(msg_out->msg_chunks);
+        while (NULL != iter) 
+        {
+            iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
+            log_debug_msg(LOG_DEBUG, "submitting leave to target key %s / %p", _np_key_as_str(target_key), target_key);
+            np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+            _np_keycache_handle_event(context, event.target_dhkey, leave_event, false);
+
+            pll_next(iter);
+        }
+        np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+    }
+
+    np_key_unref_list(sll_of_keys, source_sll_of_keys);
+    sll_free(np_key_ptr, sll_of_keys);
+
+    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
 }
 
 void _np_out_leave(np_state_t* context, const np_util_event_t event) 

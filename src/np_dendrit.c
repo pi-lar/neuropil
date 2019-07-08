@@ -35,6 +35,7 @@
 #include "np_keycache.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
@@ -58,7 +59,7 @@ will always call all handlers, but will return false if any of the handlers retu
 */
 bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
     bool ret = true;
-    np_ctx_memory(msg_in);
+/*  np_ctx_memory(msg_in);
 
     ASSERT(msg_prop != NULL, "msg property cannot be null");
 
@@ -84,7 +85,7 @@ bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_
         // is response to
         np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(context, np_treeval_to_str(response_uuid->val, NULL));
 
-        /* just an acknowledgement of own messages send out earlier */
+        // just an acknowledgement of own messages send out earlier
         //TODO: add msgpropery cmp function to replace strcmp
         if (entry != NULL && entry->msg != NULL && entry->msg->msg_property->rep_subject != NULL && strcmp(msg_prop->msg_subject, entry->msg->msg_property->rep_subject) == 0)
         {
@@ -93,7 +94,7 @@ bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_
         }
         np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
     }
-
+    */
     return ret;
 }
 
@@ -299,7 +300,6 @@ void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
                     CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE (%s)", msg_in->uuid) {
                         CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_FROM, msg_from,"NO FROM IN MESSAGE (%s)", msg_in->uuid) 
                         {
-
                             _np_dhkey_str(&msg_from->val.value.dhkey, str_msg_from);
                             str_msg_subject = msg_subject->val.value.s;
 
@@ -312,9 +312,9 @@ void _np_in_received(np_state_t* context,np_key_t* alias_key, void* raw_msg)
                             );
 
                             bool is_direct_msg =
-                                    ( 0 == strncmp(str_msg_subject, _NP_MSG_ACK, strlen(_NP_MSG_ACK)) ||
-                                    0 == strncmp(str_msg_subject, _NP_MSG_JOIN, strlen(_NP_MSG_JOIN)) ||
-                                    0 == strncmp(str_msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST))
+                                    ( 0 == strncmp(str_msg_subject, _NP_MSG_ACK,          strlen(_NP_MSG_ACK))           ||
+                                      0 == strncmp(str_msg_subject, _NP_MSG_JOIN,         strlen(_NP_MSG_JOIN))          ||
+                                      0 == strncmp(str_msg_subject, _NP_MSG_JOIN_REQUEST, strlen(_NP_MSG_LEAVE_REQUEST)   )
                                     );
 
                             np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
@@ -435,12 +435,13 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
 
     } else {
 
-        if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)) {             
-            
-            if(!_np_job_submit_msgin_event(0, handler, my_key, msg_to_submit, NULL)) {
+        if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)) 
+        {    
+            if(!_np_job_submit_msgin_event(0, handler, my_key, msg_to_submit, NULL)) 
+            {
                 _np_msgproperty_remove_msg_from_uniquety_list(handler, msg_to_submit);
-            } else
-            
+            } 
+            else
             {
                 log_debug(LOG_MESSAGE, "handling   message (%s) for subject: %s (%d) with function %p",
                         msg_to_submit->uuid, handler->msg_subject, allow_destination_ack, handler->clb_inbound);
@@ -463,6 +464,24 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
         np_unref_obj(np_key_t, my_key, FUNC);
 }
 
+void _np_in_ping(np_state_t* context, np_util_event_t msg_event)
+{
+    log_trace_msg(LOG_TRACE, "start: void _np_in_ping(...) {");
+
+    NP_CAST(msg_event.user_data, np_message_t, msg);
+    log_debug_msg(LOG_DEBUG, "_np_in_ping for message uuid %s", msg->uuid);
+
+    // initiate ack for ping messages
+    // TODO: do this in a np_evt_callback_t function
+    np_dhkey_t ack_dhkey   = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
+    np_dhkey_t target = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
+
+    np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=strndup(msg->uuid, NP_UUID_BYTES) };
+    _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
+
+    // nothing more to do. work is done only on the sending end (ack handling)
+}
+
 /**
  ** neuropil_piggy_message:
  ** This function is responsible to add the piggy backing node information that is sent along with
@@ -470,119 +489,122 @@ void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* hand
  ** message type.
  **/
 void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_piggy(np_jobargs_t* args) {");
-    np_state_t* state = context;
-    np_key_t* node_entry = NULL;
-    // double tmp_ft;
-    np_sll_t(np_key_ptr, o_piggy_list) = NULL;
+{
+    log_trace_msg(LOG_TRACE, "start: void _np_in_piggy(...) {");
 
-    o_piggy_list = _np_node_decode_multiple_from_jrb(context, args.msg->body);
+    NP_CAST(msg_event.user_data, np_message_t, msg);
 
-    np_waitref_obj(np_key_t, state->my_node_key, my_key, "np_waitref_key");
+    np_node_t* node_entry = NULL;
+    np_sll_t(np_node_ptr, o_piggy_list) = NULL;
+
+    o_piggy_list = _np_node_decode_multiple_from_jrb(context, msg->body);
 
     log_info(LOG_ROUTING, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
 
-    while (NULL != (node_entry = sll_head(np_key_ptr, o_piggy_list)))
+    while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
         // add entries in the message to our routing table
         // routing table is responsible to handle possible double entries
-        // tmp_ft = node_entry->node->failuretime;
-
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
-        if (false == _np_dhkey_equal(&node_entry->dhkey, &my_key->dhkey) &&
-            !FLAG_CMP(node_entry->node->protocol, PASSIVE) &&
-            !node_entry->node->joined_network)
-        {
-            // just record nodes in the network or send an join request as well ?
-            // answer: only send join request !
-            // if (GRACEPERIOD > (np_time_now() - tmp_ft))
-            // {
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(node_entry));
-            _np_send_simple_invoke_request(node_entry, _NP_MSG_JOIN_REQUEST);
-        }
-        else if (node_entry->node->joined_network &&
-                node_entry->node->success_avg > BAD_LINK &&
-                (np_time_now() - node_entry->node->last_success) <= BAD_LINK_REMOVE_GRACETIME) {
+        np_dhkey_t search_key = np_dhkey_create_from_hash(node_entry->host_key);
+        np_key_t* piggy_key = _np_keycache_find(context, search_key);
 
-            // udpate and leafset, as nodes could have left the network and we need to fill up entries
+        if (piggy_key == NULL)
+        {   // unkown key, just send a join request 
+            piggy_key = _np_keycache_find_or_create(context, search_key);
+
+            np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
+            _np_key_handle_event(piggy_key, new_node_evt, false);
+
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
+        }
+        else if (_np_key_get_node(piggy_key)->joined_network                                           &&
+                 _np_key_get_node(piggy_key)->success_avg > BAD_LINK                                   &&
+                (np_time_now() - piggy_key->created_at) >= BAD_LINK_REMOVE_GRACETIME ) 
+        {
+            // known key and ping latency has been tested for a while (gracetime), let's add it to the routing table
             np_key_t *added = NULL, *deleted = NULL;
-            _np_route_leafset_update(node_entry, true, &deleted, &added);
+            _np_route_leafset_update(piggy_key, true, &deleted, &added);
 
 #ifdef DEBUG
             if (added != NULL && deleted != NULL) {
+                np_node_t* added_node   = _np_key_get_node(added);
+                np_node_t* deleted_node = _np_key_get_node(deleted);
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   leafset: %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
                             _np_key_as_str(added),
-                            added->node->dns_name, deleted->node->port,
-                            added->node->last_success,
-                            added->node->success_avg,
+                            added_node->dns_name, added_node->port,
+                            added_node->last_success,
+                            added_node->success_avg,
 
                             _np_key_as_str(deleted),
-                            deleted->node->dns_name, deleted->node->port,
-                            deleted->node->last_success,
-                            deleted->node->success_avg
+                            deleted_node->dns_name, deleted_node->port,
+                            deleted_node->last_success,
+                            deleted_node->success_avg
                 );
             }
             else if (added != NULL) {
+                np_node_t* added_node   = _np_key_get_node(added);
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   leafset: %s:%s:%s / %f / %1.2f",
                             _np_key_as_str(added),
-                            added->node->dns_name, added->node->port,
-                            added->node->last_success,
-                            added->node->success_avg);
+                            added_node->dns_name, added_node->port,
+                            added_node->last_success,
+                            added_node->success_avg);
             }
             else  if (deleted !=NULL){
+                np_node_t* deleted_node = _np_key_get_node(deleted);
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from leafset: %s:%s:%s / %f / %1.2f",
                             _np_key_as_str(deleted),
-                            deleted->node->dns_name, deleted->node->port,
-                            deleted->node->last_success,
-                            deleted->node->success_avg);
+                            deleted_node->dns_name, deleted_node->port,
+                            deleted_node->last_success,
+                            deleted_node->success_avg);
             }
 #endif
 
             added = NULL, deleted = NULL;
-//          DEACTIVATED due to a missing gracetime during the route network initialisation
-// 			_np_route_update(node_entry, true, &deleted, &added);
+
+ 			_np_route_update(piggy_key, true, &deleted, &added);
 #ifdef DEBUG
             if (added != NULL && deleted != NULL) {
+                np_node_t* added_node   = _np_key_get_node(added);
+                np_node_t* deleted_node = _np_key_get_node(deleted);
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
                             _np_key_as_str(added),
-                            added->node->dns_name, deleted->node->port,
-                            added->node->last_success,
-                            added->node->success_avg,
+                            added_node->dns_name, added_node->port,
+                            added_node->last_success,
+                            added_node->success_avg,
 
                             _np_key_as_str(deleted),
-                            deleted->node->dns_name, deleted->node->port,
-                            deleted->node->last_success,
-                            deleted->node->success_avg
+                            deleted_node->dns_name, deleted_node->port,
+                            deleted_node->last_success,
+                            deleted_node->success_avg
                     );
-            } else  if (added !=NULL){
+            } else  if (added !=NULL) {
+                np_node_t* added_node   = _np_key_get_node(added);
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   table  : %s:%s:%s / %f / %1.2f",
                             _np_key_as_str(added),
-                            added->node->dns_name, added->node->port,
-                            added->node->last_success,
-                            added->node->success_avg);
-            } else if (deleted !=NULL){
+                            added_node->dns_name, added_node->port,
+                            added_node->last_success,
+                            added_node->success_avg);
+            } else if (deleted !=NULL) {
+                np_node_t* deleted_node = _np_key_get_node(deleted);
                 log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from table  : %s:%s:%s / %f / %1.2f",
                             _np_key_as_str(deleted),
-                            deleted->node->dns_name, deleted->node->port,
-                            deleted->node->last_success,
-                            deleted->node->success_avg);
+                            deleted_node->dns_name, deleted_node->port,
+                            deleted_node->last_success,
+                            deleted_node->success_avg);
             }
 #endif
         } else {
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a piggy join. (%s)", _np_key_as_str(node_entry), node_entry->node->joined_network ? "J":"NJ");
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a further piggy actions. (%s)",
+                                                   _np_key_as_str(piggy_key), 
+                                                   _np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
         }
-        np_unref_obj(np_key_t, node_entry,"_np_node_decode_multiple_from_jrb");
+        np_unref_obj(np_node_t, node_entry,"_np_node_decode_multiple_from_jrb");
     }
-    np_unref_obj(np_key_t, my_key, "np_waitref_key");
-    sll_free(np_key_ptr, o_piggy_list);
+    sll_free(np_node_ptr, o_piggy_list);
 
-    // __np_cleanup__:
-    // nothing to do
-    // __np_return__:
-    log_trace_msg(LOG_TRACE, "end  : void _np_in_piggy(np_jobargs_t* args) }");
+    log_trace_msg(LOG_TRACE, "end  : void _np_in_piggy(...) }");
     return;
-    */
 }
 
 /** _np_in_callback_wrapper
@@ -713,7 +735,7 @@ void _np_in_join(np_state_t* context, np_util_event_t msg_event)
     np_dhkey_t join_ident_dhkey = { 0 };
     np_ident_public_token_t* join_ident_token = NULL;
 
-    np_util_event_t authn_event = { .context=context, .type=evt_authn|evt_external };
+    np_util_event_t authn_event = { .context=context, .type=evt_authn|evt_external|evt_token };
     
     np_tree_elem_t* node_token_ele = np_tree_find_str(msg->body, _NP_URN_NODE_PREFIX);
     if (node_token_ele == NULL) 
@@ -976,35 +998,36 @@ __np_cleanup__:
     */
 }
 
-void __np_in_ack_handle(np_message_t * msg)
-{/*
-    np_ctx_memory(msg);
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) handling acknowledgment", msg->uuid);
+void _np_in_ack(np_state_t* context, np_util_event_t msg_event)
+{
+    log_debug_msg(LOG_TRACE, "start: void __np_in_ack(...){");
 
-    np_waitref_obj(np_key_t, context->my_node_key, my_key);
-    np_waitref_obj(np_network_t, my_key->network, my_network);
+    NP_CAST(msg_event.user_data, np_message_t, msg);
 
-    CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
-    np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(context, ack_uuid.value.s);
+    np_dhkey_t ack_in_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
+    np_key_t* ack_key = _np_keycache_find(context, ack_in_dhkey);
+    NP_CAST(sll_first(ack_key->entities)->val, np_msgproperty_t, property);
 
-    // just an acknowledgement of own messages send out earlier
-    if(entry != NULL)
+    CHECK_STR_FIELD(msg->body, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
+    np_tree_elem_t* response_entry = np_tree_find_str(property->response_handler, ack_uuid.value.s);
+
+    if(response_entry != NULL)
+    {   // just an acknowledgement of own messages send out earlier
+        NP_CAST(response_entry->val.value.v, np_responsecontainer_t, response);
+        log_debug_msg(LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s", msg->uuid, np_treeval_to_str(ack_uuid, NULL) );
+        response->received_at = np_time_now();
+    }
+    else 
     {
-        log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s",
-                                                              msg->uuid, np_treeval_to_str(ack_uuid, NULL));
-        _np_responsecontainer_received_ack(entry);
+        log_debug_msg(LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s but we do not know of this msg",
+                                msg->uuid, np_treeval_to_str(ack_uuid, NULL) );
     }
-    else {
-        log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s but we do not know of this msg",
-                                                              msg->uuid, np_treeval_to_str(ack_uuid, NULL));
-    }
-    np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
-
+ 
     __np_cleanup__:
-    np_unref_obj(np_network_t, my_network,FUNC);
-    np_unref_obj(np_key_t, my_key, FUNC);*/
+    np_unref_obj(np_key_t, ack_key, "_np_keycache_find");
 }
 
+/*
 void _np_in_ack(NP_UNUSED  np_state_t* context, np_util_event_t msg_event)
 {
     // __np_in_ack_handle(args.msg);
@@ -1013,7 +1036,7 @@ void _np_in_ack(NP_UNUSED  np_state_t* context, np_util_event_t msg_event)
 // TODO: write a function that handles path discovery
 // TODO: if this is not the target node, add my own address to the update message
 // TODO: if this is the target node, change target to sending instance and send again
-
+*/
 // receive information about new nodes in the network and try to contact new nodes
 void _np_in_update(np_state_t* context, np_util_event_t msg_event)
 {/*

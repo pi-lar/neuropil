@@ -29,7 +29,10 @@ void _np_in_update (np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
 void _np_in_ack(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
-void __np_in_ack_handle(np_message_t * msg);
+void _np_in_ping (np_state_t* context, np_util_event_t msg_event);
+
+NP_API_INTERN
+void _np_in_ack(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
 void _np_in_join(np_state_t* context, np_util_event_t msg_event);

@@ -263,13 +263,13 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_ERROR, "start: void __is_auth_nz_request(...){");
+    log_debug_msg(LOG_DEBUG, "start: void __is_authn_request(...){");
 
     bool ret = false;
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     
-    if (!ret) ret  = (FLAG_CMP(event.type, evt_authn) || FLAG_CMP(event.type, evt_authz) );
-    if ( ret) ret &=  FLAG_CMP(event.type, evt_external && FLAG_CMP(event.type, evt_token) );
+    if (!ret) ret  =  FLAG_CMP(event.type, evt_authn);
+    if ( ret) ret &= (FLAG_CMP(event.type, evt_external) && FLAG_CMP(event.type, evt_token) );
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     if ( ret) {
         NP_CAST(event.user_data, np_aaatoken_t, token);
@@ -283,13 +283,13 @@ bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_even
 bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_ERROR, "start: void __is_auth_nz_request(...){");
+    log_debug_msg(LOG_DEBUG, "start: void __is_authz_request(...){");
 
     bool ret = false;
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     
-    if (!ret) ret  = (FLAG_CMP(event.type, evt_authn) || FLAG_CMP(event.type, evt_authz) );
-    if ( ret) ret &=  FLAG_CMP(event.type, evt_external && FLAG_CMP(event.type, evt_token) );
+    if (!ret) ret  = FLAG_CMP(event.type, evt_authz);
+    if ( ret) ret &= (FLAG_CMP(event.type, evt_external) && FLAG_CMP(event.type, evt_token) );
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     if ( ret) {
         NP_CAST(event.user_data, np_aaatoken_t, token);
@@ -303,7 +303,7 @@ bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_even
 void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_ERROR, "start: void __np_identity_handle_authn(...){");
+    log_debug_msg(LOG_DEBUG, "start: void __np_identity_handle_authn(...){");
 
     NP_CAST(event.user_data, np_aaatoken_t, authn_token);
 
@@ -349,7 +349,7 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
 void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_ERROR, "start: void __np_identity_handle_authz(...){");
+    log_debug_msg(LOG_DEBUG, "start: void __np_identity_handle_authz(...){");
 
     NP_CAST(event.user_data, np_aaatoken_t, authz_token);
 

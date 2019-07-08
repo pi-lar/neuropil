@@ -22,8 +22,6 @@ void _np_renew_node_token_jobexec(np_state_t* context, np_jobargs_t args);
 void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t args);
 void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t args);
 
-// other helper functions
-void _np_send_rowinfo_jobexec (np_state_t* context, np_jobargs_t args);
 
 void _np_send_subject_discovery_messages(np_state_t* context, np_msg_mode_type mode_type, const char* subject);
 void _np_send_msg_interest(const char* subject);
@@ -33,9 +31,7 @@ bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop,
 
 void _np_glia_check_neighbours(np_state_t* context, np_jobargs_t args);
 void _np_glia_check_routes(np_state_t* context, np_jobargs_t args);
-void _np_glia_send_piggy_requests(np_state_t* context, np_jobargs_t args);
 void _np_glia_log_flush(np_state_t* context, np_jobargs_t args);
-void _np_glia_send_pings(np_state_t* context, np_jobargs_t args);
 
 typedef void(*__np_glia_check_connections_handler)(np_key_t*, bool, np_key_t**, np_key_t**);
 void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn);

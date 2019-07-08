@@ -39,11 +39,7 @@ extern "C" {
 
 struct np_node_s
 {
-	// link to memory management
-	
-	np_mutex_t lock;
-	np_mutex_t latency_lock;
-
+	char *host_key;
 	enum socket_type protocol;
 	char *dns_name;
 	char* port;
@@ -62,6 +58,7 @@ struct np_node_s
 	// statistics
 	double last_success;
 	double latency;
+
 	double latency_win[NP_NODE_SUCCESS_WINDOW];
 	uint8_t latency_win_index;
 	uint8_t success_win[NP_NODE_SUCCESS_WINDOW];
@@ -88,10 +85,6 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
  **
  **/
 NP_API_INTERN
-void _np_node_update_stat (np_key_t* key, bool responded);
-NP_API_INTERN
-void _np_node_update_latency (np_key_t* key, double new_latency);
-NP_API_INTERN
 np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type);
 /** np_node_decode routines
  ** decodes a string into a neuropil np_node structure, including lookup to the global key tree
@@ -101,7 +94,7 @@ NP_API_INTERN
 np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key);
 
 NP_API_INTERN
-sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, np_tree_t* data);
+sll_return(np_node_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, np_tree_t* data);
 
 NP_API_INTERN
 np_node_t*  _np_node_decode_from_jrb (np_state_t* context, np_tree_t* data);
@@ -126,12 +119,6 @@ char* _np_node_get_dns_name (np_node_t* np_node);
 
 NP_API_INTERN
 char* _np_node_get_port (np_node_t* np_node);
-
-NP_API_INTERN
-float _np_node_get_success_avg (np_node_t* np_node);
-
-NP_API_INTERN
-float _np_node_get_latency (np_node_t* np_node);
 
 NP_API_INTERN
 uint8_t _np_node_check_address_validity (np_node_t* np_node);

@@ -11,7 +11,6 @@
 #include "np_glia.h"
 #include "np_list.h"
 #include "np_legacy.h"
-#include "np_pinging.h"
 
 sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     
@@ -71,7 +70,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __ack_properties->ack_mode = ACK_NONE;
     __ack_properties->retry = 0;
     sll_append(np_evt_callback_t, __ack_properties->clb_inbound, _np_in_ack);
-    sll_remove(np_evt_callback_t, __ack_properties->clb_outbound, _np_out, np_evt_callback_t_sll_compare_type);
     sll_append(np_evt_callback_t, __ack_properties->clb_outbound, _np_out_ack);
     // sll_append(np_evt_callback_t, __ack_properties->clb_transform, _np_never_called_jobexec_transform);
     // default: sll_append(np_evt_callback_t, __ack_properties->clb_route, _np_glia_route_lookup);
@@ -109,20 +107,17 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     __leave_properties->msg_subject = strdup(_NP_MSG_LEAVE_REQUEST);
     __leave_properties->rep_subject = NULL;
-    __leave_properties->mode_type = INBOUND | OUTBOUND | ROUTE;
+    __leave_properties->mode_type = INBOUND | OUTBOUND;
     __leave_properties->mep_type = ONE_WAY;
     __leave_properties->priority = 0;
     __leave_properties->ack_mode = ACK_NONE;
     __leave_properties->retry = 5;
-    sll_append(np_evt_callback_t, __leave_properties->clb_inbound,  _np_in_leave );
-    sll_append(np_evt_callback_t, __leave_properties->clb_outbound, _np_out_leave);
-    //default: sll_append(np_evt_callback_t, __leave_properties->clb_outbound, _np_out);
-    //sll_append(np_evt_callback_t, __leave_properties->clb_transform, _np_never_called_jobexec_transform);
-    //default: sll_append(np_evt_callback_t, __leave_properties->clb_route, _np_glia_route_lookup);
     __leave_properties->msg_ttl = 3.0;
     __leave_properties->max_threshold = UINT16_MAX;
     __leave_properties->token_max_ttl = 30;
     __leave_properties->token_min_ttl = 20;
+    sll_append(np_evt_callback_t, __leave_properties->clb_inbound,  _np_in_leave );
+    sll_append(np_evt_callback_t, __leave_properties->clb_outbound, _np_out_leave);
 
     np_msgproperty_t* __ping = NULL;
     np_new_obj(np_msgproperty_t, __ping, ref_system_msgproperty);
@@ -130,38 +125,34 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     __ping->msg_subject = strdup(_NP_MSG_PING_REQUEST);
     __ping->rep_subject = NULL;
-    __ping->mode_type = INBOUND | OUTBOUND | ROUTE;
+    __ping->mode_type = INBOUND | OUTBOUND;
     __ping->mep_type = ONE_WAY;
     __ping->priority = 0;
     __ping->ack_mode = ACK_DESTINATION;
     __ping->retry = 0;
-    sll_append(np_evt_callback_t, __ping->clb_inbound, _np_in_ping);
-    //default: sll_append(np_evt_callback_t, __ping->clb_outbound, _np_out);
-    //sll_append(np_evt_callback_t, __ping->clb_transform, _np_never_called_jobexec_transform);
-    //default: sll_append(np_evt_callback_t, __ping->clb_route, _np_glia_route_lookup);
     __ping->msg_ttl = 5.0;
     __ping->max_threshold = 1;
     __ping->token_max_ttl = 30;
     __ping->token_min_ttl = 20;
+    sll_append(np_evt_callback_t, __ping->clb_inbound , _np_in_ping);
+    sll_append(np_evt_callback_t, __ping->clb_outbound, _np_out_ping);
     
     np_msgproperty_t* __piggy = NULL;
     np_new_obj(np_msgproperty_t, __piggy, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __piggy);
-
     __piggy->msg_subject = strdup(_NP_MSG_PIGGY_REQUEST);
     __piggy->rep_subject = NULL;
-    __piggy->mode_type = INBOUND | OUTBOUND | TRANSFORM | ROUTE;
+    __piggy->mode_type = INBOUND | OUTBOUND;
     __piggy->mep_type = ONE_WAY;
     __piggy->priority = 0;
     __piggy->ack_mode = ACK_NONE;
     __piggy->retry = 0;
-    sll_append(np_evt_callback_t, __piggy->clb_inbound, _np_in_piggy);
-    //default: sll_append(np_evt_callback_t, __piggy->clb_outbound, _np_out);
-    //default: sll_append(np_evt_callback_t, __piggy->clb_route, _np_glia_route_lookup);
     __piggy->msg_ttl = 20.0;
     __piggy->max_threshold = UINT16_MAX;
     __piggy->token_max_ttl = 30;
     __piggy->token_min_ttl = 20;
+    sll_append(np_evt_callback_t, __piggy->clb_inbound, _np_in_piggy);
+    sll_append(np_evt_callback_t, __piggy->clb_outbound, _np_out_piggy);
 
     np_msgproperty_t* __update = NULL;
     np_new_obj(np_msgproperty_t, __update, ref_system_msgproperty);

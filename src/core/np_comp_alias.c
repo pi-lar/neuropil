@@ -124,15 +124,6 @@ void __np_create_session(np_util_statemachine_t* statemachine, const np_util_eve
     log_debug_msg(LOG_DEBUG, "start: __np_create_session(...) { node now complete: %p / %p %d", alias_key, alias_node, alias_node->_handshake_status);
 } 
 
-bool __is_msg_join_ack(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
-void __np_node_transfer_session(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{ // join acknowledge
-
-}
-
-bool __is_msg_join_nack(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
-void __np_node_handle_leave(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // join hasn't been acknowledged, drop everything
-
 bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -149,15 +140,16 @@ bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_ev
     
     return ret;
 }
+
 void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 { // decrypt transport encryption
-
     np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_alias_decrypt(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
 
     bool ret = false;
-    log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "/start decrypting message with alias %s", _np_key_as_str(alias_key));
+    log_debug_msg(LOG_DEBUG, "/start decrypting message with alias %s", _np_key_as_str(alias_key));
 
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char dec_msg[MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES];
@@ -173,7 +165,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
             _np_key_get_node(alias_key)->session.session_key_to_read
     );
                     
-    log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
+    log_debug_msg(LOG_DEBUG,
         "HANDSHAKE SECRET: using shared secret from %s (mem id: %s) = %"PRIi32" to decrypt data",
         _np_key_as_str(alias_key), np_memory_get_id(alias_key), crypto_result
     );
@@ -181,7 +173,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
     if (crypto_result == 0)
     {					
         ret = true;
-        log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "correct decryption of message send from %s", _np_key_as_str(alias_key));
+        log_debug_msg(LOG_DEBUG, "correct decryption of message send from %s", _np_key_as_str(alias_key));
         
         memset(event.user_data, 0, MSG_CHUNK_SIZE_1024);
         memcpy(event.user_data, dec_msg, MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
@@ -193,10 +185,10 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
             return;
         }
 
-        // TODO: messag part cache should be a component on its own, but ofr now just use it
+        // TODO: messag part cache should be a component on its own, but for now just use it
         np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
         np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
-                                    .user_data=msg_to_submit, .target_dhkey=alias_key->dhkey};
+                                           .user_data=msg_to_submit, .target_dhkey=alias_key->dhkey};
         _np_key_handle_event(alias_key, in_message_evt, false);
 
     } else {
@@ -213,10 +205,10 @@ bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_ev
 
     bool ret = false;
 
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message);
+    if (!ret) ret  = (FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external) );
     if ( ret) ret &= (event.user_data != NULL);
 
-    if ( ret) ret &= (FLAG_CMP(event.type, evt_external) && _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t) );
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
     if ( ret) {
         NP_CAST(event.user_data, np_message_t, join_message);
         /* TODO: make it working and better! */
@@ -230,22 +222,47 @@ bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_ev
     return ret;
 }
 
-bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_dht_message(...) {");
+
+    bool ret = false;
+
+    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
+    if ( ret) ret &= (event.user_data != NULL);
+
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+    if ( ret) {
+        NP_CAST(event.user_data, np_message_t, dht_message);
+        /* TODO: use the bloom, luke */
+        CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
+        {
+            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_ACK,            strlen(_NP_MSG_ACK))            ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PING_REQUEST,   strlen(_NP_MSG_PING_REQUEST))   ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PIGGY_REQUEST,  strlen(_NP_MSG_PIGGY_REQUEST))  ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_UPDATE_REQUEST, strlen(_NP_MSG_UPDATE_REQUEST)) ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST,  strlen(_NP_MSG_LEAVE_REQUEST))  );
+            return ret;
+        }
+        ret = false;
+    }
+    return ret;
+}
 
 void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   // handle ght messages (ping, piggy, ...)
     np_ctx_memory(statemachine->_user_data);
     log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
 
-    NP_CAST(event.user_data, np_message_t, join_message);
+    NP_CAST(event.user_data, np_message_t, message);
 
-    if (_np_message_deserialize_chunked(join_message) ) 
+    if (_np_message_deserialize_chunked(message) ) 
     {
-        CHECK_STR_FIELD_BOOL(join_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
+        CHECK_STR_FIELD_BOOL(message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
         {
             np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
-            np_key_t* subject_key = _np_keycache_find(context, subject_dhkey);
-            _np_key_handle_event(subject_key, event, false);
+            _np_keycache_handle_event(context, subject_dhkey, event, false);
         }
     }
 } 
@@ -253,5 +270,5 @@ void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_
 bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
 void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // pass on to the specific message intent
 
-bool __is_leave_message(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
-void __np_handle_leave_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // node has left, invalidate node
+bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) {}

@@ -284,6 +284,8 @@ struct np_msgproperty_s
     // cache which will hold up to max_threshold messages
     np_msgcache_policy_type cache_policy;
 
+    np_tree_t* response_handler;
+
     np_sll_t(np_message_ptr, msg_cache_in);
     np_sll_t(np_message_ptr, msg_cache_out);
 
@@ -431,6 +433,11 @@ NP_API_INTERN
 bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_property_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 
 #ifdef __cplusplus

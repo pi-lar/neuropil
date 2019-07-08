@@ -28,7 +28,9 @@
 
 #include "np_tree.h"
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
 #include "np_dhkey.h"
+#include "np_key.h"
 #include "np_keycache.h"
 #include "np_network.h"
 #include "np_threads.h"
@@ -40,13 +42,12 @@
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
 
+NP_SLL_GENERATE_IMPLEMENTATION(np_node_ptr);
+
 void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void*  node)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_node_t_new(void* node){");
     np_node_t* entry = (np_node_t *) node;
-
-    _np_threads_mutex_init(context, &entry->lock,"node lock");
-    _np_threads_mutex_init(context, &entry->latency_lock,"node latency lock");
 
     entry->dns_name = NULL;
     entry->protocol = 0;
@@ -79,9 +80,6 @@ void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     np_node_t* entry = (np_node_t *) node;
     if (entry->dns_name) free (entry->dns_name);
     if (entry->port) free (entry->port);
-
-    _np_threads_mutex_destroy(context, &entry->latency_lock);
-    _np_threads_mutex_destroy(context, &entry->lock);
 }
 
 /** np_node_encode:
@@ -201,6 +199,8 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
     enum socket_type i_host_proto;
     char* s_host_name = NULL;
     char* s_host_port = NULL;
+    char* s_host_key  = NULL;
+
     np_tree_elem_t* ele;
     if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PROTOCOL))) {
         i_host_proto = ele->val.value.ush;
@@ -217,6 +217,10 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
     }
     else { return NULL; }
 
+    if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_KEY))) {
+        s_host_key = np_treeval_to_str(ele->val, NULL);
+    }
+
     np_node_t* new_node = NULL;
     np_new_obj(np_node_t, new_node);
 
@@ -225,8 +229,9 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
     {
         // uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
         _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-        log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %d:%s:%s",
-            i_host_proto, s_host_name, s_host_port);
+        new_node->host_key = strndup(s_host_key, 64);
+        log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %s:%d:%s:%s",
+            s_host_key, i_host_proto, s_host_name, s_host_port);
     }
     /*
     if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_LATENCY))) {
@@ -288,11 +293,10 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
 
     while(NULL != (current = sll_head(np_key_ptr, node_keys_to_encode)))
     {		
-        if (current->node != NULL)
+        if (_np_key_get_node(current) != NULL)
         {
             // np_ctx_memory(current);
             np_tree_t* node_jrb = np_tree_create();
-            // log_debug_msg(LOG_DEBUG, "c: %p -> adding np_node to jrb", node);
             _np_node_encode_to_jrb(node_jrb, current, include_stats);
 
             np_tree_insert_int( data, j, np_treeval_new_tree(node_jrb));
@@ -304,12 +308,12 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
     return (j);
 }
 
-sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, np_tree_t* data)
+sll_return(np_node_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, np_tree_t* data)
 {
     uint16_t nodenum = data->size;
 
-    np_sll_t(np_key_ptr, node_list);
-    sll_init(np_key_ptr, node_list);
+    np_sll_t(np_node_ptr, node_list);
+    sll_init(np_node_ptr, node_list);
 
     /* gets the number of hosts in the lists and goes through them 1 by 1 */
     for (uint16_t i = 0; i < nodenum; i++)
@@ -317,21 +321,12 @@ sll_return(np_key_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, n
         np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
         bool free_s_key = false;
-        char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val,&free_s_key);
-        np_dhkey_t search_key = np_dhkey_create_from_hash(s_key);
-        if (free_s_key == true) {
-            free(s_key);
-        }
-        np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
-        if (NULL == node_key->node)
-        {
-            node_key->node = _np_node_decode_from_jrb(context, node_data->val.value.tree);
-            ref_replace_reason(np_node_t, node_key->node, "_np_node_decode_from_jrb", ref_key_node);
-        } 
-        
-        ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", FUNC);
-        
-        sll_append(np_key_ptr, node_list, node_key);
+
+        char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val, &free_s_key);
+        np_node_t* node = _np_node_decode_from_jrb(context, node_data->val.value.tree);
+        sll_append(np_node_ptr, node_list, node);
+
+        free(s_key);
     }
     return (node_list);
 }
@@ -341,10 +336,10 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
     np_ctx_memory(token);
     // TODO: check whether metadata is used as a hash key in general
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(token, false);
-    np_key_t* node_key    = _np_keycache_find_or_create(context, search_key);
+    np_key_t*  node_key   = _np_keycache_find_or_create(context, search_key);
     
-    if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0){
-    
+    if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0)
+    {
         node_key->node = _np_node_decode_from_jrb(context, token->extensions);
         if(node_key->node != NULL){
             ref_replace_reason(
@@ -363,14 +358,15 @@ np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
     return (node_key);
 }
 
-int _np_node_cmp(np_node_t* a, np_node_t* b) {
-
+int _np_node_cmp(np_node_t* a, np_node_t* b) 
+{
     int ret = ( (a == NULL) || (b == NULL) );
     
     if (ret == 0) {
         ret = strcmp(a->dns_name, b->dns_name);
     }
-    else {
+    else 
+    {
         if (ret == 0) {
             ret = strcmp(a->port, b->port);
         }
@@ -382,7 +378,6 @@ int _np_node_cmp(np_node_t* a, np_node_t* b) {
     }
     return ret;
 }
-
 
 void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* port)
 {
@@ -402,72 +397,6 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
     } 
 }
 
-
-/** _np_node_update_stat:
- ** updates the responded rate to the host based on the NP_NODE_SUCCESS_WINDOW average
- **/
-void _np_node_update_stat (np_key_t* key, bool responded)
-{
-    np_ctx_memory(key);
-    np_node_t* node = key->node;
-    float total = 0;
-    np_ref_obj(np_node_t, node, "usage");
-     {
-        _LOCK_ACCESS(&node->lock) {
-
-            node->success_win_index++;
-            if (node->success_win_index == NP_NODE_SUCCESS_WINDOW)
-                node->success_win_index = 0;
-
-            node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = responded;
-
-            for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
-            {
-                total += node->success_win[i];
-            }
-            node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
-            _np_set_success_avg(key->dhkey, node->success_avg);
-
-            if (true == responded) node->last_success = np_time_now();
-        }
-        log_msg(LOG_INFO, "connection to node %s:%s success rate now: %1.2f (%2u / %2u)", node->dns_name, node->port, node->success_avg, node->success_win_index, node->success_win[node->success_win_index]);
-
-        np_unref_obj(np_node_t, node,"usage");
-    }
-}
-
-void _np_node_update_latency (np_key_t* key, double new_latency)
-{
-    np_ctx_memory(key);
-    np_node_t* node = key->node;
-    if (new_latency > 0.0)
-    {
-        np_ref_obj(np_node_t, node, "usage");
-        {
-            _LOCK_ACCESS(&node->latency_lock) {
-                node->latency_win_index++;
-                if (node->latency_win_index == NP_NODE_SUCCESS_WINDOW)
-                    node->latency_win_index = 0;
-
-                node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = new_latency;
-                
-                double total = 0.0;
-                for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
-                {
-                    // log_debug_msg(LOG_DEBUG, "latency for node now: %1.1f / %1.1f ", total, node->latency_win[i]);
-                    total += node->latency_win[i];
-                }
-                node->latency = total / NP_NODE_SUCCESS_WINDOW;
-                _np_set_latency(key->dhkey, node->latency);
-                log_msg(LOG_INFO, "connection to node node %s:%s latency      now: %1.3f (update with: %1.3f)",
-                        node->dns_name, node->port, node->latency, new_latency);
-                
-            }
-            np_unref_obj(np_node_t, node,"usage");
-        }
-    }
-}
-
 char* _np_node_get_dns_name (np_node_t* np_node)
 {
     assert(np_node != NULL);
@@ -480,17 +409,6 @@ char* _np_node_get_port (np_node_t* np_node)
     return (np_node->port);
 }
 
-float _np_node_get_success_avg (np_node_t* np_node)
-{
-    assert(np_node != NULL);
-    return (np_node->success_avg);
-}
-
-float _np_node_get_latency (np_node_t* np_node)
-{
-    assert(np_node != NULL);
-    return (np_node->latency);
-}
 
 uint8_t _np_node_check_address_validity (np_node_t* np_node)
 {

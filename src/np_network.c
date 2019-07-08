@@ -661,9 +661,6 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                             alias_key->network->initialized = true;
                             alias_key->network->type = np_network_type_server;
                         }
-                        _LOCK_ACCESS(&alias_key->network->waiting_lock) {
-                            alias_key->network->waiting = np_tree_create();
-                        }
                     }
 
                     _np_network_set_key(alias_key->network, alias_key);
@@ -729,7 +726,6 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     np_ctx_decl(ev_userdata(loop));
 
     // cast event data structure to np_state_t pointer
-
     socklen_t fromlen = sizeof(struct sockaddr_storage);
     // calling address and port
 
@@ -1085,18 +1081,9 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
             network->initialized = false;
         }
 
-        _LOCK_ACCESS(&network->waiting_lock)
-        {
-            if (NULL != network->waiting) {
-                np_tree_free(network->waiting);
-                network->waiting = NULL;
-            }
-        }
-
         // finally destroy the mutex 
         _np_threads_mutex_destroy(context, &network->out_events_lock);
         _np_threads_mutex_destroy(context, &network->access_lock);
-        _np_threads_mutex_destroy(context, &network->waiting_lock);
 
         TSP_DESTROY( network->can_be_enabled);
     }
@@ -1108,7 +1095,6 @@ void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     np_network_t* ng = (np_network_t *) data;
     ng->socket = -1;
     ng->addr_in = NULL;
-    ng->waiting 	= NULL;
     ng->out_events 	= NULL;
     ng->initialized = false;
     ng->is_running = false;
@@ -1118,13 +1104,11 @@ void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     ng->last_received_date = 0.0;
     ng->seqend = 0;
 
-
     ng->ip[0] = 0;
     ng->port[0] = 0;
 
     _np_threads_mutex_init(context, &ng->access_lock, "network access_lock");
     _np_threads_mutex_init(context, &ng->out_events_lock, "network out_events_lock");
-    _np_threads_mutex_init(context, &ng->waiting_lock, "network waiting_lock");
 
     TSP_INITD( ng->can_be_enabled, true);
 }
@@ -1165,11 +1149,6 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             ng->type |= np_network_type_server;
             // own sequence number counter
             ng->seqend = 0;
-        }
-
-        // create own retransmit structures
-        _LOCK_ACCESS(&ng->waiting_lock) {
-            if (ng->waiting == NULL) ng->waiting = np_tree_create();
         }
 
         // server setup - create socket
