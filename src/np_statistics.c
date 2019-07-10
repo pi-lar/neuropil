@@ -10,7 +10,10 @@
 #include "np_legacy.h"
 #include "np_types.h"
 #include "np_message.h"
+
 #include "core/np_comp_msgproperty.h"
+#include "util/np_event.h"
+
 #include "np_scache.h"
 #include "np_list.h"
 #include "np_threads.h"
@@ -84,7 +87,8 @@ bool _np_statistics_send_msg_on_watched(np_context* ac, const np_message_t* cons
 uint64_t get_timestamp(){
     return (uint64_t) _np_time_now(NULL)*1000;
 } 
-void __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_jobargs_t args) {
+void __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_util_event_t event) {
+
     np_module_var(statistics);
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_job_count], np_jobqueue_count(context));
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], get_timestamp()-((uint64_t)_module->startup_time*1000));

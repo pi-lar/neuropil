@@ -225,7 +225,7 @@ void np_waitforjoin(np_context*ac);
 
 */
 NP_API_EXPORT
-void np_add_receive_listener (np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject);
+void np_add_receive_listener (np_context* ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, const char* subject);
 
 /**
 .. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
@@ -238,7 +238,7 @@ void np_add_receive_listener (np_context*ac, np_usercallbackfunction_t msg_handl
 
 */
 NP_API_EXPORT
-void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject);
+void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, const char* subject);
  
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
@@ -342,7 +342,7 @@ NP_API_EXPORT
 void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body);
 
 NP_API_INTERN
-np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, np_dhkey_t* target_key);
+np_message_t* _np_prepare_msg(np_state_t *context, const char* subject, np_tree_t *body, np_dhkey_t* target_key);
 
 NP_API_INTERN
 void _np_context_create_new_nodekey(np_context* ac, np_node_t* base);

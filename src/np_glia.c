@@ -462,7 +462,7 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t a
 
 
 // TODO: add a wrapper function which can be scheduled via jobargs
-bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
+bool _np_send_msg (const char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
 {
     assert(msg != NULL);
     np_state_t* context = np_ctx_by_memory(msg);

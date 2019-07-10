@@ -118,7 +118,7 @@ char* np_statistics_prometheus_export(np_context*ac);
             void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metric* metric);
 
         NP_API_EXPORT
-            void np_statistics_add_watch(np_state_t* context, char* subject);
+            void np_statistics_add_watch(np_state_t* context, const char* subject);
 
         NP_API_EXPORT
             char * np_statistics_print(np_state_t* context, bool asOneLine);

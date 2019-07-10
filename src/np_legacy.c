@@ -300,7 +300,7 @@ void np_waitforjoin(np_context*ac)
 * @param msg_handler
 * @param subject
 */
-void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject)
+void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, const char* subject)
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
@@ -326,7 +326,7 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
 * @param msg_handler
 * @param subject
 */
-void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, char* subject)
+void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, const char* subject)
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
@@ -357,7 +357,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_unref_obj(np_aaatoken_t, identity, "np_token_factory_new_identity_token");
 }
 
-np_message_t* _np_prepare_msg(np_state_t *context, char* subject, np_tree_t *body, NP_UNUSED np_dhkey_t* target_key)
+np_message_t* _np_prepare_msg(np_state_t *context, const char* subject, np_tree_t *body, NP_UNUSED np_dhkey_t* target_key)
 { 
     np_message_t* ret = NULL;
     np_new_obj(np_message_t, ret);
@@ -570,43 +570,6 @@ void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum ty
                 np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
             }
         }
-    }
-}
-
-/**
-* Takes a node connection string and tries to connect to any node available on the other end.
-* node_string should not contain a hash value (nor the trailing: character).
-* Example: np_send_wildcard_join("udp4:example.com:1234");
-*/
-void np_send_wildcard_join(np_context*ac, const char* node_string)
-{
-    np_ctx_cast(ac);
-    _LOCK_MODULE(np_handshake_t) {
-        /**
-        * Wir erzeugen einen festen hash key der als wildcard fungiert.
-        * Anschließend wird diesem der node_string mit allen anderen informationen (dns/port/etc) hinzugefügt.
-        * Beim handshake wird festgestellt das es für diese Zusatzinformationen (dns/port) einen wildcard key bereits gibt.
-        * Der wildcard key wird dann mit den tatsächlichen dhkey informationen angereichert.
-        * So wird aus dem wildcard key ein vollwertiger key eintrag in der routing Tabelle.
-        */
-
-        char* wildcard_node_str = NULL;
-        np_key_t* wildcard_node_key = NULL;
-
-        //START Build our wildcard connection string
-        np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport( "*", node_string);
-        char wildcard_dhkey_str[65];
-        _np_dhkey_str(&wildcard_dhkey, wildcard_dhkey_str);
-        asprintf(&wildcard_node_str, "%s:%s", wildcard_dhkey_str, node_string);
-        //END Build our wildcard connection string
-
-        wildcard_node_key = _np_node_decode_from_str(context, wildcard_node_str);
-        wildcard_node_key->type = np_key_type_wildcard;
-        free(wildcard_node_str);
-
-        _np_send_simple_invoke_request(wildcard_node_key, _NP_MSG_JOIN_REQUEST);
-
-        np_unref_obj(np_key_t, wildcard_node_key, "_np_node_decode_from_str");
     }
 }
 

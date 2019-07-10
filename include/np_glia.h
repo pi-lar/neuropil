@@ -22,12 +22,11 @@ void _np_renew_node_token_jobexec(np_state_t* context, np_jobargs_t args);
 void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t args);
 void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t args);
 
-
 void _np_send_subject_discovery_messages(np_state_t* context, np_msg_mode_type mode_type, const char* subject);
 void _np_send_msg_interest(const char* subject);
 void _np_send_msg_availability(const char* subject);
 
-bool _np_send_msg (char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target);
+bool _np_send_msg (const char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target);
 
 void _np_glia_check_neighbours(np_state_t* context, np_jobargs_t args);
 void _np_glia_check_routes(np_state_t* context, np_jobargs_t args);
