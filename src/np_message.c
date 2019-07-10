@@ -1106,13 +1106,14 @@ void _np_message_add_key_response_handler(const np_message_t* self)
     np_responsecontainer_t* rh = NULL;
     np_new_obj(np_responsecontainer_t, rh);
 
+    // TODO: more efficient, please ...
     memcpy(rh->uuid, self->uuid, NP_UUID_BYTES);
     rh->dest_dhkey = np_tree_find_str(self->header, _NP_MSG_HEADER_TO)->val.value.dhkey;
-    // rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
-    rh->send_at    =  np_tree_find_str(self->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+    rh->send_at    = np_tree_find_str(self->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
 	rh->expires_at = rh->send_at + 
                      np_tree_find_str(self->instructions, _NP_MSG_INST_TTL)->val.value.d;
 	rh->received_at = 0.0;
+    // rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
 
     np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
     np_key_t* ack_key = _np_keycache_find(context, ack_dhkey);
@@ -1142,6 +1143,7 @@ void _np_message_add_msg_response_handler(const np_message_t* self)
     np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
     _np_key_handle_event(ack_key, rh_event, false);
 }
+
 /*
 void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply) {
     np_ctx_memory(self);

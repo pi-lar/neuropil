@@ -233,7 +233,7 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
 
     // wrap with bloom filter
-    if (0 != strncmp(str_msg_subject, _NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE, strlen(_NP_URN_MSG_PREFIX _NP_MSG_HANDSHAKE)) ) goto __np_cleanup__;
+    if (0 != strncmp(str_msg_subject, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) ) goto __np_cleanup__;
 
     np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
     if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in)) 

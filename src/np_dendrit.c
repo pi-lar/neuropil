@@ -499,7 +499,7 @@ void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
     o_piggy_list = _np_node_decode_multiple_from_jrb(context, msg->body);
 
-    log_info(LOG_ROUTING, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
+    log_info(LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
 
     while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
@@ -522,78 +522,11 @@ void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
                  _np_key_get_node(piggy_key)->success_avg > BAD_LINK                                   &&
                 (np_time_now() - piggy_key->created_at) >= BAD_LINK_REMOVE_GRACETIME ) 
         {
-            // known key and ping latency has been tested for a while (gracetime), let's add it to the routing table
-            np_key_t *added = NULL, *deleted = NULL;
-            _np_route_leafset_update(piggy_key, true, &deleted, &added);
+            // let's try to fill up our leafset, routing table is filled by internal state
+            // TODO: yes, this is wrong. it shoudl really be an extra event that is handed over to the component
+            // doing it this way just safed me from a bit of coding, but it is not thread safe!
+            __np_node_add_to_leafset(&piggy_key->sm, msg_event);
 
-#ifdef DEBUG
-            if (added != NULL && deleted != NULL) {
-                np_node_t* added_node   = _np_key_get_node(added);
-                np_node_t* deleted_node = _np_key_get_node(deleted);
-                log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   leafset: %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
-                            _np_key_as_str(added),
-                            added_node->dns_name, added_node->port,
-                            added_node->last_success,
-                            added_node->success_avg,
-
-                            _np_key_as_str(deleted),
-                            deleted_node->dns_name, deleted_node->port,
-                            deleted_node->last_success,
-                            deleted_node->success_avg
-                );
-            }
-            else if (added != NULL) {
-                np_node_t* added_node   = _np_key_get_node(added);
-                log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   leafset: %s:%s:%s / %f / %1.2f",
-                            _np_key_as_str(added),
-                            added_node->dns_name, added_node->port,
-                            added_node->last_success,
-                            added_node->success_avg);
-            }
-            else  if (deleted !=NULL){
-                np_node_t* deleted_node = _np_key_get_node(deleted);
-                log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from leafset: %s:%s:%s / %f / %1.2f",
-                            _np_key_as_str(deleted),
-                            deleted_node->dns_name, deleted_node->port,
-                            deleted_node->last_success,
-                            deleted_node->success_avg);
-            }
-#endif
-
-            added = NULL, deleted = NULL;
-
- 			_np_route_update(piggy_key, true, &deleted, &added);
-#ifdef DEBUG
-            if (added != NULL && deleted != NULL) {
-                np_node_t* added_node   = _np_key_get_node(added);
-                np_node_t* deleted_node = _np_key_get_node(deleted);
-                log_msg(LOG_ROUTING | LOG_INFO, "STABILITY replaced in   table  : %s:%s:%s / %f / %1.2f replaced %s:%s:%s / %f / %1.2f",
-                            _np_key_as_str(added),
-                            added_node->dns_name, added_node->port,
-                            added_node->last_success,
-                            added_node->success_avg,
-
-                            _np_key_as_str(deleted),
-                            deleted_node->dns_name, deleted_node->port,
-                            deleted_node->last_success,
-                            deleted_node->success_avg
-                    );
-            } else  if (added !=NULL) {
-                np_node_t* added_node   = _np_key_get_node(added);
-                log_msg(LOG_ROUTING | LOG_INFO, "STABILITY added    to   table  : %s:%s:%s / %f / %1.2f",
-                            _np_key_as_str(added),
-                            added_node->dns_name, added_node->port,
-                            added_node->last_success,
-                            added_node->success_avg);
-            } else if (deleted !=NULL) {
-                np_node_t* deleted_node = _np_key_get_node(deleted);
-                log_msg(LOG_ROUTING | LOG_INFO, "STABILITY deleted  from table  : %s:%s:%s / %f / %1.2f",
-                            _np_key_as_str(deleted),
-                            deleted_node->dns_name, deleted_node->port,
-                            deleted_node->last_success,
-                            deleted_node->success_avg);
-            }
-#endif
         } else {
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a further piggy actions. (%s)",
                                                    _np_key_as_str(piggy_key), 
@@ -854,148 +787,6 @@ void _np_in_join(np_state_t* context, np_util_event_t msg_event)
         np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
 
     return;
-
-    // check for allowance of token by user defined function
-    /* 
-    bool send_reply = false;
-    if (join_ident_key != NULL)
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request: ident key %s", _np_key_as_str(join_ident_key));
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "JOIN request:  node key %s", _np_key_as_str(join_node_key));
-
-    struct np_token tmp_user_token = { 0 };
-
-    if (NULL != join_ident_key && IS_NOT_AUTHENTICATED(join_ident_key->aaa_token->state) )
-    {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/ident) authentication of token");
-        bool join_allowed = context->authenticate_func == NULL ? false : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_ident_key->aaa_token));
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
-
-        if (false == context->enable_realm_client &&
-            true == join_allowed)
-        {
-            join_ident_key->aaa_token->state |= AAA_AUTHENTICATED;
-            join_node_key->aaa_token->state |= AAA_AUTHENTICATED;
-        }
-    } else {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (join/node) authentication of token");
-        bool join_allowed = false;
-		if (IS_AUTHENTICATED(join_node_key->aaa_token->state))
-			join_allowed = true;
-		else
-			join_allowed = context->authenticate_func == NULL ? false : context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, join_node_key->aaa_token));
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
-        if (false == context->enable_realm_client &&
-            true == join_allowed)
-        {
-            join_node_key->aaa_token->state |= AAA_AUTHENTICATED;
-        }
-    }
-
-    CHECK_STR_FIELD(args.msg->instructions, _NP_MSG_INST_UUID, in_uuid);
-
-    //	log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", args.msg->uuid,  np_treeval_to_str(in_uuid, NULL));
-    //	free(args.msg->uuid );
-    //	args.msg->uuid = strdup( np_treeval_to_str(in_uuid, NULL));
-
-    np_msgproperty_t *msg_prop = NULL;
-    np_new_obj(np_message_t, msg_out);
-
-    np_waitref_obj(np_key_t, context->my_node_key, my_key, "np_waitref_key");
-
-    if (IS_AUTHENTICATED(join_node_key->aaa_token->state))
-    {
-        np_tree_t* jrb_me = np_tree_create();
-        np_aaatoken_encode(jrb_me, context->my_node_key->aaa_token);
-
-        _np_message_create(msg_out, join_node_key->dhkey, my_key->dhkey, _NP_MSG_JOIN_ACK, jrb_me);
-        np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_RESPONSE_UUID, in_uuid);
-
-        log_msg(LOG_ROUTING | LOG_INFO,
-            "JOIN request approved, sending back join acknowledge (%s) for key %s",
-            msg_out->uuid, _np_key_as_str(join_node_key));
-
-        msg_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_JOIN_ACK);
-        my_key->node->joined_network = true;
-        join_node_key->node->joined_network = true;
-
-        send_reply = true;
-    }
-
-    if (false == context->enable_realm_client &&
-        IS_NOT_AUTHENTICATED(join_node_key->aaa_token->state))
-    {
-        log_msg(LOG_ROUTING | LOG_INFO,
-            "JOIN request denied by user implementation, rejected key %s",
-            _np_key_as_str(join_node_key));
-
-        msg_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_JOIN_NACK);
-        send_reply = true;
-    }
-    np_unref_obj(np_key_t, my_key, "np_waitref_key");
-
-    // TODO: chicken egg problem, we have to insert the entry into the table to be able to send back the JOIN.NACK
-    np_key_t *added = NULL, *deleted = NULL;
-    _np_route_leafset_update(join_node_key, true, &deleted, &added);
-
-#ifdef DEBUG
-    if (added != NULL)
-        log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
-            _np_key_as_str(added),
-            added->node->dns_name, added->node->port,
-            added->node->last_success,
-            added->node->success_avg);
-    if (deleted != NULL)
-        log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
-            _np_key_as_str(deleted),
-            deleted->node->dns_name, deleted->node->port,
-            deleted->node->last_success,
-            deleted->node->success_avg);
-#endif
-
-    added = NULL, deleted = NULL;
-    _np_route_update(join_node_key, true, &deleted, &added);
-
-#ifdef DEBUG
-    if (added != NULL)
-        log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
-            _np_key_as_str(added),
-            added->node->dns_name, added->node->port,
-            added->node->last_success,
-            added->node->success_avg);
-    if (deleted != NULL)
-        log_debug_msg(LOG_INFO, "deleted from table  : %s:%s:%s / %f / %1.2f",
-            _np_key_as_str(deleted),
-            deleted->node->dns_name, deleted->node->port,
-            deleted->node->last_success,
-            deleted->node->success_avg);
-#endif
-
-    // TODO: what happens if node is not added to leafset or routing table ?
-    if (true == send_reply)
-    {
-        _np_job_submit_msgout_event(context, 0.0, msg_prop, join_node_key, msg_out);
-        if (IS_AUTHENTICATED(join_node_key->aaa_token->state)) {
-            np_msgproperty_t* piggy_prop = _np_msgproperty_get(context, TRANSFORM, _NP_MSG_PIGGY_REQUEST);
-            // add a small delay to prevent the arrival of the piggy message before the join ack
-            _np_job_submit_transform_event(context, NP_PI/500, piggy_prop, join_node_key, NULL);
-        }
-    }
-
-    if (deleted != NULL) {
-        _np_send_simple_invoke_request_msg(deleted, _NP_MSG_LEAVE_REQUEST);
-    }
-
-__np_cleanup__:
-    if (join_ident_key != NULL) {
-        np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
-        np_unref_obj(np_key_t, join_ident_key, "_np_keycache_find_or_create");
-    }
-    np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
-    np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
-
-    np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-    return;
-    */
 }
 
 void _np_in_ack(np_state_t* context, np_util_event_t msg_event)
@@ -1027,16 +818,9 @@ void _np_in_ack(np_state_t* context, np_util_event_t msg_event)
     np_unref_obj(np_key_t, ack_key, "_np_keycache_find");
 }
 
-/*
-void _np_in_ack(NP_UNUSED  np_state_t* context, np_util_event_t msg_event)
-{
-    // __np_in_ack_handle(args.msg);
-}
-
 // TODO: write a function that handles path discovery
 // TODO: if this is not the target node, add my own address to the update message
 // TODO: if this is the target node, change target to sending instance and send again
-*/
 // receive information about new nodes in the network and try to contact new nodes
 void _np_in_update(np_state_t* context, np_util_event_t msg_event)
 {/*

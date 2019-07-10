@@ -65,6 +65,10 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     entry->joined_network = false;	
     entry->handshake_priority = randombytes_random();
 
+    entry->next_routing_table_update = 0.0;
+	entry->is_in_routing_table = false;;
+	entry->is_in_leafset = false;
+
     for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
         entry->success_win[i] = i%2;
     entry->success_avg = 0.5;
@@ -99,24 +103,28 @@ void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
 } 
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_stats)
 {
-    // np_ctx_memory(node_key);
-    np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node_key->node->protocol));
-    np_treeval_t dns_name;
-    if (node_key->node->dns_name == NULL) {
-        char tmp[255];
-        dns_name = np_treeval_new_s(np_network_get_ip(node_key, tmp));
+    np_node_t* node = _np_key_get_node(node_key);
+    np_network_t* network = _np_key_get_network(node_key);
+    np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node->protocol));
+
+    np_treeval_t address;
+    if (node->dns_name == NULL) {
+        address = np_treeval_new_s(network->ip);
     }
-    else {
-        dns_name = np_treeval_new_s(node_key->node->dns_name);
+    else 
+    {
+        address = np_treeval_new_s(node->dns_name);
     }
-    np_tree_insert_str(data, NP_SERIALISATION_NODE_DNS_NAME, dns_name);
+    np_tree_insert_str(data, NP_SERIALISATION_NODE_DNS_NAME, address);
+
     np_treeval_t port;
-    if (node_key->node->port == NULL) {
-        char tmp[255];
-        port = np_treeval_new_s(np_network_get_port(node_key, tmp));
+    if (node->port == NULL) 
+    {
+        port = np_treeval_new_s(network->port);
     }
-    else {
-        port = np_treeval_new_s(node_key->node->port);
+    else 
+    {
+        port = np_treeval_new_s(node->port);
     }
     np_tree_insert_str(data, NP_SERIALISATION_NODE_PORT, port);
 
@@ -124,17 +132,11 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
 
     if (true == include_stats)
     {		
-        np_tree_insert_str( data, NP_SERIALISATION_NODE_CREATED_AT, np_treeval_new_d(node_key->created_at));
+        np_tree_insert_str( data, NP_SERIALISATION_NODE_CREATED_AT,   np_treeval_new_d(node_key->created_at));
+        np_tree_insert_str( data, NP_SERIALISATION_NODE_LAST_SUCCESS, np_treeval_new_d(node->last_success));
 
-        if(node_key->node != NULL){
-
-            np_tree_insert_str( data, NP_SERIALISATION_NODE_SUCCESS_AVG,
-                    np_treeval_new_f(node_key->node->success_avg));
-            np_tree_insert_str( data, NP_SERIALISATION_NODE_LATENCY,
-                    np_treeval_new_d(node_key->node->latency));
-            np_tree_insert_str( data, NP_SERIALISATION_NODE_LAST_SUCCESS,
-                    np_treeval_new_d(node_key->node->last_success));
-        }
+        np_tree_insert_str( data, NP_SERIALISATION_NODE_SUCCESS_AVG,  np_treeval_new_f(node->success_avg));
+        np_tree_insert_str( data, NP_SERIALISATION_NODE_LATENCY,      np_treeval_new_d(node->latency));
     }
 }
 
@@ -299,7 +301,7 @@ uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, 
             np_tree_t* node_jrb = np_tree_create();
             _np_node_encode_to_jrb(node_jrb, current, include_stats);
 
-            np_tree_insert_int( data, j, np_treeval_new_tree(node_jrb));
+            np_tree_insert_int(data, j, np_treeval_new_tree(node_jrb));
             j++;
             np_tree_free( node_jrb);
         }

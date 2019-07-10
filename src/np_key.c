@@ -178,7 +178,7 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_message); // pass on to the specific message intent
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY  , __np_alias_destroy    , __is_alias_invalid); // node has left, invalidate node
 
-        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_NODE, "IN_USE_NODE", __keystate_noop, __keystate_noop, __keystate_noop);
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_NODE, "IN_USE_NODE", __keystate_noop, __np_node_add_to_leafset, __np_node_remove_from_routing);
 
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_USE_NODE, __np_node_send_encrypted , __is_np_message); // received authn information (eventually through identity join)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_USE_NODE, __np_node_handle_response, __is_response_event); // user changed mx_properties

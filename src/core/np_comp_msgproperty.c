@@ -378,7 +378,7 @@ void _np_msgproperty_cleanup_response_handler(np_msgproperty_t* self)
         // TODO: find correct dhkey from responsecontainer and use it as target_dhkey
         np_util_event_t response_event = { .context=context, .user_data=current };
 
-        if (current->received_at < now && current->received_at > 0.0) 
+        if (current->received_at < now && current->received_at > current->send_at) 
         {   // notify about ack response
             response_event.type = (evt_internal|evt_response);
             sll_append(char_ptr, to_remove, iter_tree->key.value.s);

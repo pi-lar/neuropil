@@ -369,13 +369,10 @@ void np_statistics_add_watch_internals(np_state_t* context) {
     np_statistics_add_watch(context, _NP_MSG_ACK);
     np_statistics_add_watch(context, _NP_MSG_HANDSHAKE);
     
-    np_statistics_add_watch(context, _NP_MSG_PING_REQUEST);
-    np_statistics_add_watch(context, _NP_MSG_LEAVE_REQUEST);
-    np_statistics_add_watch(context, _NP_MSG_JOIN);
     np_statistics_add_watch(context, _NP_MSG_JOIN_REQUEST);
-    np_statistics_add_watch(context, _NP_MSG_JOIN_ACK);
-    np_statistics_add_watch(context, _NP_MSG_JOIN_NACK);
-    
+    np_statistics_add_watch(context, _NP_MSG_LEAVE_REQUEST);
+
+    np_statistics_add_watch(context, _NP_MSG_PING_REQUEST);    
     np_statistics_add_watch(context, _NP_MSG_PIGGY_REQUEST);
     np_statistics_add_watch(context, _NP_MSG_UPDATE_REQUEST);	
     

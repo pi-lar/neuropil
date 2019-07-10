@@ -28,6 +28,8 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+#include "core/np_comp_node.h"
+
 np_module_struct(route)
 {
     np_state_t* context;
@@ -442,7 +444,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
             if (np_module(route)->table[index + k] != NULL)
             {
                 tmp_1 = np_module(route)->table[index + k];
-                if (tmp_1->node->success_avg > BAD_LINK)
+                if (_np_key_get_node(tmp_1)->success_avg > BAD_LINK)
                 {
                     next_hop = true;
                     break;
@@ -460,9 +462,11 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                      !_np_dhkey_equal(&np_module(route)->table[index + k]->dhkey, &tmp_1->dhkey) )
                 {
                     tmp_2 = np_module(route)->table[index + k];
+                    np_node_t* tmp_2_node = _np_key_get_node(tmp_2);
+                    np_node_t* tmp_1_node = _np_key_get_node(tmp_1);
                     // TODO: make it more algorithmic ...
-                    if ( tmp_2->node->success_avg >= tmp_1->node->success_avg &&
-                         tmp_2->node->latency      < tmp_1->node->latency )
+                    if ( tmp_2_node->success_avg >= tmp_1_node->success_avg &&
+                         tmp_2_node->latency      < tmp_1_node->latency )
                     {
                         tmp_1 = np_module(route)->table[index + k];
                     }
@@ -508,15 +512,13 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                 if (np_module(route)->table[index + k] != NULL)
                 {
                     tmp_1 = np_module(route)->table[index + k];
-                    if (NULL != tmp_1->node && tmp_1->node->success_avg > BAD_LINK)
+                    if (_np_key_get_node(tmp_1)->success_avg > BAD_LINK)
                     {
-                        sll_append(np_key_ptr, key_list, tmp_1);
-                        
-                        //log_debug_msg(
+                        sll_append(np_key_ptr, key_list, tmp_1);                        
+                        //  log_debug_msg(
                         //	LOG_ROUTING | LOG_DEBUG, "+Table[%ul][%ul][%ul]: (%s)", 
                         //	i, j, k, /* leaf->dns_name, leaf->port, */ _np_key_as_str (tmp_1)
-                        //);
-                        
+                        //  );                        
                     }
                 }
             }
@@ -689,6 +691,7 @@ void _np_route_clear (np_state_t* context)
         _np_route_leafset_clear(context);
     }
 }
+
 void _np_route_leafset_clear (np_state_t* context)
 {
     _LOCK_MODULE(np_routeglobal_t)
@@ -786,30 +789,34 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
                 pick = 0;
                 np_key_t *k_node;
                 np_key_t *pick_node;
-                for (k = 1; k < __MAX_ENTRY; k++)
-                {					
-                    pick_node = np_module(route)->table[index + pick];
-                    if (pick_node == NULL || pick_node->node == NULL)
-                        break;
-                    k_node  = np_module(route)->table[index + k];
 
-                    if (k_node == NULL || k_node->node == NULL) {
+                for (k = 1; k < __MAX_ENTRY; k++)
+                {
+                    pick_node = np_module(route)->table[index + pick];
+                    if (pick_node == NULL)
+                        break;
+                    
+                    k_node  = np_module(route)->table[index + k];
+                    if (k_node == NULL) 
+                    {
                         pick = k;
                         pick_node = np_module(route)->table[index + pick];
                         break;
                     }
-                    else {
+                    else
+                    {
                         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
-                            index, k_node->node->latency, pick_node->node->latency);
+                            index, _np_key_get_node(k_node)->latency, _np_key_get_node(pick_node)->latency);
 
-                        if (k_node->node->latency > pick_node->node->latency)
+                        if (_np_key_get_node(k_node)->latency > _np_key_get_node(pick_node)->latency)
                         {							
                             pick = k;
                         }
                     }
                 }
                 
-                if(pick_node == NULL) {
+                if(pick_node == NULL) 
+                {
                     deleted_from = pick_node;
                     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);
                     np_module(route)->table[index + pick] = key;
@@ -834,11 +841,13 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
             }
         }
 
-        if(add_to != NULL) {
+        if(add_to != NULL) 
+        {
             log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   routing table.", _np_key_as_str(add_to));
             np_ref_obj(np_key_t, add_to, ref_route_inroute);
             if (added != NULL) *added = add_to;
-            TSP_SCOPE(np_module(route)->route_count) {
+            TSP_SCOPE(np_module(route)->route_count) 
+            {
                 np_module(route)->route_count += 1;
             }
         }
@@ -873,6 +882,7 @@ bool _np_route_my_key_has_connection(np_state_t* context) {
 uint32_t _np_route_my_key_count_routes(np_state_t* context) {
     return __np_route_my_key_count_routes(context, false);
 }
+
 uint32_t _np_route_my_key_count_neighbors(np_state_t* context, uint32_t* left, uint32_t* right) {
     TSP_GET(uint32_t, np_module(route)->leafset_left_count, l);
     TSP_GET(uint32_t, np_module(route)->leafset_right_count, r);

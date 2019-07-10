@@ -66,6 +66,11 @@ NP_API_INTERN
 void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
+void __np_node_add_to_leafset(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
 void __np_wildcard_finalize(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_node_join(np_util_statemachine_t* statemachine, const np_util_event_t event);

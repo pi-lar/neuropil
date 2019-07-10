@@ -140,7 +140,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     np_msgproperty_t* __piggy = NULL;
     np_new_obj(np_msgproperty_t, __piggy, ref_system_msgproperty);
     sll_append(np_msgproperty_ptr, ret, __piggy);
-    __piggy->msg_subject = strdup(_NP_MSG_PIGGY_REQUEST);
+    __piggy->msg_subject = strndup(_NP_MSG_PIGGY_REQUEST, strlen(_NP_MSG_PIGGY_REQUEST));
     __piggy->rep_subject = NULL;
     __piggy->mode_type = INBOUND | OUTBOUND;
     __piggy->mep_type = ONE_WAY;

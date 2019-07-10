@@ -14,6 +14,7 @@
 #include "np_legacy.h"
 #include "np_message.h"
 #include "np_responsecontainer.h"
+#include "np_route.h"
 
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
@@ -231,7 +232,6 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
         total += node->success_win[i];
     }
     node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
-
     if (node->success_avg != old)
     {
         log_msg(LOG_INFO, "connection to node %s:%s success rate now: %1.2f (%2u / %2u)", 
@@ -245,17 +245,50 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
         total += node->latency_win[i];
     }
     node->latency = total / NP_NODE_SUCCESS_WINDOW;
-
     if (node->latency != old)
     {
         log_msg(LOG_INFO, "connection to node %s:%s latency      now: %1.3f (update with: %1.3f)",
                 node->dns_name, node->port, node->latency, node->latency_win[node->latency_win_index]);                
     }
 
+    // insert into the routing table after a specific time period
+    // reason: routing is also based on latency, therefore we need a stable connection before inserting
+    if ( node->is_in_routing_table == false && 
+        (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*2) < np_time_now() ) 
+    {
+        np_key_t* added = NULL, *deleted = NULL;
+        np_node_t* node = NULL;
+        
+        _np_route_update(node_key, true, &deleted, &added);
+
+        if (added != NULL) 
+        {
+            node = _np_key_get_node(added);
+            node->is_in_routing_table = true;
+            log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
+                _np_key_as_str(added),
+                node->dns_name, node->port,
+                node->last_success,
+                node->success_avg);
+        }
+
+        if (deleted != NULL) 
+        {
+            node = _np_key_get_node(deleted);
+            node->is_in_routing_table = false;
+            log_debug_msg(LOG_INFO, "deleted from table  : %s:%s:%s / %f / %1.2f",
+                _np_key_as_str(deleted),
+                node->dns_name, node->port,
+                node->last_success,
+                node->success_avg);
+            // TODO: issue leave event and delete node, respect leafset table
+        }
+    }
+
     // follow up actions
     if ( 
         (  node->success_avg                                                         > BAD_LINK)     &&
-        ( (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC*node->success_avg)  <= np_time_now() )
+        ( (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC*node->success_avg)  <= np_time_now()  )
        )
     {   // issue ping messages
         np_dhkey_t ping_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PING_REQUEST);
@@ -263,11 +296,96 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
         _np_keycache_handle_event(context, ping_dhkey, ping_event, false);
     }
 
-    if (node->latency_win_index == (NP_NODE_SUCCESS_WINDOW-1) )
-    {   // issue piggy messages
+    if (
+        ( node->success_avg               > BAD_LINK)     &&
+        ( node->next_routing_table_update < np_time_now() ) 
+       )
+    {   
         np_dhkey_t piggy_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
         np_util_event_t piggy_event = { .type=(evt_internal|evt_message), .target_dhkey=node_key->dhkey, .user_data=NULL, .context=context };
         _np_keycache_handle_event(context, piggy_dhkey, piggy_event, false);
+        node->next_routing_table_update = np_time_now() + MISC_SEND_PIGGY_REQUESTS_SEC;
+        
+    }
+}
+
+void __np_node_add_to_leafset(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_DEBUG, "start: void __np_node_handle_completion(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(node_key, &trinity);
+
+    if (trinity.node->is_in_leafset == false)
+    {
+        np_key_t *added = NULL, *deleted = NULL;
+        _np_route_leafset_update(node_key, true, &deleted, &added);
+
+        if (added != NULL) {
+            trinity.node->is_in_leafset = true;
+            log_debug_msg(LOG_INFO, "added   to   leafset: %s:%s:%s / %f / %1.2f",
+                _np_key_as_str(added),
+                trinity.node->dns_name, trinity.node->port,
+                trinity.node->last_success,
+                trinity.node->success_avg);
+        }
+        if (deleted != NULL) {
+            _np_key_get_node(deleted)->is_in_leafset = false;
+            log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
+                _np_key_as_str(deleted),
+                _np_key_get_node(deleted)->dns_name, _np_key_get_node(deleted)->port,
+                _np_key_get_node(deleted)->last_success,
+                _np_key_get_node(deleted)->success_avg);
+        }
+        // TODO: trigger re-fill of leafset? see piggy messages
+    }
+}
+
+void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_DEBUG, "start: void __np_node_handle_completion(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(node_key, &trinity);
+
+    if (trinity.node->is_in_leafset == true) 
+    {
+        np_key_t *added = NULL, *deleted = NULL;
+        _np_route_leafset_update(node_key, false, &deleted, &added);
+
+        if (deleted != NULL) {
+            _np_key_get_node(deleted)->is_in_leafset = false;
+            log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
+                _np_key_as_str(deleted),
+                _np_key_get_node(deleted)->dns_name, _np_key_get_node(deleted)->port,
+                _np_key_get_node(deleted)->last_success,
+                _np_key_get_node(deleted)->success_avg);
+        } else {
+            log_msg(LOG_WARN, "deletion from leafset unsuccesful, reason unknown !!!");
+        }
+    }
+
+    if (trinity.node->is_in_routing_table == true) 
+    {
+        np_key_t *added = NULL, *deleted = NULL;
+        _np_route_update(node_key, false, &deleted, &added);
+
+        if (deleted != NULL) {
+            _np_key_get_node(deleted)->is_in_leafset = false;
+            log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
+                _np_key_as_str(deleted),
+                _np_key_get_node(deleted)->dns_name, _np_key_get_node(deleted)->port,
+                _np_key_get_node(deleted)->last_success,
+                _np_key_get_node(deleted)->success_avg);
+        } else {
+            log_msg(LOG_WARN, "deletion from routing table unsuccesful, reason unknown !!!");
+        }
     }
 }
 
@@ -683,15 +801,19 @@ void __np_node_handle_response(np_util_statemachine_t* statemachine, const np_ut
 
     NP_CAST(event.user_data, np_responsecontainer_t, response);
 
-    if (FLAG_CMP(event.type, evt_response) )
+     if (FLAG_CMP(event.type, evt_timeout) )
+    {
+        node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] =   0;
+        node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = 1.0;
+    } 
+    else if (FLAG_CMP(event.type, evt_response) )
     {
         node->last_success = np_time_now();
         node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = 1;
         node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = (response->received_at - response->send_at);
-    } 
-    else if (FLAG_CMP(event.type, evt_timeout))
+    }
+    else 
     {
-        node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] =   0;
-        node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] = 1.0;
+        log_msg(LOG_INFO, "unknown responsehandler called, not doing any action ...");
     }
 }

@@ -84,6 +84,7 @@ typedef void(*np_threads_worker_run) (np_state_t* context, np_thread_t* thread);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t);
+typedef void (*np_evt_callback_t) (np_state_t* context, np_util_event_t);
 typedef int(*_np_cmp_t)(void* a, void* b);
 
 typedef struct np_usercallback_s {
@@ -96,6 +97,8 @@ typedef np_usercallback_t * np_usercallback_ptr;
 /*
 * list types and typedefs
 */
+#pragma clang diagnostic push ignored "-Wstrict-prototypes"
+
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 
 NP_SLL_GENERATE_PROTOTYPES(void_ptr);
@@ -108,11 +111,13 @@ NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
+NP_SLL_GENERATE_PROTOTYPES(np_evt_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_destroycallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
 NP_SLL_GENERATE_PROTOTYPES(np_message_on_reply_t);
 
 NP_DLL_GENERATE_PROTOTYPES(np_thread_ptr);
 
+#pragma clang diagnostic pop
 
 #endif /* _INCLUDE_H_ */

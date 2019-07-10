@@ -52,15 +52,21 @@ struct np_node_s
 	enum np_node_status _joined_status; 
 	double join_send_at;
 	bool joined_network; 
+
 	np_crypto_session_t session;
 	bool session_key_is_set;
 
+	double next_routing_table_update;
+	bool is_in_routing_table;
+	bool is_in_leafset;
+
 	// statistics
 	double last_success;
-	double latency;
 
+	double latency;
 	double latency_win[NP_NODE_SUCCESS_WINDOW];
 	uint8_t latency_win_index;
+
 	uint8_t success_win[NP_NODE_SUCCESS_WINDOW];
 	uint8_t success_win_index;
 	float success_avg;
