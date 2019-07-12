@@ -520,6 +520,56 @@ void _np_out_piggy(np_state_t* context, const np_util_event_t event)
     np_unref_obj(np_key_t, target_key, "_np_keycache_find");
 }
 
+void _np_out_update(np_state_t* context, const np_util_event_t event) 
+{
+    log_debug_msg(LOG_DEBUG, "start: void _np_out_update(...) {");
+    
+    np_tree_t* jrb_token = np_tree_create();
+    np_tree_t* jrb_data  = np_tree_create();
+
+    // 1. encode foreign token
+    np_aaatoken_encode(jrb_token, event.user_data);
+    np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_token));
+
+    // 2: create message  and add payload
+    np_message_t* msg_out = NULL;
+    np_new_obj(np_message_t, msg_out, FUNC);
+    _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_data);
+
+    // 3: find next hop based on fingerprint of the token
+    np_sll_t(np_key_ptr, tmp) = NULL;
+    uint8_t i = 1;
+    do {
+        tmp = _np_route_lookup(context, event.target_dhkey, i);
+        i++;
+    } while (sll_size(tmp) == 0 && i < 5);
+
+    np_key_t* target = sll_first(tmp)->val;
+
+    // 4: chunk the message if required
+    // TODO: send two separate messages?
+    _np_message_calculate_chunking(msg_out);
+    _np_message_serialize_chunked(msg_out);
+
+    // 5: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(msg_out->msg_chunks);
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting update request to target key %s / %p", _np_key_as_str(target), target);
+        np_util_event_t update_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+        _np_key_handle_event(target, update_event, false);
+        pll_next(iter);
+    }
+
+    // 5 cleanup
+    np_tree_free(jrb_data);
+    np_tree_free(jrb_token);
+
+    np_key_unref_list(tmp, "_np_route_lookup");
+    sll_free(np_key_ptr, tmp);
+}
+
 void _np_out_leave(np_state_t* context, const np_util_event_t event) 
 {
     log_trace_msg(LOG_TRACE, "start: void _np_out_leave(...) {");

@@ -432,118 +432,98 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
 
     NP_CAST(event->data, np_key_t, key);
 
-    // if (key_available) 
-    // {
-        np_network_t* key_network = _np_key_get_network(key);
-        // np_tryref_obj(np_network_t, key->network, key_network_available, key_network);
-        // if (key_network) {
-            if (!FLAG_CMP(revents, EV_ERROR) && FLAG_CMP(revents, EV_WRITE))
-            {
-                // _LOCK_ACCESS(&key_network->out_events_lock)
-                // {
-                    if (key_network->out_events != NULL)
-                    {
-                        /*
-                            a) if a data packet is available, try to send it until
-                                a.1) timeout has been reached
-                                a.2) the retry for a paket has been reached
-                                a.3) the whole paket has been send
-                        */
-                        void* data_to_send = NULL;
-                        // int data_counter = 0;
-                        ssize_t written_per_data = 0, current_write_per_data = 0;
-                        // double timeout = np_time_now() + 1.;
-                        // do {
-                            data_to_send = sll_head(void_ptr, key_network->out_events);
-                            // written_per_data = 0;
-
-                            if (data_to_send != NULL)
-                            {
-                            //     int retry = 1;
-                            //     do {
-
-                                    /*
-                                    Prep for UDP Passive
-                                    if (FLAG_CMP(key_network->socket_type, PASSIVE))
-                                    {
-                                        current_write_per_data = sendTo(
-                                        key_network->socket,
-                                        (((char*)data_to_send) + written_per_data),
-                                            MSG_CHUNK_SIZE_1024 - written_per_data,
-        #ifdef MSG_NOSIGNAL
-                                            MSG_NOSIGNAL
-        #else
-                                            0
-        #endif
-                                        );
-                                    }
-                                    else {
-                                    */
-                                    current_write_per_data = send(
-                                        key_network->socket,
-                                        (((char*)data_to_send) + written_per_data),
-                                        MSG_CHUNK_SIZE_1024 - written_per_data,
-#ifdef MSG_NOSIGNAL
-                                        MSG_NOSIGNAL
-#else								
-                                        0
-#endif
-                                    );
-                                    // }
-                                    // if (current_write_per_data < 0) {
-                                    //     np_time_sleep(NP_SLEEP_MIN);
-                                    // }
-                                    if (current_write_per_data > 0)
-                                    {
-                                        written_per_data += current_write_per_data;
-                                        _np_statistics_add_send_bytes(current_write_per_data);
-                                    }
-                                // } while (written_per_data < MSG_CHUNK_SIZE_1024 && retry-- > 0);
-#ifdef DEBUG 
-                                // if (retry != 10) {
-                                //     log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send package in %"PRId32" parts", 10 - retry);
-                                // }
-#endif
-
-                                if (written_per_data != MSG_CHUNK_SIZE_1024) {
-                                    log_msg(LOG_DEBUG | LOG_WARN,
-                                        "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
-                                        data_to_send,
-                                        written_per_data, MSG_CHUNK_SIZE_1024,
-                                        strerror(errno), errno);
-                                }
-                                else {
-                                    key_network->last_send_date = np_time_now();
-                                    log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, key_network, key_network->socket);
-                                }
-                                np_memory_free(context, data_to_send);
-                            }
-                        // } while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN_OUT && np_time_now() < timeout);
-
-#ifdef DEBUG 
-                        if (sll_size(key_network->out_events) > 0)
-                            log_debug_msg(LOG_DEBUG | LOG_NETWORK, "%"PRIu32" packages still in delivery", sll_size(key_network->out_events));
-#endif
-                    }
-                // }
-            }
+    np_network_t* network = _np_key_get_network(key);
+    if (!FLAG_CMP(revents, EV_ERROR) && FLAG_CMP(revents, EV_WRITE))
+    {
+        _LOCK_ACCESS(&network->out_events_lock)
+        // if (key_network->out_events != NULL)
+        {
             /*
-            else if (EV_READ == (revents & EV_READ))
-            {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "unexpected event type");
+                a) if a data packet is available, try to send it until
+                    a.1) timeout has been reached
+                    a.2) the retry for a paket has been reached
+                    a.3) the whole paket has been send
+            */
+            void* data_to_send = NULL;
+            // int data_counter = 0;
+            ssize_t written_per_data = 0, current_write_per_data = 0;
+            // double timeout = np_time_now() + 1.;
+            // do {
+                data_to_send = sll_head(void_ptr, network->out_events);
+                // written_per_data = 0;
+
+                if (data_to_send != NULL)
+                {
+                //     int retry = 1;
+                //     do {
+
+                        /*
+                        Prep for UDP Passive
+                        if (FLAG_CMP(key_network->socket_type, PASSIVE))
+                        {
+                            current_write_per_data = sendTo(
+                            key_network->socket,
+                            (((char*)data_to_send) + written_per_data),
+                                MSG_CHUNK_SIZE_1024 - written_per_data,
+#ifdef MSG_NOSIGNAL
+                                MSG_NOSIGNAL
+#else
+                                0
+#endif
+                            );
+                        }
+                        else {
+                        */
+                        current_write_per_data = send(
+                            network->socket,
+                            (((char*)data_to_send) + written_per_data),
+                            MSG_CHUNK_SIZE_1024 - written_per_data,
+#ifdef MSG_NOSIGNAL
+                            MSG_NOSIGNAL
+#else								
+                            0
+#endif
+                        );
+                        // }
+                        // if (current_write_per_data < 0) {
+                        //     np_time_sleep(NP_SLEEP_MIN);
+                        // }
+                        if (current_write_per_data > 0)
+                        {
+                            written_per_data += current_write_per_data;
+                            _np_statistics_add_send_bytes(current_write_per_data);
+                        }
+                    // } while (written_per_data < MSG_CHUNK_SIZE_1024 && retry-- > 0);
+#ifdef DEBUG 
+                    // if (retry != 10) {
+                    //     log_debug_msg(LOG_DEBUG | LOG_NETWORK, "send package in %"PRId32" parts", 10 - retry);
+                    // }
+#endif
+
+                    if (written_per_data != MSG_CHUNK_SIZE_1024) {
+                        log_msg(LOG_DEBUG | LOG_WARN,
+                            "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
+                            data_to_send,
+                            written_per_data, MSG_CHUNK_SIZE_1024,
+                            strerror(errno), errno);
+                    }
+                    else {
+                        network->last_send_date = np_time_now();
+                        log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
+                    }
+                np_memory_free(context, data_to_send);
             }
-            else
-            {
-                log_debug_msg(LOG_DEBUG, "should never happen");
-            }*/
+            // } while (written_per_data > 0 && data_counter++ < NP_NETWORK_MAX_MSGS_PER_SCAN_OUT && np_time_now() < timeout);
 
-            // will only stop if queue is empty and a specific time has been lapsed
-            _np_network_stop(key_network, false);
+#ifdef DEBUG 
+            if (sll_size(network->out_events) > 0)
+                log_debug_msg(LOG_DEBUG | LOG_NETWORK, "%"PRIu32" packages still in delivery", sll_size(network->out_events));
+#endif
+        }
+    }
 
-            // np_unref_obj(np_network_t, key_network, FUNC);
-        // }
-    //     np_unref_obj(np_key_t, key, FUNC);
-    // }
+    // will only stop if queue is empty and a specific time has been lapsed
+    _np_network_stop(network, false);
 }
 
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
@@ -923,35 +903,31 @@ void _np_network_stop(np_network_t* network, bool force) {
     assert(NULL != network);
 
     np_ctx_memory(network);
-    _LOCK_ACCESS(&network->out_events_lock) {
-        _LOCK_ACCESS(&network->access_lock) {
-
-            // double last_send_diff = np_time_now() - network->last_send_date;
-            EV_P;
-
-            if ( (network->is_running == true /*&& last_send_diff >= NP_PI/500 */) &&
-                 (force == true || 0 == sll_size(network->out_events)) )
-            {
-                if (FLAG_CMP(network->type , np_network_type_server)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
-                    loop = _np_event_get_loop_in(context);
-                    ev_io_set(&network->watcher, network->socket, EV_READ);
-                    if (force == true) {                        
-                        ev_io_stop(EV_A_ &network->watcher);
-                        _np_event_reconfigure_loop_in(context);
-                    }
+    _LOCK_ACCESS(&network->out_events_lock) 
+    {
+        EV_P;
+        if ( (network->is_running == true /*&& last_send_diff >= NP_PI/500 */) &&
+                (force == true || 0 == sll_size(network->out_events)) )
+        {
+            if (FLAG_CMP(network->type , np_network_type_server)) {
+                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
+                loop = _np_event_get_loop_in(context);
+                ev_io_set(&network->watcher, network->socket, EV_READ);
+                if (force == true) {                        
+                    ev_io_stop(EV_A_ &network->watcher);
+                    _np_event_reconfigure_loop_in(context);
                 }
-                if (FLAG_CMP(network->type, np_network_type_client)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
-                    loop = _np_event_get_loop_out(context);
-                    ev_io_set(&network->watcher, network->socket, EV_NONE);
-                    if (force == true) {
-                        ev_io_stop(EV_A_ &network->watcher);
-                        _np_event_reconfigure_loop_out(context);
-                    }
-                }
-                network->is_running = false;
             }
+            if (FLAG_CMP(network->type, np_network_type_client)) {
+                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
+                loop = _np_event_get_loop_out(context);
+                ev_io_set(&network->watcher, network->socket, EV_NONE);
+                if (force == true) {
+                    ev_io_stop(EV_A_ &network->watcher);
+                    _np_event_reconfigure_loop_out(context);
+                }
+            }
+            network->is_running = false;
         }
     }
 }
@@ -1007,7 +983,7 @@ void _np_network_start(np_network_t* network, bool force){
     TSP_GET(bool, network->can_be_enabled, can_be_enabled);
     if (can_be_enabled) {
         NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
-        // _LOCK_ACCESS(&network->out_events_lock) {
+        _LOCK_ACCESS(&network->out_events_lock) {
             NP_PERFORMANCE_POINT_END(network_start_out_events_lock);
             NP_PERFORMANCE_POINT_START(network_start_access_lock);
             // _LOCK_ACCESS(&network->access_lock) {
@@ -1038,7 +1014,7 @@ void _np_network_start(np_network_t* network, bool force){
                     network->is_running = true;
                 }
             // }
-        // }
+        }
     }
     np_unref_obj(np_network_t, network, FUNC);
 }
@@ -1051,42 +1027,35 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
     np_network_t* network = (np_network_t*) data;
 
-    _LOCK_MODULE(np_network_t)
+    _np_network_stop(network, true);
+    np_key_t* old_key = (np_key_t*)network->watcher.data;
+    //if(old_key) np_unref_obj(np_key_t, old_key, ref_network_watcher);
+    network->watcher.data = NULL;
+
+    _LOCK_ACCESS(&network->out_events_lock)
     {
-        _LOCK_ACCESS(&network->access_lock)
+
+        if (NULL != network->out_events)
         {
-            _np_network_stop(network, true);
-            np_key_t* old_key = (np_key_t*)network->watcher.data;
-            //if(old_key) np_unref_obj(np_key_t, old_key, ref_network_watcher);
-            network->watcher.data = NULL;
-
-            _LOCK_ACCESS(&network->out_events_lock)
+            if (0 < sll_size(network->out_events))
             {
-
-                if (NULL != network->out_events)
-                {
-                    if (0 < sll_size(network->out_events))
-                    {
-                        do {
-                            void* drop_package = sll_head(void_ptr, network->out_events);
-                            log_debug_msg(LOG_INFO, "Dropping data package due to network cleanup");
-                            np_memory_free(context, drop_package);
-                        } while (0 < sll_size(network->out_events));
-                    }
-                    sll_free(void_ptr, network->out_events);
-                }
+                do {
+                    void* drop_package = sll_head(void_ptr, network->out_events);
+                    log_debug_msg(LOG_INFO, "Dropping data package due to network cleanup");
+                    np_memory_free(context, drop_package);
+                } while (0 < sll_size(network->out_events));
             }
-            if (0 < network->socket) close (network->socket);
-
-            network->initialized = false;
+            sll_free(void_ptr, network->out_events);
         }
-
-        // finally destroy the mutex 
-        _np_threads_mutex_destroy(context, &network->out_events_lock);
-        _np_threads_mutex_destroy(context, &network->access_lock);
-
-        TSP_DESTROY( network->can_be_enabled);
     }
+    if (0 < network->socket) close (network->socket);
+
+    network->initialized = false;
+
+    // finally destroy the mutex 
+    _np_threads_mutex_destroy(context, &network->out_events_lock);
+
+    TSP_DESTROY( network->can_be_enabled);
 }
 
 void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data)

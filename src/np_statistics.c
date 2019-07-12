@@ -309,7 +309,7 @@ char* np_statistics_prometheus_export(np_context*ac){
     return prometheus_format(np_module(statistics)->_prometheus_context);
 }
 
-void np_statistics_add_watch(np_state_t* context, char* subject) {	
+void np_statistics_add_watch(np_state_t* context, const char* subject) {	
 
     bool addtolist = true;
     sll_iterator(char_ptr) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
@@ -322,7 +322,7 @@ void np_statistics_add_watch(np_state_t* context, char* subject) {
         sll_next(iter_subjects);
     }
 
-    char* key = subject;
+    const char* key = subject;
     if (addtolist == true) {
         key = strdup(subject);
         sll_append(char_ptr, np_module(statistics)->__watched_subjects, key);

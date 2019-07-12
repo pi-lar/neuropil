@@ -441,15 +441,12 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(statemachine->_user_data, np_key_t, alias_or_node_key);
     NP_CAST(event.user_data, np_aaatoken_t, token);
 
+    np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
+
     // if this is an alias, trigger the state transition of the correpsonding node key
     if (FLAG_CMP(alias_or_node_key->type, np_key_type_alias)) 
     {
-        np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
-        np_key_t* node_key = _np_keycache_find(context, token_fp);
-
-        _np_key_handle_event(node_key, event, false);
-
-        np_unref_obj(np_key_t, node_key, "_np_keycache_find");
+        _np_keycache_handle_event(context, token_fp, event, false);
 
     } else {
         // node key and alias key share the same data structures, updating once counts for both
@@ -464,8 +461,7 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
             trinity.token->state |= AAA_AUTHENTICATED;    
             trinity.node->_joined_status++;
         }
-
-        if (FLAG_CMP(trinity.token->type, np_aaatoken_type_handshake)) 
+        else if (FLAG_CMP(trinity.token->type, np_aaatoken_type_handshake)) 
         {
             np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
             
@@ -475,6 +471,10 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
             token->state |= AAA_AUTHENTICATED;
             trinity.node->_joined_status++;
         } 
+        // send update messages to nodes near to this fingerprint        
+        np_dhkey_t update_key = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
+        np_util_event_t update_event = {.type=(evt_message|evt_internal), .context=context, .user_data=token, .target_dhkey=token_fp};
+        _np_keycache_handle_event(context, update_key, update_event, false);
     }
 }
 

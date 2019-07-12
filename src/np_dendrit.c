@@ -637,14 +637,13 @@ void _np_in_leave(np_state_t* context, np_util_event_t msg_event)
     {
         np_aaatoken_t* node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
         if (node_token != NULL) {
-            np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
-            np_key_t* leave_req_key = _np_keycache_find(context, search_key);
 
+            np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
             np_util_event_t shutdown_event = { .context=context, .type=evt_shutdown|evt_internal, .target_dhkey=search_key, .user_data=node_token };
-            _np_key_handle_event(leave_req_key, shutdown_event, false);
+
+            _np_keycache_handle_event(context, search_key, shutdown_event, false);
 
             np_unref_obj(np_aaatoken_t, node_token, "np_token_factory_read_from_tree");
-            np_unref_obj(np_key_t, leave_req_key, "_np_keycache_find");
         }
     }
     return;
@@ -823,75 +822,44 @@ void _np_in_ack(np_state_t* context, np_util_event_t msg_event)
 // TODO: if this is the target node, change target to sending instance and send again
 // receive information about new nodes in the network and try to contact new nodes
 void _np_in_update(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_update(np_jobargs_t* args){");
+{
+    log_debug_msg(LOG_DEBUG, "start: void _np_in_update(np_jobargs_t* args){");
 
-    np_key_t *update_key = NULL;
-    np_aaatoken_t* update_token = np_token_factory_read_from_tree(context, args.msg->body);
+    NP_CAST(msg_event.user_data, np_message_t, msg);
+
+    np_tree_t* update_tree = np_tree_find_str(msg->body, _NP_URN_NODE_PREFIX)->val.value.tree;
+
+    np_aaatoken_t* update_token = NULL;
+    np_new_obj(np_aaatoken_t, update_token);
+
+    np_aaatoken_decode(update_tree, update_token);
 
     if (false == _np_aaatoken_is_valid(update_token, np_aaatoken_type_node))
     {
         goto __np_cleanup__;
     }
 
-    _LOCK_MODULE(np_keycache_t)
+    np_dhkey_t update_dhkey = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
+
+    np_key_t* update_key = _np_keycache_find(context, update_dhkey);
+    if (NULL == update_key )
+    {   // potentially join the new node
+        np_util_event_t update_event = { .type=(evt_external|evt_token), .context=context, .user_data=update_token, .target_dhkey=update_dhkey};
+        _np_keycache_handle_event(context, update_dhkey, update_event, false);
+        // and forward the token to another hop
+        np_dhkey_t update_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
+        update_event.type=(evt_message|evt_internal);
+        _np_keycache_handle_event(context, update_prop_dhkey, update_event, false);
+    }
+    else
     {
-        update_key = _np_key_create_from_token(update_token);
+        np_unref_obj(np_key_t, update_key, "_np_keycache_find");
     }
 
-    if (NULL == update_key->aaa_token)
-    {
-        np_ref_switch(np_aaatoken_t, update_key->aaa_token, ref_key_aaa_token, update_token);
-    }
-
-    if (NULL != update_key &&
-        NULL != update_key->node &&
-        !FLAG_CMP(update_key->node->protocol, PASSIVE) &&
-        false == update_key->node->joined_network)
-    {
-        // do not join myself
-        if(0 != _np_key_cmp(update_key, context->my_identity)
-        && 0 != _np_key_cmp(update_key, context->my_node_key))
-        {
-            // char* connection_str = np_get_connection_string_from(
-            //         update_key,false);
-            // np_key_t* old_key = _np_keycache_find_by_details(
-            //         connection_str, false, false,false,
-            //         false, true, true, false);
-            // free(connection_str);
-
-            // if(NULL != old_key)
-            // {
-            //     log_msg(LOG_ROUTING | LOG_INFO,
-            //         "Node %s replaces itself with node %s",
-            //         _np_key_as_str(args.target),
-            //         _np_key_as_str(update_key)
-            //         );
-
-            //     if(old_key->network != NULL)
-            //     {
-            //         _np_network_remap_network(update_key, old_key);
-            //     }
-            //     np_unref_obj(np_key_t, old_key,"_np_keycache_find_by_details");
-            // }
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-            "Sending join %s:%s",
-            // np_network_get_ip(update_key), np_network_get_port(update_key);
-                args.target->node->dns_name, update_key->node->port);
-            _np_send_simple_invoke_request(update_key, _NP_MSG_JOIN_REQUEST);
-        }
-    } else {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Sending no join");
-    }
-
-    // TODO: forward update token to other neighbours
     __np_cleanup__:
-    np_unref_obj(np_key_t, update_key,"_np_key_create_from_token");
     np_unref_obj(np_aaatoken_t, update_token, "np_token_factory_read_from_tree");
 
-    // nothing to do
-    // __np_return__:
-    return;*/
+    return;
 }
 
 void _np_dendrit_propagate_receivers(np_dhkey_t target_to_receive_tokens, np_message_intent_public_token_t* sender_msg_token, NP_UNUSED bool inform_counterparts) {

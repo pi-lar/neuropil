@@ -166,6 +166,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __update->ack_mode = ACK_NONE;
     __update->retry = 0;
     sll_append(np_evt_callback_t, __update->clb_inbound, _np_in_update);
+    sll_append(np_evt_callback_t, __update->clb_outbound, _np_out_update);
     //default: sll_append(np_evt_callback_t, __update->clb_outbound, _np_out);
     //sll_append(np_evt_callback_t, __update->clb_transform, _np_never_called_jobexec_transform);
     //default: sll_append(np_evt_callback_t, __update->clb_route, _np_glia_route_lookup);

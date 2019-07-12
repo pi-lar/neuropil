@@ -31,6 +31,9 @@ void _np_out_piggy(np_state_t* context, const np_util_event_t event);
 NP_API_INTERN
 void _np_out_ping(np_state_t* context, const np_util_event_t event);
 
+NP_API_INTERN
+void _np_out_update(np_state_t* context, const np_util_event_t event);
+
 // splits up message into parts and sends all parts to the next node
 NP_API_INTERN
 void _np_out(np_state_t* context, np_util_event_t msg_event);
