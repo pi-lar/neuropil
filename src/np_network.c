@@ -521,9 +521,6 @@ void _np_network_send_from_events (struct ev_loop *loop, ev_io *event, int reven
 #endif
         }
     }
-
-    // will only stop if queue is empty and a specific time has been lapsed
-    _np_network_stop(network, false);
 }
 
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
@@ -612,8 +609,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                     np_key_t* alias_key = _np_keycache_find(context, search_key);
                     char* alias_key_reason = "_np_keycache_find";
                     np_network_t* old_network = NULL;
-                    _LOCK_MODULE(np_network_t)
-                    {
+
                         if (alias_key != NULL) {
                             old_network = alias_key->network;
                         }
@@ -641,7 +637,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                             alias_key->network->initialized = true;
                             alias_key->network->type = np_network_type_server;
                         }
-                    }
+                    
 
                     _np_network_set_key(alias_key->network, alias_key);
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving2", alias_key->network, alias_key->network->socket);
@@ -825,14 +821,12 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
         {
             log_debug_msg(LOG_INFO | LOG_NETWORK, "Dropping data package due to invalid package size (%"PRIu16")", in_msg_len);
             np_memory_free(context, data_container->data);
-            free(data_container);
         }
-
+        free(data_container);
     // there may be more then one msg in our socket pipeline
     // } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
     
 }
-    
 
 void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
     log_debug_msg(LOG_TRACE, "_np_network_handle_incomming_data");
@@ -988,7 +982,7 @@ void _np_network_start(np_network_t* network, bool force){
             NP_PERFORMANCE_POINT_START(network_start_access_lock);
             // _LOCK_ACCESS(&network->access_lock) {
                 NP_PERFORMANCE_POINT_END(network_start_access_lock);
-
+                                
                 EV_P;
                 if (network->is_running == false)
                 {
@@ -996,20 +990,16 @@ void _np_network_start(np_network_t* network, bool force){
                         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
                         EV_A = _np_event_get_loop_in(context);
                         ev_io_set(&network->watcher, network->socket, EV_READ);
-                        if(force == true){							                            
-                            ev_io_start(EV_A_ &network->watcher);
-                            _np_event_reconfigure_loop_in(context);
-                        }
+                        ev_io_start(EV_A_ &network->watcher);
+                        _np_event_reconfigure_loop_in(context);
                     }
 
                     if (FLAG_CMP(network->type, np_network_type_client)) {
                         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);						
                         EV_A = _np_event_get_loop_out(context);
                         ev_io_set(&network->watcher, network->socket, EV_WRITE);
-                        if(force == true){
-                            ev_io_start(EV_A_ &network->watcher);
-                            _np_event_reconfigure_loop_out(context);
-                        }						
+                        ev_io_start(EV_A_ &network->watcher);
+                        _np_event_reconfigure_loop_out(context);
                     }
                     network->is_running = true;
                 }

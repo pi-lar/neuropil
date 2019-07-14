@@ -122,7 +122,6 @@ void __add_transitions_for(const np_key_t* my_key, enum np_key_type requested_ty
     }
 }
 
-
 void __np_key_populate_states(np_key_t* key)
 {
     np_ctx_memory(key);
@@ -177,6 +176,7 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_dht_message); // handle ght messages (ping, piggy, leave, update)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_message); // pass on to the specific message intent
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY  , __np_alias_destroy    , __is_alias_invalid); // node has left, invalidate node
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_update      , NULL); // cleanup message part cache fro incoming messages
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_NODE, "IN_USE_NODE", __keystate_noop, __np_node_add_to_leafset, __np_node_remove_from_routing);
 

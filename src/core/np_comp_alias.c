@@ -25,6 +25,135 @@
 #include "util/np_statemachine.h"
 #include "np_tree.h"
 
+np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* msg_to_check)
+{
+    log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
+
+    np_message_t* ret= NULL;
+
+#ifdef DEBUG
+    char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+#endif
+    // Detect from instructions if this msg was orginally chunked
+    char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
+    uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
+
+    if (1 < expected_msg_chunks)
+    {
+        _LOCK_MODULE(np_message_part_cache_t)
+        {
+            // If there exists multiple chunks, check if we already have one in cache
+            np_tree_elem_t* tmp = np_tree_find_str(context->msg_part_cache, msg_uuid);
+            if (NULL != tmp)
+            {
+                // there exists a msg(part) in our msgcache for this msg uuid
+                // lets add our msgpart to this msg
+                np_message_t* msg_in_cache = msg_in_cache = tmp->val.value.v;
+
+                np_messagepart_ptr to_add = NULL;
+                _LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
+                    to_add = pll_first(msg_to_check->msg_chunks)->val; // get the messagepart we received
+                    np_ref_obj(np_messagepart_t, to_add, FUNC);
+                }
+                log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+                        "message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
+
+                uint32_t current_count_of_chunks = 0;
+                _LOCK_ACCESS(&msg_in_cache->msg_chunks_lock)
+                {
+                    // try to add the new received messagepart to the msg in cache
+                    np_ref_obj(np_messagepart_t, to_add, ref_message_messagepart);
+                    if(false == pll_insert(np_messagepart_ptr, msg_in_cache->msg_chunks, to_add, false, _np_messagepart_cmp)) {
+                        np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart);
+                        // new entry is rejected (already present)
+                    }
+                    np_unref_obj(np_messagepart_t, to_add, FUNC);
+
+                    // now we check if all chunks are complete for this msg
+                    current_count_of_chunks = pll_size(msg_in_cache->msg_chunks);
+                }
+
+                if (current_count_of_chunks < expected_msg_chunks)
+                {
+                    log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+                        "message %s (%s) not complete yet (%d of %d), waiting for missing parts",
+                        subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
+                    // nothing to return as we still wait for chunks
+                }
+                else
+                {
+                    ret = msg_in_cache;
+                    np_ref_obj(np_message_t, ret); // function ret ref
+
+                    // removing the message from the cache system
+                    np_tree_del_str(context->msg_part_cache, msg_uuid);
+                    np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
+
+                    log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+                        "message %s (%s) is complete now  (%d of %d)",
+                        subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
+                }
+            }
+            else
+            {
+                // there exists no msg(part) in our msgcache for this msg uuid
+                // TODO: limit msg_part_cache size
+
+                // there is no chunk for this msg in cache,
+                // so we insert this message into out cache
+                // as a structure to accumulate further chunks into
+                np_ref_obj(np_message_t, msg_to_check, ref_msgpartcache); // we need to unref this after we finish the handeling of this msg
+                np_tree_insert_str(context->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
+            }
+        }
+    }
+    else
+    {
+        // If this is the only chunk, then return it as is
+        log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+                "message %s (%s) is unchunked  ", subject, msg_uuid);
+        ret = msg_to_check;
+        np_ref_obj(np_message_t, ret); // function ret ref
+    }
+    return ret;
+}
+
+// TODO: move to glia
+void _np_alias_cleanup_msgpart_cache(np_state_t* context)
+{
+    np_sll_t(np_message_ptr, to_del);
+    sll_init(np_message_ptr, to_del);
+    
+    _LOCK_MODULE(np_message_part_cache_t)
+    {
+        if (context->msg_part_cache->size > 0) {
+            log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
+
+            np_tree_elem_t* tmp = NULL;
+            RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
+            {
+                np_message_t* msg = tmp->val.value.v;
+                if (true == _np_message_is_expired(msg)) {
+                    sll_append(np_message_ptr, to_del, msg);
+                }
+            }
+        }
+    }
+
+    sll_iterator(np_message_ptr) iter = sll_first(to_del);
+    while (NULL != iter)
+    {
+        log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message part for uuid: %s", iter->val->uuid);
+        _LOCK_MODULE(np_message_part_cache_t)
+        {
+            np_tree_del_str(context->msg_part_cache, iter->val->uuid);
+        }
+        np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
+        sll_next(iter);
+    }
+    sll_free(np_message_ptr, to_del);  
+}
+
 bool __is_alias_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -186,7 +315,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         }
 
         // TODO: messag part cache should be a component on its own, but for now just use it
-        np_message_t* msg_to_submit = _np_message_check_chunks_complete(msg_in);
+        np_message_t* msg_to_submit = _np_alias_check_msgpart_cache(context, msg_in);
         np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
                                            .user_data=msg_to_submit, .target_dhkey=alias_key->dhkey};
         _np_key_handle_event(alias_key, in_message_evt, false);
@@ -272,3 +401,13 @@ void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_eve
 
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
 void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+
+void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
+
+    NP_CAST(event.user_data, np_message_t, message);
+
+    _np_alias_cleanup_msgpart_cache(context);
+}

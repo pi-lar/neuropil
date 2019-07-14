@@ -181,6 +181,7 @@ bool __np_is_already_listening(np_state_t* context)
     return (context->my_node_key != NULL);
 }
 
+
 enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port) {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
@@ -238,7 +239,7 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
 
             np_aaatoken_t* node_token = _np_token_factory_new_node_token(context, np_proto, np_host, np_service);
             _np_set_identity(context, node_token);
-            
+
             // initialize routing table
             if (_np_route_init(context, context->my_node_key)== false)
             {
@@ -512,7 +513,8 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     return ret;
 }
 
-enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback) {
+enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback) 
+{
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
     log_debug(LOG_MISC, "np_add_receive_cb %s", subject);

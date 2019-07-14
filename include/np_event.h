@@ -34,8 +34,6 @@ NP_EVENT_EVLOOP_PROTOTYPE(out)
 NP_EVENT_EVLOOP_PROTOTYPE(http)
 
 NP_API_INTERN		
-void _np_event_cleanup_msgpart_cache(np_state_t* context, np_jobargs_t args);
-NP_API_INTERN		
 bool _np_event_init(np_state_t *context);
 NP_API_INTERN		
 void _np_event_destroy(np_state_t *context);

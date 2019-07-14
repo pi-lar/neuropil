@@ -79,7 +79,6 @@ NP_BINHEAP_GENERATE_IMPLEMENTATION(np_job_t);
 np_module_struct(jobqueue)
 {
     np_state_t* context;
-    np_cond_t   __cond_job_queue;
 
     np_mutex_t  available_workers_lock;
     np_dll_t(np_thread_ptr, available_workers);
@@ -198,9 +197,9 @@ bool _np_job_queue_insert(np_state_t* context, np_job_t new_job)
     return ret;
 }
 
-void _np_jobqueue_check(np_state_t* context) {	
-    
-    _np_threads_condition_broadcast(context, &np_module(jobqueue)->__cond_job_queue);	
+void _np_jobqueue_check(np_state_t* context) 
+{	    
+    _np_threads_module_condition_signal(context, np_jobqueue_t_lock);	
 }
 
 /** (re-)submit message event
@@ -407,7 +406,6 @@ bool _np_jobqueue_init(np_state_t * context)
         _module->periodic_jobs = 0;
 
         _np_threads_mutex_init(context, &_module->available_workers_lock, "available_workers_lock");
-        _np_threads_condition_init(context, &_module->__cond_job_queue);
     }
     return (true);
 }
@@ -437,7 +435,6 @@ void _np_jobqueue_destroy(np_state_t* context) {
         dll_free(np_thread_ptr, _module->available_workers);
 
         _np_threads_mutex_destroy(context, &_module->available_workers_lock);
-        _np_threads_condition_destroy(context, &_module->__cond_job_queue);
 
         np_module_free(jobqueue);
     }
@@ -455,19 +452,17 @@ void _np_job_yield(np_state_t * context, const double delay)
     {
         // unlock another threads
         _LOCK_MODULE(np_jobqueue_t) {
-            _np_jobqueue_check(context);
-        }
 
-        _LOCK_MODULE(np_jobqueue_t) {
+            _np_jobqueue_check(context);
             if (0.0 != delay)
             {
                 // wait for time x to be unlocked again
-                _np_threads_module_condition_timedwait(context, &np_module(jobqueue)->__cond_job_queue, np_jobqueue_t_lock, delay);
+                _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, delay);
             }
             else
             {
                 // wait for next wakeup signal
-                _np_threads_module_condition_wait(context, &np_module(jobqueue)->__cond_job_queue, np_jobqueue_t_lock);
+                _np_threads_module_condition_wait(context, np_jobqueue_t_lock);
             }
         }
     }
@@ -527,7 +522,7 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
         if (sleep > 0.0) {            
             _LOCK_MODULE(np_jobqueue_t)
             {
-                _np_threads_module_condition_timedwait(context, &np_module(jobqueue)->__cond_job_queue, np_jobqueue_t_lock, sleep);
+                _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
             }
         }
         now   = np_time_now();
@@ -546,17 +541,14 @@ void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
                 // only sleep when there is not much to do (around a dozen periodic jobs could be ok)			
                 _LOCK_MODULE(np_jobqueue_t)
                 {
-                    _np_threads_module_condition_timedwait(context, &np_module(jobqueue)->__cond_job_queue, np_jobqueue_t_lock, sleep);
+                    _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
                 }
             }
         }
-        else {
+        else 
+        {
             sleep = NP_SLEEP_MIN;
-        }
-
-        if (sleep != 0) {
             log_debug_msg(LOG_JOBS, "Job Thread %"PRIu64" now waits %f seconds", my_thread->id, sleep);
-
             np_time_sleep(sleep);
         }
     }
@@ -628,7 +620,7 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
                         log_debug_msg(LOG_JOBS, "start   worker thread (%p) job (%s)", current_worker, current_worker->job.ident);
                         current_worker->job = next_job;
                         np_threads_busyness(context, current_worker, true);                        
-                        _np_threads_condition_signal(context, &current_worker->job_lock.condition);
+                        _np_threads_module_condition_signal(context, np_jobqueue_t_lock);
                     }
                 }
                 _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
@@ -639,25 +631,21 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
             }
             else
             {                
-                // wait for time x to be unlocked again
+                log_debug_msg(LOG_JOBS | LOG_VERBOSE, "JobManager waits  for %f sec", sleep);now = np_time_now();
+
+                np_threads_busyness(context, my_thread, false);
                 _LOCK_MODULE(np_jobqueue_t)
                 {
-                	//if (sleep > NP_SLEEP_MIN)
-                    {
-                		log_debug_msg(LOG_JOBS | LOG_VERBOSE, "JobManager waits  for %f sec", sleep);now = np_time_now();
-
-                        np_threads_busyness(context, my_thread, false);
-                		// only sleep when there is not much to do (around a dozen periodic jobs could be ok)
-                		_np_threads_module_condition_timedwait(
-                			context, 
-                			&np_module(jobqueue)->__cond_job_queue, 
-                			np_jobqueue_t_lock, 
-                			fmax(NP_SLEEP_MIN, sleep)
-                		);
-                		np_threads_busyness(context, my_thread, true);
-                		log_debug_msg(LOG_JOBS | LOG_VERBOSE, "JobManager waited for %f sec", np_time_now()-now);
-                	}
+                    // only sleep when there is not much to do (around a dozen periodic jobs could be ok)
+                    _np_threads_module_condition_timedwait(
+                        context, 
+                        np_jobqueue_t_lock, 
+                        fmax(NP_SLEEP_MIN, sleep)
+                    );
+                    log_debug_msg(LOG_JOBS | LOG_VERBOSE, "JobManager waited for %f sec", np_time_now()-now);
                 }                
+
+                np_threads_busyness(context, my_thread, true);
                 //np_time_sleep(0.005);
                 _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
                 {
@@ -842,9 +830,17 @@ void __np_jobqueue_run_worker(np_state_t* context, np_thread_t* my_thread)
             {
                 log_debug_msg(LOG_JOBS, "wait    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);                
                 np_threads_busyness(context, my_thread, false);
-
-                _np_threads_mutex_condition_wait(context, &my_thread->job_lock);
-                if(my_thread->_busy == true) {
+            }
+    
+            _LOCK_MODULE(np_jobqueue_t) {
+                _np_threads_module_condition_wait(context, np_jobqueue_t_lock);
+            }
+    
+            _LOCK_ACCESS(&my_thread->job_lock)
+            {
+                if(my_thread->_busy == true) 
+                {
+                    np_threads_busyness(context, my_thread, true);
                     log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
                     __np_jobqueue_run_once(context, my_thread->job);                
                 }

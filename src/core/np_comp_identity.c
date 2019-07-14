@@ -185,7 +185,6 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
         log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
 
         _np_network_enable(my_network);
-        _np_network_start(my_network, true);
     }
 }
 

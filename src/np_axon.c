@@ -435,13 +435,15 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
 
 void _np_out_ping(np_state_t* context, const np_util_event_t event) 
 {  
-    log_trace_msg(LOG_TRACE, "start: void _np_out_piggy(...) {");
+    log_trace_msg(LOG_TRACE, "start: void _np_out_ping(...) {");
 
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
 
     np_message_t* msg_out = NULL;
     np_new_obj(np_message_t, msg_out);
     _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
+
+    log_debug_msg(LOG_DEBUG, "_np_out_ping for message uuid %s", msg_out->uuid);
 
     // 2: chunk the message if required
     _np_message_calculate_chunking(msg_out);
@@ -505,7 +507,7 @@ void _np_out_piggy(np_state_t* context, const np_util_event_t event)
         while (NULL != iter) 
         {
             iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
-            log_debug_msg(LOG_DEBUG, "submitting leave to target key %s / %p", _np_key_as_str(target_key), target_key);
+            log_debug_msg(LOG_DEBUG, "submitting piggy to target key %s / %p", _np_key_as_str(target_key), target_key);
             np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
             _np_keycache_handle_event(context, event.target_dhkey, leave_event, false);
 
@@ -728,133 +730,6 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
     }
     NP_PERFORMANCE_POINT_END(handshake_out);
 }
-/*
-void _np_out_handshake(np_state_t* context, np_util_event_t msg_event)
-{
-    NP_PERFORMANCE_POINT_START(handshake_out);
-    NP_PERFORMANCE_POINT_START(handshake_out_lock);
-    _LOCK_MODULE(np_handshake_t)
-    {
-        NP_PERFORMANCE_POINT_END(handshake_out_lock);
-        if (_np_node_check_address_validity(args.target->node))
-        {
-            // get our node identity from the cache			
-            np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context);
-
-            // create real handshake message ...
-            np_message_t* hs_message = NULL;
-            np_msgproperty_t* hs_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
-            np_new_obj(np_message_t, hs_message);
-
-            np_tree_insert_str( hs_message->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s(_NP_MSG_HANDSHAKE));
-            np_tree_insert_str( hs_message->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(context->my_node_key->dhkey) );
-            np_tree_insert_str( hs_message->header, NP_HS_PRIO, np_treeval_new_ul(context->my_node_key->node->handshake_priority));
-            
-            np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
-            np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(hs_prop->ack_mode));
-            np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(hs_prop->token_max_ttl + 0.0));
-            np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
-            if (args.custom_data != NULL) {
-                np_tree_insert_str(hs_message->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(args.custom_data));
-                free(args.custom_data);
-            }
-
-            np_aaatoken_encode(hs_message->body, my_token);
-            np_unref_obj(np_aaatoken_t, my_token, "_np_token_factory_new_handshake_token");
-
-            _np_message_calculate_chunking(hs_message);
-
-            bool serialize_ok = _np_message_serialize_chunked(hs_message);
-
-            if (hs_message->no_of_chunks != 1) 
-            {
-                log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
-                np_unref_obj(np_message_t, hs_message, ref_obj_creation);                
-            }
-            else
-            {
-                if (true == serialize_ok)
-                {
-                    bool network_error = false;
-                    NP_PERFORMANCE_POINT_START(handshake_out_network);
-                    _LOCK_MODULE(np_network_t)
-                    {
-                        NP_PERFORMANCE_POINT_END(handshake_out_network);
-                        if (NULL == args.target->network)
-                        {
-                            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "handshake: init client network");
-                            // initialize network
-                            np_new_obj(np_network_t, args.target->network, ref_key_network);
-                            _np_network_init(args.target->network,
-                                false,
-                                args.target->node->protocol,
-                                args.target->node->dns_name,
-                                args.target->node->port,
-                                -1,
-                                UNKNOWN_PROTO
-                            );
-                            if (false == args.target->network->initialized)
-                            {
-                                np_unref_obj(np_network_t, args.target->network, ref_key_network);
-                                args.target->network = NULL;
-                                network_error = true;
-                            }
-                            else {
-                                _np_network_set_key(args.target->network, args.target);
-                                _np_network_enable(args.target->network);
-                            }
-                        }
-                    }
-                    
-                    if (!network_error) 
-                    {
-                        // construct target address and send it out
-                        // np_node_t* hs_node = args.target->node;
-
-                        // send data if handshake status is still just initialized or less
-                        log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
-                            "sending handshake message %s to %s",// (%s:%s)",
-                            hs_message->uuid, _np_key_as_str(args.target));
-
-                        char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
-
-                        NP_PERFORMANCE_POINT_START(handshake_out_msg_chunks_lock);
-                        _LOCK_ACCESS(&hs_message->msg_chunks_lock)
-                        {
-                            NP_PERFORMANCE_POINT_END(handshake_out_msg_chunks_lock);
-                            memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
-                        }
-                        
-                        NP_PERFORMANCE_POINT_START(handshake_out_events_lock);
-                        _LOCK_ACCESS(&args.target->network->out_events_lock)
-                        {
-                            NP_PERFORMANCE_POINT_END(handshake_out_events_lock);
-
-                            if (NULL != args.target->network->out_events)
-                            {
-                                sll_append(
-                                    void_ptr,
-                                    args.target->network->out_events,
-                                    (void*)packet);
-                                _np_network_start(args.target->network, true);
-                            }
-                            else 
-                            {
-                                log_msg(LOG_ERROR, "Dropping data package due to not initialized out_events");
-                                np_memory_free(context, packet);
-                            }
-                        }
-                        _np_message_trace_info("out", hs_message);
-                        __np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
-                    }
-                }
-                np_unref_obj(np_message_t, hs_message, ref_obj_creation);
-            }
-        }
-    }
-    NP_PERFORMANCE_POINT_END(handshake_out);
-}
-*/
 
 void _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event)
 {    

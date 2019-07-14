@@ -53,6 +53,10 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_even
 NP_API_INTERN
 void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event); // handle external received handsjake token
 
+NP_API_INTERN
+void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+
 #ifdef __cplusplus
 }
 #endif

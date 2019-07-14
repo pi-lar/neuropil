@@ -197,8 +197,11 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
         np_node_t* wc_node = _np_key_get_node(hs_wildcard_key);
         my_node->handshake_send_at = wc_node->handshake_send_at;
         my_node->_handshake_status = wc_node->_handshake_status;
+    
+        np_unref_obj(np_key_t, hs_wildcard_key, "np_keycache_find");
     }    
     log_debug_msg(LOG_DEBUG, "node_status: %d %f", my_node->_handshake_status, my_node->handshake_send_at);
+    free(tmp_connection_str);
 }
 
 void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -586,7 +589,6 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
         log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Network %s is the main receiving network", np_memory_get_id(my_network));
 
         _np_network_enable(my_network);
-        _np_network_start(my_network, true);
     }
 
     node_key->last_update = np_time_now();
@@ -624,14 +626,17 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
 
     memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
     
-    sll_append(
-        void_ptr,
-        trinity.network->out_events,
-        (void*)packet);
+    _LOCK_ACCESS(&trinity.network->out_events_lock)  
+    {
+        sll_append(
+            void_ptr,
+            trinity.network->out_events,
+            (void*)packet);
+    }
+    _np_event_invoke_out(context); 
 
     log_debug_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %d", sll_size(trinity.network->out_events));
 
-    _np_network_start(trinity.network, true);
     _np_message_trace_info("out", hs_message);
 }
 
@@ -695,8 +700,11 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
                 "(msg: %s) %s",
                 part->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
             
-            sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);                                    
-            _np_network_start(trinity.network, false);
+            _LOCK_ACCESS(&trinity.network->out_events_lock) 
+            {
+                sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);
+            }
+            _np_event_invoke_out(context); 
 #ifdef DEBUG
             if(!trinity.network->is_running){
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) cannot be send (now) as network is not running", part->uuid);

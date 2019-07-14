@@ -39,6 +39,7 @@ RB_GENERATE(st_keycache_s, np_key_s, link, _np_key_cmp);
 np_module_struct(keycache) {
     np_state_t* context;	
     st_keycache_t* __key_cache;
+    double __last_udpate;
 };
 
 bool _np_keycache_init(np_state_t* context)
@@ -198,7 +199,7 @@ np_key_t* _np_keycache_find_by_details(
     return (ret);
 }
 
-void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
+void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_util_event_t args) 
 {
     np_key_t *iter = NULL;
 
@@ -291,6 +292,7 @@ np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t search_dhkey)
             RB_REMOVE(st_keycache_s, np_module(keycache)->__key_cache, rem_key);
             rem_key->is_in_keycache = false;
             np_unref_obj(np_key_t, rem_key, ref_keycache);
+            np_module(keycache)->__last_udpate = np_time_now();
         }
     }
     return rem_key;
@@ -311,6 +313,7 @@ np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key)
         RB_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
         subject_key->last_update = np_time_now();
         subject_key->is_in_keycache = true;
+        np_module(keycache)->__last_udpate = subject_key->last_update;
     }
     return subject_key;
 }
@@ -320,7 +323,8 @@ void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_ev
     log_trace_msg(LOG_TRACE, "start: void _np_keycache_handle_event(...){");
 
     np_key_t* key = _np_keycache_find(context, dhkey);
-    if (key != NULL) {
+    if (key != NULL) 
+    {
         _np_key_handle_event(key, event, force);
         np_unref_obj(np_key_t, key, "_np_keycache_find");
     }
