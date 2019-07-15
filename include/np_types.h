@@ -75,11 +75,10 @@ typedef struct np_crypto_session_s np_crypto_session_t;
 /*
  *  user callback functions
  */
-
 typedef void(*np_destroycallback_t) (np_context* ac);
 typedef bool(*np_usercallbackfunction_t) (np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata);
 typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
-typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
+typedef void(*np_msgproperty_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
 typedef void(*np_threads_worker_run) (np_state_t* context, np_thread_t* thread);
 
 // internal callback functions
@@ -114,7 +113,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_evt_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_destroycallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
-NP_SLL_GENERATE_PROTOTYPES(np_message_on_reply_t);
+NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_on_reply_t);
 
 NP_DLL_GENERATE_PROTOTYPES(np_thread_ptr);
 

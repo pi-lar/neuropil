@@ -43,7 +43,6 @@
 #include "np_statistics.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION(np_message_on_reply_t);
 
 void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* msg)
 {

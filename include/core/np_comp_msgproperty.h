@@ -293,6 +293,16 @@ struct np_msgproperty_s
     np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
     np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
 
+    TSP(bool, is_acked);
+    np_sll_t(np_responsecontainer_on_t, on_ack);
+    TSP(bool, is_in_timeout);
+    np_sll_t(np_responsecontainer_on_t, on_timeout);
+    TSP(bool, is_sent);
+    np_sll_t(np_responsecontainer_on_t, on_send);
+
+    TSP(bool, has_reply);
+    np_sll_t(np_msgproperty_on_reply_t, on_reply);
+
     bool unique_uuids_check;
     uint32_t unique_uuids_max;
 
@@ -435,6 +445,24 @@ NP_API_INTERN
 void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+void np_msgproperty_add_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply);
+NP_API_INTERN
+void np_msgproperty_remove_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply_to_remove);
+
+NP_API_INTERN
+void np_msgproperty_add_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
+NP_API_INTERN
+void np_msgproperty_remove_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
+NP_API_INTERN
+void np_msgproperty_add_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
+NP_API_INTERN
+void np_msgproperty_remove_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
+NP_API_INTERN
+void np_msgproperty_add_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
+NP_API_INTERN
+void np_msgproperty_remove_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
 
 
 #ifdef __cplusplus
