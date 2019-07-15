@@ -105,8 +105,6 @@ NP_API_INTERN
 void _np_network_stop(np_network_t* ng, bool force);
 NP_API_INTERN
 void _np_network_start(np_network_t* ng, bool force);
-NP_API_INTERN
-void _np_network_remap_network( np_key_t* new_target, np_key_t* old_target);
 
 /** _np_network_init:
  ** initiates the networking layer by creating socket and bind it to #port#
@@ -121,10 +119,7 @@ bool _np_network_init (np_network_t* network, bool create_socket, enum socket_ty
  **
  **/
 NP_API_INTERN
-bool _np_network_append_msg_to_out_queue (np_key_t* node,  np_message_t* msg);
-
-NP_API_INTERN
-void _np_network_send_from_events(struct ev_loop *loop, ev_io *event, int revents);
+void _np_network_write(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
 void _np_network_read(struct ev_loop *loop, ev_io *event, int revents);
 NP_API_INTERN
@@ -135,8 +130,6 @@ NP_API_INTERN
 char* np_network_get_port(np_key_t * container, char* buffer);
 NP_API_INTERN
 char* np_network_get_ip(np_key_t * container, char* buffer);
-NP_API_INTERN
-bool _np_network_send_handshake(np_state_t* context, np_key_t* node_key, bool response_handshake, char* response_uuid);
 NP_API_INTERN
 void _np_network_disable(np_network_t* self);
 NP_API_INTERN

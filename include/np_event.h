@@ -10,6 +10,7 @@
 #include "neuropil.h"
 #include "np_types.h"
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,16 +28,21 @@ void _np_event_suspend_loop_##LOOPNAME(np_state_t *context);			        \
 NP_API_INTERN															        \
 void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context); 		        \
 NP_API_INTERN															        \
-void _np_event_resume_loop_##LOOPNAME(np_state_t *context);						
+void _np_event_resume_loop_##LOOPNAME(np_state_t *context);                     						
+
 
 NP_EVENT_EVLOOP_PROTOTYPE(in)
 NP_EVENT_EVLOOP_PROTOTYPE(out)
 NP_EVENT_EVLOOP_PROTOTYPE(http)
+NP_EVENT_EVLOOP_PROTOTYPE(file)
+
 
 NP_API_INTERN		
 bool _np_event_init(np_state_t *context);
+
 NP_API_INTERN		
 void _np_event_destroy(np_state_t *context);
+
 
 #ifdef __cplusplus
 }

@@ -403,36 +403,6 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body
 
     np_unref_obj(np_message_t, msg, ref_obj_creation);
 }
-/*
-void _np_context_create_new_nodekey(np_context*ac, np_node_t* custom_base) {
-    np_ctx_cast(ac);
-
-    // create a new token for encryption each time neuropil starts
-    np_tryref_obj(np_key_t, context->my_node_key, has_old_node_key);
-    np_key_t* my_old_node_key = context->my_node_key;
-    if (has_old_node_key && custom_base == NULL) {
-        custom_base = my_old_node_key->node;
-    } 
-    np_aaatoken_t* auth_token = _np_token_factory_new_node_token(context, custom_base);
-    auth_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
-
-    np_dhkey_t my_dhkey = np_aaatoken_get_fingerprint(auth_token, false);
-    np_key_t* my_new_node_key = _np_keycache_find_or_create(context, my_dhkey);
-
-    np_ref_switch(np_node_t, my_new_node_key->node, ref_key_node, custom_base);
-    np_ref_switch(np_aaatoken_t, my_new_node_key->aaa_token, ref_key_aaa_token, auth_token);
-    np_ref_switch(np_key_t, context->my_node_key, ref_state_nodekey, my_new_node_key);
-
-    if(has_old_node_key && my_old_node_key->network != NULL) {
-        _np_network_remap_network(my_new_node_key, my_old_node_key);
-    }
-    _np_route_set_key(my_new_node_key);
-
-    np_unref_obj(np_aaatoken_t, auth_token, "_np_token_factory_new_node_token");
-    np_unref_obj(np_key_t, my_new_node_key, "_np_keycache_find_or_create");
-    np_unref_obj(np_key_t, my_old_node_key, FUNC);
-}
-*/
 
 char* np_get_connection_string(np_context*ac) 
 {
@@ -480,19 +450,6 @@ char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char*
     }
 
     return connection_str;
-}
-
-np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* subject) 
-{
-}
-
-void _np_send_simple_invoke_request(np_key_t* target, const char* type) 
-{
-    assert(target != NULL);
-    np_state_t* context = np_ctx_by_memory(target);
-    np_message_t*  msg = _np_send_simple_invoke_request_msg(target, type);
-
-    np_unref_obj(np_message_t, msg, "_np_send_simple_invoke_request_msg");
 }
 
 /**

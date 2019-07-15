@@ -49,8 +49,9 @@
     ev_loop_destroy(_module->__loop_##LOOPNAME );                                                                        \
 
 void l_invoke_in (EV_P);
-void l_invoke_http (EV_P);
 void l_invoke_out (EV_P); 
+void l_invoke_http (EV_P);
+void l_invoke_file (EV_P);
 
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)                                                                                 \
     np_module(events)->LOOPNAME##_lock_indent = 0;                                                                       \
@@ -145,17 +146,16 @@ np_module_struct(events) {
     __NP_EVENT_EVLOOP_STRUCTS(in);
     __NP_EVENT_EVLOOP_STRUCTS(out);
     __NP_EVENT_EVLOOP_STRUCTS(http);
+    __NP_EVENT_EVLOOP_STRUCTS(file);
 };
 
 __NP_EVENT_LOOP_FNs(in);
 __NP_EVENT_LOOP_FNs(out);
 __NP_EVENT_LOOP_FNs(http);
+__NP_EVENT_LOOP_FNs(file);
 
-void async_cb(EV_P_ NP_UNUSED ev_async *w, NP_UNUSED int revents)
-{                                                                                                                
-    /* just used for the side effects */        
-    // ev_break(EV_A_ EVBREAK_ALL);
-}
+void async_cb(EV_P_ NP_UNUSED ev_async *w, NP_UNUSED int revents) { /* just used for the side effects */ }
+
 bool _np_event_init(np_state_t* context) {
     bool ret = false;
     if (!np_module_initiated(events)) {
@@ -163,11 +163,11 @@ bool _np_event_init(np_state_t* context) {
         __NP_EVENT_EVLOOP_INIT(in);
         __NP_EVENT_EVLOOP_INIT(out);
         __NP_EVENT_EVLOOP_INIT(http);
+        __NP_EVENT_EVLOOP_INIT(file);
         ret = true;
     }
     return ret;
 }
-
 
 void _np_event_destroy(np_state_t *context){
     if (np_module_initiated(events)) {
@@ -175,7 +175,8 @@ void _np_event_destroy(np_state_t *context){
         __NP_EVENT_EVLOOP_DEINIT(in);
         __NP_EVENT_EVLOOP_DEINIT(out);
         __NP_EVENT_EVLOOP_DEINIT(http);
-           np_module_free(events);
+        __NP_EVENT_EVLOOP_DEINIT(file);
+        np_module_free(events);
     }
 }
 
@@ -188,6 +189,26 @@ void l_invoke_in (EV_P)
         _l_release_in(EV_A);
     }
 }
+
+void l_invoke_file (EV_P) 
+{
+    np_state_t * context = ev_userdata(EV_A);
+
+    _l_acquire_file(EV_A);
+    if (np_module(events)->file_lock_indent == 0) 
+    {
+        log_debug_msg(LOG_DEBUG, "waiting np_event_file_t_lock" );
+        _np_threads_module_condition_wait(context, np_event_file_t_lock); 
+    }
+    else 
+    {
+        np_module(events)->file_lock_indent--;
+    }
+    _l_release_file(EV_A);
+
+    ev_invoke_pending (EV_A);
+}
+
 void l_invoke_http (EV_P) 
 {
     while (ev_pending_count (EV_A))

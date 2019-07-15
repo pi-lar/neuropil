@@ -110,11 +110,18 @@ np_context* np_new_context(struct np_settings * settings_in) {
 
     context->settings = settings;
 
-    _np_log_init(context, settings->log_file, settings->log_level);
-
     if (sodium_init() == -1) {
         log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
         status = np_startup;
+    }
+    else if (_np_event_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: could not init event system");
+        status = np_startup;
+    }
+    else if (_np_log_init(context, settings->log_file, settings->log_level) == false) {
+        log_msg(LOG_ERROR, "neuropil_init: could not init logging");
+        status = np_startup;       
     }
     else if (_np_threads_init(context) == false) {
         log_msg(LOG_ERROR, "neuropil_init: could not init threading mutexes");
@@ -129,11 +136,7 @@ np_context* np_new_context(struct np_settings * settings_in) {
         log_msg(LOG_ERROR, "neuropil_init: could not init time cache");
         status = np_startup;
     }
-    else if (_np_event_init(context) == false)
-    {
-        log_msg(LOG_ERROR, "neuropil_init: could not init event system");
-        status = np_startup;
-    }
+
     else if (_np_dhkey_init(context) == false)
     {
         log_msg(LOG_ERROR, "neuropil_init: could not init distributed hash table");

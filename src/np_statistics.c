@@ -28,8 +28,6 @@
 #include "prometheus/prometheus.h"
 
 
-
-
 struct np_statistics_element_s {
     bool watch_receive;
     bool watch_send;
@@ -57,6 +55,7 @@ struct np_statistics_element_s {
 
     double first_check;
 };
+
 typedef struct np_statistics_element_s np_statistics_element_t;
 
 bool _np_statistics_receive_msg_on_watched(np_context* ac, const np_message_t* const msg, NP_UNUSED np_tree_t* body, NP_UNUSED void* localdata)
@@ -148,10 +147,10 @@ bool _np_statistics_init(np_state_t* context) {
     return true;
 }
 
-typedef struct np_statistics_per_subject_metrics_s{
+typedef struct np_statistics_per_subject_metrics_s {
     prometheus_metric* received_msgs;
     prometheus_metric* send_msgs;
-}np_statistics_per_subject_metrics;
+} np_statistics_per_subject_metrics;
 
 np_statistics_per_subject_metrics* __np_statistics_get_subject_metrics(np_state_t* context, char* subject) {
     np_statistics_per_subject_metrics* ret;
@@ -182,11 +181,11 @@ np_statistics_per_subject_metrics* __np_statistics_get_subject_metrics(np_state_
 }
 
 
-typedef struct np_statistics_per_dhkey_metrics_s{
+typedef struct np_statistics_per_dhkey_metrics_s {
     prometheus_metric* latency;
     prometheus_metric* success_avg;
+} np_statistics_per_dhkey_metrics;
 
-}np_statistics_per_dhkey_metrics;
 
 np_statistics_per_dhkey_metrics* __np_statistics_get_dhkey_metrics(np_state_t* context, np_dhkey_t id) {
     np_statistics_per_dhkey_metrics* ret;
@@ -230,33 +229,36 @@ void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metr
             _np_dhkey_str(&context->my_node_key->dhkey, node_label.value);            
             if(context->my_node_key->node)
                 sprintf(instance_label.value, "%s:%s", context->my_node_key->node->dns_name,context->my_node_key->node->port);
-        }           
+        }
         if(context->my_identity)
             _np_dhkey_str(&context->my_identity->dhkey, ident_label.value);
                 
-        if(metric == NULL){
-            for(int i=0; i < np_prometheus_exposed_metrics_END; i++) {                
+        if(metric == NULL) {
+            for(int i=0; i < np_prometheus_exposed_metrics_END; i++) {
                 prometheus_metric_replace_label(_module->_prometheus_metrics[i], node_label);
                 prometheus_metric_replace_label(_module->_prometheus_metrics[i], ident_label);            
                 prometheus_metric_replace_label(_module->_prometheus_metrics[i], instance_label);            
             }
-        }else{
-                prometheus_metric_replace_label(metric, node_label);
-                prometheus_metric_replace_label(metric, ident_label);            
-                prometheus_metric_replace_label(metric, instance_label);            
+        } else {
+            prometheus_metric_replace_label(metric, node_label);
+            prometheus_metric_replace_label(metric, ident_label);            
+            prometheus_metric_replace_label(metric, instance_label);            
         }
     }
 }
 
-void np_statistics_set_node_description(np_context* ac, char description[255]){
+void np_statistics_set_node_description(np_context* ac, char description[255])
+{
     np_ctx_cast(ac);
     prometheus_label label;
     strcpy(label.name,"description");
     strcpy(label.value,description);
     prometheus_metric_replace_label(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
- }
-void _np_statistics_destroy(np_state_t* context){
-     if (np_module_initiated(statistics)) {
+}
+
+void _np_statistics_destroy(np_state_t* context)
+{
+    if (np_module_initiated(statistics)) {
         np_module_var(statistics);
                
         sll_iterator(char_ptr) __watched_subjects_item = sll_first(_module->__watched_subjects);
@@ -334,9 +336,8 @@ void np_statistics_add_watch(np_state_t* context, const char* subject) {
     if (addtolist == true) {
         CHECK_MALLOC(container);
         container->last_sec_check =
-            container->last_min_check =
-            container->first_check =
-            np_time_now();
+        container->last_min_check =
+        container->first_check    = np_time_now();
     }
 
     if (false == container->watch_receive && _np_msgproperty_get(context, INBOUND, key) != NULL) {
@@ -349,7 +350,9 @@ void np_statistics_add_watch(np_state_t* context, const char* subject) {
         np_add_send_listener(context, _np_statistics_send_msg_on_watched, NULL, key);
     }
 }
-bool np_statistics_destroy(np_state_t* context) {
+
+bool np_statistics_destroy(np_state_t* context) 
+{
     if (np_module_initiated(statistics)) {
         sll_iterator(char_ptr) iter = sll_first(np_module(statistics)->__watched_subjects);
         while (iter != NULL)
@@ -362,7 +365,6 @@ bool np_statistics_destroy(np_state_t* context) {
         free(np_module(statistics)->__cache);
 
         _np_statistics_debug_destroy(context);
-        
     }
     return true;
 }
@@ -395,7 +397,8 @@ void np_statistics_add_watch_internals(np_state_t* context) {
     
 }
 
-char * np_statistics_print(np_state_t* context, bool asOneLine) {
+char* np_statistics_print(np_state_t* context, bool asOneLine) 
+{
     if (!np_module_initiated(statistics)) {
         return strdup("statistics not initiated\n");
     }
@@ -422,11 +425,9 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
 
     double now = np_time_now();
 
-
     uint32_t
         all_total_send = 0,
         all_total_received = 0;
-
 
     while (iter_subjects != NULL)
     {
@@ -514,7 +515,6 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
     char* details = ret;
     ret = NULL;	
 
-
     uint32_t routes = _np_route_my_key_count_routes(context);
 
     uint32_t tenth = 1;
@@ -543,14 +543,12 @@ char * np_statistics_print(np_state_t* context, bool asOneLine) {
         __fw_counter_r,
         new_line);
 
-
     snprintf(tmp_format, 512, "%-17s %%"PRIu32"%%s", "Reachable nodes:");
     ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
     snprintf(tmp_format, 512, "%-17s %%"PRIu32" (:= %%"PRIu32"|%%"PRIu32") ", "Neighbours nodes:");
     uint32_t l, r;
     uint32_t c = _np_route_my_key_count_neighbors(context, &l, &r);
     ret = np_str_concatAndFree(ret, tmp_format, c, l, r);
-
 
     snprintf(tmp_format, 512, "In: %8%s(%5%s) Out: %8%s(%5%s)%%s");
     float __network_send_bytes_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_network_out]);

@@ -319,23 +319,15 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
             if (true == join_allowed && context->enable_realm_client == false)
             {
                 np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
-
-                np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
-                _np_key_handle_event(target_key, authn_event, false);
-                np_unref_obj(np_aaatoken_t, target_key, "_np_keycache_find");
+                _np_keycache_handle_event(context, event.target_dhkey, authn_event, false);
             }
             else if (false == join_allowed && context->enable_realm_client == false) 
             {
                 // np_dhkey_t leave_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_LEAVE_REQUEST);
                 // np_key_t* leave_key = _np_keycache_find(context, leave_dhkey);
                 np_dhkey_t leave_dhkey = np_aaatoken_get_fingerprint(authn_token, false);
-                np_key_t* leave_key = _np_keycache_find(context, leave_dhkey);
-
-                // np_util_event_t leave_evt = { .type=(evt_internal|evt_message), .context=context, .user_data=leave_key, .target_dhkey=target_dhkey };
                 np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .context=context, .user_data=NULL, .target_dhkey=leave_dhkey };
-
-                _np_key_handle_event(leave_key, shutdown_evt, true);
-                np_unref_obj(np_aaatoken_t, leave_key, "_np_keycache_find");
+                _np_keycache_handle_event(context, leave_dhkey, shutdown_evt, true);
             }
         }
     }

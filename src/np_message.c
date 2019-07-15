@@ -64,15 +64,6 @@ void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     msg_tmp->no_of_chunks   = 1;
     msg_tmp->is_single_part = false;
     
-    TSP_INITD(msg_tmp->is_acked , false);    
-    
-    // sll_init(np_responsecontainer_on_t, msg_tmp->on_ack);
-    TSP_INITD(msg_tmp->is_in_timeout, false);
-    // sll_init(np_responsecontainer_on_t, msg_tmp->on_timeout);
-    
-    TSP_INITD(msg_tmp->has_reply, false);
-    // sll_init(np_message_on_reply_t, msg_tmp->on_reply);
-
     pll_init(np_messagepart_ptr, msg_tmp->msg_chunks);	
     msg_tmp->bin_body = NULL;
     msg_tmp->bin_footer = NULL;
@@ -105,10 +96,6 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     // sll_free(np_responsecontainer_on_t, msg->on_ack);
     // sll_free(np_responsecontainer_on_t, msg->on_timeout);
     // sll_free(np_message_on_reply_t, msg->on_reply);
-
-    TSP_DESTROY(msg->is_acked);
-    TSP_DESTROY(msg->is_in_timeout);
-    TSP_DESTROY(msg->has_reply);
 
     np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 
@@ -1043,50 +1030,6 @@ void _np_message_add_msg_response_handler(const np_message_t* self)
     np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
     _np_key_handle_event(ack_key, rh_event, false);
 }
-
-/*
-void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply) {
-    np_ctx_memory(self);
-    TSP_SCOPE(self->has_reply) {
-        sll_append(np_message_on_reply_t, self->on_reply, on_reply);
-    }
-}
-
-void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove) {
-    np_ctx_memory(self);
-    TSP_SCOPE(self->has_reply) {
-        sll_remove(np_message_on_reply_t, self->on_reply, on_reply_to_remove, np_message_on_reply_t_sll_compare_type);
-    }
-}
-
-void np_message_add_on_timeout(np_message_t* self, np_responsecontainer_on_t on_timeout) {
-    np_ctx_memory(self);
-    TSP_SCOPE(self->is_in_timeout) {
-        sll_append(np_responsecontainer_on_t, self->on_timeout, on_timeout);
-    }
-}
-
-void np_message_remove_on_timeout(np_message_t* self, np_responsecontainer_on_t on_timeout) {
-    np_ctx_memory(self);
-    TSP_SCOPE(self->is_in_timeout) {
-        sll_remove(np_responsecontainer_on_t, self->on_timeout, on_timeout, np_responsecontainer_on_t_sll_compare_type);
-    }
-}
-
-void np_message_add_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack) {
-    np_ctx_memory(self);
-    TSP_SCOPE(self->is_acked) {
-        sll_append(np_responsecontainer_on_t, self->on_ack, on_ack);
-    }
-}
-
-void np_message_remove_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack) {
-    np_ctx_memory(self);
-    TSP_SCOPE(self->is_acked) {
-        sll_remove(np_responsecontainer_on_t, self->on_ack, on_ack, np_responsecontainer_on_t_sll_compare_type);
-    }
-}
-*/
 
 np_dhkey_t* _np_message_get_sender(const np_message_t* const self){
     // np_ctx_memory(self);

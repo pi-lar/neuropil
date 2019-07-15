@@ -329,12 +329,8 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     prop->last_intent_update = np_time_now();
 
     sll_init(np_callback_t, prop->clb_inbound);
-    sll_init(np_callback_t, prop->clb_transform);
     sll_init(np_callback_t, prop->clb_outbound);
-    sll_init(np_callback_t, prop->clb_route);
-
-    sll_append(np_callback_t, prop->clb_outbound, _np_out);
-    sll_append(np_callback_t, prop->clb_route, _np_glia_route_lookup);
+    // sll_append(np_callback_t, prop->clb_outbound, _np_out);
 
     sll_init(np_usercallback_ptr, prop->user_receive_clb);
     sll_init(np_usercallback_ptr, prop->user_send_clb);
@@ -343,19 +339,23 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     prop->cache_policy = FIFO | OVERFLOW_PURGE;
     sll_init(np_message_ptr, prop->msg_cache_in);
     sll_init(np_message_ptr, prop->msg_cache_out);
-
-    _np_threads_mutex_init(context, &prop->lock,"property lock");
-    _np_threads_condition_init(context, &prop->msg_received);
     
-    _np_threads_mutex_init(context, &prop->send_discovery_msgs_lock, "send_discovery_msgs_lock");
-
-    _np_threads_mutex_init(context, &prop->unique_uuids_lock, "unique_uuids_lock");
     np_msgproperty_enable_check_for_unique_uuids(prop);
     prop->recv_key = NULL;
     prop->send_key = NULL;
 
     prop->current_sender_token = NULL;
     prop->current_receive_token = NULL;
+
+    TSP_INITD(prop->is_acked , false);        
+    sll_init(np_responsecontainer_on_t, prop->on_ack);
+    TSP_INITD(prop->is_in_timeout, false);
+    sll_init(np_responsecontainer_on_t, prop->on_timeout);    
+    TSP_INITD(prop->is_send, false);
+    sll_init(np_responsecontainer_on_t, prop->on_send);
+    TSP_INITD(prop->has_reply, false);
+    sll_init(np_message_on_reply_t, prop->on_reply);
+
 }
 
 void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self) {
@@ -449,61 +449,54 @@ void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
 
     assert(prop != NULL);
 
-    _LOCK_ACCESS(&prop->lock){
-
-        if (prop->msg_subject != NULL) {
-            free(prop->msg_subject);
-            prop->msg_subject = NULL;
-        }
-
-        if (prop->rep_subject != NULL) {
-            free(prop->rep_subject);
-            prop->rep_subject = NULL;
-        }
-
-        if(prop->msg_cache_in != NULL ) {
-            sll_free(np_message_ptr, prop->msg_cache_in);
-        }
-
-        if(prop->msg_cache_out != NULL ) {
-            sll_free(np_message_ptr, prop->msg_cache_out);
-        }
-        if(prop->user_receive_clb != NULL) {
-            sll_iterator(np_usercallback_ptr)  iter_user_receive_clb = sll_first(prop->user_receive_clb);
-            while(iter_user_receive_clb != NULL){
-                free(iter_user_receive_clb->val);
-                sll_next(iter_user_receive_clb);
-            }
-            sll_free(np_usercallback_ptr, prop->user_receive_clb);
-        }
-        if(prop->user_send_clb != NULL){
-            sll_iterator(np_usercallback_ptr)  iter_user_send_clb = sll_first(prop->user_send_clb);
-            while(iter_user_send_clb != NULL){
-                free(iter_user_send_clb->val);
-                sll_next(iter_user_send_clb);
-            }
-            sll_free(np_usercallback_ptr, prop->user_send_clb);
-        }
-        _np_threads_mutex_destroy(context, &prop->unique_uuids_lock);
-        np_tree_free(prop->unique_uuids);
-        
-        np_unref_obj(np_aaatoken_t, prop->current_receive_token, ref_msgproperty_current_recieve_token);
-        np_unref_obj(np_aaatoken_t, prop->current_sender_token, ref_msgproperty_current_sender_token);
-
-
-        sll_free(np_callback_t, prop->clb_transform);
-        sll_free(np_callback_t, prop->clb_route);
-        sll_free(np_callback_t, prop->clb_outbound);
-        sll_free(np_callback_t, prop->clb_inbound);
-
-        TSP_DESTROY( prop->msg_threshold);
-
-
+    if (prop->msg_subject != NULL) {
+        free(prop->msg_subject);
+        prop->msg_subject = NULL;
     }
-    _np_threads_mutex_destroy(context, &prop->lock);
-    _np_threads_condition_destroy(context, &prop->msg_received);
-    _np_threads_mutex_destroy(context, &prop->send_discovery_msgs_lock);
-        
+
+    if (prop->rep_subject != NULL) {
+        free(prop->rep_subject);
+        prop->rep_subject = NULL;
+    }
+
+    if(prop->msg_cache_in != NULL ) {
+        sll_free(np_message_ptr, prop->msg_cache_in);
+    }
+
+    if(prop->msg_cache_out != NULL ) {
+        sll_free(np_message_ptr, prop->msg_cache_out);
+    }
+    if(prop->user_receive_clb != NULL) {
+        sll_iterator(np_usercallback_ptr)  iter_user_receive_clb = sll_first(prop->user_receive_clb);
+        while(iter_user_receive_clb != NULL){
+            free(iter_user_receive_clb->val);
+            sll_next(iter_user_receive_clb);
+        }
+        sll_free(np_usercallback_ptr, prop->user_receive_clb);
+    }
+    if(prop->user_send_clb != NULL){
+        sll_iterator(np_usercallback_ptr)  iter_user_send_clb = sll_first(prop->user_send_clb);
+        while(iter_user_send_clb != NULL){
+            free(iter_user_send_clb->val);
+            sll_next(iter_user_send_clb);
+        }
+        sll_free(np_usercallback_ptr, prop->user_send_clb);
+    }
+    _np_threads_mutex_destroy(context, &prop->unique_uuids_lock);
+    np_tree_free(prop->unique_uuids);
+    
+    np_unref_obj(np_aaatoken_t, prop->current_receive_token, ref_msgproperty_current_recieve_token);
+    np_unref_obj(np_aaatoken_t, prop->current_sender_token, ref_msgproperty_current_sender_token);
+
+    sll_free(np_callback_t, prop->clb_outbound);
+    sll_free(np_callback_t, prop->clb_inbound);
+
+    TSP_DESTROY(prop->msg_threshold);
+
+    TSP_DESTROY(prop->is_acked);
+    TSP_DESTROY(prop->is_send);
+    TSP_DESTROY(prop->is_in_timeout);
+    TSP_DESTROY(prop->has_reply);
 
 }
 
@@ -886,3 +879,46 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     // mep type conversion	
     dest->mep_type= ANY_TO_ANY;
 }
+
+void np_msgproperty_add_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply) {
+    np_ctx_memory(self);
+    TSP_SCOPE(self->has_reply) {
+        sll_append(np_msgproperty_on_reply_t, self->on_reply, on_reply);
+    }
+}
+
+void np_msgproperty_remove_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply_to_remove) {
+    np_ctx_memory(self);
+    TSP_SCOPE(self->has_reply) {
+        sll_remove(np_msgproperty_on_reply_t, self->on_reply, on_reply_to_remove, np_msgproperty_on_reply_t_sll_compare_type);
+    }
+}
+
+void np_msgproperty_add_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout) {
+    np_ctx_memory(self);
+    TSP_SCOPE(self->is_in_timeout) {
+        sll_append(np_responsecontainer_on_t, self->on_timeout, on_timeout);
+    }
+}
+
+void np_msgproperty_remove_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout) {
+    np_ctx_memory(self);
+    TSP_SCOPE(self->is_in_timeout) {
+        sll_remove(np_responsecontainer_on_t, self->on_timeout, on_timeout, np_responsecontainer_on_t_sll_compare_type);
+    }
+}
+
+void np_msgproperty_add_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack) {
+    np_ctx_memory(self);
+    TSP_SCOPE(self->is_acked) {
+        sll_append(np_responsecontainer_on_t, self->on_ack, on_ack);
+    }
+}
+
+void np_msgproperty_remove_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack) {
+    np_ctx_memory(self);
+    TSP_SCOPE(self->is_acked) {
+        sll_remove(np_responsecontainer_on_t, self->on_ack, on_ack, np_responsecontainer_on_t_sll_compare_type);
+    }
+}
+

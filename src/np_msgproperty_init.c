@@ -188,8 +188,6 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __discover_receiver->retry = 0;
     sll_append(np_evt_callback_t, __discover_receiver->clb_inbound, _np_in_discover_receiver);
     //default: 	sll_append(np_evt_callback_t, __discover_receiver->clb_outbound, _np_out);
-    //sll_append(np_evt_callback_t, __discover_receiver->clb_transform, _np_never_called_jobexec_transform);
-    //default: sll_append(np_evt_callback_t, __discover_receiver->clb_route, _np_glia_route_lookup);
     __discover_receiver->msg_ttl = 20.0;
     __discover_receiver->max_threshold = UINT16_MAX;
     __discover_receiver->token_max_ttl = 30;

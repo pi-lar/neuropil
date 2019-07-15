@@ -331,10 +331,6 @@ double _np_time_now(np_state_t* context);
 NP_API_PROTEC
 double np_time_sleep(double sleeptime);
 
-// send join request
-NP_API_INTERN
-void _np_send_simple_invoke_request(np_key_t* target, const char* type);
-
 NP_API_INTERN
 np_message_t* _np_send_simple_invoke_request_msg(np_key_t* target, const char* type);
 

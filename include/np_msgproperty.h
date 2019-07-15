@@ -257,14 +257,6 @@ struct np_msgproperty_s
     np_sll_t(np_message_ptr, msg_cache_in);
     np_sll_t(np_message_ptr, msg_cache_out);
 
-    // only send/receive after opposite partner has been found
-    np_mutex_t lock;
-    np_mutex_t send_discovery_msgs_lock;
-    np_cond_t  msg_received;
-
-    // pthread_cond_t     msg_received;
-    // pthread_condattr_t cond_attr;
-
     // callback function(s) to invoke when a message is received
     np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
     np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
@@ -274,6 +266,17 @@ struct np_msgproperty_s
     np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
     np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
 
+    TSP(bool, is_acked);
+    np_sll_t(np_responsecontainer_on_t, on_ack);
+    TSP(bool, is_in_timeout);
+    np_sll_t(np_responsecontainer_on_t, on_timeout);
+    TSP(bool, is_sent);
+    np_sll_t(np_responsecontainer_on_t, on_send);
+
+    TSP(bool, has_reply);
+    np_sll_t(np_msgproperty_on_reply_t, on_reply);
+
+
     // The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
     uint32_t token_max_ttl;
     // The token created for this msgproperty will guaranteed live for token_min_ttl seconds
@@ -281,7 +284,6 @@ struct np_msgproperty_s
 
     bool unique_uuids_check;
     uint32_t unique_uuids_max;
-    np_mutex_t unique_uuids_lock;
     np_tree_t* unique_uuids;
 
     // weak link (no reffing)
@@ -442,6 +444,25 @@ NP_API_INTERN
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src);
 NP_API_INTERN
 void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src);
+
+NP_API_EXPORT
+void np_msgproperty_add_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply);
+NP_API_EXPORT
+void np_msgproperty_remove_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply_to_remove);
+
+NP_API_EXPORT
+void np_msgproperty_add_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
+NP_API_EXPORT
+void np_msgproperty_remove_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
+NP_API_EXPORT
+void np_msgproperty_add_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
+NP_API_EXPORT
+void np_msgproperty_remove_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
+NP_API_EXPORT
+void np_msgproperty_add_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
+NP_API_EXPORT
+void np_msgproperty_remove_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
+
 
 #ifdef __cplusplus
 }

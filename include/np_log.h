@@ -70,7 +70,7 @@ enum np_log_e
 
 
 NP_API_EXPORT
-void _np_log_init (np_state_t* context, const char* filename, uint32_t level);
+bool _np_log_init (np_state_t* context, const char* filename, uint32_t level);
 
 NP_API_EXPORT
 void _np_log_destroy(np_state_t* context);

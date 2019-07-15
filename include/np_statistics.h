@@ -68,10 +68,12 @@ char* np_statistics_prometheus_export(np_context*ac);
                 np_statistics_performance_point_event_resume_in,
                 np_statistics_performance_point_event_resume_out,
                 np_statistics_performance_point_event_resume_http,
+                np_statistics_performance_point_event_resume_file,
                 np_statistics_performance_point_event_suspend_io,
                 np_statistics_performance_point_event_suspend_in,
                 np_statistics_performance_point_event_suspend_out,
                 np_statistics_performance_point_event_suspend_http,
+                np_statistics_performance_point_event_suspend_file,
 
                 np_statistics_performance_point_handshake_out,
                 np_statistics_performance_point_handshake_out_lock,
@@ -84,7 +86,6 @@ char* np_statistics_prometheus_export(np_context*ac);
                 np_statistics_performance_point_jobqueue_manager_distribute_job,		
 
                 np_statistics_performance_point_message_decrypt,		
-
 
                 np_statistics_performance_point_END
             };
