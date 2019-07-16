@@ -412,7 +412,7 @@ void _np_threads_mutex_destroy(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
 
 int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
 {
-    log_debug_msg(LOG_DEBUG, "waiting %p", &np_module(threads)->__mutexes[module_id].condition.cond);
+    log_debug_msg(LOG_DEBUG | LOG_MUTEX, "waiting %p", &np_module(threads)->__mutexes[module_id].condition.cond);
 
     return pthread_cond_wait(&np_module(threads)->__mutexes[module_id].condition.cond, &np_module(threads)->__mutexes[module_id].lock);
 }
@@ -437,7 +437,7 @@ int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_mod
 
 int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
 {
-    log_debug_msg(LOG_DEBUG, "signalling %p", &np_module(threads)->__mutexes[module_id].condition.cond);
+    log_debug_msg(LOG_DEBUG | LOG_MUTEX, "signalling %p", &np_module(threads)->__mutexes[module_id].condition.cond);
     return pthread_cond_signal(&np_module(threads)->__mutexes[module_id].condition.cond);
 }
 
@@ -716,13 +716,15 @@ np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, n
         sll_append(np_thread_ptr, np_module(threads)->threads, new_thread);
         pthread_mutex_unlock(&np_module(threads)->threads_mutex.lock);
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     else{
         log_error("Mutex returned %d",r);
         abort();
     }
     #endif
+
     if(auto_run) {
+        _np_jobqueue_add_worker_thread(new_thread);
         _np_thread_run(new_thread);
     }
 
@@ -816,9 +818,9 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         if (pool_size > worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_in_run, true, np_thread_type_other);
-            #ifdef DEBUG
+#ifdef DEBUG
             strcpy(special_thread->job.ident, "_np_event_in_run");
-            #endif
+#endif
         } else {
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
         }
@@ -826,24 +828,43 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         if (pool_size > worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_out_run, true, np_thread_type_other);
-            #ifdef DEBUG
+#ifdef DEBUG
             strcpy(special_thread->job.ident, "_np_event_out_run");
-            #endif
+#endif
         } else {
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
-        }        
-        
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
+        } 
 
+        if (pool_size > worker_threads) {
+            pool_size--;
+            special_thread = __np_createThread(context, pool_size, _np_event_file_run, true, np_thread_type_other);
+#ifdef DEBUG
+            strcpy(special_thread->job.ident, "_np_event_file_run");
+#endif
+        } else {
+            np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_file, "_np_events_read_file");
+        }        
+
+        if (pool_size > worker_threads) {
+            pool_size--;
+            special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
+#ifdef DEBUG
+            strcpy(special_thread->job.ident, "_np_event_http_run");
+#endif
+        } else {
+            np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC*10, _np_events_read_http, "_np_events_read_http");
+        }        
+
+        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
 
         if ((pool_size-1) > worker_threads) {
             // a bunch of threads plus a coordinator
             pool_size--;
             __np_createWorkerPool(context, pool_size-1);
             special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_manager, true, np_thread_type_manager);
-            #ifdef DEBUG
+#ifdef DEBUG
             strcpy(special_thread->job.ident, "__np_jobqueue_run_manager");
-            #endif
+#endif
 
         } else {
             // just a bunch of threads trying to get the first element from a priority queue

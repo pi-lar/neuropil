@@ -158,67 +158,6 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
         np_unref_obj(np_key_t, my_key, "np_waitref_obj");
 }
 
-void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn) {
-
-    np_key_t *tmp_node_key = NULL;
-    
-    sll_iterator(np_key_ptr) iter_keys = sll_first(connections);
-    np_ctx_decl(NULL); // WARNING: context is NULL!
-    while (iter_keys != NULL)
-    {
-        tmp_node_key = iter_keys->val;		
-        
-        // check for bad link nodes
-        if (NULL != tmp_node_key->node &&
-            tmp_node_key->node->success_avg < BAD_LINK &&
-            (np_time_now() - tmp_node_key->node->last_success) >= BAD_LINK_REMOVE_GRACETIME  &&
-            tmp_node_key->node->_handshake_status == np_status_Connected
-            )
-        {			
-            if(context == NULL) context = np_ctx_by_memory(tmp_node_key);
-
-            log_msg(LOG_INFO, "deleted from table/leafset: %s:%s:%s / %f / %1.2f",
-                                _np_key_as_str(tmp_node_key),
-                                tmp_node_key->node->dns_name, tmp_node_key->node->port,
-                                tmp_node_key->node->last_success,
-                                tmp_node_key->node->success_avg);
-
-            np_key_t *added = NULL, *deleted = NULL;
-            fn(tmp_node_key, false, &deleted, &added);
-            if (deleted != tmp_node_key)
-            {
-                log_msg(LOG_ROUTING | LOG_WARN, "deleting from table returned different key");
-            }
-        }
-
-        sll_next(iter_keys);
-    }
-}
-
-/** _np_route_check_leafset_jobexec:
- ** sends a PING message to each member of the leafset and routing table frequently and
- ** sends the leafset to other members of its leafset periodically.
- ** uses _np_job_yield between pings to different nodes
- ** _np_route_check_leafset_jobexec frequency is LEAFSET_CHECK_PERIOD.
- **/
-void _np_glia_check_neighbours(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-    
-    np_sll_t(np_key_ptr, table) = NULL;
-    table = _np_route_neighbors(context);
-    __np_glia_check_connections(table, _np_route_leafset_update);
-    np_key_unref_list(table, "_np_route_neighbors");
-    sll_free(np_key_ptr, table);
-}
-
-void _np_glia_check_routes(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-    
-    np_sll_t(np_key_ptr, table) = NULL;
-    table = _np_route_get_table(context);
-    __np_glia_check_connections(table, _np_route_update);
-    np_key_unref_list(table, "_np_route_get_table");
-    sll_free(np_key_ptr, table);
-}
-
 void _np_glia_log_flush(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
 {    
     _np_log_fflush(context, false);

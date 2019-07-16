@@ -401,10 +401,9 @@ bool _np_jobqueue_init(np_state_t * context)
 
         pheap_init(np_job_t, _module->job_list, JOBQUEUE_MAX_SIZE);
 
-        dll_init(np_thread_ptr, _module->available_workers);
-
         _module->periodic_jobs = 0;
 
+        dll_init(np_thread_ptr, _module->available_workers);
         _np_threads_mutex_init(context, &_module->available_workers_lock, "available_workers_lock");
     }
     return (true);
@@ -538,11 +537,27 @@ void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
         if (tmp_status == np_running) {
             sleep = __np_jobqueue_run_jobs_once(context, my_thread);
             if (sleep > 0.0) {
+                uint8_t current_worker = 0;
                 // only sleep when there is not much to do (around a dozen periodic jobs could be ok)			
+                _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
+                {
+                    dll_remove(np_thread_ptr, np_module(jobqueue)->available_workers, my_thread);                    
+                    current_worker = dll_size(np_module(jobqueue)->available_workers);
+                }
+
                 _LOCK_MODULE(np_jobqueue_t)
                 {
-                    _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
+                    if (current_worker <= 1)
+                        _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
+                    else 
+                        _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, NP_JOBQUEUE_MAX_SLEEPTIME_SEC);
                 }
+
+                _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
+                {
+                    dll_append(np_thread_ptr, np_module(jobqueue)->available_workers, my_thread);                    
+                }
+
             }
         }
         else 
@@ -572,13 +587,6 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
         if (tmp_status == np_running) {
             now = np_time_now();
             
-            /*
-            _TRYLOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
-            {
-                iter_workers = dll_first(np_module(jobqueue)->available_workers);
-            }
-            // Fist run of manager sleeps
-            */			
             if (NULL != iter_workers)
             {
 
