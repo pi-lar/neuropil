@@ -441,6 +441,11 @@ int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module
     return pthread_cond_signal(&np_module(threads)->__mutexes[module_id].condition.cond);
 }
 
+int _np_threads_mutex_condition_signal(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
+{
+    return pthread_cond_signal(&mutex->condition.cond);
+}
+
 int _np_threads_mutex_condition_wait(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
 {
     return pthread_cond_wait(&mutex->condition.cond, &mutex->lock);
@@ -845,6 +850,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_file, "_np_events_read_file");
         }        
 
+/*
         if (pool_size > worker_threads) {
             pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
@@ -852,10 +858,11 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             strcpy(special_thread->job.ident, "_np_event_http_run");
 #endif
         } else {
-            np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC*10, _np_events_read_http, "_np_events_read_http");
-        }        
+*/
+        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC*10, _np_events_read_http, "_np_events_read_http");
+//  }
 
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_0, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
+        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
 
         if ((pool_size-1) > worker_threads) {
             // a bunch of threads plus a coordinator

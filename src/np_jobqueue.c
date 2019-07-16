@@ -494,7 +494,8 @@ double __np_jobqueue_run_jobs_once(np_state_t * context, np_thread_t* my_thread)
         }
     }
     
-    if (run_next_job == true) {
+    if (run_next_job == true) 
+    {
         my_thread->job = next_job;
         np_thread_t* self = _np_threads_get_self(context);
         np_threads_busyness(context, self, true);
@@ -525,7 +526,7 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
             }
         }
         now   = np_time_now();
-    }while (end > now);
+    } while (end > now);
 }
 
 void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
@@ -628,7 +629,7 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
                         log_debug_msg(LOG_JOBS, "start   worker thread (%p) job (%s)", current_worker, current_worker->job.ident);
                         current_worker->job = next_job;
                         np_threads_busyness(context, current_worker, true);                        
-                        _np_threads_module_condition_signal(context, np_jobqueue_t_lock);
+                        _np_threads_mutex_condition_signal(context, &current_worker->job_lock);
                     }
                 }
                 _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
@@ -838,20 +839,15 @@ void __np_jobqueue_run_worker(np_state_t* context, np_thread_t* my_thread)
             {
                 log_debug_msg(LOG_JOBS, "wait    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);                
                 np_threads_busyness(context, my_thread, false);
+
+                _np_threads_mutex_condition_wait(context, &my_thread->job_lock);
             }
-    
-            _LOCK_MODULE(np_jobqueue_t) {
-                _np_threads_module_condition_wait(context, np_jobqueue_t_lock);
-            }
-    
-            _LOCK_ACCESS(&my_thread->job_lock)
+
+            if(my_thread->_busy == true) 
             {
-                if(my_thread->_busy == true) 
-                {
-                    np_threads_busyness(context, my_thread, true);
-                    log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
-                    __np_jobqueue_run_once(context, my_thread->job);                
-                }
+                np_threads_busyness(context, my_thread, true);
+                log_debug_msg(LOG_JOBS, "exec    worker thread (%p) to job (%s)", my_thread, my_thread->job.ident);
+                __np_jobqueue_run_once(context, my_thread->job);                
             }
         }
         else {

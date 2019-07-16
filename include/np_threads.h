@@ -199,6 +199,8 @@ NP_API_INTERN
 int _np_threads_mutex_condition_wait(NP_UNUSED np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
 int _np_threads_mutex_timedlock(NP_UNUSED np_state_t*context, np_mutex_t * mutex, const double delay);
+NP_API_INTERN
+int _np_threads_mutex_condition_signal(NP_UNUSED np_state_t* context, np_mutex_t* mutex);
 
 NP_API_INTERN
 void _np_threads_condition_init(NP_UNUSED np_state_t* context, np_cond_t* condition);
