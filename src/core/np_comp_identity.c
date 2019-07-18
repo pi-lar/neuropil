@@ -241,11 +241,9 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
         _np_message_deserialize_chunked(msg_in);
 
         np_dhkey_t handshake_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_HANDSHAKE);
-        np_key_t*  handshake_key      = _np_keycache_find(context, handshake_dhkey);
-
         np_util_event_t handshake_evt = { .type=(evt_external|evt_message), .context=context, 
                                           .user_data=msg_in, .target_dhkey=event.target_dhkey};
-        _np_key_handle_event(handshake_key, handshake_evt, false);
+        _np_keycache_handle_event(context, handshake_dhkey, handshake_evt, false);
     }
     else
     {

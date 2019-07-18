@@ -478,7 +478,6 @@ void _np_in_ping(np_state_t* context, np_util_event_t msg_event)
 
     np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=strndup(msg->uuid, NP_UUID_BYTES) };
     _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
-
     // nothing more to do. work is done only on the sending end (ack handling)
 }
 
@@ -506,9 +505,14 @@ void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
         // add entries in the message to our routing table
         // routing table is responsible to handle possible double entries
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
-        np_dhkey_t search_key = np_dhkey_create_from_hash(node_entry->host_key);
-        np_key_t* piggy_key = _np_keycache_find(context, search_key);
+        char* connect_str = np_build_connection_string(NULL, 
+                                                       _np_network_get_protocol_string(context, node_entry->protocol), 
+                                                       node_entry->dns_name, 
+                                                       node_entry->port, 
+                                                       false);
+        np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
 
+        np_key_t* piggy_key = _np_keycache_find(context, search_key);
         if (piggy_key == NULL)
         {   // unkown key, just send a join request 
             piggy_key = _np_keycache_find_or_create(context, search_key);
@@ -533,6 +537,7 @@ void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
                                                    _np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
         }
         np_unref_obj(np_node_t, node_entry,"_np_node_decode_multiple_from_jrb");
+        free(connect_str);
     }
     sll_free(np_node_ptr, o_piggy_list);
 
@@ -799,8 +804,8 @@ void _np_in_ack(np_state_t* context, np_util_event_t msg_event)
     NP_CAST(sll_first(ack_key->entities)->val, np_msgproperty_t, property);
 
     CHECK_STR_FIELD(msg->body, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
+    
     np_tree_elem_t* response_entry = np_tree_find_str(property->response_handler, ack_uuid.value.s);
-
     if(response_entry != NULL)
     {   // just an acknowledgement of own messages send out earlier
         NP_CAST(response_entry->val.value.v, np_responsecontainer_t, response);
@@ -839,13 +844,14 @@ void _np_in_update(np_state_t* context, np_util_event_t msg_event)
         goto __np_cleanup__;
     }
 
-    np_dhkey_t update_dhkey = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
+    np_dhkey_t update_dhkey = np_aaatoken_get_fingerprint(update_token, false);
 
     np_key_t* update_key = _np_keycache_find(context, update_dhkey);
     if (NULL == update_key )
     {   // potentially join the new node
         np_util_event_t update_event = { .type=(evt_external|evt_token), .context=context, .user_data=update_token, .target_dhkey=update_dhkey};
         _np_keycache_handle_event(context, update_dhkey, update_event, false);
+
         // and forward the token to another hop
         np_dhkey_t update_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
         update_event.type=(evt_message|evt_internal);
@@ -1631,9 +1637,9 @@ void _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
 
     msg_source_key = _np_keycache_find_or_create(context, search_key);
 
-    log_debug_msg(LOG_HANDSHAKE | LOG_DEBUG,
-                  "decoding of handshake message from %s (i:%f/e:%f) complete",
-                  handshake_token->subject, handshake_token->issued_at, handshake_token->expires_at);
+    log_debug_msg(LOG_DEBUG,
+                  "decoding of handshake message from %s / %s (i:%f/e:%f) complete",
+                  handshake_token->subject, handshake_token->issuer, handshake_token->issued_at, handshake_token->expires_at);
     if (NULL == msg_source_key)
     {   // should never happen
         log_msg(LOG_ERROR, "Handshake key is NULL!");

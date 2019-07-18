@@ -805,17 +805,17 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
                     }
                     else
                     {
-                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
-                            index, _np_key_get_node(k_node)->latency, _np_key_get_node(pick_node)->latency);
-
                         if (_np_key_get_node(k_node)->latency > _np_key_get_node(pick_node)->latency)
                         {							
+                            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f",
+                                                                    index, _np_key_get_node(k_node)->latency, _np_key_get_node(pick_node)->latency);
                             pick = k;
+                            pick_node = np_module(route)->table[index + pick];
                         }
                     }
                 }
                 
-                if(pick_node == NULL) 
+                if(pick_node != NULL) 
                 {
                     deleted_from = pick_node;
                     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);

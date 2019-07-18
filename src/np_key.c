@@ -64,11 +64,11 @@ enum NP_KEY_STATES {
     IN_SETUP_ALIAS,
     IN_SETUP_WILDCARD,
     IN_SETUP_IDENTITY,
-    IN_USE_IDENTITY, // user supplied identities and private key nodes
-    IN_USE_NODE,     // holds connection status / outbound transport encryption
-    IN_USE_ALIAS,    // inbound decryption
-    IN_USE_INTENT,   // intent storage
-    IN_USE_MSGPROPERTY, // outbound payload encryption / routing decision / lookup
+    IN_USE_IDENTITY,    // user supplied identities and private key nodes
+    IN_USE_NODE,        // holds connection status / outbound transport encryption
+    IN_USE_ALIAS,       // holds inbound decryption
+    IN_USE_INTENT,      // intent storage
+    IN_USE_MSGPROPERTY, // inbound and outbound message creation (payload encryption / routing decision / lookup / chunking / ...)
     IN_DESTROY,
     MAX_KEY_STATES
 };
