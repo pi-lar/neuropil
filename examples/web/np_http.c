@@ -138,8 +138,10 @@ struct np_http_client_s {
 typedef struct np_http_client_s np_http_client_t;
 typedef np_http_client_t* np_http_client_ptr;
 
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
 NP_SLL_GENERATE_PROTOTYPES(np_http_client_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_http_client_ptr);
+#pragma clang diagnostic pop
 
 struct np_http_s {
     // memory management
@@ -777,13 +779,10 @@ bool np_http_init(np_state_t* context, char* domain, char* port) {
     
     sll_init(np_http_client_ptr, __local_http->clients);
 
-    _LOCK_MODULE(np_network_t)
-    {
-        np_new_obj(np_network_t, __local_http->network);
+    np_new_obj(np_network_t, __local_http->network);
+    _np_network_init(__local_http->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
+    // _np_network_enable(__local_http->network);
 
-        _np_network_init(__local_http->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
-        // _np_network_enable(__local_http->network);
-    }
     if (NULL == __local_http->network || false == __local_http->network->initialized )
         return false;
 
@@ -815,8 +814,8 @@ bool np_http_init(np_state_t* context, char* domain, char* port) {
     
     _np_event_suspend_loop_http(context);
     EV_P = _np_event_get_loop_http(context);
-    ev_io_init(&__local_http->network->watcher, _np_http_accept,
-            __local_http->network->socket, EV_READ);
+    ev_io_stop(EV_A_&__local_http->network->watcher);
+    ev_io_init(&__local_http->network->watcher, _np_http_accept, __local_http->network->socket, EV_READ);
     __local_http->network->watcher.data = __local_http;
     ev_io_start(EV_A_&__local_http->network->watcher);
     _np_event_resume_loop_http(context);
