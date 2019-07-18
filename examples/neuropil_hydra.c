@@ -165,7 +165,8 @@ int main(int argc, char **argv)
 
 			*/
 			printf("HttpServer init ok\n");
-			__np_example_helper_loop(context);
+			np_sysinfo_enable_server(context);
+			// __np_example_helper_loop(context);
 
 			/**
 			And wait for incoming connections
@@ -254,9 +255,9 @@ int main(int argc, char **argv)
 			*/
 			
 			snprintf(port, 7, "%d", atoi(port) + instances);
-			snprintf(user_context->opt_http_port, 7, "%d", atoi(user_context->opt_http_port) + instances);
-			instances = (instances + 1) % required_nodes + create_bootstrap;
-
+			// asprintf(user_context->opt_http_port, 7, "%d", atoi(user_context->opt_http_port) + instances);
+			instances++;
+			
 			current_pid = fork();
 
 			if (0 == current_pid) {
@@ -305,6 +306,7 @@ int main(int argc, char **argv)
 				   \code
 				*/
 				np_sysinfo_enable_client(context);
+				// __np_example_helper_loop(context);
 				/**
 				   \endcode
 				*/
@@ -331,9 +333,6 @@ int main(int argc, char **argv)
 
 				bool firstConnectionTry = true;
 				do {
-					if (!firstConnectionTry) {
-						// np_example_print(context, stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
-					}
 					np_send_join(context, j_key);
 					firstConnectionTry = false;
 					int timeout = 100;
@@ -341,17 +340,14 @@ int main(int argc, char **argv)
 							// wait for join acceptance
 							timeout--;
 					}
-					if(false == np_has_joined(context) ) {
-						// np_example_print(context, stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
-					}
 				} while (false == np_has_joined(context));
 				char time[50] = { 0 };
 				reltime_to_str(time, np_time_now() - started_at);
-				// np_example_print(context, stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
 				/**
 				   \endcode
 				*/
 				np_run(context, kill_node);
+
 
 				// LEAVE TEST
 				np_destroy(context, true);
