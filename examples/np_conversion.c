@@ -13,8 +13,12 @@ struct np_text_exchange_s {
 	np_sll_t(char_ptr, texts);
 };
 typedef struct np_text_exchange_s* np_text_exchange_ptr;
+
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
 NP_SLL_GENERATE_PROTOTYPES(np_text_exchange_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_text_exchange_ptr);
+#pragma clang diagnostic pop
+
 np_sll_t(np_text_exchange_ptr, __np_text_exchange) = NULL;
 
 int8_t __np_cmp_np_text_exchange_ptr(np_text_exchange_ptr const te, np_text_exchange_ptr const te_id) {

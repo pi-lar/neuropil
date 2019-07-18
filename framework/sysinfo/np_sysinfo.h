@@ -6,25 +6,37 @@
 #ifndef _NP_SYSINFO_H_
 #define _NP_SYSINFO_H_
 
-#include "np_tree.h"
+#include "np_legacy.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#define _NP_SYSINFO_DATA "_NP.SYSINFO.DATA"
 
-	#define _NP_SYSINFO_REQUEST "_NP.SYSINFO.REQUEST"
-	#define _NP_SYSINFO_REPLY "_NP.SYSINFO.REPLY"
+enum np_sysinfo_opt_e {
+	np_sysinfo_opt_disable = 0,
+	//np_sysinfo_opt_auto = 1,
+	np_sysinfo_opt_force_server = 2,
+	np_sysinfo_opt_force_client = 3
+} typedef np_sysinfo_opt_e;
+
 
 NP_API_INTERN
 void _np_sysinfo_init_cache(np_state_t* context);
 NP_API_INTERN
 void _np_sysinfo_destroy_cache(np_state_t* context);
 
+
+/**
+.. c:function:: void _np_in_sysinfo(const char* const dhkey_of_node_target)
+
+   message callback to receive sysinfo messages from clients, stores retrieved data in the cache
+
+*/
 NP_API_INTERN
-bool _np_in_sysinfo(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;
-NP_API_INTERN
-bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) ;
+bool _np_in_sysinfo(np_state_t* context, const struct np_message* const msg);
+
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)
 
@@ -34,6 +46,7 @@ bool _np_in_sysinforeply(np_context* ac, const np_message_t* const msg, np_tree_
 */
 NP_API_EXPORT
 np_tree_t* np_sysinfo_get_info(np_state_t* context, const char* const dhkey_of_node_target);
+
 /**
 .. c:function:: np_sysinfo_get_my_info()
 
@@ -41,14 +54,13 @@ np_tree_t* np_sysinfo_get_info(np_state_t* context, const char* const dhkey_of_n
 
 */
 NP_API_EXPORT
-np_tree_t* np_sysinfo_get_my_info(np_state_t* context) ;
+np_tree_t* np_sysinfo_get_all(np_state_t* context);
 
+
+NP_API_EXPORT
+np_tree_t* np_sysinfo_get_my_info(np_state_t* context);
 NP_API_INTERN
-void _np_sysinfo_request_others(np_state_t* context) ;
-NP_API_INTERN
-void _np_sysinfo_request(np_state_t* context,const char* dhkey_of_target) ;
-NP_API_INTERN
-np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* hash_of_target, uint16_t max_cache_ttl) ;
+np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* hash_of_target, uint16_t max_cache_ttl);
 
 /**
 .. c:function:: void np_sysinfo_enable_client()
@@ -66,8 +78,8 @@ void np_sysinfo_enable_client(np_state_t* context);
 */
 NP_API_EXPORT
 void np_sysinfo_enable_server(np_state_t* context);
-NP_API_EXPORT
-np_tree_t* np_sysinfo_get_all(np_state_t* context);
+
+
 #ifdef __cplusplus
 }
 #endif

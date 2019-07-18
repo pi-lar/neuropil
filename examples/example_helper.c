@@ -31,7 +31,6 @@
 #include "np_key.h"
 #include "np_legacy.h"
 #include "np_list.h"
-#include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_log.h"
 #include "np_event.h"
@@ -39,12 +38,12 @@
 #include "np_messagepart.h"
 #include "np_statistics.h"
 #include "np_shutdown.h"
-#include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_types.h"
 #include "np_util.h"
 
-#include "web/np_http.h"
+#include "../framework/http/np_http.h"
+#include "../framework/sysinfo/np_sysinfo.h"
 
 
 const char* logo =
@@ -91,6 +90,7 @@ void example_helper_destroy(np_context* context){
         free(ud);
     }
 }
+
 example_user_context* example_new_usercontext() {
 
     example_user_context* user_context = calloc(1, sizeof(example_user_context));
@@ -242,6 +242,7 @@ void __np_switchwindow_show(np_context* context, struct __np_switchwindow_scroll
         }
     }
 }
+
 void __np_switchwindow_scroll_check_bounds(np_context* context, struct __np_switchwindow_scrollable *target) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));	
 
@@ -365,7 +366,8 @@ void __np_switchwindow_del(np_context* context, struct __np_switchwindow_scrolla
 
 void np_print_startup(np_context*context);
 
-void np_example_print(np_context * context, FILE * stream, const char * format_in, ...) {
+void np_example_print(np_context * context, FILE * stream, const char * format_in, ...)
+{
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     np_print_startup(context);
     va_list args;
@@ -465,6 +467,7 @@ bool __np_example_helper_authz_everyone (np_context* ac, struct np_token* token)
     log_error("using DANGEROUS handler (authorize all) to allow authorization for: %s", token->subject );
     return (true);
 }
+
 bool __np_example_helper_acc_everyone (np_context* ac, struct np_token* token)
 {
     np_ctx_cast(ac);
@@ -477,6 +480,7 @@ void np_example_helper_allow_everyone(np_context* ac) {
     np_set_authorize_cb(ac, __np_example_helper_authz_everyone);
     np_set_accounting_cb(ac, __np_example_helper_acc_everyone);
 }
+
 bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     bool  ret = false;
@@ -532,6 +536,7 @@ bool np_example_save_identity(np_context* context, char* passphrase, char* filen
     }
     return ret;
 }
+
 enum np_example_load_identity_status  np_example_load_identity(np_context *context, char* passphrase, char* filename) {
     enum np_example_load_identity_status ret = np_example_load_identity_status_not_found;
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
@@ -743,10 +748,10 @@ example_user_context* parse_program_args(
             // | LOG_VERBOSE
             // | LOG_TRACE
             // | LOG_MUTEX
-            // | LOG_ROUTING
+             | LOG_ROUTING
             // | LOG_HTTP
             // | LOG_KEY
-            // | LOG_NETWORK
+             | LOG_NETWORK
             // | LOG_HANDSHAKE
             // | LOG_AAATOKEN
             // | LOG_SYSINFO
@@ -851,6 +856,7 @@ void __np_example_print_help(example_user_context* ud) {
     wrefresh(ud->__np_bottom_win_help);
 
 }
+
 void __np_example_inti_ncurse(np_context* context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     if (false == ud->__np_ncurse_initiated) {
@@ -960,6 +966,7 @@ void __np_example_reset_ncurse(np_context*context) {
     __np_example_deinti_ncurse(context);
     __np_example_inti_ncurse(context);
 }
+
 void resizeHandler(NP_UNUSED int sig)
 {
     __np_terminal_resize_flag = true;
@@ -981,8 +988,7 @@ bool example_sysinfo_init(np_context* context,np_sysinfo_opt_e opt_sysinfo_mode)
         
         np_example_print(context, stdout, "Watch sysinfo subjects \n");
         // If you want to you can enable the statistics modulte to view the nodes statistics (or use the prometheus interface)
-        np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
-        np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
+        np_statistics_add_watch(context, _NP_SYSINFO_DATA);
         ret = true;
     }
 
@@ -1037,6 +1043,7 @@ void _np_interactive_join(np_context* context, char* buffer) {
     np_example_print(context, stdout, "Try to join network at \"%s\".", buffer);
     np_join(context, buffer);
 }
+
 void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     /*
@@ -1422,5 +1429,37 @@ void __np_example_helper_run_info_loop(np_context*context) {
     }
 }
 
+void example_http_server_destroy(np_context* context) {
+    _np_http_destroy(context);
+}
 
-#include "web/np_http.c"
+bool example_http_server_init(np_context* context, char* http_domain, char* http_port) {
+    bool ret = false;
+    bool free_http_domain=false;
+    if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
+        if (http_domain == NULL) {
+            http_domain = calloc(1, sizeof(char) * 255);
+            CHECK_MALLOC(http_domain);
+            if (np_get_local_ip(context, http_domain, 255) == false) {
+                free(http_domain);
+                http_domain = NULL;
+            } else {
+                free_http_domain=true;
+            }
+        }
+        if(http_port==NULL){
+            if(http_port == NULL) http_port = TO_STRING(HTTP_PORT);
+        }
+        ret = _np_http_init(context, http_domain, http_port);
+        if (ret == false) {
+            log_msg(LOG_WARN, "Node could not start HTTP interface");
+            np_example_print(context, stdout, "Node could not start HTTP interface\n");
+        }else{
+            log_msg(LOG_INFO, "HTTP interface set to %s:%s", http_domain,http_port);
+            np_example_print(context, stdout, "HTTP interface set to %s:%s\n", http_domain, http_port);
+        }
+    }
+    if(free_http_domain) free(http_domain);
+
+    return ret;
+}

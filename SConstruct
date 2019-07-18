@@ -282,11 +282,11 @@ SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_co
 SOURCES += ['np_glia.c',    'np_jobqueue.c',        'np_dhkey.c',       'np_key.c',             'np_keycache.c',    'np_bootstrap.c']
 SOURCES += ['np_log.c',     'np_memory.c',          'np_message.c',     'np_network.c',     'np_node.c']
 SOURCES += ['np_route.c',   'np_tree.c',            'np_util.c',        'np_treeval.c',         'np_threads.c' ]
-SOURCES += ['np_sysinfo.c', 'np_scache.c',          'np_event.c',       'np_messagepart.c',     'np_statistics.c',  'np_responsecontainer.c']
+SOURCES += ['np_scache.c',          'np_event.c',       'np_messagepart.c',     'np_statistics.c',  'np_responsecontainer.c']
 SOURCES += ['np_legacy.c',  'np_serialization.c',   'np_shutdown.c',    'np_token_factory.c',   'np_crypto.c' ]
 SOURCES += ['util/np_statemachine.c', ]
 
-SOURCES += ['../framework/prometheus/prometheus.c']
+SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c']
 
 # source code 3rd party libraries
 SOURCES += ['event/ev.c', 'json/parson.c','msgpack/cmp.c','gpio/bcm2835.c']

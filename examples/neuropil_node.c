@@ -17,7 +17,6 @@
 #include "np_keycache.h"
 #include "np_tree.h"
 #include "np_types.h"
-#include "np_sysinfo.h"
 
 #include "example_helper.c"
 

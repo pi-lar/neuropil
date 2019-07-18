@@ -27,7 +27,6 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_route.h"
-#include "np_sysinfo.h"
 #include "np_statistics.h"
 #include "np_threads.h"
 #include "np_tree.h"
@@ -35,80 +34,19 @@
 #include "np_util.h"
 
 #include "json/parson.h"
-#include "http/htparse.h"
-#include "http/htparse.c"
+#include "../framework/http/htparse.h"
+#include "../framework/http/htparse.c"
+#include "../framework/sysinfo/np_sysinfo.h"
 
 #include "../examples/example_helper.h"
 
-#define HTTP_PORT 31415
 
 // generate new and del method for np_node_t
 // _NP_GENERATE_MEMORY_PROTOTYPES(np_http_t);
 
-
-enum http_return_e {
-    HTTP_NO_RESPONSE = 0,
-    HTTP_CODE_CONTINUE,
-    HTTP_CODE_OK,
-    HTTP_CODE_ACCEPTED,
-    HTTP_CODE_CREATED,
-    HTTP_CODE_NO_CONTENT,
-    HTTP_CODE_PARTIAL_CONTENT,
-    HTTP_CODE_MULTI_STATUS,
-    HTTP_CODE_MOVED_TEMPORARILY,
-    HTTP_CODE_NOT_MODIFIED,
-    HTTP_CODE_BAD_REQUEST,
-    HTTP_CODE_UNAUTHORIZED,
-    HTTP_CODE_FORBIDDEN,
-    HTTP_CODE_NOT_FOUND,
-    HTTP_CODE_METHOD_NOT_ALLOWED,
-    HTTP_CODE_REQUEST_TIME_OUT,
-    HTTP_CODE_GONE,
-    HTTP_CODE_REQUEST_URI_TOO_LONG,
-    HTTP_CODE_LOCKED,
-    HTTP_CODE_INTERNAL_SERVER_ERROR,
-    HTTP_CODE_NOT_IMPLEMENTED,
-    HTTP_CODE_SERVICE_UNAVAILABLE
-};
-
-
-// http request structure
-struct ht_request_s {
-    // char* ht_version;
-    // char* ht_hostname;
-    // char* ht_port;
-    char* ht_path;
-    char* current_key;
-    htp_method ht_method;
-    np_tree_t* ht_query_args;
-    np_tree_t* ht_header;
-    uint16_t ht_length;
-    char* ht_body;
-};
-
-// http response structure
-struct ht_response_s {
-    int ht_status;
-    char* ht_reason;
-    np_tree_t* ht_header;
-    uint16_t ht_length;
-    char* ht_body;
-    bool cleanup_body;
-};
-
-JSON_Value* _np_generate_error_json(const char* error,const char* details) {
-    log_trace_msg(LOG_TRACE | LOG_HTTP, "start: JSON_Value* _np_generate_error_json(const char* error,const char* details) {");
-    JSON_Value* ret = json_value_init_object();
-
-    json_object_set_string(json_object(ret), "error", error);
-    json_object_set_string(json_object(ret), "details", details);
-
-    return ret;
-}
-
 // static pthread_mutex_t __http_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 // static char* HTML_DEFAULT_PAGE    = "<html><head><title>neuropil</title></head><body></body></html>";
+
 static char* HTML_NOT_IMPLEMENTED =
         "<html><head><title>neuropil</title></head><body>not implemented</body></html>";
 #define MODULE_NOT_READY(MODULE) "<html><head><title>neuropil</title></head><body>module "TO_STRING(MODULE)" not ready. Please initiate module first</body></html>"
@@ -135,6 +73,7 @@ struct np_http_client_s {
     np_http_status_e status;
     np_state_t* context;
 };
+
 typedef struct np_http_client_s np_http_client_t;
 typedef np_http_client_t* np_http_client_ptr;
 
@@ -353,8 +292,10 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
         case (htp_method_GET): {                    
             client->ht_response.ht_header = np_tree_create();
             #define CHECK_PATH(prefix) strncmp("/"prefix,client->ht_request.ht_path,strlen(prefix)) == 0
-            if(CHECK_PATH("metrics")){
-                if(np_module_initiated(statistics)){
+            if(CHECK_PATH("metrics"))
+            {
+                if(np_module_initiated(statistics))
+                {
                     client->ht_response.ht_body = np_statistics_prometheus_export(context);
                     client->ht_response.ht_status = HTTP_CODE_OK;
                     np_tree_insert_str( client->ht_response.ht_header, "Content-Type",
@@ -366,21 +307,9 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
                     client->ht_response.cleanup_body = false;
                     client->status = RESPONSE;                
                 }
-            } else if(CHECK_PATH("sysinfo")){
-                if(np_module_initiated(sysinfo)) {
-                    ht_response_t res = _np_http_handle_sysinfo(context, client);
-                    client->ht_response.ht_body = res.ht_body;
-                    client->ht_response.ht_status = res.ht_status;
-                    np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
-                    np_treeval_new_s("application/json"));
-                } else {
-                    client->ht_response.ht_body = strdup(MODULE_NOT_READY(sysinfo));
-                    client->ht_response.ht_header = np_tree_create();
-                    client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
-                    client->ht_response.cleanup_body = false;
-                    client->status = RESPONSE;                
-                }
-            }else{
+            } 
+            else
+            {
                 client->ht_response.ht_body = strdup(client->ht_request.ht_path);
                 client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
                 np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
@@ -405,117 +334,6 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
             client->status = RESPONSE;
         }
     }
-}
-
-ht_response_t _np_http_handle_sysinfo(np_state_t* context , np_http_client_t* client)
-{
-    ht_response_t ret = {0};
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
-
-    char target_hash[65];
-
-    bool usedefault = true;
-    int http_status = HTTP_CODE_OK;
-    char* response;
-    JSON_Value* json_obj;
-    np_key_t*  key = NULL;
-
-    /**
-    * Default behavior if no argument is given: display own node informations
-    */
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "parse arguments of %s",
-        client->ht_request.ht_path);
-
-
-    if (NULL != client->ht_request.ht_path) {
-        log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
-
-        char* path = strdup(client->ht_request.ht_path);
-        char* tmp_target_hash = strtok(path, "/"); // /sysinfo
-        tmp_target_hash = strtok(NULL, "/");
-
-        if (NULL != tmp_target_hash) {
-            if (strlen(tmp_target_hash) == 64) {
-                snprintf(target_hash, 65, "%s", tmp_target_hash);
-                usedefault = false;
-            }
-            else {
-                http_status = HTTP_CODE_BAD_REQUEST;
-                json_obj = _np_generate_error_json(
-                    "provided key invalid.",
-                    "length is not 64 characters");
-                free(path);
-                goto __json_return__;
-            }
-        }
-        free(path);
-
-    }
-    else {
-        log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "no arguments provided");
-    }
-
-    key = context->my_node_key;
-    np_tryref_obj(np_key_t, key, keyExists);
-    if (keyExists) {
-        char* my_key = _np_key_as_str(key);
-        np_tree_t* sysinfo = NULL;
-        if (usedefault) {
-            log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "using own node as info system");
-            snprintf(target_hash, 64, "%s", my_key);
-
-            sysinfo = np_sysinfo_get_all(context);
-        }
-        else {
-
-            sysinfo = np_sysinfo_get_info(context, target_hash);
-        }
-        if (NULL == sysinfo) {
-            log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Could not find system informations");
-            http_status = HTTP_CODE_ACCEPTED;
-            json_obj = _np_generate_error_json("key not found.",
-                "update request is send. please wait.");
-        }
-        else {
-            log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (byte_size: %"PRIu32,
-                sysinfo->byte_size);
-            log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response tree (size: %"PRIu16,
-                sysinfo->size);
-
-            log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
-            json_obj = np_tree2json(context, sysinfo);
-            log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");
-        }
-        np_tree_free( sysinfo);
-
-        np_unref_obj(np_key_t, key, FUNC);
-    }
-    else {
-        http_status = HTTP_CODE_SERVICE_UNAVAILABLE;
-        json_obj = _np_generate_error_json("refreshing own key",
-            "Refreshing own key. please wait.");
-    }
-__json_return__:
-
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
-    if (NULL == json_obj) {
-        log_msg(LOG_ERROR,
-            "HTTP return is not defined for this code path");
-        http_status = HTTP_CODE_INTERNAL_SERVER_ERROR;
-        json_obj = _np_generate_error_json("Unknown Error",
-            "no response defined");
-    }
-    response = np_json2char(json_obj, false);
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo response should be (strlen: %lu):",
-        strlen(response));
-    json_value_free(json_obj);
-
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "write to body");
-    ret.ht_status = http_status;
-    ret.ht_body = response;
-
-
-    return ret;
 }
 
 void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) {
@@ -766,7 +584,8 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
         log_debug_msg(LOG_HTTP | LOG_DEBUG, "http connection attempt not accepted");
     }
 } 
-bool np_http_init(np_state_t* context, char* domain, char* port) {
+
+bool _np_http_init(np_state_t* context, char* domain, char* port) {
  
     if (domain == NULL) {
         domain = strdup("localhost");
@@ -878,39 +697,4 @@ void _np_http_destroy(np_state_t* context) {
             __local_http = NULL;
         }
     }
-}
-
-void example_http_server_destroy(np_context* context) {
-    _np_http_destroy(context);
-}
-
-bool example_http_server_init(np_context* context, char* http_domain, char* http_port) {
-    bool ret = false;
-    bool free_http_domain=false;
-    if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
-        if (http_domain == NULL) {
-            http_domain = calloc(1, sizeof(char) * 255);
-            CHECK_MALLOC(http_domain);
-            if (np_get_local_ip(context, http_domain, 255) == false) {
-                free(http_domain);
-                http_domain = NULL;
-            } else {
-                free_http_domain=true;
-            }
-        }
-        if(http_port==NULL){
-            if(http_port == NULL) http_port = TO_STRING(HTTP_PORT);
-        }
-        ret = np_http_init(context, http_domain, http_port);
-        if (ret == false) {
-            log_msg(LOG_WARN, "Node could not start HTTP interface");
-            np_example_print(context, stdout, "Node could not start HTTP interface\n");
-        }else{
-            log_msg(LOG_INFO, "HTTP interface set to %s:%s", http_domain,http_port);
-            np_example_print(context, stdout, "HTTP interface set to %s:%s\n", http_domain, http_port);
-        }
-    }
-    if(free_http_domain) free(http_domain);
-
-    return ret;
 }

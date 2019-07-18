@@ -41,7 +41,6 @@
 #include "np_threads.h"
 #include "np_route.h"
 #include "np_event.h"
-#include "np_sysinfo.h"
 #include "np_statistics.h"
 #include "np_list.h"
 #include "np_util.h"

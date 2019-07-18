@@ -35,7 +35,6 @@
 #include "np_serialization.h"
 #include "np_statistics.h"
 #include "np_shutdown.h"
-#include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_time.h"
 #include "np_token_factory.h"

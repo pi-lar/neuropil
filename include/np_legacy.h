@@ -49,7 +49,7 @@ extern "C" {
         np_ctx_decl(np_ctx_by_memory(a));
 
 
-#define NP_CTX_MODULES route, memory, threads, events, statistics, keycache, sysinfo, log, jobqueue, shutdown, bootstrap, time, msgproperties
+#define NP_CTX_MODULES route, memory, threads, events, statistics, keycache, http, sysinfo, log, jobqueue, shutdown, bootstrap, time, msgproperties
 
 /**
 \toggle_keepwhitespaces

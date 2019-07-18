@@ -63,7 +63,6 @@ int main(int argc, char **argv)
 	char* opt_kill_node = NULL;
 	uint16_t kill_node = 300;
 
-	int opt;
 	example_user_context* user_context;
 	if ((user_context = parse_program_args(
 		__FILE__,
@@ -232,9 +231,7 @@ int main(int argc, char **argv)
 	   \code
 	*/
 	char bootstrap_port[10];
-	int bootstrap_port_i = atoi(port);
 	memcpy(bootstrap_port, port, strnlen(port,10));
-	double last_process_kill_at = _np_time_now(NULL);
 
 	uint32_t instances = create_bootstrap;
 	while (true) {
@@ -314,8 +311,7 @@ int main(int argc, char **argv)
 				// We enable the statistics watchers for debugging purposes
 				if(has_a_node_started == false){ // <=> we are the first node started
 					np_statistics_add_watch_internals(context);
-					np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
-					np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
+					np_statistics_add_watch(context, _NP_SYSINFO_DATA);
 					__np_example_inti_ncurse(context);
 					__np_example_helper_run_loop(context);
 				}

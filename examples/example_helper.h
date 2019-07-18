@@ -6,7 +6,8 @@
 
 #include "np_threads.h"
 
-#include "web/np_http.h"
+#include "../framework/http/np_http.h"
+#include "../framework/sysinfo/np_sysinfo.h"
 
 #ifndef _NP_EXAMPLE_HELPER_H_
 #define _NP_EXAMPLE_HELPER_H_

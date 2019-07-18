@@ -25,9 +25,12 @@
 #include "np_message.h"
 #include "np_threads.h"
 #include "np_node.h"
-#include "np_sysinfo.h"
 #include "np_statistics.h"
 #include "np_settings.h"
+
+
+#include "../framework/sysinfo/np_sysinfo.h"
+#include "../framework/http/np_http.h"
 
 #include "gpio/bcm2835.h"
 
@@ -260,7 +263,7 @@ int main(int argc, char **argv)
 			http_domain = NULL;
 		}
 		
-		if(false == np_http_init(context, http_domain, NULL))
+		if(false == _np_http_init(context, http_domain, NULL))
 		{
 			np_example_print(context, stderr,   "Node could not start HTTP interface\n");
 			log_msg(LOG_WARN, "Node could not start HTTP interface");
