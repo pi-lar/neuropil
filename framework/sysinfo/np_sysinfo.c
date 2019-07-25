@@ -83,10 +83,10 @@ void _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_util_event_t a
         // build properties
         np_tree_insert_str(payload, _NP_SYSINFO_SOURCE, np_treeval_new_s(_np_key_as_str(context->my_node_key)) );
         // send msg
-        log_msg(LOG_INFO | LOG_SYSINFO, "sending sysinfo proactive (size: %"PRIu16")", payload->size);
+        log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")", payload->size);
         
         unsigned char buffer[payload->byte_size];
-        np_tree_serialize(context, payload, buffer);
+        np_tree2buffer(context, payload, buffer);
 
         np_send(context, _NP_SYSINFO_DATA, buffer, payload->byte_size);
     }
@@ -150,7 +150,7 @@ void np_sysinfo_enable_server(np_state_t* context)
     }
 }
 
-bool _np_in_sysinfo(np_state_t* context, const struct np_message* const msg) 
+bool _np_in_sysinfo(np_state_t* context, struct np_message* msg) 
 {
     log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo (uuid: %s )", msg->uuid);
 

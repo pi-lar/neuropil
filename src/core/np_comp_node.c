@@ -9,6 +9,7 @@
 
 #include "np_axon.h"
 #include "np_aaatoken.h"
+#include "np_event.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_legacy.h"
@@ -173,7 +174,7 @@ bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t
 void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_node_set(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_node_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -207,7 +208,7 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
 void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_wildcard_set(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_wildcard_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     NP_CAST(event.user_data, np_node_t, node);
@@ -223,7 +224,7 @@ void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event
 void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_node_update(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_node_update(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     np_node_t* node = _np_key_get_node(node_key);
@@ -315,7 +316,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
 void __np_node_add_to_leafset(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_node_handle_completion(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_node_add_to_leafset(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -350,7 +351,7 @@ void __np_node_add_to_leafset(np_util_statemachine_t* statemachine, NP_UNUSED co
 void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_node_handle_completion(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_node_remove_from_routing(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -395,7 +396,7 @@ void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const n
 void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 { 
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_node_handle_completion(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_node_handle_completion(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -439,7 +440,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
 void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_node_upgrade(...) { %p", statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_node_upgrade(...) { %p", statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_or_node_key);
     NP_CAST(event.user_data, np_aaatoken_t, token);
@@ -531,14 +532,6 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
     np_unref_obj(np_aaatoken_t, leave_prop_key, "_np_keycache_find");
 
     // __np_node_destroy(statemachine, event);
-}
-
-bool __is_node_join(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_node_join(...) {");
-    return false;
-    // join request or join ack
 }
 
 void __np_create_client_network (np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -733,7 +726,7 @@ bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t
     if ( ret) ret &= (event.user_data != NULL);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
     if ( ret) {
-        NP_CAST(event.user_data, np_messagepart_t, out_message);
+        // NP_CAST(event.user_data, np_messagepart_t, out_message);
         // TODO: add bloom filter ?
     }
     return ret;

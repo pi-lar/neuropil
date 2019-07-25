@@ -795,12 +795,12 @@ void np_tree_serialize(np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 		RB_FOREACH(tmp, np_tree_s, jtree)
 		{
 
-			if (np_treeval_type_int == tmp->key.type ||
-				np_treeval_type_dhkey == tmp->key.type ||
-				np_treeval_type_unsigned_long == tmp->key.type ||
-				np_treeval_type_double == tmp->key.type ||
-				np_treeval_type_char_ptr == tmp->key.type ||
-				np_treeval_type_special_char_ptr== tmp->key.type)
+			if (np_treeval_type_int              == tmp->key.type ||
+				np_treeval_type_dhkey            == tmp->key.type ||
+				np_treeval_type_unsigned_long    == tmp->key.type ||
+				np_treeval_type_double           == tmp->key.type ||
+				np_treeval_type_char_ptr         == tmp->key.type ||
+				np_treeval_type_special_char_ptr == tmp->key.type)
 			{
 				// log_debug_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
 				__np_tree_serialize_write_type(context,tmp->key, cmp); i++;
@@ -1412,8 +1412,6 @@ unsigned char* np_tree_get_hash(np_tree_t* self) {
 	crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
 	return hash;
 }
-
-
 
 bool np_tree_check_field(np_state_t* context, np_tree_t* tree, const char* field_name,const  char* _NP_MSG_HEADER_SUBJECT, np_tree_elem_t** buffer) {
 	bool ret = true;

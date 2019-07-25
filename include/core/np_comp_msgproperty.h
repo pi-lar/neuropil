@@ -62,11 +62,9 @@ static const char* _NP_MSG_ACCOUNTING_REQUEST     = "_NP.MESSAGE.ACCOUNT";
 
 */
 typedef enum np_msg_mode_enum {
-    DEFAULT_MODE = 0x00,
     INBOUND      = 0x01,
     OUTBOUND     = 0x02,
-    ROUTE        = 0x04,
-    TRANSFORM    = 0x08
+    DEFAULT_MODE = 0x03
 } NP_API_EXPORT np_msg_mode_type;
 
 /**
@@ -273,6 +271,8 @@ struct np_msgproperty_s
 
     // timestamp for cleanup thread
     double          last_update;
+    double          last_tx_update;
+    double          last_rx_update;    
     double          last_intent_update;
 
     // dhkey of node(s)/identities/realms who are interested in message exchange
@@ -398,11 +398,6 @@ void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
 NP_API_INTERN
 bool _np_messsage_threshold_breached(np_msgproperty_t* self);
 
-/**
- ** create a new message intent token if neccessary
- **/
-NP_API_INTERN
-np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop);
 
 /**
  ** convert to|from user struct mx_property
@@ -445,6 +440,19 @@ NP_API_INTERN
 void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_out_usermsg(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+/**
+ ** create a new message intent token if neccessary
+ **/
+NP_API_INTERN
+void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
 void np_msgproperty_add_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply);

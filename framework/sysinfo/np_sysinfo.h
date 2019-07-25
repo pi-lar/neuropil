@@ -35,7 +35,7 @@ void _np_sysinfo_destroy_cache(np_state_t* context);
 
 */
 NP_API_INTERN
-bool _np_in_sysinfo(np_state_t* context, const struct np_message* const msg);
+bool _np_in_sysinfo(np_state_t* context, struct np_message* msg);
 
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)

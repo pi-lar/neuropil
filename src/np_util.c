@@ -25,23 +25,24 @@
 #include "msgpack/cmp.h"
 #include "tree/tree.h"
 
-#include "np_util.h"
 
-
-#include "np_log.h"
-#include "np_legacy.h"
+#include "neuropil.h"
 
 #include "np_dhkey.h"
 #include "np_keycache.h"
-#include "np_treeval.h"
+#include "np_legacy.h"
+#include "np_list.h"
+#include "np_log.h"
 #include "np_message.h"
-#include "np_tree.h"
 #include "np_node.h"
 #include "np_route.h"
-#include "np_types.h"
-#include "np_list.h"
+#include "np_serialization.h"
 #include "np_threads.h"
-#include "neuropil.h"
+#include "np_tree.h"
+#include "np_treeval.h"
+#include "np_types.h"
+#include "np_util.h"
+
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
@@ -94,11 +95,10 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
         do
         {
             if (0 == _np_dhkey_cmp(&iter1->val->dhkey,
-                                 &iter2->val->dhkey))
+                                   &iter2->val->dhkey))
             {
                 tmp = iter2;
             }
-
             sll_next(iter2);
 
             if (NULL != tmp)
@@ -187,6 +187,13 @@ JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
     return ret;
 }
 
+void np_tree2buffer(np_state_t* context, np_tree_t* tree, void* buffer)
+{
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+    np_tree_serialize(context, tree, &cmp);
+}
+
 char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {
     log_trace_msg(LOG_TRACE, "start: char* np_dump_tree2char(context, np_tree_t* tree) {");
     JSON_Value * tmp = np_tree2json(context, tree);
@@ -194,6 +201,7 @@ char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {
     free(tmp);
     return tmp2;
 }
+
 JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
     log_trace_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(context, np_tree_t* tree) {");
     JSON_Value* ret = json_value_init_object();
@@ -413,6 +421,7 @@ bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
     }
     return ret;
 }
+
 uint8_t np_util_char_ptr_cmp(char_ptr const a, char_ptr const b) {
     return (uint8_t) strcmp(a,b);
 } 
@@ -504,6 +513,7 @@ char* np_util_string_trim_left(char* target) {
 
     return ret;
 }
+
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]) {
 
     const char* byte_options[] = {"b","kB","MB","GB","TB","PB","?"};

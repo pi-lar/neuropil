@@ -70,6 +70,7 @@ struct np_key_s
 
     np_mutex_t key_lock;
 
+
 	// deprecated from here on ...
 	/*
 	only available for node key
@@ -126,13 +127,6 @@ np_key_t* _np_key_get_by_key_hash(np_state_t* context,	char* targetDhkey);
 
 NP_API_INTERN
 void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force);
-
-NP_API_INTERN
-void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop);
-NP_API_INTERN
-void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop);
-NP_API_INTERN
-void _np_key_set_network(np_key_t* self, np_network_t* ng);
 
 #ifdef __cplusplus
 }

@@ -113,7 +113,7 @@ void __add_transitions_for(const np_key_t* my_key, enum np_key_type requested_ty
     assert( FLAG_CMP(my_key->type, requested_type) != np_key_type_unknown );
     // potentially add transitions for state behaviour, unused yet
     switch (requested_type) {
-        case np_key_type_ident:
+        case np_key_type_ident: 
         case np_key_type_subject:
         case np_key_type_wildcard:
         case np_key_type_alias:
@@ -171,10 +171,11 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_WILDCARD, IN_SETUP_WILDCARD, __np_node_handle_completion, NULL); // check node status and send out handshake / join messages
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_ALIAS, "IN_USE_ALIAS", __keystate_noop, __keystate_noop, __keystate_noop);
-
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_decrypt    , __is_crypted_message); // decrypt transport encryption
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_dht_message); // handle ght messages (ping, piggy, leave, update)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_message); // pass on to the specific message intent
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_forward, __is_discovery_message); // handle ght messages (ping, piggy, leave, update)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_forward_message); // handle ght messages (ping, piggy, leave, update)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY  , __np_alias_destroy    , __is_alias_invalid); // node has left, invalidate node
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_update      , NULL); // cleanup message part cache fro incoming messages
 
@@ -196,9 +197,9 @@ void __np_key_populate_states(np_key_t* key)
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_INTENT, "IN_USE_INTENT", __keystate_noop, __keystate_noop, __keystate_noop);
 
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_receiver_update, __is_recveiver_intent_token); // add intent token
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_receiver_update, __is_receiver_intent_token); // add intent token
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_sender_update  , __is_sender_intent_token); // add intent token
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_update         , __is_intent_auth_nz); // add authorization for intent token
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_update         , __is_intent_authz); // add authorization for intent token
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_DESTROY   , __np_intent_destroy        , __is_intent_invalid); // no updates received for xxx minutes?
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_check          ,  NULL); // send out intents if dht distance is not mmatching anymore
 
@@ -206,8 +207,10 @@ void __np_key_populate_states(np_key_t* key)
 
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_decrypt       , __is_payload_encrypted); // decrypt business payload
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_response_handler_set   , __is_response_event); // user changed mx_properties
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_out_usermsg   , __is_usr_message); // send out intents
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_in_msg , __is_external_message); // call usr callback function
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_out_msg, __is_internal_message); // call usr callback function
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_intent , __is_intent_authz); // received authn information (eventually through identity join)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_update        , __is_msgproperty); // user changed mx_properties
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_check         ,  NULL); // send out intents
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_DESTROY        , __keystate_noop             , __is_key_invalid);
@@ -470,7 +473,7 @@ void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
     np_ctx_memory(key);
 
     // TODO: add per obj event queue
-    log_debug_msg(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
+    // log_debug_msg(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
     // _np_threads_mutex_trylock
     _LOCK_ACCESS(&key->key_lock) 
     {
@@ -483,20 +486,5 @@ void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
             np_util_statemachine_invoke_auto_transition(&key->sm, event);
         }
     }
-    log_debug_msg(LOG_DEBUG, "sm a: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
-}
-
-void _np_key_set_recv_property(np_key_t* self, np_msgproperty_t* prop) {
-    np_ctx_memory(self);
-    // np_ref_switch(np_msgproperty_t, self->recv_property, ref_key_recv_property, prop);
-}
-
-void _np_key_set_send_property(np_key_t* self, np_msgproperty_t* prop) {
-    np_ctx_memory(self);
-    // np_ref_switch(np_msgproperty_t, self->send_property, ref_key_send_property, prop);
-}
-
-void _np_key_set_network(np_key_t* self, np_network_t* ng) {
-    np_ctx_memory(self);
-    np_ref_switch(np_network_t, self->network, ref_key_network, ng);
+    // log_debug_msg(LOG_DEBUG, "sm a: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
 }

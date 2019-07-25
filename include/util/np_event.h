@@ -20,7 +20,7 @@ enum event_type {
     evt_internal = 0x0001, // internal generated event
     evt_external = 0x0002, // external generated event, i.e. a message has arrived
     evt_timeout  = 0x0004, // internal timeout event, i.e. a message has not been acknowledged
-    // evt_trigger  = 0x0008, // no payload, just a trigger to do something
+    evt_userspace= 0x0008, // generated in user space (i.e. outside of neuropil library)
 
     // user_data type
     evt_message  = 0x0010, // payload of type message / external

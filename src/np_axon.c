@@ -395,188 +395,153 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
     */
 }
 
-void _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event)
-{    
-    /*
-    log_trace_msg(LOG_TRACE, "start: void _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event){");
+void _np_out_default(np_state_t* context, np_util_event_t event)
+{
+    log_debug_msg(LOG_DEBUG, "start: void _np_out_default(np_state_t* context, np_util_event_t msg_event){");
     np_message_intent_public_token_t* msg_token = NULL;
 
-    if (_np_route_my_key_has_connection(context))
+    NP_CAST(event.user_data, np_message_t, forward_msg);
+
+    if (!_np_route_my_key_has_connection(context))
     {
-        // cleanup of msgs in property receiver msg cache
-        // _np_msgproperty_cleanup_receiver_cache(args.properties);
-        // upsert message intent token
-        msg_token = _np_msgproperty_upsert_token(args.properties);
-
-        NP_PERFORMANCE_POINT_START(msg_discovery_out);
-
-        // args.target == Key of subject
-        np_dhkey_t target_dhkey = np_dhkey_create_from_hostport( args.properties->msg_subject, "0");
-
-        if (FLAG_CMP(args.properties->mode_type, INBOUND))
-        {
-            log_msg(LOG_INFO, "refresh of inbound  subject token, subject: %25s uuid: %s", args.properties->msg_subject, msg_token->uuid);
-            //if (args.properties->current_receive_token != msg_token) 
-            {
-                np_ref_switch(np_aaatoken_t, args.properties->current_receive_token, ref_msgproperty_current_recieve_token, msg_token);
-                log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-                np_tree_t* _data = np_tree_create();
-                np_aaatoken_encode(_data, msg_token);
-
-                np_message_t* msg_out = NULL;
-                np_new_obj(np_message_t, msg_out);
-                _np_message_create(
-                    msg_out,
-                    target_dhkey,
-                    context->my_node_key->dhkey,
-                    _NP_MSG_DISCOVER_SENDER,
-                    _data
-                );
-                double now = np_time_now(); 
-                np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-                np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(msg_token->expires_at-now));
-
-                // send message availability
-                np_msgproperty_t* prop_route = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_DISCOVER_SENDER);
-                np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
-#ifdef DEBUG
-                np_tree_insert_str( msg_out->header, "_np.debug.discovery.subj", np_treeval_new_s(args.properties->msg_subject));
-#endif
-                _np_job_submit_route_event(context, 0.0, prop_route, NULL, msg_out);
-
-                np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-            }
-        }
-
-        if (FLAG_CMP(args.properties->mode_type, OUTBOUND) )
-        {
-            log_msg(LOG_INFO, "refresh of outbound subject token, subject: %25s uuid: %s", args.properties->msg_subject, msg_token->uuid);
-            //if (args.properties->current_sender_token != msg_token) 
-            {
-                np_ref_switch(np_aaatoken_t, args.properties->current_sender_token, ref_msgproperty_current_sender_token, msg_token);
-
-                np_tree_find_str(msg_token->extensions, "msg_threshold")->val.value.ui = args.properties->msg_threshold;
-
-                log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding token for subject %p / %s", msg_token, msg_token->uuid);
-
-                np_tree_t* _data = np_tree_create();
-                np_aaatoken_encode(_data, msg_token);
-
-                np_message_t* msg_out = NULL;
-                np_new_obj(np_message_t, msg_out);
-
-                _np_message_create(
-                    msg_out,
-                    target_dhkey,
-                    context->my_node_key->dhkey,
-                    _NP_MSG_DISCOVER_RECEIVER,
-                    _data
-                );
-                // send message availability
-                np_msgproperty_t* prop_route =
-                    _np_msgproperty_get(context, 
-                        OUTBOUND,
-                        _NP_MSG_DISCOVER_RECEIVER
-                    );
-                double now = np_time_now();
-                np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-                np_tree_insert_str(msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(msg_token->expires_at - now));
-                
-                np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
-#ifdef DEBUG
-                np_tree_insert_str( msg_out->header, "_np.debug.discovery.subj", np_treeval_new_s(args.properties->msg_subject));
-#endif
-                _np_job_submit_route_event(context, 0.0, prop_route, NULL, msg_out);
-                np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-            }
-        }
-
-        NP_PERFORMANCE_POINT_END(msg_discovery_out);
-
-        np_unref_obj(np_aaatoken_t, msg_token, "_np_msgproperty_upsert_token");
-    } else {
-        log_msg(LOG_AAATOKEN | LOG_DEBUG, "--- cont refresh: but no connections left ...");
+        log_msg(LOG_WARN, "--- request for forward message out, but no connections left ...");
+        np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
+        return;
     }
-    */
+
+    // 1: find next hop based on fingerprint of the token
+    np_sll_t(np_key_ptr, tmp) = NULL;
+    uint8_t i = 1;
+    do {
+        tmp = _np_route_lookup(context, event.target_dhkey, i);
+        i++;
+    } while (sll_size(tmp) == 0 && i < 5);
+
+    np_key_t* target = sll_first(tmp)->val;
+
+    log_msg(LOG_INFO, "forwarding/sending message (%s) to         : %s (%d)", forward_msg->uuid, _np_key_as_str(target), sll_size(tmp));
+
+    if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
+    {
+        np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
+        return;
+    }
+
+    // 2: chunk the message if required
+    // TODO: send two separate messages?
+    if (forward_msg->is_single_part == false) {
+        _np_message_calculate_chunking(forward_msg);
+        _np_message_serialize_chunked(forward_msg);
+    }
+    // 3: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(forward_msg->msg_chunks);
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(forward_msg->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting request to target key %s / %p", _np_key_as_str(target), target);
+        np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+        _np_keycache_handle_event(context, target->dhkey, send_event, false);
+        pll_next(iter);
+    }
+    // 4 cleanup
+    np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
+    np_key_unref_list(tmp, "_np_route_lookup");
+    sll_free(np_key_ptr, tmp);
 }
 
-// deprecated
-void _np_out_receiver_discovery(np_state_t* context, np_util_event_t msg_event)
-{  
-    /*  
-    log_trace_msg(LOG_TRACE, "start: void _np_out_receiver_discovery(np_state_t* context, np_util_event_t msg_event){");
-    // create message interest in authentication request
-    np_aaatoken_t* msg_token = NULL;
+void _np_out_available_messages(np_state_t* context, np_util_event_t event)
+{    
+    log_debug_msg(LOG_DEBUG, "start: void _np_out_available_messages(...){");
+    np_message_intent_public_token_t* msg_token = NULL;
 
-    msg_token = _np_aaatoken_get_sender_token(context, args.properties->msg_subject,
-                                        &context->my_node_key->dhkey);
+    NP_CAST(event.user_data, np_message_t, available_msg);
 
-    if (NULL == msg_token)
+    if (!_np_route_my_key_has_connection(context))
     {
-        log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new sender token for subject %s", args.properties->msg_subject);
-        np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args.properties);
-        np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
-        msg_token  = _np_aaatoken_add_sender(msg_token_new->subject, msg_token_new);
-        np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_add_sender");
-        msg_token = msg_token_new;
-        ref_replace_reason(np_aaatoken_t, msg_token, ref_obj_creation,"_np_aaatoken_get_sender_token")
+        log_msg(LOG_WARN, "--- request for discovery message out, but no connections left ...");
+        np_unref_obj(np_message_t, available_msg, ref_obj_creation);
+        return;
     }
 
-    np_tree_t* _data = np_tree_create();
-    np_aaatoken_encode(_data, msg_token);
+    // 1: find next hop based on fingerprint of the token
+    np_sll_t(np_key_ptr, tmp) = NULL;
+    uint8_t i = 1;
+    do {
+        tmp = _np_route_lookup(context, event.target_dhkey, i);
+        i++;
+    } while (sll_size(tmp) == 0 && i < 5);
 
-    np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out);
+    np_key_t* target = sll_first(tmp)->val;
 
-    np_msgproperty_t* prop_route = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
-    _np_message_create(msg_out, args.target->dhkey, context->my_node_key->dhkey, _NP_MSG_DISCOVER_RECEIVER, _data);
-    np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
+    // 2: chunk the message if required
+    // TODO: send two separate messages?
+    _np_message_calculate_chunking(available_msg);
+    _np_message_serialize_chunked(available_msg);
 
-    // send message availability
-    _np_job_submit_route_event(context, 0.0, prop_route, args.target, msg_out);
-    np_unref_obj(np_message_t, msg_out,ref_obj_creation);
+    // 3: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(available_msg->msg_chunks);
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(available_msg->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting discovery request to target key %s / %p", _np_key_as_str(target), target);
+        np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+        _np_keycache_handle_event(context, target->dhkey, send_event, false);
+        pll_next(iter);
+    }
 
-    np_unref_obj(np_aaatoken_t, msg_token,"_np_aaatoken_get_sender_token");
-    */
+    // 4 cleanup
+    np_unref_obj(np_message_t, available_msg, ref_obj_creation);
+    np_key_unref_list(tmp, "_np_route_lookup");
+    sll_free(np_key_ptr, tmp);
 }
 
-// deprecated
-void _np_out_sender_discovery(np_state_t* context, np_util_event_t msg_event)
-{
-   /* 
-    log_trace_msg(LOG_TRACE, "start: void _np_out_sender_discovery(np_state_t* context, np_util_event_t msg_event){");
-    // create message interest in authentication request
-    np_aaatoken_t* msg_token = NULL;
+void _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
+{    
+    log_debug_msg(LOG_DEBUG, "start: void _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event){");
+    np_message_intent_public_token_t* msg_token = NULL;
 
-    msg_token = _np_aaatoken_get_receiver(context, args.properties->msg_subject, NULL);
+    NP_CAST(event.user_data, np_message_t, discover_msg);
 
-    if (NULL == msg_token)
+    if (!_np_route_my_key_has_connection(context))
     {
-        log_debug_msg(LOG_ROUTING | LOG_AAATOKEN | LOG_DEBUG, "creating new receiver token for subject %s", args.properties->msg_subject);
-        np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(args.properties);
-        np_ref_obj(np_aaatoken_t, msg_token_new); // usage ref
-        msg_token = _np_aaatoken_add_receiver(msg_token_new->subject, msg_token_new);
-        np_unref_obj(np_aaatoken_t, msg_token_new, "_np_aaatoken_add_receiver");
-        msg_token = msg_token_new;
+        log_msg(LOG_WARN, "--- request for discovery message out, but no connections left ...");
+        np_unref_obj(np_message_t, discover_msg, ref_obj_creation);
+        return;
     }
 
-    log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "encoding receiver token for subject %p / %s", msg_token, msg_token->uuid);
-    np_tree_t* _data = np_tree_create();
-    np_aaatoken_encode(_data, msg_token);
+    NP_PERFORMANCE_POINT_START(msg_discovery_out);
 
-    np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out);
-    _np_message_create(msg_out, args.target->dhkey, context->my_node_key->dhkey, _NP_MSG_DISCOVER_SENDER, _data);
-    np_msgproperty_t* prop_route = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_DISCOVER_SENDER);
-    np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(prop_route->ack_mode));
+    // 1: find next hop based on fingerprint of the token
+    np_sll_t(np_key_ptr, tmp) = NULL;
+    uint8_t i = 1;
+    do {
+        tmp = _np_route_lookup(context, event.target_dhkey, i);
+        i++;
+    } while (sll_size(tmp) == 0 && i < 5);
 
-    // send message availability
-    _np_job_submit_route_event(context, 0.0, prop_route, args.target, msg_out);
+    np_key_t* target = sll_first(tmp)->val;
 
-    np_unref_obj(np_message_t, msg_out,ref_obj_creation);
+    // 2: chunk the message if required
+    // TODO: send two separate messages?
+    _np_message_calculate_chunking(discover_msg);
+    _np_message_serialize_chunked(discover_msg);
 
-    np_unref_obj(np_aaatoken_t, msg_token, "_np_aaatoken_get_receiver");
-    */
+    // 3: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(discover_msg->msg_chunks);
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(discover_msg->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting discovery request to target key %s / %p", _np_key_as_str(target), target);
+        np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+        _np_keycache_handle_event(context, target->dhkey, send_event, false);
+        pll_next(iter);
+    }
+    NP_PERFORMANCE_POINT_END(msg_discovery_out);
+
+    // 4 cleanup
+    np_unref_obj(np_message_t, discover_msg, ref_obj_creation);
+    np_key_unref_list(tmp, "_np_route_lookup");
+    sll_free(np_key_ptr, tmp);
 }
 
 void _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event)
@@ -815,7 +780,7 @@ void _np_out_ack(np_state_t* context, np_util_event_t msg_event)
         iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting ack to target key %s / %p", _np_key_as_str(target_key), target_key);
         np_util_event_t ack_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=msg_event.target_dhkey};
-        _np_key_handle_event(target_key, ack_event, false);
+        _np_keycache_handle_event(context, msg_event.target_dhkey, ack_event, false);
 
         pll_next(iter);
     }
@@ -850,7 +815,7 @@ void _np_out_ping(np_state_t* context, const np_util_event_t event)
         iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting ping to target key %s / %p", _np_key_as_str(target_key), target_key);
         np_util_event_t ping_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=target_key->dhkey};
-        _np_key_handle_event(target_key, ping_event, false);
+        _np_keycache_handle_event(context, ping_event.target_dhkey, ping_event, false);
 
         pll_next(iter);
     }
@@ -900,8 +865,8 @@ void _np_out_piggy(np_state_t* context, const np_util_event_t event)
         {
             iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
             log_debug_msg(LOG_DEBUG, "submitting piggy to target key %s / %p", _np_key_as_str(target_key), target_key);
-            np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
-            _np_keycache_handle_event(context, event.target_dhkey, leave_event, false);
+            np_util_event_t piggy_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+            _np_keycache_handle_event(context, event.target_dhkey, piggy_event, false);
 
             pll_next(iter);
         }
@@ -917,7 +882,13 @@ void _np_out_piggy(np_state_t* context, const np_util_event_t event)
 void _np_out_update(np_state_t* context, const np_util_event_t event) 
 {
     log_debug_msg(LOG_DEBUG, "start: void _np_out_update(...) {");
-    
+
+    if (!_np_route_my_key_has_connection(context))
+    {
+        log_msg(LOG_WARN, "--- request for update message out, but no connections left ...");
+        return;
+    }
+
     np_tree_t* jrb_token = np_tree_create();
     np_tree_t* jrb_data  = np_tree_create();
 
@@ -938,6 +909,7 @@ void _np_out_update(np_state_t* context, const np_util_event_t event)
         i++;
     } while (sll_size(tmp) == 0 && i < 5);
 
+    
     np_key_t* target = sll_first(tmp)->val;
 
     // 4: chunk the message if required
@@ -992,8 +964,8 @@ void _np_out_leave(np_state_t* context, const np_util_event_t event)
     {
         iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting leave to target key %s / %p", _np_key_as_str(target_key), target_key);
-        np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=target_key->dhkey};
-        _np_key_handle_event(target_key, leave_event, false);
+        np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+        _np_keycache_handle_event(context, event.target_dhkey, leave_event, false);
 
         pll_next(iter);
     }
@@ -1044,7 +1016,7 @@ void _np_out_join(np_state_t* context, const np_util_event_t event)
         iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting join request to target key %s / %p", _np_key_as_str(target), target);
         np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
-        _np_key_handle_event(target, join_event, false);
+        _np_keycache_handle_event(context, event.target_dhkey, join_event, false);
         pll_next(iter);
     }
 
@@ -1059,6 +1031,7 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
     log_debug_msg(LOG_TRACE, "start: void _np_out_handshake(...) {");
 
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+    
     np_node_t* target_node = _np_key_get_node(target_key);
     np_node_t* my_node = _np_key_get_node(context->my_node_key);
 
@@ -1082,12 +1055,6 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
         np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
 
         np_tree_insert_str( my_token->extensions, NP_HS_PRIO, np_treeval_new_ul(my_node->handshake_priority));
-
-        /*if (event.user_data != NULL)
-        {
-            np_tree_insert_str(my_token->extensions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(event.user_data));
-            free(event.user_data);
-        }*/
         _np_aaatoken_update_extensions_signature(my_token);
         
         np_aaatoken_encode(hs_message->body, my_token);
@@ -1110,7 +1077,7 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
                 hs_message->uuid, _np_key_as_str(target_key)/*, hs_node->dns_name, hs_node->port*/);
 
             np_util_event_t handshake_send_evt = { .type=(evt_internal|evt_message), .user_data=hs_message, .context=context };
-            _np_key_handle_event(target_key, handshake_send_evt, false);
+            _np_keycache_handle_event(context, event.target_dhkey, handshake_send_evt, false);
 
             // __np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
             np_unref_obj(np_message_t, hs_message, ref_obj_creation);
@@ -1121,4 +1088,6 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
             log_msg(LOG_ERROR, "target node is not valid");
     }
     NP_PERFORMANCE_POINT_END(handshake_out);
+
+    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
 }

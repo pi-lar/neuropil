@@ -165,17 +165,16 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 
     ASSERT(msg_request != NULL, "source messageproperty cannot be NULL");
 
-    np_waitref_obj(np_key_t, context->my_identity, my_identity, "np_waitref_obj");
-    np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "np_waitref_obj");
-
-    ret = __np_token_factory_derive(my_identity->aaa_token, np_aaatoken_scope_private_available);
+    np_aaatoken_t* identity_token = _np_key_get_token(context->my_identity);
+    
+    ret = __np_token_factory_derive(identity_token, np_aaatoken_scope_private_available);
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
     ret->type = np_aaatoken_type_message_intent;
 
     // fill in token metadata for message identification
     char msg_id_subject[255];
     snprintf(msg_id_subject, 255, _NP_URN_MSG_PREFIX"%s", msg_request->msg_subject);
-    strncpy(ret->issuer, (char*)_np_key_as_str(my_identity), 65);
+    strncpy(ret->issuer, (char*)_np_key_as_str(context->my_identity), 65);
     strncpy(ret->subject, msg_id_subject, 255);
     if (NULL != msg_request->msg_audience)
     {
@@ -188,12 +187,12 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 
     log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG, "setting msg token EXPIRY to: %f (now: %f diff: %f)", ret->expires_at, np_time_now(), ret->expires_at - np_time_now());
 
-    if (my_identity->aaa_token->expires_at < ret->expires_at) {
-        ret->expires_at = my_identity->aaa_token->expires_at;
+    if (identity_token->expires_at < ret->expires_at) {
+        ret->expires_at = identity_token->expires_at;
     }
     // add e2e encryption details for sender
     memcpy((char*)ret->crypto.ed25519_public_key,
-           (char*)my_identity->aaa_token->crypto.ed25519_public_key,
+           (char*)identity_token->crypto.ed25519_public_key,
            crypto_sign_PUBLICKEYBYTES);
     
     np_tree_replace_str( ret->extensions, "mep_type",
@@ -206,17 +205,13 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
         np_treeval_new_ui(0)); //TODO: correct ?
 
     // TODO: insert value based on msg properties / respect (sticky) reply
-    np_aaatoken_set_partner_fp(ret, my_node_key->dhkey);
-
+    np_aaatoken_set_partner_fp(ret, context->my_node_key->dhkey);
     ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 
     // fingerprinting and signing the token
     _np_aaatoken_set_signature(ret, NULL);
     // _np_aaatoken_set_signature(ret);
 	_np_aaatoken_update_extensions_signature(ret);
-
-    np_unref_obj(np_key_t, my_identity, "np_waitref_obj");
-    np_unref_obj(np_key_t, my_node_key, "np_waitref_obj");
 
     _np_aaatoken_trace_info("build_intent", ret);
 
@@ -340,7 +335,7 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* t
     bool ok = false;
     np_new_obj(np_aaatoken_t, ret, FUNC);
     if (np_aaatoken_decode(tree, ret)) {
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
+        log_debug_msg(LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
 
         if (_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined)) {
             ASSERT(strlen(ret->subject) > 1, "tokens (%s) subject string (\"%s\") has incorrect size", ret->uuid, ret->subject);
@@ -349,7 +344,7 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* t
     }
     if (ok) {
         _np_aaatoken_trace_info("in_OK", ret);
-    }else{
+    } else {
         _np_aaatoken_trace_info("in_NOK", ret);
         np_unref_obj(np_aaatoken_t, ret, FUNC);
         ret = NULL;

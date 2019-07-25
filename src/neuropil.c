@@ -315,7 +315,9 @@ struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char
     np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
     return ret;
 }
-enum np_return np_node_fingerprint(np_context* ac, np_id (*id)){
+
+enum np_return np_node_fingerprint(np_context* ac, np_id (*id))
+{
   np_ctx_cast(ac); 
     enum np_return ret = np_ok;
    
@@ -416,7 +418,8 @@ enum np_return np_get_address(np_context* ac, char* address, uint32_t max) {
     return ret;
 }
 
-bool np_has_joined(np_context* ac) {
+bool np_has_joined(np_context* ac) 
+{
     assert(ac != NULL);
     bool ret = false;
     np_ctx_cast(ac);
@@ -428,22 +431,16 @@ bool np_has_joined(np_context* ac) {
     return ret;
 }
 
-bool np_has_receiver_for(np_context*ac, const char * subject) {
+bool np_has_receiver_for(np_context*ac, const char * subject)
+{
     assert(ac != NULL);
     assert(subject != NULL);
-    char* safe_subject = strndup(subject,255);
 
     np_ctx_cast(ac);
     bool ret = false;
     if (_np_route_my_key_has_connection(context)) {
-        np_aaatoken_t * token = _np_aaatoken_get_receiver(context, safe_subject, NULL);
-
-        if (token != NULL) {
-            ret = true;
-        }
-        np_unref_obj(np_aaatoken_t, token, "_np_aaatoken_get_receiver");
+        ret = true;
     }
-    free(safe_subject);
     return ret;
 }
 
@@ -466,28 +463,47 @@ enum np_return np_join(np_context* ac, const char* address)
   return ret;
 }
 
-enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length) {
+enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length) 
+{
 
 	if (subject == NULL) return np_invalid_argument;
 	if (strnlen(subject,500) == 0) return np_invalid_argument;
 
 	char* safe_subject = strndup(subject,255);
     enum np_return ret = np_send_to(ac, safe_subject, message, length, NULL);
+
     free(safe_subject);
     return ret;
 }
 
-enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target)) {
+enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target)) 
+{
+    
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     np_tree_t* body = np_tree_create();
     np_tree_insert_str(body, NP_SERIALISATION_USERDATA, np_treeval_new_bin(message, length));
-    np_send_msg(context, subject, body, (np_dhkey_t*)target);
+
+    np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(OUTBOUND, subject);
+    np_dhkey_t target_dhkey = {0};    
+    if (target != NULL) {
+        // TOOD: id to dhkey
+    }
+    np_message_t* msg_out = NULL;
+    np_new_obj(np_message_t, msg_out);
+    _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, subject, body);
+
+    log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")", length);
+
+    np_util_event_t send_event = { .type=(evt_userspace | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
+    _np_keycache_handle_event(context, subject_dhkey, send_event, false);
+
     return ret;
 }
 
-bool __np_receive_callback_converter(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata) {
+bool __np_receive_callback_converter(np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata)
+{
     np_ctx_cast(ac);
     bool ret = true;
     np_receive_callback callback = localdata;
@@ -535,6 +551,7 @@ enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback) 
 
     return ret;
 }
+
 enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
@@ -543,6 +560,7 @@ enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback) {
 
     return ret;
 }
+
 enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback)
 {
     enum np_return ret = np_ok;
@@ -552,32 +570,34 @@ enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback)
 
     return ret;
 }
+
 struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject) 
 {
     np_ctx_cast(ac);
     struct np_mx_properties ret = { 0 };
 
     np_msgproperty_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
-    
+
     np_msgproperty4user(&ret, property);
 
     return ret;
 }
+
 enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties user_property) 
 {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
     
-    // todo: validate user_property
+    // TODO: validate user_property
     struct np_mx_properties safe_user_property = user_property;
     safe_user_property.reply_subject[254] = 0;
  
-    np_msgproperty_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE,  subject);
-
+    np_msgproperty_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
     np_msgproperty_from_user(context, property, &safe_user_property);
 
     return ret;
 }
+
 enum np_return np_run(np_context* ac, double duration) {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
@@ -617,7 +637,6 @@ enum np_status np_get_status(np_context* ac) {
     return ret;
 }
 
-
 void np_id_str(char str[65], const np_id id)
 {
     sodium_bin2hex(str, NP_FINGERPRINT_BYTES*2+1, id, NP_FINGERPRINT_BYTES);
@@ -648,9 +667,8 @@ void np_destroy(np_context*ac, bool gracefully)
 
     _np_shutdown_run_callbacks(context);
 
-
     // destroy modules
-    _np_sysinfo_destroy_cache(context);
+    // _np_sysinfo_destroy_cache(context);
     _np_shutdown_destroy(context);    
     _np_bootstrap_destroy(context);
     _np_jobqueue_destroy(context);    

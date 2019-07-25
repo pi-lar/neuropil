@@ -21,6 +21,8 @@
 #include "np_keycache.h"
 #include "np_memory.h"
 #include "np_message.h"
+#include "np_route.h"
+#include "np_statistics.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 #include "np_tree.h"
@@ -157,7 +159,7 @@ void _np_alias_cleanup_msgpart_cache(np_state_t* context)
 bool __is_alias_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: bool __is_alias_handshake_token(...) {");
+    log_debug_msg(LOG_TRACE, "start: bool __is_alias_handshake_token(...) {");
     
     bool ret = false;
     
@@ -174,7 +176,7 @@ bool __is_alias_handshake_token(np_util_statemachine_t* statemachine, const np_u
 void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {   // handle internal received handsjake token
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_alias_set(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_alias_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     NP_CAST(event.user_data, np_aaatoken_t, handshake_token);
@@ -206,7 +208,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
 void __np_create_session(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {   // create crypto session and "steal" node sructure
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_DEBUG, "start: void __np_create_session(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_create_session(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     NP_CAST(sll_first(alias_key->entities)->val, np_aaatoken_t, handshake_token);
@@ -311,16 +313,16 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         np_new_obj(np_message_t, msg_in);
         if (!_np_message_deserialize_header_and_instructions(msg_in, event.user_data) )
         {
+           np_memory_free(context, event.user_data);
             return;
         }
 
-        // TODO: messag part cache should be a component on its own, but for now just use it
-        np_message_t* msg_to_submit = _np_alias_check_msgpart_cache(context, msg_in);
         np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
-                                           .user_data=msg_to_submit, .target_dhkey=alias_key->dhkey};
+                                           .user_data=msg_in, .target_dhkey=alias_key->dhkey};
         _np_key_handle_event(alias_key, in_message_evt, false);
 
     } else {
+        np_memory_free(context, event.user_data);
         char tmp[255];
         log_msg(LOG_WARN,
             "error on decryption of message (source: \"%s\")", np_network_get_desc(alias_key,tmp));
@@ -351,6 +353,50 @@ bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_ev
     return ret;
 }
 
+bool __is_forward_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_forward_message(...) {");
+
+    bool ret = false;
+
+    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
+    if ( ret) ret &= (event.user_data != NULL);
+
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+    if ( ret) {
+        NP_CAST(event.user_data, np_message_t, discovery_message);
+        /* TODO: use the bloom, luke */
+        CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
+        {
+            // messagepart is not addressed to our node --> forward
+            ret &= (0 != _np_dhkey_cmp(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey));
+        }
+    }
+    return ret;
+}
+
+bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_discovery_message(...) {");
+
+    bool ret = __is_forward_message(statemachine, event);
+    if  (ret) {
+        NP_CAST(event.user_data, np_message_t, discovery_message);
+        /* TODO: use the bloom, luke */
+        CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
+        {
+            // use the bloom to exclude other message types
+            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_RECEIVER, strlen(_NP_MSG_DISCOVER_RECEIVER)) ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_SENDER,   strlen(_NP_MSG_DISCOVER_SENDER))   );
+            return ret;
+        }
+        ret = false;
+    }
+    return ret;
+}
+
 bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
@@ -372,9 +418,12 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
                    ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PIGGY_REQUEST,  strlen(_NP_MSG_PIGGY_REQUEST))  ) ||
                    ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_UPDATE_REQUEST, strlen(_NP_MSG_UPDATE_REQUEST)) ) ||
                    ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST,  strlen(_NP_MSG_LEAVE_REQUEST))  );
-            return ret;
         }
-        ret = false;
+        CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
+        {
+            // messagepart is not addressed to our node --> forward
+            ret &= (0 == _np_dhkey_cmp(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey));
+        }
     }
     return ret;
 }
@@ -386,17 +435,108 @@ void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_
 
     NP_CAST(event.user_data, np_message_t, message);
 
-    if (_np_message_deserialize_chunked(message) ) 
-    {
-        CHECK_STR_FIELD_BOOL(message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
+    // TODO: messag part cache should be a component on its own, but for now just use it
+    np_message_t* msg_to_use = _np_alias_check_msgpart_cache(context, message);
+
+    if (msg_to_use != NULL) {
+
+        if (_np_message_deserialize_chunked(msg_to_use) ) 
         {
-            np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
-            _np_keycache_handle_event(context, subject_dhkey, event, false);
+            CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
+            {
+                np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
+                np_util_event_t msg_event = event;
+                msg_event.user_data = msg_to_use;
+                _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
+            }
         }
     }
 } 
 
-bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   // handle other messages
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_forward(...) {");
+
+    NP_CAST(event.user_data, np_message_t, message_in);
+
+    bool forward_message = false;
+
+    CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject);
+    CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_TO, str_msg_to);
+
+    // perform a route lookup
+    np_sll_t(np_key_ptr, tmp) = NULL;    
+    // zero as "consider this node as final target"
+    tmp = _np_route_lookup(context, str_msg_to.value.dhkey, 0);
+    if (0 < sll_size(tmp)) {
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+            "msg (%s) route_lookup result 1 = %s",
+            message_in->uuid, _np_key_as_str(sll_first(tmp)->val)
+        );
+    }
+    
+    /* try forwarding the message if
+        a) we do not have a handler
+    */
+    np_msgproperty_t* own_property = _np_msgproperty_get(context, INBOUND, str_msg_subject.value.s);
+    if (own_property == NULL)
+    {
+        forward_message = true;
+    }
+
+    /* forward the message if
+        b) we do have a list of possible forwards
+        c) we are not the best possible forward
+    */
+    if (NULL != tmp &&
+        sll_size(tmp) > 0 &&
+        (false == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &context->my_node_key->dhkey)))
+    {
+        forward_message = true;
+    }
+
+    if (forward_message)
+    {
+        log_msg(LOG_INFO, "forwarding message (%s) for subject: %s", message_in->uuid, str_msg_subject.value.s);
+
+        np_dhkey_t msg_handler = _np_msgproperty_dhkey(OUTBOUND, _DEFAULT);
+
+        np_util_event_t forward_event = event;
+        forward_event.target_dhkey = str_msg_to.value.dhkey;
+        forward_event.type = (evt_internal | evt_message);
+        _np_keycache_handle_event(context, msg_handler, forward_event, false);
+
+        _np_increment_forwarding_counter(str_msg_subject.value.s);
+    } 
+    else 
+    {
+        log_msg(LOG_INFO, "handling message (%s) for subject: %s", message_in->uuid, str_msg_subject.value.s);
+        if (own_property->is_internal)
+            __np_handle_np_message(statemachine, event);
+        else
+            __np_handle_usr_msg(statemachine, event);
+        
+    }
+    np_key_unref_list(tmp, "_np_route_lookup");
+    sll_free(np_key_ptr, tmp);
+
+    __np_cleanup__: {}
+} 
+
+bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_usr_message(...) {");
+
+    bool ret = false;
+
+    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_userspace);
+    if ( ret) ret &= (event.user_data != NULL);
+
+    return ret;
+}
+
 void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // pass on to the specific message intent
 
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
@@ -405,7 +545,7 @@ void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_even
 void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
+    log_debug_msg(LOG_TRACE, "start: bool __np_alias_update(...) {");
 
     NP_CAST(event.user_data, np_message_t, message);
 

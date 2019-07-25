@@ -29,7 +29,7 @@ NP_API_INTERN
 void __np_set_intent(np_util_statemachine_t* statemachine, const np_util_event_t event); // message intent handling
 
 NP_API_INTERN
-bool __is_recveiver_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_receiver_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_intent_receiver_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
@@ -39,7 +39,9 @@ NP_API_INTERN
 void __np_intent_sender_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
-bool __is_intent_auth_nz(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_intent_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_intent_update(np_util_statemachine_t* statemachine, const np_util_event_t event); // add authorization for intent token
 
@@ -50,6 +52,18 @@ void __np_intent_destroy(np_util_statemachine_t* statemachine, const np_util_eve
 
 NP_API_INTERN
 void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event_t event); // send out intents if dht distance is not mmatching anymore
+
+NP_API_INTERN
+void _np_intent_create_token_ledger(np_key_t* my_intent_key, const np_util_event_t event);
+NP_API_INTERN
+np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token);
+NP_API_INTERN
+np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *token);
+
+NP_API_INTERN
+np_aaatoken_t* _np_intent_get_sender_token(np_key_t* subject_key, const np_dhkey_t sender_dhkey);
+NP_API_INTERN
+np_aaatoken_t* _np_intent_get_receiver(np_key_t* subject_key, const np_dhkey_t target);
 
 #ifdef __cplusplus
 }

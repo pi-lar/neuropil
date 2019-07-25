@@ -211,7 +211,7 @@ void np_send_wildcard_join(np_context*ac, const char* node_string);
 
 */
 NP_API_EXPORT
-void np_waitforjoin(np_context*ac);
+void np_waitforjoin(np_context* ac);
 
 /**
 .. c:function:: void np_add_receive_listener(np_usercallback_t msg_handler, char* subject)

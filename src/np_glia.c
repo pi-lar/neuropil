@@ -58,7 +58,6 @@
  **/
 void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
 {
-    
     np_waitref_obj(np_key_t, context->my_node_key, my_key, "np_waitref_obj");
     
     np_sll_t(np_key_ptr, tmp) = NULL;
@@ -92,7 +91,6 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
     if ( 0 < sll_size(tmp) )
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result 1 = %s", msg_in->uuid, _np_key_as_str(sll_first(tmp)->val));
 
-
     if ( NULL != tmp                &&
          0    < sll_size(tmp)       &&
          false == is_a_join_request &&
@@ -105,7 +103,6 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
         tmp = _np_route_lookup(context, search_key, 2);
         if (0 < sll_size(tmp))
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result 2 = %s", msg_in->uuid, _np_key_as_str(sll_first(tmp)->val));
-
         // TODO: increase count parameter again ?
     }
 
@@ -116,7 +113,8 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
         target_key = sll_first(tmp)->val;
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result   = %s", msg_in->uuid, _np_key_as_str(target_key));
     }
-    else {
+    else
+    {
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) route_lookup result   = myself (listsize: %"PRIu32")", msg_in->uuid, (NULL == tmp ?0 : sll_size(tmp)));
     }
     
@@ -161,80 +159,6 @@ void _np_glia_route_lookup(np_state_t* context, np_jobargs_t args)
 void _np_glia_log_flush(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
 {    
     _np_log_fflush(context, false);
-}
-
-/**
- ** np_retransmit_tokens
- ** retransmit tokens on a regular interval
- ** default ttl value for message exchange tokens is ten seconds, afterwards they will be invalid
- ** and a new token is required. this also ensures that the correct encryption key will be transmitted
- **/
-void _np_retransmit_message_tokens_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
-{
-    if (_np_route_my_key_has_connection(context)) {		
-
-        np_tree_elem_t *iter = NULL;
-        np_msgproperty_t* msg_prop = NULL;
-        _LOCK_MODULE(np_state_message_tokens_t) {
-            RB_FOREACH(iter, np_tree_s, context->msg_tokens)
-            {
-                // bool free_subject;
-                const char* subject = iter->key.value.s;
-                
-                np_dhkey_t target_dhkey = np_dhkey_create_from_hostport( subject, "0");
-                np_key_t* target = NULL;
-                target = _np_keycache_find_or_create(context, target_dhkey);
-
-                msg_prop = _np_msgproperty_get(context, TRANSFORM, subject);
-
-                if (NULL != msg_prop)
-                {
-                    _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
-                    np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
-                }
-                else
-                {
-                    // deleted = RB_REMOVE(np_tree_s, context->msg_tokens, iter);
-                    // free( np_treeval_to_str(deleted->key));
-                    // free(deleted);
-                    np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
-                    // break;
-                }
-            }
-        }
-
-        if (true == context->enable_realm_server)
-        {
-            np_msgproperty_t* msg_prop = NULL;
-
-            np_dhkey_t target_dhkey = { 0 };
-            _np_str_dhkey( context->my_identity->aaa_token->realm, &target_dhkey);
-
-            np_key_t* target = NULL;
-            target = _np_keycache_find_or_create(context, target_dhkey);
-
-            msg_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-            /*if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
-                sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-            }*/
-            // _np_out_sender_discovery(0.0, msg_prop, target, NULL);
-            _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
-
-            msg_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-            /*if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
-                sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-            }*/
-            _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
-
-            msg_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-            /*if (false == sll_contains(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery, np_callback_t_sll_compare_type)) {
-                sll_append(np_callback_t, msg_prop->clb_transform, _np_out_sender_discovery);
-            }*/
-            // _np_job_submit_transform_event(context, 0.0, msg_prop, target, NULL);
-
-            np_unref_obj(np_key_t, target, "_np_keycache_find_or_create");
-        }
-    }
 }
 
 /**
@@ -399,75 +323,3 @@ void _np_cleanup_keycache_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t a
     }
 }
 
-
-// TODO: add a wrapper function which can be scheduled via jobargs
-bool _np_send_msg (const char* subject, np_message_t* msg, np_msgproperty_t* msg_prop, np_dhkey_t* target)
-{
-    assert(msg != NULL);
-    np_state_t* context = np_ctx_by_memory(msg);
-    // np_aaatoken_t* tmp_token = _np_aaatoken_get_receiver(subject, &target_key);
-    np_message_intent_public_token_t* tmp_token = _np_aaatoken_get_receiver(context, subject, target);
-    if (NULL != tmp_token)
-    {
-        _np_msgproperty_threshold_increase(msg_prop);
-        log_msg(LOG_INFO | LOG_ROUTING, "(msg: %s) for subject \"%s\" has valid token", msg->uuid, subject);
-
-        // TODO: instead of token threshold a local copy of the value should be increased
-        np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
-
-        np_dhkey_t empty_check = { 0 };
-        np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
-        if (_np_dhkey_equal(&empty_check, &receiver_dhkey))
-        {
-            _np_str_dhkey(tmp_token->issuer, &receiver_dhkey);
-        }
-
-        if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
-        {
-            np_msgproperty_t* handler = _np_msgproperty_get(context, INBOUND, msg->msg_property->msg_subject);
-            if (handler != NULL)
-            {
-                _np_in_new_msg_received(msg, handler, true);
-            }
-        }
-        else
-        {
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s %s...", msg->uuid, tmp_token->uuid, tmp_token->issuer);
-
-            // encrypt the relevant message part itself
-            _np_message_encrypt_payload(msg, tmp_token);
-
-/*            char receiver_key_str[65];
-            receiver_key_str[64] = '\0';
-            _np_dhkey_str(&receiver_dhkey, receiver_key_str);
-            char * ctx = np_get_userdata(context);
-            fprintf(stdout, "     (%s): encrypted message (%s) for %s / node: %s\n", ctx, msg->uuid, tmp_token->issuer, receiver_key_str); fflush(stdout);
-*/
-            np_tree_replace_str(msg->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
-
-            np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
-            _np_job_submit_route_event(context, 0.0, out_prop, NULL, msg);
-
-            if (NULL != msg_prop->rep_subject &&
-                FLAG_CMP(msg_prop->mep_type, STICKY_REPLY))
-            {
-
-                np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
-                np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
-            }
-
-            // decrease threshold counters
-            _np_msgproperty_threshold_decrease(msg_prop);
-
-            np_unref_obj(np_aaatoken_t, tmp_token, "_np_aaatoken_get_receiver");
-            return (true);
-        }
-    }
-    else
-    {
-        log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has NO valid token", msg->uuid, subject);
-        _np_msgproperty_add_msg_to_send_cache(msg_prop, msg);
-    }
-    
-    return (false);
-}

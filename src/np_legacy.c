@@ -349,51 +349,19 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
 
-    np_util_event_t ev = { .type=(evt_internal|evt_token), .context=ac, .user_data=identity };
+    np_util_event_t ev = { .type=(evt_internal|evt_token), .context=ac, .user_data=identity, .target_dhkey=search_key };
     _np_key_handle_event(my_identity_key, ev, false);
 
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
     np_unref_obj(np_aaatoken_t, identity, "np_token_factory_new_identity_token");
 }
 
-np_message_t* _np_prepare_msg(np_state_t *context, const char* subject, np_tree_t *body, NP_UNUSED np_dhkey_t* target_key)
-{ 
-    np_message_t* ret = NULL;
-    np_new_obj(np_message_t, ret);
-
-    np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, OUTBOUND, subject);
-    
-    np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
-    ret->msg_property = msg_prop;
-
-    if (false == sll_contains(np_evt_callback_t, msg_prop->clb_outbound, _np_out, np_evt_callback_t_sll_compare_type)) {
-        sll_append(np_evt_callback_t, msg_prop->clb_outbound, _np_out);
-    }
-
-    np_tree_insert_str( ret->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s((char*)subject));
-    np_tree_insert_str( ret->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(context->my_node_key->dhkey) );
-
-    _np_message_setbody(ret, body);
-
-    return ret;
-}
-
-void np_send_msg(np_context*ac, const char* subject, np_tree_t *body, np_dhkey_t* target_key)
-{
-    np_ctx_cast(ac);
-    np_message_t* msg = _np_prepare_msg(context, subject, body, target_key);
-
-    log_msg(LOG_INFO, "(msg: %s) initial send. Subject \"%s\"", msg->uuid, subject);
-
-    _np_send_msg(subject, msg, msg->msg_property, target_key);
-
-    np_unref_obj(np_message_t, msg, ref_obj_creation);
-}
 
 void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body)
 {
     np_ctx_cast(ac);
     np_dhkey_t* sender = _np_message_get_sender(original);
+    /* 
     np_message_t* msg = _np_prepare_msg(context, original->msg_property->rep_subject, body, sender);
 
     np_tree_replace_str( msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(original->uuid));
@@ -401,6 +369,7 @@ void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body
     _np_send_msg(msg->msg_property->msg_subject, msg, msg->msg_property, sender);
 
     np_unref_obj(np_message_t, msg, ref_obj_creation);
+    */
 }
 
 char* np_get_connection_string(np_context*ac) 

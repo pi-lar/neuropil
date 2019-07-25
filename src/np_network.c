@@ -631,6 +631,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     
 }
 
+/* 
 void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
     log_debug_msg(LOG_TRACE, "_np_network_handle_incomming_data");
 
@@ -695,6 +696,7 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
     }
     free(data_container);
 }
+*/
 
 void _np_network_stop(np_network_t* network, bool force) {		    
     assert(NULL != network);

@@ -29,6 +29,8 @@
 #include "np_memory.h"
 
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
+
 #include "np_network.h"
 #include "np_node.h"
 #include "np_threads.h"
@@ -141,7 +143,6 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
 void _np_message_calculate_chunking(np_message_t* msg)
 {
     np_ctx_memory(msg);
-    // np_tree_del_str(msg->footer, NP_MSG_FOOTER_GARBAGE);
 
     // TODO: message part split-up informations
     uint32_t header_size = (msg->header == NULL ? 0 : msg->header->byte_size);
@@ -843,14 +844,14 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 #ifdef DEBUG
     char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1];
     char partner_key[crypto_scalarmult_curve25519_BYTES*2+1];
-    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, _np_key_get_token(context->my_identity)->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
     sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
     log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) encrypt: pa pk: %s ### my pk: %s\n", msg->uuid, partner_key, curve25519_pk);
 #endif
 
     // finally encrypt
     crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
-    		                      tmp_token->crypto.derived_kx_public_key, context->my_identity->aaa_token->crypto.derived_kx_secret_key);
+    		                      tmp_token->crypto.derived_kx_public_key, _np_key_get_token(context->my_identity)->crypto.derived_kx_secret_key);
     if (0 > crypto)
     {
         log_msg(LOG_ERROR, "encryption of message payload failed");
@@ -861,10 +862,6 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);
     log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "sym_key:    %s", sym_key);
 */
-
-    // TODO: use sealed boxes instead ???
-    // int crypto_box_seal(unsigned char *c, const unsigned char *m,
-    // unsigned long long mlen, const unsigned char *pk);
 
     np_tree_t* encryption_details = np_tree_create();
     // insert the public-key encrypted encryption key for each receiver of the message
@@ -877,11 +874,6 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     np_tree_insert_str( msg->body, NP_SYMKEY, np_treeval_new_tree(encryption_details));
     np_tree_free(encryption_details);
 
-
-    // max ttl of msg
-    double now = np_time_now();
-    np_tree_insert_str(msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-    np_tree_insert_str(msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(tmp_token->expires_at - now));
 }
 
 bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)

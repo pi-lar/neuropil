@@ -231,14 +231,10 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token, bool include_extens
 // neuropil internal aaatoken storage and exchange functions
 
 NP_API_INTERN
-np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
-NP_API_INTERN
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* const subject, const np_dhkey_t* const sender_dhkey);
 
-NP_API_INTERN
-np_aaatoken_t * _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
