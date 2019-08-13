@@ -172,10 +172,10 @@ void __np_key_populate_states(np_key_t* key)
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_ALIAS, "IN_USE_ALIAS", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_decrypt    , __is_crypted_message); // decrypt transport encryption
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_dht_message); // handle ght messages (ping, piggy, leave, update)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_message); // pass on to the specific message intent
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_forward, __is_discovery_message); // handle ght messages (ping, piggy, leave, update)
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_forward_message); // handle ght messages (ping, piggy, leave, update)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_dht_message); // handle ght messages (ping, piggy, leave, update)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_discovery_message); // handle discovery messages (sender list, dicover sender, ...)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_forward, __is_forward_message); // handle forwarding of all other messages , but fill ara routing table
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY  , __np_alias_destroy    , __is_alias_invalid); // node has left, invalidate node
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_update      , NULL); // cleanup message part cache fro incoming messages
 

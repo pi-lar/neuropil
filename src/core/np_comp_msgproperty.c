@@ -559,6 +559,10 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop)
 {
     np_ctx_memory(msg_prop);
 
+    log_debug_msg(LOG_DEBUG,
+            "this node is a receiver of messages, checking msgcache (%p / %u) ...",
+            msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
+
     sll_iterator(np_message_ptr) iter_prop_msg_cache_in = sll_first(msg_prop->msg_cache_in);
     while (iter_prop_msg_cache_in != NULL)
     {
@@ -980,8 +984,15 @@ void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event
     
     my_property_key->type |= np_key_type_subject;
 
-    if (property->is_internal == false)
-        _np_msgproperty_create_token_ledger(statemachine, event);    
+    if (property->is_internal == false) {
+        _np_msgproperty_create_token_ledger(statemachine, event);
+    
+        if (false == sll_contains(np_evt_callback_t, property->clb_outbound, _np_out_default, np_evt_callback_t_sll_compare_type)) 
+        {
+            sll_append(np_evt_callback_t, property->clb_outbound, _np_out_default);
+        }
+    }
+
 }
 
 void __np_property_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -1047,7 +1058,8 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
         _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
         log_msg(LOG_INFO, "sending discovery message for %s as a receiver: _NP_MSG_DISCOVER_SENDER {msg uuid: %s / intent uuid: %s)", property->msg_subject, msg_out->uuid, intent_token->uuid);
         property->last_rx_update = now;
-    } 
+    }
+
     np_tree_free(intent_data);
 }
 
@@ -1247,22 +1259,10 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
     np_unref_obj(np_aaatoken_t, intent_token, "np_token_factory_read_from_tree");
 }
 
-np_message_t* _np_property_prepare_msg(np_msgproperty_t* prop, const np_util_event_t event)
-{ 
-    np_ctx_memory(prop);
-    NP_CAST(event.user_data, np_tree_t, msg_body);
-
-    np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out);
-    _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, prop->msg_subject, msg_body);
-
-    return msg_out;
-}
-
 void __np_property_out_usermsg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_usermessage(...){");
+    log_debug_msg(LOG_TRACE, "start: void __np_property_out_usermsg(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, my_property);

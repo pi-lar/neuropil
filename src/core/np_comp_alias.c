@@ -388,11 +388,34 @@ bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_
         CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
         {
             // use the bloom to exclude other message types
-            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_RECEIVER, strlen(_NP_MSG_DISCOVER_RECEIVER)) ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_SENDER,   strlen(_NP_MSG_DISCOVER_SENDER))   );
-            return ret;
+            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_RECEIVER,  strlen(_NP_MSG_DISCOVER_RECEIVER))  ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_SENDER,    strlen(_NP_MSG_DISCOVER_SENDER))    );
         }
-        ret = false;
+    
+        CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
+        {
+            // perform a route lookup
+            np_sll_t(np_key_ptr, tmp) = NULL;    
+            // zero as "consider this node as final target"
+            tmp = _np_route_lookup(context, str_msg_to->val.value.dhkey, 0);
+            if (0 < sll_size(tmp)) {
+                log_debug_msg(LOG_DEBUG,
+                    "msg (%s) route_lookup result 1 = %s",
+                    discovery_message->uuid, _np_key_as_str(sll_first(tmp)->val)
+                );
+            }
+            /* forward the message if
+                b) we do have a list of possible forwards
+                c) we are not the best possible forward
+            */
+            if (NULL != tmp && sll_size(tmp) > 0 )
+            {
+                ret &= _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &context->my_node_key->dhkey);
+            }
+
+            np_key_unref_list(tmp, "_np_route_lookup");
+            sll_free(np_key_ptr, tmp);
+        }
     }
     return ret;
 }
@@ -413,12 +436,15 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
         /* TODO: use the bloom, luke */
         CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
         {
-            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_ACK,            strlen(_NP_MSG_ACK))            ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PING_REQUEST,   strlen(_NP_MSG_PING_REQUEST))   ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PIGGY_REQUEST,  strlen(_NP_MSG_PIGGY_REQUEST))  ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_UPDATE_REQUEST, strlen(_NP_MSG_UPDATE_REQUEST)) ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST,  strlen(_NP_MSG_LEAVE_REQUEST))  );
+            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_ACK,                strlen(_NP_MSG_ACK))                ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PING_REQUEST,       strlen(_NP_MSG_PING_REQUEST))       ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PIGGY_REQUEST,      strlen(_NP_MSG_PIGGY_REQUEST))      ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_UPDATE_REQUEST,     strlen(_NP_MSG_UPDATE_REQUEST))     ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST,      strlen(_NP_MSG_LEAVE_REQUEST))      ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_AVAILABLE_RECEIVER, strlen(_NP_MSG_AVAILABLE_RECEIVER)) ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_AVAILABLE_SENDER,   strlen(_NP_MSG_AVAILABLE_SENDER))   );
         }
+
         CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
         {
             // messagepart is not addressed to our node --> forward
@@ -465,61 +491,16 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
     CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject);
     CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_TO, str_msg_to);
 
-    // perform a route lookup
-    np_sll_t(np_key_ptr, tmp) = NULL;    
-    // zero as "consider this node as final target"
-    tmp = _np_route_lookup(context, str_msg_to.value.dhkey, 0);
-    if (0 < sll_size(tmp)) {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-            "msg (%s) route_lookup result 1 = %s",
-            message_in->uuid, _np_key_as_str(sll_first(tmp)->val)
-        );
-    }
-    
-    /* try forwarding the message if
-        a) we do not have a handler
-    */
-    np_msgproperty_t* own_property = _np_msgproperty_get(context, INBOUND, str_msg_subject.value.s);
-    if (own_property == NULL)
-    {
-        forward_message = true;
-    }
+    log_msg(LOG_INFO, "forwarding message (%s) for subject: %s", message_in->uuid, str_msg_subject.value.s);
 
-    /* forward the message if
-        b) we do have a list of possible forwards
-        c) we are not the best possible forward
-    */
-    if (NULL != tmp &&
-        sll_size(tmp) > 0 &&
-        (false == _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &context->my_node_key->dhkey)))
-    {
-        forward_message = true;
-    }
+    np_dhkey_t msg_handler = _np_msgproperty_dhkey(OUTBOUND, _DEFAULT);
 
-    if (forward_message)
-    {
-        log_msg(LOG_INFO, "forwarding message (%s) for subject: %s", message_in->uuid, str_msg_subject.value.s);
+    np_util_event_t forward_event = event;
+    forward_event.target_dhkey = str_msg_to.value.dhkey;
+    forward_event.type = (evt_internal | evt_message);
+    _np_keycache_handle_event(context, msg_handler, forward_event, false);
 
-        np_dhkey_t msg_handler = _np_msgproperty_dhkey(OUTBOUND, _DEFAULT);
-
-        np_util_event_t forward_event = event;
-        forward_event.target_dhkey = str_msg_to.value.dhkey;
-        forward_event.type = (evt_internal | evt_message);
-        _np_keycache_handle_event(context, msg_handler, forward_event, false);
-
-        _np_increment_forwarding_counter(str_msg_subject.value.s);
-    } 
-    else 
-    {
-        log_msg(LOG_INFO, "handling message (%s) for subject: %s", message_in->uuid, str_msg_subject.value.s);
-        if (own_property->is_internal)
-            __np_handle_np_message(statemachine, event);
-        else
-            __np_handle_usr_msg(statemachine, event);
-        
-    }
-    np_key_unref_list(tmp, "_np_route_lookup");
-    sll_free(np_key_ptr, tmp);
+    _np_increment_forwarding_counter(str_msg_subject.value.s);
 
     __np_cleanup__: {}
 } 
