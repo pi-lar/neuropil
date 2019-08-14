@@ -157,6 +157,8 @@ char* np_util_string_trim_left(char* target);
 
 NP_API_EXPORT
 void np_tree2buffer(np_state_t* context, np_tree_t* tree, void* buffer);
+NP_API_EXPORT
+void np_buffer2tree(np_state_t* context, void* buffer, np_tree_t* tree);
 
 
 

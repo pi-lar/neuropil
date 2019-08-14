@@ -311,7 +311,7 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
     msg_handler->data = msg_handler_localdata;
     msg_handler->fn = msg_handler_fn;
 
-    if (msg_prop != NULL) {
+    if (msg_prop != NULL && msg_prop->is_internal == false) {
         sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
 
         if (false == sll_contains(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type)) {

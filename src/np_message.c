@@ -257,7 +257,6 @@ bool _np_message_serialize_chunked(np_message_t* msg)
     NP_PERFORMANCE_POINT_START(message_serialize_chunked);
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: bool _np_message_serialize_chunked(np_state_t* context, np_jobargs_t args){");	
 
-
     np_ref_obj(np_message_t, msg);
 
     bool ret_val = false;
@@ -920,8 +919,8 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
     char partner_key[crypto_scalarmult_curve25519_BYTES*2+1]; partner_key[crypto_scalarmult_curve25519_BYTES*2] = '\0';
 
-    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, context->my_identity->aaa_token->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
-    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, context->my_identity->aaa_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, _np_key_get_token(context->my_identity)->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, _np_key_get_token(context->my_identity)->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
     sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
 
     log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) decrypt: my cu pk: %s ### my ed pk: %s ### pa pk: %s\n", msg->uuid, curve25519_pk, ed25519_pk, partner_key);
@@ -932,7 +931,7 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                 unsigned char sym_key[crypto_secretbox_KEYBYTES];
                 int crypto_ret = crypto_box_open_easy(sym_key, enc_sym_key,
                     crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
-                    nonce, tmp_token->crypto.derived_kx_public_key, context->my_identity->aaa_token->crypto.derived_kx_secret_key);
+                    nonce, tmp_token->crypto.derived_kx_public_key, _np_key_get_token(context->my_identity)->crypto.derived_kx_secret_key);
                 if (0 > crypto_ret)
                 {
                     log_msg(LOG_ERROR, "decryption of message sym_key (%s) failed", msg->uuid);

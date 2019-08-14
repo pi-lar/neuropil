@@ -239,7 +239,7 @@ void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFil
             _np_log_fflush(context, true);
         }
 #else // DEBUG
-        else if (sll_size(np_module(log)->__logger->logentries_l) > 100) {
+        else if (sll_size(np_module(log)->__logger->logentries_l) > 20) {
             _np_event_invoke_file(context);        
         }
 #endif // DEBUG

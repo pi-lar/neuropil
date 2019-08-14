@@ -30,6 +30,7 @@
 #include "np_tree.h"
 #include "np_message.h"
 
+#include "core/np_comp_intent.h"
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
 
@@ -67,31 +68,13 @@
  **/
 
 
-void __np_axon_invoke_on_user_send_callbacks(np_message_t* msg_out, np_msgproperty_t* prop)
-{
-    assert(msg_out != NULL);
-    np_state_t* context = np_ctx_by_memory(msg_out);
-
-    if (msg_out->msg_property == NULL) {
-        np_ref_obj(np_msgproperty_t, prop, ref_message_msg_property);
-        msg_out->msg_property = prop;
-    }
-    // Call user handler for send msgs
-    // sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(prop->user_send_clb);
-    // while (iter_usercallbacks != NULL)
-    // {
-    //     iter_usercallbacks->val->fn(context, msg_out, (msg_out == NULL ? NULL : msg_out->body), iter_usercallbacks->val->data);
-    //     sll_next(iter_usercallbacks);
-    // }
-}
-
 /**
  ** _np_network_append_msg_to_out_queue: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void _np_out(np_state_t* context, np_util_event_t msg_event)
+bool _np_out(np_state_t* context, np_util_event_t msg_event)
 {
-/*    log_trace_msg(LOG_TRACE, "start: void _np_out(np_state_t* context, np_util_event_t msg_event){");
+/*    log_trace_msg(LOG_TRACE, "start: bool _np_out(np_state_t* context, np_util_event_t msg_event){");
 
     uint32_t seq = 0;
     np_message_t* msg_out = args.msg;
@@ -393,11 +376,64 @@ void _np_out(np_state_t* context, np_util_event_t msg_event)
     }
     // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
     */
+    return true;
 }
 
-void _np_out_default(np_state_t* context, np_util_event_t event)
+bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event) 
 {
-    log_debug_msg(LOG_DEBUG, "start: void _np_out_default(np_state_t* context, np_util_event_t msg_event){");
+    log_debug_msg(LOG_TRACE, "start: void __np_out_callback_wrapper(...){");
+
+    NP_CAST(event.user_data, np_message_t, message);
+
+    np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _np_message_get_subject(message) );
+    np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
+    NP_CAST(sll_first(prop_key->entities)->val, np_msgproperty_t, my_property);
+
+    np_message_intent_public_token_t* tmp_token = _np_intent_get_receiver(prop_key, event.target_dhkey);
+    if (NULL != tmp_token)
+    {
+        _np_msgproperty_threshold_increase(my_property);
+        log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", message->uuid, my_property->msg_subject);
+
+        np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
+
+        if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
+        {
+            np_dhkey_t in_handler = _np_msgproperty_dhkey(INBOUND, my_property->msg_subject);
+            np_util_event_t msg_in_event = { .type=(evt_external|evt_message), .context=context, .target_dhkey=receiver_dhkey, .user_data=message };
+            _np_keycache_handle_event(context, in_handler, msg_in_event, false);
+        }
+        else
+        {
+            // TODO: instead of token threshold a local copy of the value should be increased
+            if (np_tree_find_str(tmp_token->extensions_local, "msg_threshold"))
+                np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
+
+            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s %s...", message->uuid, tmp_token->uuid, tmp_token->issuer);
+            // encrypt the relevant message part itself
+            _np_message_encrypt_payload(message, tmp_token);
+
+            np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
+
+        }
+        // decrease threshold counters
+        _np_msgproperty_threshold_decrease(my_property);
+        np_unref_obj(np_aaatoken_t, tmp_token, "_np_intent_get_receiver");
+    }
+    else
+    {
+        log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has NO valid token / %p", message->uuid, my_property->msg_subject, my_property);
+        _np_msgproperty_add_msg_to_send_cache(my_property, message);
+        return false;
+    }
+    np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
+
+    return true;
+}
+
+bool _np_out_default(np_state_t* context, np_util_event_t event)
+{
+    log_debug_msg(LOG_DEBUG, "start: bool _np_out_default(np_state_t* context, np_util_event_t msg_event){");
     np_message_intent_public_token_t* msg_token = NULL;
 
     NP_CAST(event.user_data, np_message_t, forward_msg);
@@ -406,7 +442,7 @@ void _np_out_default(np_state_t* context, np_util_event_t event)
     {
         log_msg(LOG_WARN, "--- request for forward message out, but no connections left ...");
         np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
-        return;
+        return false;
     }
 
     // 1: find next hop based on fingerprint of the token
@@ -424,7 +460,7 @@ void _np_out_default(np_state_t* context, np_util_event_t event)
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
     {
         np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
-        return;
+        return false;
     }
 
     // 2: chunk the message if required
@@ -447,11 +483,13 @@ void _np_out_default(np_state_t* context, np_util_event_t event)
     np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
     np_key_unref_list(tmp, "_np_route_lookup");
     sll_free(np_key_ptr, tmp);
+
+    return true;
 }
 
-void _np_out_available_messages(np_state_t* context, np_util_event_t event)
+bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
 {    
-    log_debug_msg(LOG_DEBUG, "start: void _np_out_available_messages(...){");
+    log_debug_msg(LOG_DEBUG, "start: bool _np_out_available_messages(...){");
     np_message_intent_public_token_t* msg_token = NULL;
 
     NP_CAST(event.user_data, np_message_t, available_msg);
@@ -460,7 +498,7 @@ void _np_out_available_messages(np_state_t* context, np_util_event_t event)
     {
         log_msg(LOG_WARN, "--- request for discovery message out, but no connections left ...");
         np_unref_obj(np_message_t, available_msg, ref_obj_creation);
-        return;
+        return false;
     }
 
     // 1: find next hop based on fingerprint of the token
@@ -493,11 +531,13 @@ void _np_out_available_messages(np_state_t* context, np_util_event_t event)
     np_unref_obj(np_message_t, available_msg, ref_obj_creation);
     np_key_unref_list(tmp, "_np_route_lookup");
     sll_free(np_key_ptr, tmp);
+
+    return true;
 }
 
-void _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
+bool _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
 {    
-    log_debug_msg(LOG_DEBUG, "start: void _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event){");
+    log_debug_msg(LOG_DEBUG, "start: bool _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event){");
     np_message_intent_public_token_t* msg_token = NULL;
 
     NP_CAST(event.user_data, np_message_t, discover_msg);
@@ -506,7 +546,7 @@ void _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
     {
         log_msg(LOG_WARN, "--- request for discovery message out, but no connections left ...");
         np_unref_obj(np_message_t, discover_msg, ref_obj_creation);
-        return;
+        return false;
     }
 
     NP_PERFORMANCE_POINT_START(msg_discovery_out);
@@ -542,12 +582,14 @@ void _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
     np_unref_obj(np_message_t, discover_msg, ref_obj_creation);
     np_key_unref_list(tmp, "_np_route_lookup");
     sll_free(np_key_ptr, tmp);
+
+    return true;
 }
 
-void _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event)
+bool _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event)
 {
  /*   
-    log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event){");
 
     np_dhkey_t target_dhkey = { 0 };
 
@@ -597,12 +639,13 @@ void _np_out_authentication_request(np_state_t* context, np_util_event_t msg_eve
 
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
     */
+    return true;
 }
 
-void _np_out_authentication_reply(np_state_t* context, np_util_event_t msg_event)
+bool _np_out_authentication_reply(np_state_t* context, np_util_event_t msg_event)
 {
     /*
-    log_trace_msg(LOG_TRACE, "start: void _np_out_authentication_reply(np_state_t* context, np_util_event_t msg_event){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_authentication_reply(np_state_t* context, np_util_event_t msg_event){");
 
     np_dhkey_t target_dhkey;
 
@@ -635,12 +678,13 @@ void _np_out_authentication_reply(np_state_t* context, np_util_event_t msg_event
     }
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
     */
+    return true;
 }
 
-void _np_out_authorization_request(np_state_t* context, np_util_event_t msg_event)
+bool _np_out_authorization_request(np_state_t* context, np_util_event_t msg_event)
 {
      /*
-    log_trace_msg(LOG_TRACE, "start: void _np_out_authorization_request(np_state_t* context, np_util_event_t msg_event){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_authorization_request(np_state_t* context, np_util_event_t msg_event){");
 
     np_dhkey_t target_dhkey = { 0 };
 
@@ -675,9 +719,10 @@ void _np_out_authorization_request(np_state_t* context, np_util_event_t msg_even
     np_unref_obj(np_message_t, msg_out,ref_obj_creation);
     np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
     */
+    return true;
 }
 
-void _np_out_authorization_reply(np_state_t* context, np_util_event_t msg_event)
+bool _np_out_authorization_reply(np_state_t* context, np_util_event_t msg_event)
 {/*
     np_dhkey_t target_dhkey = { 0 };
 
@@ -710,9 +755,10 @@ void _np_out_authorization_reply(np_state_t* context, np_util_event_t msg_event)
     }
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
 */
+    return true;
 }
 
-void _np_out_accounting_request(np_state_t* context, np_util_event_t msg_event)
+bool _np_out_accounting_request(np_state_t* context, np_util_event_t msg_event)
 {
    /* 
     np_dhkey_t target_dhkey = { 0 };
@@ -750,15 +796,16 @@ void _np_out_accounting_request(np_state_t* context, np_util_event_t msg_event)
 
     np_unref_obj(np_key_t, aaa_target,ref_obj_creation);
     */
+    return true;
 }
 
 /**
  ** _np_network_append_msg_to_out_queue: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-void _np_out_ack(np_state_t* context, np_util_event_t msg_event)
+bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_send_ack(np_state_t* context, np_util_event_t msg_event){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_send_ack(np_state_t* context, np_util_event_t msg_event){");
 
     np_tree_t* msg_body = np_tree_create();
     np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_event.user_data));
@@ -788,11 +835,13 @@ void _np_out_ack(np_state_t* context, np_util_event_t msg_event)
 
     // __np_axon_invoke_on_user_send_callbacks(args.msg, _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK));
     np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+
+    return true;
 }
 
-void _np_out_ping(np_state_t* context, const np_util_event_t event) 
+bool _np_out_ping(np_state_t* context, const np_util_event_t event) 
 {  
-    log_trace_msg(LOG_TRACE, "start: void _np_out_ping(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_ping(...) {");
 
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
 
@@ -822,11 +871,13 @@ void _np_out_ping(np_state_t* context, const np_util_event_t event)
 
     np_unref_obj(np_message_t, msg_out, ref_obj_creation);
     np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+
+    return true;
 }
 
-void _np_out_piggy(np_state_t* context, const np_util_event_t event) 
+bool _np_out_piggy(np_state_t* context, const np_util_event_t event) 
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_out_piggy(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_piggy(...) {");
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
 
     /* send one row of our routing table back to joiner #host# */    
@@ -877,16 +928,18 @@ void _np_out_piggy(np_state_t* context, const np_util_event_t event)
     sll_free(np_key_ptr, sll_of_keys);
 
     np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+
+    return true;
 }
 
-void _np_out_update(np_state_t* context, const np_util_event_t event) 
+bool _np_out_update(np_state_t* context, const np_util_event_t event) 
 {
-    log_debug_msg(LOG_DEBUG, "start: void _np_out_update(...) {");
+    log_debug_msg(LOG_DEBUG, "start: bool _np_out_update(...) {");
 
     if (!_np_route_my_key_has_connection(context))
     {
         log_msg(LOG_WARN, "--- request for update message out, but no connections left ...");
-        return;
+        return false;
     }
 
     np_tree_t* jrb_token = np_tree_create();
@@ -934,11 +987,12 @@ void _np_out_update(np_state_t* context, const np_util_event_t event)
 
     np_key_unref_list(tmp, "_np_route_lookup");
     sll_free(np_key_ptr, tmp);
+    return true;
 }
 
-void _np_out_leave(np_state_t* context, const np_util_event_t event) 
+bool _np_out_leave(np_state_t* context, const np_util_event_t event) 
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_out_leave(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_leave(...) {");
 
     NP_CAST(event.user_data, np_key_t, property_key);
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
@@ -973,11 +1027,12 @@ void _np_out_leave(np_state_t* context, const np_util_event_t event)
     // 5 cleanup
     np_tree_free(jrb_my_node);
     np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+    return true;
 }
 
-void _np_out_join(np_state_t* context, const np_util_event_t event)
+bool _np_out_join(np_state_t* context, const np_util_event_t event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_out_join_req(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_join_req(...) {");
 
     np_tree_t* jrb_data     = np_tree_create();
     np_tree_t* jrb_my_node  = np_tree_create();
@@ -1024,11 +1079,13 @@ void _np_out_join(np_state_t* context, const np_util_event_t event)
     np_unref_obj(np_key_t, target, "_np_keycache_find");
     np_tree_free(jrb_my_node);
     if (NULL != jrb_my_ident) np_tree_free(jrb_my_ident);
+
+    return true;
 }
 
-void _np_out_handshake(np_state_t* context, const np_util_event_t event)
+bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
 {
-    log_debug_msg(LOG_TRACE, "start: void _np_out_handshake(...) {");
+    log_debug_msg(LOG_TRACE, "start: bool _np_out_handshake(...) {");
 
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
     
@@ -1090,4 +1147,6 @@ void _np_out_handshake(np_state_t* context, const np_util_event_t event)
     NP_PERFORMANCE_POINT_END(handshake_out);
 
     np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+
+    return true;
 }

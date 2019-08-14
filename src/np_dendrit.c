@@ -35,6 +35,7 @@
 #include "np_keycache.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_intent.h"
 #include "core/np_comp_node.h"
 #include "np_network.h"
 #include "np_node.h"
@@ -54,96 +55,10 @@
 #include "np_bootstrap.h"
 #include "neuropil.h"
 
-/*
-will always call all handlers, but will return false if any of the handlers returns false
-*/
-bool _np_in_invoke_user_receive_callbacks(np_message_t * msg_in, np_msgproperty_t* msg_prop) {
-    bool ret = true;
-/*  np_ctx_memory(msg_in);
 
-    ASSERT(msg_prop != NULL, "msg property cannot be null");
-
-    // set msg property if not already set
-    if (msg_in->msg_property == NULL) {
-        np_ref_obj(np_msgproperty_t, msg_prop, ref_message_msg_property);
-        msg_in->msg_property = msg_prop;
-    }
-
-    log_debug(LOG_MESSAGE, "(msg: %s) Invoking user callbacks", msg_in->uuid);
-    // call user callbacks
-    sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(msg_prop->user_receive_clb);
-    while (iter_usercallbacks != NULL)
-    {
-        ret = iter_usercallbacks->val->fn(context, msg_in, msg_in->body, iter_usercallbacks->val->data) && ret;
-        sll_next(iter_usercallbacks);
-    }
-    log_debug(LOG_MESSAGE | LOG_VERBOSE, "(msg: %s) Invoked user callbacks", msg_in->uuid);
-
-    // call msg on_reply if applyable
-    np_tree_elem_t* response_uuid = np_tree_find_str(msg_in->instructions, _NP_MSG_INST_RESPONSE_UUID);
-    if(response_uuid != NULL) {
-        // is response to
-        np_responsecontainer_t *entry = _np_responsecontainers_get_by_uuid(context, np_treeval_to_str(response_uuid->val, NULL));
-
-        // just an acknowledgement of own messages send out earlier
-        //TODO: add msgpropery cmp function to replace strcmp
-        if (entry != NULL && entry->msg != NULL && entry->msg->msg_property->rep_subject != NULL && strcmp(msg_prop->msg_subject, entry->msg->msg_property->rep_subject) == 0)
-        {
-            _np_responsecontainer_received_response(entry, msg_in);
-            log_debug_msg(LOG_ROUTING | LOG_MESSAGE | LOG_DEBUG, "received response of uuid=%s", np_treeval_to_str(response_uuid->val, NULL));
-        }
-        np_unref_obj(np_responsecontainer_t, entry, "_np_responsecontainers_get_by_uuid");
-    }
-    */
-    return ret;
-}
-
-void _np_in_new_msg_received(np_message_t* msg_to_submit, np_msgproperty_t* handler, bool allow_destination_ack) {
-
-    np_ctx_memory(msg_to_submit);
-
-    np_waitref_obj(np_key_t, context->my_node_key, my_key, FUNC);
-
-    CHECK_STR_FIELD(msg_to_submit->instructions, _NP_MSG_INST_ACK, msg_ack);
-
-    if (_np_message_deserialize_chunked(msg_to_submit) == false) {
-        log_msg(LOG_WARN,
-            "msg (%s) could not deserialize chunked msg", msg_to_submit->uuid);
-
-    } else {
-
-        if (_np_msgproperty_check_msg_uniquety(handler, msg_to_submit)) 
-        {    
-            if(!_np_job_submit_msgin_event(0, handler, my_key, msg_to_submit, NULL)) 
-            {
-                _np_msgproperty_remove_msg_from_uniquety_list(handler, msg_to_submit);
-            } 
-            else
-            {
-                log_debug(LOG_MESSAGE, "handling   message (%s) for subject: %s (%d) with function %p",
-                        msg_to_submit->uuid, handler->msg_subject, allow_destination_ack, handler->clb_inbound);
-
-                _np_message_trace_info("accepted", msg_to_submit);
-                _np_increment_received_msgs_counter(handler->msg_subject);
-
-                if (allow_destination_ack)
-                {
-                    _np_send_ack(msg_to_submit, ACK_DESTINATION);
-                }            
-            }
-            //np_job_submit_msgin_event_sync(handler, my_key, msg_to_submit, NULL);
-        } else {
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "msg (%s) is already known", msg_to_submit->uuid);
-        }
-    }
-
-    __np_cleanup__:
-        np_unref_obj(np_key_t, my_key, FUNC);
-}
-
-void _np_in_ping(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_ping(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_in_ping(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_ping(...) {");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
     log_debug_msg(LOG_DEBUG, "_np_in_ping for message uuid %s", msg->uuid);
@@ -156,6 +71,8 @@ void _np_in_ping(np_state_t* context, np_util_event_t msg_event)
     np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=strndup(msg->uuid, NP_UUID_BYTES) };
     _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
     // nothing more to do. work is done only on the sending end (ack handling)
+
+    return true;
 }
 
 /**
@@ -164,9 +81,9 @@ void _np_in_ping(np_state_t* context, np_util_event_t msg_event)
  ** other ctrl messages or separately to the routing table. the PIGGY message type is a separate
  ** message type.
  **/
-void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_in_piggy(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_piggy(...) {");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
@@ -218,8 +135,8 @@ void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
     }
     sll_free(np_node_ptr, o_piggy_list);
 
-    log_trace_msg(LOG_TRACE, "end  : void _np_in_piggy(...) }");
-    return;
+    log_trace_msg(LOG_TRACE, "end  : bool _np_in_piggy(...) }");
+    return true;
 }
 
 /** _np_in_callback_wrapper
@@ -228,89 +145,67 @@ void _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
  ** the user defined callback has to return true in case the ack can be send, or false
  ** if e.g. validation of the message has failed.
  **/
-void _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_callback_wrapper(np_jobargs_t* args){");
+bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
+{
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_callback_wrapper(np_jobargs_t* args){");
 
     np_aaatoken_t* sender_token = NULL;
-    np_message_t* msg_in = args.msg;
+    
+    NP_CAST(msg_event.user_data, np_message_t, msg_in);
+
     bool free_msg_subject = false;
     char* msg_subject;
     log_debug(LOG_MESSAGE, "(msg: %s) start callback wrapper",msg_in->uuid);
     
-    if (args.properties != NULL && args.properties->is_internal)
-    {
-        log_debug(LOG_VERBOSE|LOG_MESSAGE, "(msg: %s) handeling internal msg",msg_in->uuid);
-        _np_in_invoke_user_receive_callbacks(msg_in, args.properties);
-        goto __np_cleanup__;
-    }
-
-    if(NULL == msg_in)
-    {
-        log_msg(LOG_ERROR, "message object null but in use! %s",
-            ((args.properties == NULL)? "" : args.properties->msg_subject)
-        );
-
-        goto __np_cleanup__;
-    }
-
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_ele);    
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
     msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
+    
+    np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(INBOUND, msg_subject);
+    np_key_t* prop_key    = _np_keycache_find(context, prop_dhkey);
     np_msgproperty_t* msg_prop = _np_msgproperty_get(context, INBOUND, msg_subject);
+    
+    bool ret = true;
+    sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
 
-    if (true == _np_message_is_expired(msg_in))
+    if (_np_messsage_threshold_breached(msg_prop) || NULL == sender_token )
     {
-        log_debug_msg(LOG_DEBUG,
-                      "discarding expired message %s / %s ...",
-                      msg_prop->msg_subject, msg_in->uuid);
-
-    } else if (_np_messsage_threshold_breached(msg_prop)) {
         // cleanup of msgs in property receiver msg cache
         _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
-        log_msg(LOG_INFO,"possible message processing overload - retrying later", msg_in->uuid);
-
-        _np_msgproperty_cleanup_receiver_cache(msg_prop);
-
-    } else {
-        _np_msgproperty_threshold_increase(msg_prop);
-        sender_token = _np_aaatoken_get_sender_token(context, (char*)msg_subject,  &msg_from.value.dhkey);
-        if (NULL == sender_token)
+        if (sender_token == NULL)
         {
-            _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
             log_msg(LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
         }
         else
         {
-            log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
-            bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-            if (true == decrypt_ok) {
-                bool user_result = _np_in_invoke_user_receive_callbacks(msg_in, msg_prop);
-                if(user_result)
-                {
-                    _np_send_ack(args.msg, ACK_CLIENT);
-                }
-            }
+            log_msg(LOG_INFO,"possible message processing overload - retrying later", msg_in->uuid);
         }
+        ret = false;
+    } 
+    else
+    {
+        _np_msgproperty_threshold_increase(msg_prop);
+        log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
+        bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
         _np_msgproperty_threshold_decrease(msg_prop);
+        np_unref_obj(np_aaatoken_t, sender_token,"_np_aaatoken_get_sender_token"); // _np_aaatoken_get_sender_token
     }
+    np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
 
-__np_cleanup__:
-    if (free_msg_subject)free(msg_subject);
-    np_unref_obj(np_aaatoken_t, sender_token,"_np_aaatoken_get_sender_token"); // _np_aaatoken_get_sender_token
+    __np_cleanup__:
+    if (free_msg_subject) free(msg_subject);
 
-    return;
-    */
+    return ret;
 }
 
 /** _np_in_leave_req:
  ** internal function that is called at the destination of a LEAVE message. This
  ** call encodes the leaf set of the current host and sends it to the joiner.
  **/
-void _np_in_leave(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: void _np_in_leave(...){");
+    log_debug_msg(LOG_TRACE, "start: bool _np_in_leave(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
         
@@ -328,7 +223,7 @@ void _np_in_leave(np_state_t* context, np_util_event_t msg_event)
             np_unref_obj(np_aaatoken_t, node_token, "np_token_factory_read_from_tree");
         }
     }
-    return;
+    return true;
 }
 
 
@@ -336,9 +231,9 @@ void _np_in_leave(np_state_t* context, np_util_event_t msg_event)
  ** internal function that is called at the destination of a JOIN message. This
  ** call encodes the leaf set of the current host and sends it to the joiner.
  **/
-void _np_in_join(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: void _np_in_join(...){");
+    log_debug_msg(LOG_TRACE, "start: bool _np_in_join(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
@@ -467,12 +362,12 @@ void _np_in_join(np_state_t* context, np_util_event_t msg_event)
         np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
         np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
 
-    return;
+    return true;
 }
 
-void _np_in_ack(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_ack(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: void __np_in_ack(...){");
+    log_debug_msg(LOG_TRACE, "start: bool __np_in_ack(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
@@ -497,15 +392,17 @@ void _np_in_ack(np_state_t* context, np_util_event_t msg_event)
  
     __np_cleanup__:
     np_unref_obj(np_key_t, ack_key, "_np_keycache_find");
+
+    return true;
 }
 
 // TODO: write a function that handles path discovery
 // TODO: if this is not the target node, add my own address to the update message
 // TODO: if this is the target node, change target to sending instance and send again
 // receive information about new nodes in the network and try to contact new nodes
-void _np_in_update(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_DEBUG, "start: void _np_in_update(np_jobargs_t* args){");
+    log_debug_msg(LOG_DEBUG, "start: bool _np_in_update(np_jobargs_t* args){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
@@ -542,12 +439,12 @@ void _np_in_update(np_state_t* context, np_util_event_t msg_event)
     __np_cleanup__:
     np_unref_obj(np_aaatoken_t, update_token, "np_token_factory_read_from_tree");
 
-    return;
+    return true;
 }
 
-void _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: void _np_in_discover_sender(...){");
+    log_debug_msg(LOG_TRACE, "start: bool _np_in_discover_sender(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, discover_msg_in);
     np_aaatoken_t* msg_token = NULL;
@@ -573,12 +470,12 @@ void _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event)
     __np_cleanup__:
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
 
-    return;
+    return true;
 }
 
-void _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_in_available_sender(...){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_available_sender(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, available_msg_in);
 
@@ -590,11 +487,13 @@ void _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
     
     np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
     _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+
+    return true;
 }
 
-void _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: void _np_in_discover_receiver(...){");
+    log_debug_msg(LOG_TRACE, "start: bool _np_in_discover_receiver(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, discover_msg_in);
     np_aaatoken_t* msg_token = NULL;
@@ -614,12 +513,12 @@ void _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event)
     __np_cleanup__:
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
 
-    return;
+    return true;
 }
 
-void _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_in_available_receiver(...){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_available_receiver(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, available_msg_in);
 
@@ -631,11 +530,13 @@ void _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
     
     np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
     _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+
+    return true;
 }
 
-void _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
 {/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_authenticate(np_jobargs_t* args){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_authenticate(np_jobargs_t* args){");
     np_aaatoken_t* sender_token = NULL;
     np_aaatoken_t* authentication_token = NULL;
     np_message_t *msg_in = args.msg;
@@ -715,9 +616,9 @@ void _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
     return;*/
 }
 
-void _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event)
 {/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_authenticate_reply(np_jobargs_t* args){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_authenticate_reply(np_jobargs_t* args){");
     np_aaatoken_t* authentication_token = NULL;
     np_aaatoken_t* sender_token = NULL;
     np_key_t* subject_key = NULL;
@@ -806,9 +707,9 @@ void _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event)
     return; */
 }
 
-void _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
 {/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_authorize(np_jobargs_t* args){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_authorize(np_jobargs_t* args){");
 
     np_aaatoken_t* sender_token = NULL;
     np_aaatoken_t* authorization_token = NULL;
@@ -888,9 +789,9 @@ void _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
     return;*/
 }
 
-void _np_in_authorize_reply(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_authorize_reply(np_state_t* context, np_util_event_t msg_event)
 {/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_authorize_reply(np_jobargs_t* args){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_authorize_reply(np_jobargs_t* args){");
     np_aaatoken_t* authorization_token = NULL;
     np_aaatoken_t* sender_token = NULL;
 
@@ -975,9 +876,9 @@ void _np_in_authorize_reply(np_state_t* context, np_util_event_t msg_event)
     return;*/
 }
 
-void _np_in_account(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_account(np_state_t* context, np_util_event_t msg_event)
 {/*
-    log_trace_msg(LOG_TRACE, "start: void _np_in_account(np_jobargs_t* args){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_account(np_jobargs_t* args){");
     np_aaatoken_t* sender_token = NULL;
     np_aaatoken_t* accounting_token = NULL;
 
@@ -1015,9 +916,9 @@ void _np_in_account(np_state_t* context, np_util_event_t msg_event)
     return;*/
 }
 
-void _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_msgin_handshake(np_message_t* msg) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_msgin_handshake(np_message_t* msg) {");
 
     log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint handshake 2");
     NP_CAST(msg_event.user_data, np_message_t, msg);
@@ -1088,12 +989,14 @@ void _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
         np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
         if (hs_alias_key) np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
         np_unref_obj(np_key_t, msg_source_key, "_np_keycache_find_or_create");
+
+    return true;
 }
 
 /*
-void _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
+bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_in_handshake(np_jobargs_t* args){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_handshake(np_jobargs_t* args){");
 
     log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint handshake 1");
     _LOCK_MODULE(np_handshake_t) 

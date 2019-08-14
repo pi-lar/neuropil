@@ -172,7 +172,7 @@ void __np_key_populate_states(np_key_t* key)
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_ALIAS, "IN_USE_ALIAS", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_decrypt    , __is_crypted_message); // decrypt transport encryption
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_message); // pass on to the specific message intent
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_in_message); // pass on to the specific message intent
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_dht_message); // handle ght messages (ping, piggy, leave, update)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_discovery_message); // handle discovery messages (sender list, dicover sender, ...)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_forward, __is_forward_message); // handle forwarding of all other messages , but fill ara routing table
@@ -207,7 +207,7 @@ void __np_key_populate_states(np_key_t* key)
 
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_decrypt       , __is_payload_encrypted); // decrypt business payload
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_response_handler_set   , __is_response_event); // user changed mx_properties
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_out_usermsg   , __is_usr_message); // send out intents
+            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_out_usermsg   , __is_usr_message); // send out intents
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_in_msg , __is_external_message); // call usr callback function
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_out_msg, __is_internal_message); // call usr callback function
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_intent , __is_intent_authz); // received authn information (eventually through identity join)

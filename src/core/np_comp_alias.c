@@ -448,8 +448,41 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
         CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
         {
             // messagepart is not addressed to our node --> forward
-            ret &= (0 == _np_dhkey_cmp(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey));
+            ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
         }
+    }
+    return ret;
+}
+
+bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_usr_in_message(...) {");
+
+    bool ret = false;
+
+    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
+    if ( ret) ret &= (event.user_data != NULL);
+
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+    if ( ret) {
+        NP_CAST(event.user_data, np_message_t, usr_message);
+        /* TODO: use the bloom, luke */
+        CHECK_STR_FIELD_BOOL(usr_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
+        {
+            np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
+            np_key_t* subject_key = _np_keycache_find(context, subject_dhkey);
+
+            ret &= (NULL != subject_key);
+        }
+
+        CHECK_STR_FIELD_BOOL(usr_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
+        {
+            ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
+        }
+
+        np_msgproperty_t* user_prop = _np_msgproperty_get(context, INBOUND, str_msg_subject->val.value.s);
+        ret &= (false == user_prop->is_internal);
     }
     return ret;
 }
@@ -486,8 +519,6 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
 
     NP_CAST(event.user_data, np_message_t, message_in);
 
-    bool forward_message = false;
-
     CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject);
     CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_TO, str_msg_to);
 
@@ -518,7 +549,30 @@ bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_
     return ret;
 }
 
-void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // pass on to the specific message intent
+void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_handle_usr_msg(...) {");
+
+    NP_CAST(event.user_data, np_message_t, message);
+
+    // TODO: messag part cache should be a component on its own, but for now just use it
+    np_message_t* msg_to_use = _np_alias_check_msgpart_cache(context, message);
+
+    if (msg_to_use != NULL) 
+    {
+        if (_np_message_deserialize_chunked(msg_to_use) ) 
+        {
+            CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
+            {
+                np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
+                np_util_event_t msg_event = event;
+                msg_event.user_data = msg_to_use;
+                _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
+            }
+        }
+    }
+} 
 
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
 void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) {}

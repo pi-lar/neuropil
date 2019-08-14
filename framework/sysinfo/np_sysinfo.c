@@ -155,7 +155,8 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
     log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo (uuid: %s )", msg->uuid);
 
     np_tree_t* payload = np_tree_create();
-    np_tree_deserialize(context, payload, msg->data);
+    np_buffer2tree(context, msg->data, payload);
+    // np_tree_deserialize(context, payload, msg->data);
 
     np_tree_elem_t* source = np_tree_find_str(payload, _NP_SYSINFO_SOURCE);
     if (NULL == source) 

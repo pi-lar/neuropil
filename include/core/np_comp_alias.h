@@ -50,6 +50,9 @@ NP_API_INTERN
 bool __is_forward_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
+bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
 bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event); // pass on to the specific message intent

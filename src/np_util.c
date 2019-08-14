@@ -189,9 +189,17 @@ JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
 
 void np_tree2buffer(np_state_t* context, np_tree_t* tree, void* buffer)
 {
-    cmp_ctx_t cmp;
-    cmp_init(&cmp, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-    np_tree_serialize(context, tree, &cmp);
+    cmp_ctx_t cmp_write;
+    cmp_init(&cmp_write, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+    np_tree_serialize(context, tree, &cmp_write);
+}
+
+void np_buffer2tree(np_state_t* context, void* buffer, np_tree_t* tree)
+{
+    // Beginn reading section
+    cmp_ctx_t cmp_read;
+    cmp_init(&cmp_read, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+    np_tree_deserialize(context, tree, &cmp_read);
 }
 
 char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {

@@ -478,7 +478,6 @@ enum np_return np_send(np_context* ac, const char* subject, const unsigned char*
 
 enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target)) 
 {
-    
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
@@ -492,11 +491,11 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     }
     np_message_t* msg_out = NULL;
     np_new_obj(np_message_t, msg_out);
-    _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, subject, body);
+    _np_message_create(msg_out, subject_dhkey, context->my_node_key->dhkey, subject, body);
 
     log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")", length);
 
-    np_util_event_t send_event = { .type=(evt_userspace | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
+    np_util_event_t send_event = { .type=(evt_internal | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
     _np_keycache_handle_event(context, subject_dhkey, send_event, false);
 
     return ret;
@@ -507,12 +506,12 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     np_ctx_cast(ac);
     bool ret = true;
     np_receive_callback callback = localdata;
-    np_tree_elem_t*  userdata = np_tree_find_str(body, NP_SERIALISATION_USERDATA);
+    np_tree_elem_t* userdata = np_tree_find_str(body, NP_SERIALISATION_USERDATA);
 
     if (userdata != NULL) {
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
-        np_get_id(&message.subject, msg->msg_property->msg_subject, strlen(msg->msg_property->msg_subject));
+        np_get_id(&message.subject, _np_message_get_subject(msg), strlen(_np_message_get_subject(msg)));
         
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 

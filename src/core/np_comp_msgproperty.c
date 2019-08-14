@@ -22,6 +22,7 @@
 #include "np_keycache.h"
 #include "np_legacy.h"
 #include "np_message.h"
+#include "np_statistics.h"
 #include "np_token_factory.h"
 #include "np_responsecontainer.h"
 #include "np_tree.h"
@@ -987,8 +988,13 @@ void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event
     if (property->is_internal == false) {
         _np_msgproperty_create_token_ledger(statemachine, event);
     
+        if (false == sll_contains(np_evt_callback_t, property->clb_outbound, _np_out_callback_wrapper, np_evt_callback_t_sll_compare_type)) 
+        {   // first encrypt the payload for receiver 
+            sll_append(np_evt_callback_t, property->clb_outbound, _np_out_callback_wrapper);
+        }
+
         if (false == sll_contains(np_evt_callback_t, property->clb_outbound, _np_out_default, np_evt_callback_t_sll_compare_type)) 
-        {
+        {   // then route and send message
             sll_append(np_evt_callback_t, property->clb_outbound, _np_out_default);
         }
     }
@@ -1124,26 +1130,31 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
 
+    NP_CAST(event.user_data, np_message_t, msg_in);
+
+    bool ret = true;
+
+    _np_increment_received_msgs_counter(property->msg_subject);
+
     sll_iterator(np_evt_callback_t) iter = sll_first(property->clb_inbound);
-    while (iter != NULL)
+    while (iter != NULL && ret)
     {
         if (iter->val != NULL) 
         {
-            log_debug_msg(LOG_TRACE, "start: void __np_property_handle_in_msg(...) { % s", property->msg_subject);
-            iter->val(context, event);
+            ret &= iter->val(context, event);
         }
         sll_next(iter);
     }
 
     if (property->is_internal == false) {
-        sll_iterator(np_usercallback_ptr) iter = sll_first(property->user_receive_clb);
-        while (iter != NULL)
+        // call user callbacks
+        sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(property->user_receive_clb);
+        while (iter_usercallbacks != NULL && ret)
         {
-            if (iter->val != NULL) {
-                // iter->val(context, my_jobargs->msg);
-            }
-            sll_next(iter);
+            ret &= iter_usercallbacks->val->fn(context, msg_in, msg_in->body, iter_usercallbacks->val->data);
+            sll_next(iter_usercallbacks);
         }
+        log_debug(LOG_DEBUG, "(msg: %s) invoked user callback", msg_in->uuid);
     }
 }
 
@@ -1163,32 +1174,34 @@ bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_e
 void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_out_msg(...) {");
+    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_out_msg(...) { %p", statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);    
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
 
+    NP_CAST(event.user_data, np_message_t, msg_out);
+
+    bool ret = true;
     if (property->is_internal == false)
     {
-        sll_iterator(np_usercallback_ptr) iter = sll_first(property->user_send_clb);
-        while (iter != NULL)
+        sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(property->user_send_clb);
+        while (iter_usercallbacks != NULL && ret)
         {
-            if (iter->val != NULL)
-            {
-                // iter->val->fn(context, event.user_data );
-            }
-            sll_next(iter);
+            ret &= iter_usercallbacks->val->fn(context, msg_out, (msg_out == NULL ? NULL : msg_out->body), iter_usercallbacks->val->data);
+            sll_next(iter_usercallbacks);
         }
     }
 
     sll_iterator(np_evt_callback_t) iter = sll_first(property->clb_outbound);
-    while (iter != NULL)
+    while (iter != NULL && ret)
     {
         if (iter->val != NULL) {
-            iter->val(context, event);
+            ret &= iter->val(context, event);
         }
         sll_next(iter);
     }
+
+    _np_increment_send_msgs_counter(property->msg_subject);
 }
        
 void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -1257,64 +1270,5 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
     }
 
     np_unref_obj(np_aaatoken_t, intent_token, "np_token_factory_read_from_tree");
-}
-
-void __np_property_out_usermsg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_out_usermsg(...){");
-
-    NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
-    NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, my_property);
-
-    NP_CAST(event.user_data, np_message_t, message);
-
-    np_message_intent_public_token_t* tmp_token = _np_intent_get_receiver(my_property_key, event.target_dhkey);
-    if (NULL != tmp_token)
-    {
-        _np_msgproperty_threshold_increase(my_property);
-        log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", message->uuid, my_property->msg_subject);
-
-        // TODO: instead of token threshold a local copy of the value should be increased
-        np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
-
-        np_dhkey_t empty_check = { 0 };
-        np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
-
-        if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
-        {
-            np_dhkey_t in_handler = _np_msgproperty_dhkey(INBOUND, my_property->msg_subject);
-            np_util_event_t msg_in_event = { .type=(evt_external|evt_message), .context=context, .target_dhkey=receiver_dhkey, .user_data=message };
-            _np_keycache_handle_event(context, in_handler, msg_in_event, false);
-        }
-        else
-        {
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s %s...", message->uuid, tmp_token->uuid, tmp_token->issuer);
-            // encrypt the relevant message part itself
-            _np_message_encrypt_payload(message, tmp_token);
-
-            np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
-
-            if (NULL != my_property->rep_subject &&
-                FLAG_CMP(my_property->mep_type, STICKY_REPLY))
-            {
-                // np_aaatoken_t* old_token = _np_aaatoken_add_sender(msg_prop->rep_subject, tmp_token);
-                // np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_sender");
-            }
-
-            np_util_event_t msg_out_event = { .type=(evt_external|evt_message), .context=context, .target_dhkey=receiver_dhkey, .user_data=message };
-            __np_property_handle_out_msg(statemachine, msg_out_event);
-
-            // decrease threshold counters
-            _np_msgproperty_threshold_decrease(my_property);
-
-            np_unref_obj(np_aaatoken_t, tmp_token, "_np_aaatoken_get_receiver");
-        }
-    }
-    else
-    {
-        log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has NO valid token / %p", message->uuid, my_property->msg_subject, my_property);
-        // _np_msgproperty_add_msg_to_send_cache(my_property, message);
-    }
 }
 

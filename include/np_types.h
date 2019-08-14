@@ -83,7 +83,7 @@ typedef void(*np_threads_worker_run) (np_state_t* context, np_thread_t* thread);
 
 // internal callback functions
 typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t);
-typedef void (*np_evt_callback_t) (np_state_t* context, np_util_event_t);
+typedef bool (*np_evt_callback_t) (np_state_t* context, np_util_event_t);
 typedef int(*_np_cmp_t)(void* a, void* b);
 
 typedef struct np_usercallback_s {
@@ -91,7 +91,7 @@ typedef struct np_usercallback_s {
     np_usercallbackfunction_t fn;
 } np_usercallback_t;
 
-typedef np_usercallback_t * np_usercallback_ptr;
+typedef np_usercallback_t* np_usercallback_ptr;
 
 /*
 * list types and typedefs

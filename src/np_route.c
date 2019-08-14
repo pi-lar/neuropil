@@ -356,7 +356,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
             }
         }
 
-        sll_append(np_key_ptr, sll_of_keys, np_module(route)->my_key);
+        // sll_append(np_key_ptr, sll_of_keys, np_module(route)->my_key);
         np_key_ref_list(sll_of_keys, FUNC, NULL);
     }
 
@@ -415,7 +415,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
             _np_dhkey_between (&key, &np_module(route)->Lrange, &np_module(route)->Rrange, true))
         {
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
-            sll_append(np_key_ptr, key_list, np_module(route)->my_key);
+            // sll_append(np_key_ptr, key_list, np_module(route)->my_key);
 
             _np_route_append_leafset_to_sll(np_module(route)->left_leafset, key_list);
             _np_route_append_leafset_to_sll(np_module(route)->right_leafset, key_list);
@@ -534,44 +534,48 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                 ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", FUNC);
                 sll_append(np_key_ptr, return_list, min);
             }
-        }
-        else
-        {
-            if (2 <= key_list->size)
-            {
-                _np_keycache_sort_keys_cpm (key_list, &key);
-                /* find the best #count# entries that we looked at ... could be much better */
-                
-                /* removing duplicates from the list */				
-                sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
-                sll_iterator(np_key_ptr) iter2 = NULL;
-                bool iters_equal = false;
-                uint8_t requested_list_size = 0;
-                while (iter1 != NULL)
-                {
-                    iters_equal = false;
-                    iter2 = sll_first(return_list);
-                    while (iter2 != NULL)
-                    {
-                        if (_np_dhkey_equal(&iter2->val->dhkey, &iter1->val->dhkey)==true) {
-                            iters_equal = true;
-                            break;
-                        }
-                        sll_next(iter2);
-                    }
-                    if (iters_equal == false) {
-                        np_ref_obj(np_key_t, iter1->val);
-                        sll_append(np_key_ptr, return_list, iter1->val);
-                        requested_list_size++;
-                    }
-                    if (requested_list_size >= count)
-                    		break;
 
-                    sll_next(iter1);
-                }
-            }
+            sll_free (np_key_ptr, key_list);
+            _np_threads_unlock_module(context, np_routeglobal_t_lock);
+            log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_lookup");
+            return return_list;
         }
-        
+
+        if (2 <= sll_size(key_list) )
+        {
+            _np_keycache_sort_keys_cpm (key_list, &key);
+            /* find the best #count# entries that we looked at ... could be much better */
+            
+            /* removing duplicates from the list */				
+            sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
+            sll_iterator(np_key_ptr) iter2 = NULL;
+            bool iters_equal = false;
+            uint8_t requested_list_size = 0;
+            while (iter1 != NULL)
+            {
+                iters_equal = false;
+                iter2 = sll_first(return_list);
+                while (iter2 != NULL)
+                {
+                    if (_np_dhkey_equal(&iter2->val->dhkey, &iter1->val->dhkey)==true) {
+                        iters_equal = true;
+                        break;
+                    }
+                    sll_next(iter2);
+                }
+                
+                if (iters_equal == false || iter2 == NULL) 
+                {
+                    np_ref_obj(np_key_t, iter1->val);
+                    sll_append(np_key_ptr, return_list, iter1->val);
+                    requested_list_size++;
+                }
+                if (requested_list_size >= count)
+                        break;
+
+                sll_next(iter1);
+            }
+        }        
 
         /*  to prevent bouncing */
         if (count == 1 && sll_size(return_list) > 0)
