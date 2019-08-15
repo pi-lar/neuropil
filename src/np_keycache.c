@@ -342,29 +342,15 @@ np_key_t* _np_keycache_find_closest_key_to (np_state_t* context,  np_sll_t(np_ke
     bool first_run = true;
     while (NULL != iter)
     {
-        if(iter->val->in_destroy == false){
-
-            int cmp = _np_dhkey_cmp(key, &(iter->val->dhkey));
-            // calculate distance to the left and right
-            if(cmp > 0){
-                _np_dhkey_distance (&dif, key, &(iter->val->dhkey));
-            }
-            else if(cmp < 0) {
-                _np_dhkey_distance(&dif, &(iter->val->dhkey), key);
-            }
-            else {
-                min_key = iter->val; // we have a perfect match
-                break;
-            }
-
+        if(iter->val->in_destroy == false) {
+            _np_dhkey_distance (&dif, key, &(iter->val->dhkey));
             // Set reference point at first iteration, then compare current iterations distance with shortest known distance
-            cmp = _np_dhkey_cmp(&dif, &minDif);
-            if (true == first_run || cmp  < 0)
+            int8_t cmp = _np_dhkey_cmp(&dif, &minDif);
+            if (true == first_run || cmp <= 0)
             {
                 min_key = iter->val;
                 _np_dhkey_assign (&minDif, &dif);
             }
-
             first_run = false;
         }
         sll_next(iter);		
@@ -372,11 +358,7 @@ np_key_t* _np_keycache_find_closest_key_to (np_state_t* context,  np_sll_t(np_ke
 
     if (sll_size(list_of_keys) == 0)
     {
-        log_msg(LOG_KEY | LOG_WARN, "minimum size for closest key calculation not met !"); 
-    }
-    
-    if(NULL != min_key){
-        np_ref_obj(np_key_t, min_key);
+        log_msg(LOG_KEY | LOG_WARN, "minimum size for closest key calculation not met !");
     }
     return (min_key);
 }

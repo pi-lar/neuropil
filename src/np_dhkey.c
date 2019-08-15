@@ -180,7 +180,19 @@ np_dhkey_t np_dhkey_max(NP_UNUSED np_state_t* context)  {
 // TODO: the distance of two hash keys could be implemented much better
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {	
-    _np_dhkey_sub(diff, k1, k2);
+    int cmp = _np_dhkey_cmp(k1, k2);
+    // calculate absolute distance
+    if(cmp > 0)
+    {
+        _np_dhkey_sub (diff, k1, k2);
+    }
+    else 
+    {
+        _np_dhkey_sub(diff, k2, k1);
+    }
+
+    if (_np_dhkey_cmp(&__dhkey_half, diff) < 0)
+        _np_dhkey_sub(diff, &__dhkey_max, diff);
 }
 
 void _np_dhkey_hamming_distance(uint16_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y)
@@ -203,25 +215,29 @@ bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const le
     bool ret = false;
     log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_between");
 
-    int8_t comp_lt = _np_dhkey_cmp (left, test);
+    int8_t comp_lt = _np_dhkey_cmp (left, test );
     int8_t comp_tr = _np_dhkey_cmp (test, right);
+    int8_t comp_lr = _np_dhkey_cmp (left, right);
 
     /* it's on one of the edges */
     if (comp_lt == 0 || comp_tr == 0) {
-        ret = includeBounds ;
+        ret = includeBounds;
     }
-    // it is a 'default' compare (test has to be between left and right)
-    else if (_np_dhkey_cmp(left, right) <  0) {		
-        ret = (comp_lt <= 0 && comp_tr <= 0);
+    else if (comp_lr < 0) 
+    {		
+        // it is a 'default' compare (test has to be between left and right)
+        ret = (comp_lt < 0 && comp_tr < 0);
     }
-    /* it is an 'outer circle' compare: 
-    min to max builds a circle for all values. 
-    we search for a value between:
-        1) the value on the far right(aka the current left one) 
-        2) and the value on the far left(aka the current rigth one)
-    */
-    else {		
-        ret = ( _np_dhkey_cmp(left, test) <= 0 || _np_dhkey_cmp(test, right) <= 0);
+    else 
+    {
+        /* it is an 'outer circle' compare: 
+        min to max builds a circle for all values. 
+        we search for a value between:
+            1) the value on the far right(aka the current left one) 
+            2) and the value on the far left(aka the current rigth one)
+        */
+        ret = (comp_lt < 0 && comp_tr > 0);
+        // ret = ( _np_dhkey_cmp(left, test) <= 0 || _np_dhkey_cmp(test, right) <= 0);
     }
 
     log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_between");

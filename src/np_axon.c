@@ -455,7 +455,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
 
     np_key_t* target = sll_first(tmp)->val;
 
-    log_msg(LOG_INFO, "forwarding/sending message (%s) to         : %s (%d)", forward_msg->uuid, _np_key_as_str(target), sll_size(tmp));
+    log_msg(LOG_INFO, "sending    message (%s) to: %s (%d)", forward_msg->uuid, _np_key_as_str(target), sll_size(tmp));
 
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
     {

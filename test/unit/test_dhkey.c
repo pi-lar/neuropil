@@ -170,7 +170,6 @@ Test(np_dhkey_t, _dhkey_between, .description = "test the between length of two 
 		cr_expect(false == _np_dhkey_between(&key_2, &key_3, &key_1, true), "expected key2 to be not between key3 and key1");
 		cr_expect(false == _np_dhkey_between(&key_1, &key_2, &key_3, false), "expected key1 to be not between key2 and key3");
 		cr_expect(false == _np_dhkey_between(&key_4, &key_2, &key_3, false), "expected key4 to be not between key2 and key3");
-		cr_expect(false == _np_dhkey_between(&key_2, &key_3, &key_1, false), "expected key2 to be not between key3 and key1");
 
 		// test in bounds
 		cr_expect(true == _np_dhkey_between(&key_2, &key_1, &key_3, true), "expected key2 to be between key1 and key3");
@@ -187,7 +186,7 @@ Test(np_dhkey_t, _dhkey_between, .description = "test the between length of two 
 	}
 }
 
-Test(np_dhkey_t, _dhkey_distance, .description = "test the between length of two keys")
+Test(np_dhkey_t, _dhkey_distance, .description = "test the distance between length of two keys")
 {
 	CTX() {
 		np_dhkey_t key_1 = { .t[0] = 1,.t[1] = 1,.t[2] = 1,.t[3] = 1 ,.t[4] = 1 ,.t[5] = 1 ,.t[6] = 1 ,.t[7] = 1 };
@@ -196,6 +195,8 @@ Test(np_dhkey_t, _dhkey_distance, .description = "test the between length of two
 
 		np_dhkey_t result;
 		_np_dhkey_distance(&result, &key_3, &key_2);
+		cr_expect(0 == _np_dhkey_cmp(&result, &key_1), "expected the result to be key_1");
+		_np_dhkey_distance(&result, &key_2, &key_3);
 		cr_expect(0 == _np_dhkey_cmp(&result, &key_1), "expected the result to be key_1");
 	}
 }

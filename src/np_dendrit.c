@@ -419,12 +419,14 @@ bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
     }
 
     np_dhkey_t update_dhkey = np_aaatoken_get_fingerprint(update_token, false);
-
     np_key_t* update_key = _np_keycache_find(context, update_dhkey);
-    if (NULL == update_key )
+
+    if (NULL == update_key)
     {   // potentially join the new node
+        update_key = _np_keycache_find_or_create(context, update_dhkey);
         np_util_event_t update_event = { .type=(evt_external|evt_token), .context=context, .user_data=update_token, .target_dhkey=update_dhkey};
         _np_keycache_handle_event(context, update_dhkey, update_event, false);
+        np_unref_obj(np_key_t, update_key,"_np_keycache_find_or_create");
 
         // and forward the token to another hop
         np_dhkey_t update_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
