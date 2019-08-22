@@ -74,8 +74,3 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 
 	return cache->received++;
 }
-
-DEPRECATED
-void np_send_text(np_context* ac, char* subject, char* buffer, NP_UNUSED uint32_t seq, np_id target) {
-	np_send_to(ac, subject, (uint8_t*)buffer, strlen(buffer)+1, target); // ignoring encoding etc for now
-}

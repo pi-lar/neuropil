@@ -433,8 +433,6 @@ void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np
 
 NP_API_INTERN
 bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-void __np_property_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
 void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event);

@@ -72,7 +72,7 @@ void _np_sysinfo_destroy_cache(np_state_t* context)
     }
 }
 
-void _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_util_event_t args)
+bool _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_util_event_t args)
 {    
     _np_sysinfo_init_cache(context);
 
@@ -92,8 +92,9 @@ void _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_util_event_t a
     }
     else 
     {
-        log_debug_msg(LOG_DEBUG| LOG_SYSINFO, "no receiver token for \""_NP_SYSINFO_DATA"\"");
+        log_debug_msg(LOG_DEBUG| LOG_SYSINFO, "no receiver token for %s", _NP_SYSINFO_DATA);
     }
+    return true;
 }
 
 void np_sysinfo_enable_client(np_state_t* context)

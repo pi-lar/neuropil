@@ -68,7 +68,14 @@ bool _np_in_ping(np_state_t* context, np_util_event_t msg_event)
     np_dhkey_t ack_dhkey   = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
     np_dhkey_t target = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
 
-    np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=strndup(msg->uuid, NP_UUID_BYTES) };
+    np_tree_t* msg_body = np_tree_create();
+    np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
+
+    np_message_t* msg_out;
+    np_new_obj(np_message_t, msg_out);
+    _np_message_create(msg_out, target, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
+
+    np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=msg_out };
     _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
     // nothing more to do. work is done only on the sending end (ack handling)
 
@@ -148,26 +155,23 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
 {
     log_trace_msg(LOG_TRACE, "start: bool _np_in_callback_wrapper(np_jobargs_t* args){");
-
-    np_aaatoken_t* sender_token = NULL;
     
     NP_CAST(msg_event.user_data, np_message_t, msg_in);
 
-    bool free_msg_subject = false;
-    char* msg_subject;
     log_debug(LOG_MESSAGE, "(msg: %s) start callback wrapper",msg_in->uuid);
     
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_ele);    
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-    msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
+    bool free_msg_subject = false;
+    char* msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
     
     np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(INBOUND, msg_subject);
     np_key_t* prop_key    = _np_keycache_find(context, prop_dhkey);
     np_msgproperty_t* msg_prop = _np_msgproperty_get(context, INBOUND, msg_subject);
     
     bool ret = true;
-    sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
+    np_aaatoken_t* sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
 
     if (_np_messsage_threshold_breached(msg_prop) || NULL == sender_token )
     {

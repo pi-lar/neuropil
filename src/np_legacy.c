@@ -305,18 +305,19 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
     // check whether an handler already exists
     np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, INBOUND, subject);
     
-    log_debug(LOG_MISC, "Adding receive listener on subject %s / property %p", subject, msg_prop);
+    log_debug(LOG_INFO, "adding receive listener on subject %s / property %p", subject, msg_prop);
     
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;
     msg_handler->fn = msg_handler_fn;
 
-    if (msg_prop != NULL && msg_prop->is_internal == false) {
-        sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
-
-        if (false == sll_contains(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type)) {
+    if (msg_prop != NULL && msg_prop->is_internal == false) 
+    {
+        if (false == sll_contains(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type)) 
+        {
             sll_append(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
         }
+        sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
     }
 }
 /**

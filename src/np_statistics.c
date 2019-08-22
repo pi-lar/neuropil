@@ -58,10 +58,9 @@ struct np_statistics_element_s {
 
 typedef struct np_statistics_element_s np_statistics_element_t;
 
-bool _np_statistics_receive_msg_on_watched(np_context* ac, const np_message_t* const msg, NP_UNUSED np_tree_t* body, NP_UNUSED void* localdata)
+bool _np_statistics_receive_msg_on_watched(np_state_t* context, np_util_event_t event)
 {
-    np_ctx_cast(ac);
-    assert(msg != NULL);
+    NP_CAST(event.user_data, np_message_t, msg);
 
     np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
     if (item != NULL) {
@@ -70,10 +69,9 @@ bool _np_statistics_receive_msg_on_watched(np_context* ac, const np_message_t* c
     return true;
 }
 
-bool _np_statistics_send_msg_on_watched(np_context* ac, const np_message_t* const msg, NP_UNUSED np_tree_t* body, NP_UNUSED void* localdata)
+bool _np_statistics_send_msg_on_watched(np_state_t* context, np_util_event_t event)
 {
-    np_ctx_cast(ac);
-    assert(msg != NULL);	
+    NP_CAST(event.user_data, np_message_t, msg);
 
     np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
     if (item != NULL) {
@@ -85,14 +83,17 @@ bool _np_statistics_send_msg_on_watched(np_context* ac, const np_message_t* cons
 
 uint64_t get_timestamp(){
     return (uint64_t) _np_time_now(NULL)*1000;
-} 
-void __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_util_event_t event) {
+}
 
+bool __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_util_event_t event) 
+{
     np_module_var(statistics);
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_job_count], np_jobqueue_count(context));
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], get_timestamp()-((uint64_t)_module->startup_time*1000));
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_neighbor_count], _np_route_my_key_count_neighbors(context, NULL, NULL));        
-    prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_route_count], _np_route_my_key_count_routes(context));        
+    prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_route_count], _np_route_my_key_count_routes(context));
+    
+    return true;
 }
 
 bool _np_statistics_init(np_state_t* context) {
@@ -292,7 +293,6 @@ void _np_statistics_destroy(np_state_t* context)
             free(tmp->val.value.v);
         }
 
-        
         RB_FOREACH(tmp, np_tree_s, _module->_per_subject_metrics)
         {
             free(tmp->val.value.v);
@@ -324,9 +324,9 @@ void np_statistics_add_watch(np_state_t* context, const char* subject) {
         sll_next(iter_subjects);
     }
 
-    const char* key = subject;
+    const char* key = (char*) subject;
     if (addtolist == true) {
-        key = strdup(subject);
+        // char* key_dup = strndup(subject, strlen(subject) );
         sll_append(char_ptr, np_module(statistics)->__watched_subjects, key);
         np_simple_cache_insert(context, np_module(statistics)->__cache, key, calloc(1, sizeof(np_statistics_element_t)));
     }
@@ -341,13 +341,15 @@ void np_statistics_add_watch(np_state_t* context, const char* subject) {
     }
 
     if (false == container->watch_receive && _np_msgproperty_get(context, INBOUND, key) != NULL) {
+        np_msgproperty_t* prop = _np_msgproperty_get(context, INBOUND, key);
+        sll_append(np_evt_callback_t, prop->clb_inbound, _np_statistics_receive_msg_on_watched);
         container->watch_receive = true;
-        np_add_receive_listener(context, _np_statistics_receive_msg_on_watched, NULL, key);
     }
 
     if (false == container->watch_send && _np_msgproperty_get(context, OUTBOUND, key) != NULL) {
+        np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, key);
+        sll_append(np_evt_callback_t, prop->clb_outbound, _np_statistics_send_msg_on_watched);
         container->watch_send = true;
-        np_add_send_listener(context, _np_statistics_send_msg_on_watched, NULL, key);
     }
 }
 
@@ -368,10 +370,10 @@ bool np_statistics_destroy(np_state_t* context)
     }
     return true;
 }
+
 void np_statistics_add_watch_internals(np_state_t* context) {
     
-    //np_statistics_add_watch(context, _DEFAULT);
-        
+    //np_statistics_add_watch(context, _DEFAULT);    
     np_statistics_add_watch(context, _NP_MSG_ACK);
     np_statistics_add_watch(context, _NP_MSG_HANDSHAKE);
     
@@ -583,7 +585,7 @@ void __np_statistics_set_success_avg(np_state_t* context, np_dhkey_t id, float v
     }
 }
 
-void __np_increment_forwarding_counter(np_state_t* context, char* subject) {
+void __np_increment_forwarding_counter(np_state_t* context, NP_UNUSED char* subject) {
     if (np_module_initiated(statistics)) {
         prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs], 1);
     }

@@ -294,10 +294,17 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
         (  node->success_avg                                                         > BAD_LINK)     &&
         ( (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC*node->success_avg)  <= np_time_now()  )
        )
-    {   // issue ping messages
+    {
+        // issue ping messages
+        np_message_t* msg_out = NULL;
+        np_new_obj(np_message_t, msg_out);
+        _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
+
         np_dhkey_t ping_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PING_REQUEST);
-        np_util_event_t ping_event = { .type=(evt_internal|evt_message), .target_dhkey=node_key->dhkey, .user_data=NULL, .context=context };
+        np_util_event_t ping_event = { .type=(evt_internal|evt_message), .target_dhkey=node_key->dhkey, .user_data=msg_out, .context=context };
         _np_keycache_handle_event(context, ping_dhkey, ping_event, false);
+
+        log_debug_msg(LOG_DEBUG, "submitted ping to target key %s / %p", _np_key_as_str(node_key), node_key);
     }
 
     if (
@@ -305,11 +312,40 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
         ( node->next_routing_table_update < np_time_now() ) 
        )
     {   
-        np_dhkey_t piggy_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
-        np_util_event_t piggy_event = { .type=(evt_internal|evt_message), .target_dhkey=node_key->dhkey, .user_data=NULL, .context=context };
-        _np_keycache_handle_event(context, piggy_dhkey, piggy_event, false);
-        node->next_routing_table_update = np_time_now() + MISC_SEND_PIGGY_REQUESTS_SEC;
+        /* send one row of our routing table back to joiner #host# */    
+        np_sll_t(np_key_ptr, sll_of_keys) = NULL;
+        sll_of_keys = _np_route_row_lookup(node_key);
+        char* source_sll_of_keys = "_np_route_row_lookup";
         
+        if (sll_size(sll_of_keys) <= 5)
+        {   // nothing found, send leafset to exchange some data at least
+            // prevents small clusters from not exchanging all data
+            np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
+            sll_free(np_key_ptr, sll_of_keys);
+            sll_of_keys = _np_route_neighbors(context);
+            source_sll_of_keys = "_np_route_neighbors";
+        }
+        
+        if (sll_size(sll_of_keys) > 0)
+        {
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "job submit piggyinfo to %s:%s!", node->dns_name, node->port);
+
+            np_tree_t* msg_body = np_tree_create();
+            _np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
+
+            np_message_t* msg_out = NULL;
+            np_new_obj(np_message_t, msg_out);
+            _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PIGGY_REQUEST, msg_body);
+
+            np_dhkey_t piggy_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
+            np_util_event_t piggy_event = { .type=(evt_internal|evt_message), .target_dhkey=node_key->dhkey, .user_data=msg_out, .context=context };
+            _np_keycache_handle_event(context, piggy_dhkey, piggy_event, false);
+
+        }
+        np_key_unref_list(sll_of_keys, source_sll_of_keys);
+        sll_free(np_key_ptr, sll_of_keys);
+
+        node->next_routing_table_update = np_time_now() + MISC_SEND_PIGGY_REQUESTS_SEC;
     }
 }
 
@@ -413,12 +449,16 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
 
     log_debug_msg(LOG_DEBUG, "node_status: %d %f", trinity.node->_handshake_status, trinity.node->handshake_send_at);
 
+    np_message_t* msg_out = NULL;
+
     if ( trinity.node->_handshake_status < np_status_Connected && 
          (trinity.node->handshake_send_at + hs_prop->msg_ttl) < now )
     {
-        np_key_t* hs_key = _np_keycache_find(context, hs_dhkey);
-        np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=hs_key, .target_dhkey=node_key->dhkey };
-        _np_key_handle_event(hs_key, handshake_event, false);
+        np_new_obj(np_message_t, msg_out, FUNC);
+        _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_HANDSHAKE, NULL);
+
+        np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
+        _np_keycache_handle_event(context, hs_dhkey, handshake_event, false);
 
         trinity.node->_handshake_status++;
         trinity.node->handshake_send_at = np_time_now();
@@ -428,9 +468,11 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
     else if (trinity.node->session_key_is_set == true &&  trinity.node->_joined_status < np_status_Connected && 
             (trinity.node->join_send_at + join_prop->msg_ttl) < now ) 
     {
-        np_key_t* join_key = _np_keycache_find(context, join_dhkey);
-        np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=join_key, .target_dhkey=node_key->dhkey };
-        _np_key_handle_event(join_key, join_event, false);
+        np_new_obj(np_message_t, msg_out, FUNC);
+        _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_JOIN_REQUEST, NULL);
+
+        np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
+        _np_keycache_handle_event(context, join_dhkey, join_event, false);
 
         trinity.node->join_send_at = np_time_now();
         trinity.node->_joined_status++;
@@ -475,10 +517,25 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
             token->state |= AAA_AUTHENTICATED;
             trinity.node->_joined_status++;
         } 
+
+        np_tree_t* jrb_token = np_tree_create();
+        np_tree_t* jrb_data  = np_tree_create();
+
+        // send out update request to other nodes that are hashwise "nearer"
+        np_aaatoken_encode(jrb_token, token);
+        np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_token));
+
+        np_message_t* msg_out = NULL;
+        np_new_obj(np_message_t, msg_out, FUNC);
+        _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_UPDATE_REQUEST, np_tree_clone(jrb_data));
+
         // send update messages to nodes near to this fingerprint        
         np_dhkey_t update_key = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-        np_util_event_t update_event = {.type=(evt_message|evt_internal), .context=context, .user_data=token, .target_dhkey=token_fp};
+        np_util_event_t update_event = {.type=(evt_message|evt_internal), .context=context, .user_data=msg_out, .target_dhkey=token_fp};
         _np_keycache_handle_event(context, update_key, update_event, false);
+
+        np_tree_free(jrb_data);
+        np_tree_free(jrb_token);
     }
 }
 
@@ -610,14 +667,13 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
     log_debug_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %p", statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
-    NP_CAST(event.user_data, np_message_t, hs_message);
+    NP_CAST(event.user_data, np_messagepart_t, hs_messagepart);
 
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
     char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
-
-    memcpy(packet, pll_first(hs_message->msg_chunks)->val->msg_part, 984);
+    memcpy(packet, hs_messagepart->msg_part, 984);
     
     _LOCK_ACCESS(&trinity.network->out_events_lock)  
     {
@@ -629,8 +685,6 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
     _np_event_invoke_out(context); 
 
     log_debug_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %d", sll_size(trinity.network->out_events));
-
-    _np_message_trace_info("out", hs_message);
 }
 
 void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -743,13 +797,11 @@ bool __is_handshake_message(np_util_statemachine_t* statemachine, const np_util_
 
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_message));
     if ( ret) ret &= (node_key->type == np_key_type_wildcard || node_key->type == np_key_type_node);
-    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
     if ( ret) {
-        
-        NP_CAST(event.user_data, np_message_t, hs_message);
-
+        NP_CAST(event.user_data, np_messagepart_t, hs_messagepart);
         /* TODO: make it working and better! */
-        CHECK_STR_FIELD_BOOL(hs_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
+        CHECK_STR_FIELD_BOOL(hs_messagepart->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") {
             ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
             goto __np_return__;
         }

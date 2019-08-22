@@ -757,7 +757,6 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     np_ctx_memory(msg);
     // np_message_t* new_msg;
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
-    np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
 
     // in the future: header
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
@@ -768,6 +767,9 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     // insert timestamp and time-to-live
     double now = np_time_now();
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
+
+    // derived message data from the msgproperty
+    np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(out_prop->msg_ttl));
     // insert msg acknowledgement indicator
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(out_prop->ack_mode));
@@ -795,7 +797,7 @@ inline void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructio
 inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
 {
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-    np_tree_free( msg->body);
+    if (msg->body != NULL) np_tree_free(msg->body);
     msg->body = body;
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
@@ -1069,6 +1071,6 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
     info_str = np_str_concatAndFree(info_str, ": %s", msg_in->uuid);	
 #endif
 
-    log_msg(LOG_ROUTING | LOG_INFO, info_str);	
+    log_msg(LOG_MESSAGE | LOG_DEBUG, info_str);	
     free(info_str);
 }

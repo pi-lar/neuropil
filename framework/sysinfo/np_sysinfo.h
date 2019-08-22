@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-#define _NP_SYSINFO_DATA "_NP.SYSINFO.DATA"
+static const char* _NP_SYSINFO_DATA = "_NP.SYSINFO.DATA";
 
 enum np_sysinfo_opt_e {
 	np_sysinfo_opt_disable = 0,

@@ -127,7 +127,6 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
     log_debug_msg(LOG_DEBUG, "token %p / extensions %p", token, token->extensions);
 
     np_tree_replace_str( data, "np.t.e",    np_treeval_new_tree(token->extensions));
-
     if(token->scope <= np_aaatoken_scope_private_available) {
         _np_aaatoken_update_extensions_signature(token);
     }
@@ -580,9 +579,8 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
 }
 
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
-    assert(self != NULL);
-    // np_state_t* context = np_ctx_by_memory(self);
-    
+
+    assert(self != NULL);    
     np_dhkey_t ret = { 0 };
 
     np_tree_elem_t* ele = np_tree_find_str(self->extensions, "_np.partner_fp");
@@ -751,7 +749,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
     np_tree_free(data);
     info_str = np_str_concatAndFree(info_str, "): %s", self->uuid);
 
-    log_msg(LOG_INFO, "%s", info_str);
+    log_msg(LOG_DEBUG, "%s", info_str);
     free(info_str);
 }
 #endif

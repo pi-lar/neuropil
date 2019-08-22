@@ -313,7 +313,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         np_new_obj(np_message_t, msg_in);
         if (!_np_message_deserialize_header_and_instructions(msg_in, event.user_data) )
         {
-           np_memory_free(context, event.user_data);
+            np_memory_free(context, event.user_data);
             return;
         }
 
@@ -362,8 +362,8 @@ bool __is_forward_message(np_util_statemachine_t* statemachine, const np_util_ev
 
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= (event.user_data != NULL);
-
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+
     if ( ret) {
         NP_CAST(event.user_data, np_message_t, discovery_message);
         /* TODO: use the bloom, luke */
@@ -429,8 +429,8 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
 
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= (event.user_data != NULL);
-
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+
     if ( ret) {
         NP_CAST(event.user_data, np_message_t, dht_message);
         /* TODO: use the bloom, luke */
@@ -463,8 +463,8 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
 
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= (event.user_data != NULL);
-
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+
     if ( ret) {
         NP_CAST(event.user_data, np_message_t, usr_message);
         /* TODO: use the bloom, luke */

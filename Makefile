@@ -52,16 +52,18 @@ SOURCES_LIB += src/core/np_comp_identity.c src/core/np_comp_msgproperty.c src/co
 SOURCES_LIB += src/np_dhkey.c src/np_event.c src/np_glia.c src/np_jobqueue.c src/np_key.c src/np_keycache.c src/np_legacy.c
 SOURCES_LIB += src/np_log.c src/np_memory.c src/np_message.c src/np_messagepart.c src/np_network.c
 SOURCES_LIB += src/np_node.c src/np_responsecontainer.c src/np_route.c src/np_scache.c src/np_serialization.c src/np_shutdown.c src/np_statistics.c
-SOURCES_LIB += src/np_sysinfo.c src/np_threads.c src/np_time.c src/np_token_factory.c src/np_tree.c src/np_treeval.c src/np_util.c
+SOURCES_LIB += src/np_threads.c src/np_time.c src/np_token_factory.c src/np_tree.c src/np_treeval.c src/np_util.c
 SOURCES_LIB += src/event/ev.c src/gpio/bcm2835.c  src/json/parson.c src/msgpack/cmp.c src/util/np_statemachine.c
-SOURCES_LIB += framework/prometheus/prometheus.c
+
+SOURCES_FWLIB = framework/prometheus/prometheus.c framework/http/np_http.c framework/sysinfo/np_sysinfo.c
 
 SOURCES_PRG  = examples/neuropil_hydra.c examples/neuropil_controller.c examples/neuropil_node.c examples/neuropil_sender.c examples/neuropil_cloud.c 
 SOURCES_PRG += examples/neuropil_receiver.c examples/neuropil_demo_service.c 
-SOURCES_PRG += examples/neuropil_pingpong.c examples/neuropil_raspberry.c examples/web/np_http.c
+SOURCES_PRG += examples/neuropil_pingpong.c examples/neuropil_raspberry.c
 
 SOURCES_TST = test/test_suite.c test/test_fuzzing.c
 
+FWOBJECTS=$(subst framework/,build/obj/,$(subst .c,.o,$(SOURCES_FWLIB)))
 OBJECTS=$(subst src/,build/obj/,$(subst .c,.o,$(SOURCES_LIB)))
 PROGRAMS=$(subst examples/,build/obj/,$(subst .c,.o,$(SOURCES_PRG)))
 TESTS=$(subst test/,build/obj/,$(subst .c,.o,$(SOURCES_TST)))
@@ -112,12 +114,18 @@ test_fuzzing: $(TESTS)
 	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER_LINK) -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 
-build/lib/libneuropil.dylib: $(OBJECTS)
-	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER_COMPILE) -dynamiclib -std=c99 $(SODIUM_LIBRARIES) $(OBJECTS) -o build/lib/libneuropil.dylib
+build/lib/libneuropil.dylib: $(OBJECTS) $(FWOBJECTS)
+	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER_COMPILE) -dynamiclib -std=c99 $(SODIUM_LIBRARIES) $(FWOBJECTS) $(OBJECTS) -o build/lib/libneuropil.dylib
 	# dsymutil build/lib/libneuropil.$(TARGET).dylib -o build/lib/libneuropil.dylib.dSYM
 
 bindings/luajit/build/neuropil_ffi.lua: 
 	./bindings/luajit/build.sh
+
+build/obj/%.o: framework/%.c
+	@mkdir -p $(@D)
+	@mkdir -p build/lib
+	@mkdir -p bin
+	$(CC) -Dx64 -target $(TARGET) $(CFLAGS) $(CLANG_SANITIZER_COMPILE) $(INCLUDES) $< -o $@
 
 build/obj/%.o: src/%.c
 	@mkdir -p $(@D)

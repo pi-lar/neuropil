@@ -753,7 +753,7 @@ np_aaatoken_t* _np_msgproperty_get_mxtoken(np_util_statemachine_t* statemachine,
     }
 
     if (pll_size(token_list)==0) return NULL;
-    else                         return pll_first(token_list)->val;        
+    else                         return pll_first(token_list)->val;
 }
 
 void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -775,14 +775,12 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
         log_debug_msg(LOG_DEBUG, "start: void _np_msgproperty_upsert_token SENDER(...){%s", _np_key_as_str(my_property_key));
         token_list = ledger->send_tokens;
     }
-    
-    if (_np_dhkey_equal(&my_property_key->dhkey, &recv_dhkey) ) 
+    else if (_np_dhkey_equal(&my_property_key->dhkey, &recv_dhkey) ) 
     {
         log_debug_msg(LOG_DEBUG, "start: void _np_msgproperty_upsert_token RECEIVER(...){%s", _np_key_as_str(my_property_key));
         token_list = ledger->recv_tokens;
-    } 
-
-    if (token_list == NULL)
+    }
+    else
     {
         log_debug_msg(LOG_DEBUG, "start: void _np_msgproperty_upsert_token NONE (...){");
         return;
@@ -791,6 +789,7 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
     double now = np_time_now();
     pll_iterator(np_aaatoken_ptr) iter = pll_first(token_list);
 
+    // check and delete outdated token
     while (NULL != iter)
     {
         log_debug_msg(LOG_DEBUG, "checking mx msg tokens %p/%p", iter, iter->val);
@@ -807,7 +806,7 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
         }
     }
     
-    // check and delete outdated token
+    // create new mx token
     iter = pll_first(token_list);
     do {
         if (NULL == iter)
@@ -841,14 +840,6 @@ bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_
     // check if it is an user callback messages --> payload encrypted
 
     return ret;
-}
-
-void __np_property_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_decrypt(...){");
-
-    // was np_dendrit->_np_in_callback_wrapper ...
 }
 
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src)
@@ -1023,17 +1014,17 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
     NP_CAST(sll_first(property_key->entities)->val, np_msgproperty_t, property);
 
     // upsert message intent token
-    np_tree_t* intent_data = np_tree_create();
     np_aaatoken_t* intent_token = _np_msgproperty_get_mxtoken(statemachine, event);
     if (NULL == intent_token) return;
 
+
+    np_tree_t* intent_data = np_tree_create();
     np_aaatoken_encode(intent_data, intent_token);
 
     np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(property->msg_subject, "0");
 
     np_util_event_t discover_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=target_dhkey};
 
-    np_message_t* msg_out = NULL;
 
     np_dhkey_t send_dhkey = _np_msgproperty_dhkey(OUTBOUND, property->msg_subject);
     np_dhkey_t recv_dhkey = _np_msgproperty_dhkey(INBOUND, property->msg_subject);
@@ -1041,8 +1032,9 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
     double now = np_time_now();
 
     if (_np_dhkey_equal(&property_key->dhkey, &send_dhkey) &&
-       (now - property->last_tx_update) > MISC_RETRANSMIT_MSG_TOKENS_SEC)
+        (now - property->last_tx_update) > MISC_RETRANSMIT_MSG_TOKENS_SEC)
     {
+        np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out);
         _np_message_create( msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_DISCOVER_RECEIVER, np_tree_clone(intent_data) );
 
@@ -1054,8 +1046,10 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
     }
     
     if (_np_dhkey_equal(&property_key->dhkey, &recv_dhkey) &&
+        sll_contains(np_evt_callback_t, property->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type) &&
        (now - property->last_rx_update) > MISC_RETRANSMIT_MSG_TOKENS_SEC)
     {
+        np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out);
         _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_DISCOVER_SENDER, np_tree_clone(intent_data) );
 
@@ -1065,7 +1059,6 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
         log_msg(LOG_INFO, "sending discovery message for %s as a receiver: _NP_MSG_DISCOVER_SENDER {msg uuid: %s / intent uuid: %s)", property->msg_subject, msg_out->uuid, intent_token->uuid);
         property->last_rx_update = now;
     }
-
     np_tree_free(intent_data);
 }
 
@@ -1096,10 +1089,6 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
     if (property->is_internal == false) 
     {
         _np_msgproperty_upsert_token(statemachine, event);
-    }
-
-    if (property->is_internal == false)
-    {
         _np_msgproperty_send_discovery_messages(statemachine, event);
     }
 
@@ -1116,7 +1105,7 @@ bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_e
     bool ret = false;
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
-    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_message_t);
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
     // if ( ret) ret &= property->is_internal;
     return ret;
@@ -1166,6 +1155,7 @@ bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_e
     bool ret = false;
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_internal);
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
     // if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_message_t);
 
     return ret;

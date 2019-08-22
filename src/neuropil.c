@@ -671,7 +671,7 @@ void np_destroy(np_context*ac, bool gracefully)
     _np_shutdown_destroy(context);    
     _np_bootstrap_destroy(context);
     _np_jobqueue_destroy(context);    
-     _np_time_destroy(context);
+    _np_time_destroy(context);
      
     //sodium_destroy() /*not available*/
         

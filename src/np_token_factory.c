@@ -124,7 +124,8 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 
     ret->scope = scope;
     ret->type  = source->type;
-    if (source->private_key_is_set) {
+    if (source->private_key_is_set && scope == np_aaatoken_scope_private_available) 
+    {
         ret->issuer_token = source;
     }
 
@@ -191,9 +192,9 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
         ret->expires_at = identity_token->expires_at;
     }
     // add e2e encryption details for sender
-    memcpy((char*)ret->crypto.ed25519_public_key,
-           (char*)identity_token->crypto.ed25519_public_key,
-           crypto_sign_PUBLICKEYBYTES);
+    // memcpy((char*)ret->crypto.ed25519_public_key,
+    //        (char*)identity_token->crypto.ed25519_public_key,
+    //        crypto_sign_PUBLICKEYBYTES);
     
     np_tree_replace_str( ret->extensions, "mep_type",
         np_treeval_new_ul(msg_request->mep_type));
