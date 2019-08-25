@@ -187,7 +187,8 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
         proto = _np_network_parse_protocol_string(s_hostproto);
     }
     _np_node_update(new_node, proto, s_hostname, s_hostport);
-
+    new_node->host_key = s_hostkey;
+    
     free (key_dup);
 
     return (new_node);
@@ -230,7 +231,7 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
     {
         // uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
         _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-        new_node->host_key = strndup(s_host_key, 64);
+        new_node->host_key = s_host_key; // strndup(s_host_key, 64);
         log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %s:%d:%s:%s",
             s_host_key, i_host_proto, s_host_name, s_host_port);
     }
