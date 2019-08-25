@@ -27,7 +27,6 @@ enum np_message_submit_type {
 struct np_message_s
 {
      // link to memory pool
-
     char* uuid;	
 
     np_tree_t* header;

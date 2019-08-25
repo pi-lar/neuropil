@@ -199,7 +199,7 @@ np_key_t* _np_keycache_find_by_details(
     return (ret);
 }
 
-void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_util_event_t args) 
+bool _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_util_event_t args) 
 {
     np_key_t *iter = NULL;
 
@@ -212,6 +212,7 @@ void _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_util_event_t ar
             log_debug_msg(LOG_DEBUG, "sm %p %d %s", iter, iter->type, iter->sm._state_table[iter->sm._current_state]->_state_name);
         }
     }
+    return true;
 }
 
 np_key_t* _np_keycache_find_deprecated(np_state_t* context)

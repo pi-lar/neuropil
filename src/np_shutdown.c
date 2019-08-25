@@ -56,11 +56,12 @@ void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
     }
 }
 
-void np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event) {    
+bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event) {    
     if (np_module(shutdown)->invoke) {     
         log_warn(LOG_MISC, "Received terminating process signal. Shutdown in progress.");
         np_destroy(context, false);   
     }
+    return true;
 }
 
 void _np_shutdown_init(np_state_t* context) {

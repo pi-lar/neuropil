@@ -850,16 +850,6 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
     } while (NULL != iter);
 }
 
-bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_payload_encrypted(...){");
-    bool ret = false;
-    // check if it is an user callback messages --> payload encrypted
-
-    return ret;
-}
-
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src)
 {
 

@@ -467,6 +467,7 @@ char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target)) {
     }
 #ifdef DEBUG
     if (sll_size(target) != i) {
+        log_msg(LOG_ERROR, "%s", ret);
         log_msg(LOG_ERROR, "Size of original list (%"PRIu32") does not equal the size of the flattend string (items flattend: %"PRIu32").", sll_size(target),i);
         abort();
     }

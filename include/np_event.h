@@ -22,7 +22,7 @@ extern "C" {
 NP_API_INTERN															        \
 struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context);	        \
 NP_API_INTERN															        \
-void _np_events_read_##LOOPNAME(np_state_t* context, np_util_event_t event);    \
+bool _np_events_read_##LOOPNAME(np_state_t* context, np_util_event_t event);    \
 NP_API_INTERN															        \
 void _np_event_##LOOPNAME##_run(np_state_t* context, np_thread_t* thread_ptr);	\
 NP_API_INTERN															        \

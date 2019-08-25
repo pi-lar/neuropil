@@ -97,12 +97,13 @@ void l_invoke_file (EV_P);
         np_state_t * context = ev_userdata(EV_A);                                                                        \
         _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);                                                \
     }                                                                                                                    \
-    void _np_events_read_##LOOPNAME (np_state_t* context, NP_UNUSED np_util_event_t event)                               \
+    bool _np_events_read_##LOOPNAME (np_state_t* context, NP_UNUSED np_util_event_t event)                               \
     {                                                                                                                    \
         EV_P = _np_event_get_loop_##LOOPNAME(context);                                                                   \
         _np_threads_lock_module(context, np_event_##LOOPNAME##_t_lock, FUNC);                                            \
         ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));                                                                        \
         _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);                                                \
+        return true;                                                                                                     \
     }                                                                                                                    \
     void _np_event_##LOOPNAME##_run(np_state_t *context, NP_UNUSED np_thread_t* thread_ptr) {                            \
         enum np_status tmp_status;                                                                                       \

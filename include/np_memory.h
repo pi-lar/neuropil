@@ -137,19 +137,16 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 #define _NP_REF_REASON_SEPERATOR_CHAR_LEN 3
 
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
+    #define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
+        char new_reason[strlen(reason)+255];	/*255 chars for additional desc data*/																\
+        snprintf(new_reason,strlen(reason)+255,"%s%sline:%d_%s",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__, reason_desc == NULL ? "" : reason_desc);
 
-#define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
-    char new_reason[strlen(reason)+255];	/*255 chars for additional desc data*/																\
-    snprintf(new_reason,strlen(reason)+255,"%s%sline:%d_%s",reason,_NP_REF_REASON_SEPERATOR_CHAR,__LINE__, reason_desc == NULL ? "" : reason_desc);
-
-
-
-#define ref_replace_reason(TYPE, np_obj, old_reason, new_reason) \
-    np_memory_ref_replace_reason(np_obj, old_reason, new_reason);
+    #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason) \
+        np_memory_ref_replace_reason(np_obj, old_reason, new_reason);
 #else
-#define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
-#define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
-    char new_reason[0];																										
+    #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
+    #define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
+        char new_reason[0];																										
 #endif
 
 

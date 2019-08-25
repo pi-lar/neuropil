@@ -141,6 +141,7 @@ void __np_memory_delete_item(np_state_t* context, np_memory_container_t* contain
     _np_threads_mutex_destroy(context, &item_config->access_lock);
     free(item_config);
 }
+
 void _np_memory_container_destroy(np_state_t* context, np_memory_container_t* container ){
         
     sll_free(np_memory_itemconf_ptr, container->free_items);
@@ -177,6 +178,7 @@ bool _np_memory_remove_reason(sll_return(char_ptr) sll, const char* cmp_obj){
 #else 
 #define _np_memory_remove_reason(a,b)
 #endif
+
 void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, bool del_container){
     np_memory_itemconf_t* item_config = GET_CONF(item);
     np_memory_container_t* container = item_config->container;
@@ -624,7 +626,6 @@ np_state_t* np_memory_get_context(void* item) {
     return ret;
 }
 
-
 void np_memory_free(np_state_t*context, void* item) {	
     if (item != NULL) {
         np_check_magic_no(item);
@@ -726,7 +727,6 @@ void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED  np_jobargs
     NP_PERFORMANCE_POINT_END(memory_management);
 }
 
-
 // increase ref count
 void np_mem_refobj(np_state_t*context, void * item, const char* reason)
 {
@@ -738,15 +738,14 @@ void np_mem_refobj(np_state_t*context, void * item, const char* reason)
         log_trace_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
         if (config->persistent == false) {
             config->ref_count++;
-        }
-        //log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
+            //log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-        assert(reason != NULL);
-        sll_prepend(char_ptr, config->reasons, strdup(reason));
+            assert(reason != NULL);
+            sll_prepend(char_ptr, config->reasons, strdup(reason));
 #endif
+        }
     }
 }
-
 
 // decrease ref count
 void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
@@ -961,7 +960,8 @@ void np_memory_ref_replace_reason(void* item, const char* old_reason, const char
 }
 #endif
 
-void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
+void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc)
+{
     assert(item != NULL);
     np_check_magic_no(item);
     np_memory_itemconf_t* config = GET_CONF(item);
@@ -977,6 +977,7 @@ void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, cons
     }
 
 }
+
 void* np_memory_waitref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
     void* ret = NULL;
 
@@ -1033,6 +1034,7 @@ uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason
     }
     return ret;
 }
+
 char* np_memory_get_id(void * item)
 {
     char* ret = "unknown";
@@ -1042,6 +1044,7 @@ char* np_memory_get_id(void * item)
     }
     return ret;
 }
+
 uint32_t np_memory_get_refcount(void * item) {
     uint32_t ret = 0;
     if (item != NULL) {

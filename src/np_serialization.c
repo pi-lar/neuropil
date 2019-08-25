@@ -25,6 +25,7 @@ void _np_buffer_set_buffer(struct cmp_ctx_s *ctx,void* new_buffer) {
 		ctx->buf = new_buffer;
 	}
 }
+
 void* _np_buffer_get_buffer(struct cmp_ctx_s *ctx) {
 	void * ret = NULL;
 	if (ctx->read == _np_buffer_container_reader) {
