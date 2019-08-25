@@ -354,14 +354,13 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     _np_key_handle_event(my_identity_key, ev, false);
 
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
-    np_unref_obj(np_aaatoken_t, identity, "np_token_factory_new_identity_token");
 }
 
 
 void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body)
 {
-    np_ctx_cast(ac);
-    np_dhkey_t* sender = _np_message_get_sender(original);
+    // np_ctx_cast(ac);
+    // np_dhkey_t* sender = _np_message_get_sender(original);
     /* 
     np_message_t* msg = _np_prepare_msg(context, original->msg_property->rep_subject, body, sender);
 
@@ -451,6 +450,7 @@ void np_send_join(np_context*ac, const char* node_string)
     np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=new_node };
     _np_key_handle_event(node_key, new_node_evt, false);
 
+    np_unref_obj(np_key_t, node_key, "_np_keycache_find_or_create");    
     np_bootstrap_add(context, node_string);
 }
 
@@ -475,7 +475,7 @@ void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum ty
 
                 // create new ack message & handlers
                 np_message_t* ack_msg = NULL;
-                np_new_obj(np_message_t, ack_msg);
+                np_new_obj(np_message_t, ack_msg, ref_obj_creation);
 
                 np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
 

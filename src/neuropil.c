@@ -490,7 +490,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
         // TOOD: id to dhkey
     }
     np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out);
+    np_new_obj(np_message_t, msg_out, ref_obj_creation);
     _np_message_create(msg_out, subject_dhkey, context->my_node_key->dhkey, subject, body);
 
     log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")", length);

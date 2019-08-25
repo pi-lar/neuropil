@@ -30,7 +30,7 @@
 void _np_ping_send(np_state_t *context, np_key_t* key)
 {  
     np_message_t* out_msg = NULL;
-    np_new_obj(np_message_t, out_msg);
+    np_new_obj(np_message_t, out_msg, ref_obj_creation);
 
     _np_message_create(out_msg, key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 

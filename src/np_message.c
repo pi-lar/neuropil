@@ -111,9 +111,8 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     np_tree_free( msg->body);
     np_tree_free( msg->footer);
 
-    _LOCK_ACCESS(&msg->msg_chunks_lock){
-
-        
+    _LOCK_ACCESS(&msg->msg_chunks_lock) 
+    {    
         if (msg->msg_chunks != NULL)
         {
             pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
@@ -125,17 +124,16 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
             }
             pll_free(np_messagepart_ptr, msg->msg_chunks);
         }
-        
-
         np_unref_obj(np_messagepart_t, msg->bin_static, ref_message_bin_static);
-        free(msg->bin_body);
-        free(msg->bin_footer);
-
-        msg->bin_body = NULL;
-        msg->bin_footer = NULL;
-        msg->bin_static = NULL;
-        
     }
+
+    free(msg->bin_body);
+    free(msg->bin_footer);
+
+    msg->bin_body = NULL;
+    msg->bin_footer = NULL;
+    msg->bin_static = NULL;
+        
     _np_threads_mutex_destroy(context, &msg->msg_chunks_lock);
     free(msg->uuid);
 }
@@ -483,6 +481,7 @@ bool _np_message_serialize_chunked(np_message_t* msg)
     if (NULL != bin_body) free(bin_body);
     if (NULL != bin_instructions) free(bin_instructions);
     if (NULL != bin_header) free(bin_header);
+    
     np_unref_obj(np_message_t, msg, FUNC);
 
     NP_PERFORMANCE_POINT_END(message_serialize_chunked);
@@ -525,10 +524,9 @@ bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* bu
 
                     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg instructions");
                     if (np_tree_deserialize( context, msg->instructions, &cmp) == true) {
+
                         msg->instructions->attr.immutable = false;
-
                         // TODO: check if the complete buffer was read (byte count match)
-
                         if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
                             msg->no_of_chunks = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
                         }
@@ -611,7 +609,6 @@ bool _np_message_deserialize_chunked(np_message_t* msg)
     void* bin_body_ptr = NULL;
     cmp_ctx_t cmp_body;
     uint32_t size_body = 0;
-
 
     if (msg->bin_footer != NULL) {
         free(msg->bin_footer);
@@ -699,7 +696,7 @@ bool _np_message_deserialize_chunked(np_message_t* msg)
         {
             log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "(msg:%s) deserializing msg body %u", msg->uuid, size_body);
             cmp_init(&cmp_body, msg->bin_body, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-            if(np_tree_deserialize( context, msg->body, &cmp_body) == false) {
+            if(np_tree_deserialize(context, msg->body, &cmp_body) == false) {
                 return (false);
             }
             // TODO: check if the complete buffer was read (byte count match)
@@ -720,8 +717,7 @@ bool _np_message_deserialize_chunked(np_message_t* msg)
             pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
             while (NULL != iter)
             {
-                np_messagepart_ptr current_part = iter->val;
-                np_unref_obj(np_messagepart_t, current_part, ref_message_messagepart);
+                np_unref_obj(np_messagepart_t, iter->val, ref_message_messagepart);
                 pll_next(iter);
             }
             pll_clear(np_messagepart_ptr, msg->msg_chunks);
@@ -764,13 +760,15 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(from));
     // insert a uuid if not yet present
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
-    // insert timestamp and time-to-live
-    double now = np_time_now();
-    np_tree_insert_str( msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
 
     // derived message data from the msgproperty
     np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
+
+    // insert timestamp and time-to-live
+    double now = np_time_now();
+    np_tree_insert_str( msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(out_prop->msg_ttl));
+
     // insert msg acknowledgement indicator
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(out_prop->ack_mode));
     // insert message chunking placeholder
@@ -995,10 +993,8 @@ void _np_message_add_key_response_handler(const np_message_t* self)
     // rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
 
     np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
-    np_key_t* ack_key = _np_keycache_find(context, ack_dhkey);
-
     np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
-    _np_key_handle_event(ack_key, rh_event, false);
+    _np_keycache_handle_event(context, ack_dhkey, rh_event, false);
 }
 
 void _np_message_add_msg_response_handler(const np_message_t* self) 
@@ -1017,10 +1013,8 @@ void _np_message_add_msg_response_handler(const np_message_t* self)
 	rh->received_at = 0.0;
 
     np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
-    np_key_t* ack_key = _np_keycache_find(context, ack_dhkey);
-
     np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
-    _np_key_handle_event(ack_key, rh_event, false);
+    _np_keycache_handle_event(context, ack_dhkey, rh_event, false);
 }
 
 np_dhkey_t* _np_message_get_sender(const np_message_t* const self){

@@ -266,7 +266,11 @@ void _np_network_get_address(
 void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
 {		
     np_ctx_decl(ev_userdata(loop));
+
+    if (event->data == NULL) return;
+    // log_debug(LOG_DEBUG, "%p", event->data);
     NP_CAST(event->data, np_key_t, key);
+    // log_debug(LOG_DEBUG, "%p", key->entities);
 
     np_network_t* network = _np_key_get_network(key);
     if (!FLAG_CMP(revents, EV_ERROR) && FLAG_CMP(revents, EV_WRITE))
@@ -413,35 +417,34 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                     char* alias_key_reason = "_np_keycache_find";
                     np_network_t* old_network = NULL;
 
-                        if (alias_key != NULL) {
-                            old_network = alias_key->network;
-                        }
-                        else {
-                            // init new alias key
-                            alias_key = _np_keycache_create(context, search_key);
-                            alias_key_reason = "_np_keycache_create";                             
-                            np_ref_switch(np_key_t, alias_key->parent_key, ref_key_parent, key);
-                        }
-                        np_new_obj(np_network_t, alias_key->network);
+                    if (alias_key != NULL) {
+                        old_network = alias_key->network;
+                    }
+                    else {
+                        // init new alias key
+                        alias_key = _np_keycache_create(context, search_key);
+                        alias_key_reason = "_np_keycache_create";                             
+                        np_ref_switch(np_key_t, alias_key->parent_key, ref_key_parent, key);
+                    }
+                    np_new_obj(np_network_t, alias_key->network);
 
-                        _LOCK_ACCESS(&alias_key->network->access_lock) {
-                            alias_key->network->socket = client_fd;
-                            alias_key->network->socket_type = ng->socket_type;
-                            alias_key->network->seqend = 0;
+                    _LOCK_ACCESS(&alias_key->network->access_lock) {
+                        alias_key->network->socket = client_fd;
+                        alias_key->network->socket_type = ng->socket_type;
+                        alias_key->network->seqend = 0;
 
-                            // it could be a passive socket
-                            sll_init(void_ptr, alias_key->network->out_events);
+                        // it could be a passive socket
+                        sll_init(void_ptr, alias_key->network->out_events);
 
-                            // set non blocking
-                            int current_flags = fcntl(client_fd, F_GETFL);
-                            current_flags |= O_NONBLOCK;
-                            fcntl(client_fd, F_SETFL, current_flags);
+                        // set non blocking
+                        int current_flags = fcntl(client_fd, F_GETFL);
+                        current_flags |= O_NONBLOCK;
+                        fcntl(client_fd, F_SETFL, current_flags);
 
-                            alias_key->network->initialized = true;
-                            alias_key->network->type = np_network_type_server;
-                        }
+                        alias_key->network->initialized = true;
+                        alias_key->network->type = np_network_type_server;
+                    }
                     
-
                     _np_network_set_key(alias_key->network, alias_key);
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving2", alias_key->network, alias_key->network->socket);
 
@@ -507,7 +510,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     // cast event data structure to np_state_t pointer
     socklen_t fromlen = sizeof(struct sockaddr_storage);
     // calling address and port
-
+    if (event->data == NULL) return;
     NP_CAST(event->data, np_key_t, key); 
 
     /* receive the new data */
@@ -613,6 +616,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             {
                 // TODO: always enqueue via jobqueue
                 _np_key_handle_event(alias_key, in_event, false);
+                np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
             }
             else
             {
@@ -780,8 +784,6 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     np_network_t* network = (np_network_t*) data;
 
     _np_network_stop(network, true);
-    np_key_t* old_key = (np_key_t*)network->watcher.data;
-    //if(old_key) np_unref_obj(np_key_t, old_key, ref_network_watcher);
     network->watcher.data = NULL;
 
     _LOCK_ACCESS(&network->out_events_lock)
@@ -1049,8 +1051,8 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
     ng->addr_in = NULL;
 
     log_debug_msg(LOG_DEBUG,
-        "Inited %s-network %s %s on %s:%s (fd: %d%s)",
-        create_server ? "Server" : "Client",
+        "Init %s network %s %s on %s:%s (fd: %d%s)",
+        create_server ? "server" : "client",
         FLAG_CMP(type, TCP) ? "TCP" : FLAG_CMP(type, UDP) ? "UDP" : "?",
         FLAG_CMP(type, PASSIVE) ? "PASSIVE" : "",
         hostname,

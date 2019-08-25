@@ -72,7 +72,7 @@ bool _np_in_ping(np_state_t* context, np_util_event_t msg_event)
     np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
 
     np_message_t* msg_out;
-    np_new_obj(np_message_t, msg_out);
+    np_new_obj(np_message_t, msg_out, ref_obj_creation);
     _np_message_create(msg_out, target, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
 
     np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=msg_out };
@@ -122,22 +122,24 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             _np_key_handle_event(piggy_key, new_node_evt, false);
 
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
+            np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
         }
         else if (_np_key_get_node(piggy_key)->joined_network                                           &&
                  _np_key_get_node(piggy_key)->success_avg > BAD_LINK                                   &&
                 (np_time_now() - piggy_key->created_at) >= BAD_LINK_REMOVE_GRACETIME ) 
         {
             // let's try to fill up our leafset, routing table is filled by internal state
-            // TODO: yes, this is wrong. it shoudl really be an extra event that is handed over to the component
-            // doing it this way just safed me from a bit of coding, but it is not thread safe!
+            // TODO: realize this via an event, otherwiese locking of the piggy key is not in place
             __np_node_add_to_leafset(&piggy_key->sm, msg_event);
+            np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
 
         } else {
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a further piggy actions. (%s)",
                                                    _np_key_as_str(piggy_key), 
                                                    _np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
-        }
-        np_unref_obj(np_node_t, node_entry,"_np_node_decode_multiple_from_jrb");
+            np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
+        }        
+        np_unref_obj(np_node_t, node_entry,"_np_node_decode_from_jrb");
         free(connect_str);
     }
     sll_free(np_node_ptr, o_piggy_list);
@@ -159,18 +161,19 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     NP_CAST(msg_event.user_data, np_message_t, msg_in);
 
     log_debug(LOG_MESSAGE, "(msg: %s) start callback wrapper",msg_in->uuid);
-    
+
+    bool ret = true;
+    bool free_msg_subject = false;
+
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_ele);    
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-    bool free_msg_subject = false;
     char* msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
     
     np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(INBOUND, msg_subject);
     np_key_t* prop_key    = _np_keycache_find(context, prop_dhkey);
     np_msgproperty_t* msg_prop = _np_msgproperty_get(context, INBOUND, msg_subject);
     
-    bool ret = true;
     np_aaatoken_t* sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
 
     if (_np_messsage_threshold_breached(msg_prop) || NULL == sender_token )
@@ -191,9 +194,9 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     {
         _np_msgproperty_threshold_increase(msg_prop);
         log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
-        bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
+        ret = _np_message_decrypt_payload(msg_in, sender_token);
         _np_msgproperty_threshold_decrease(msg_prop);
-        np_unref_obj(np_aaatoken_t, sender_token,"_np_aaatoken_get_sender_token"); // _np_aaatoken_get_sender_token
+        np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token"); // _np_aaatoken_get_sender_token
     }
     np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
 
@@ -434,7 +437,11 @@ bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
 
         // and forward the token to another hop
         np_dhkey_t update_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-        update_event.type=(evt_message|evt_internal);
+        update_event.type = (evt_message|evt_internal);
+        update_event.user_data = msg;
+        update_event.target_dhkey = update_prop_dhkey;
+        np_ref_obj(np_message_t, msg, ref_obj_creation);
+
         _np_keycache_handle_event(context, update_prop_dhkey, update_event, false);
     }
     else
@@ -443,7 +450,7 @@ bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
     }
 
     __np_cleanup__:
-    np_unref_obj(np_aaatoken_t, update_token, "np_token_factory_read_from_tree");
+    np_unref_obj(np_aaatoken_t, update_token, ref_obj_creation);
 
     return true;
 }
@@ -461,19 +468,14 @@ bool _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event)
     // extract e2e encryption details for sender
     msg_token = np_token_factory_read_from_tree(context, discover_msg_in->body);
 
-    np_dhkey_t discover_dhkey = np_dhkey_create_from_hostport(msg_subject.value.s, "0");
     np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
+    np_dhkey_t discovery_sender = np_dhkey_create_from_hostport(msg_subject.value.s, "0");
 
-    np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discover_dhkey };
+    np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_sender };
     _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
 
-/*
-        // this node is the man in the middle - inform receiver of sender token
-        _np_dendrit_propagate_senders(reply_to_key, msg_token, false);
-        // _np_dendrit_propagate_senders(reply_to_key, msg_token, old_token == NULL || strncmp(msg_token->uuid, old_token->uuid, UUID_SIZE)!=0);
-        np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
-*/
     __np_cleanup__:
+        np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
 
     return true;
@@ -511,12 +513,13 @@ bool _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event)
     msg_token = np_token_factory_read_from_tree(context, discover_msg_in->body); 
 
     np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
-    np_dhkey_t discovery_msg_type = np_dhkey_create_from_hostport(msg_subject.value.s, "0");
-    
-    np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_msg_type };
+    np_dhkey_t discovery_receiver = np_dhkey_create_from_hostport(msg_subject.value.s, "0");    
+
+    np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_receiver };
     _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
 
     __np_cleanup__:
+        np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
 
     return true;
@@ -936,32 +939,32 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     
     handshake_token = np_token_factory_read_from_tree(context, msg->body);
 
-    if (handshake_token == NULL || !_np_aaatoken_is_valid(handshake_token, np_aaatoken_type_handshake)) {
+    if (handshake_token == NULL || !_np_aaatoken_is_valid(handshake_token, np_aaatoken_type_handshake)) 
+    {
         log_msg(LOG_ERROR, "incorrect handshake signature in message");
         goto __np_cleanup__;
     }
-    
+    else
+    {
+        log_debug_msg(LOG_DEBUG,
+                    "decoding of handshake message from %s / %s (i:%f/e:%f) complete",
+                    handshake_token->subject, handshake_token->issuer, handshake_token->issued_at, handshake_token->expires_at);
+    }    
     // store the handshake data in the node cache,
     np_dhkey_t search_key = { 0 };
     _np_str_dhkey(handshake_token->issuer, &search_key);
 
     msg_source_key = _np_keycache_find_or_create(context, search_key);
-
-    log_debug_msg(LOG_DEBUG,
-                  "decoding of handshake message from %s / %s (i:%f/e:%f) complete",
-                  handshake_token->subject, handshake_token->issuer, handshake_token->issued_at, handshake_token->expires_at);
     if (NULL == msg_source_key)
     {   // should never happen
         log_msg(LOG_ERROR, "Handshake key is NULL!");
         goto __np_cleanup__;
     }
-
     // setup sending encryption
     np_util_event_t hs_event = msg_event;
     hs_event.user_data = handshake_token;
-
     hs_event.type = (evt_external | evt_token);
-    _np_key_handle_event(msg_source_key, hs_event, false);
+    _np_keycache_handle_event(context, search_key, hs_event, false);
     
     log_msg(LOG_ERROR, "Update msg source done! %p", msg_source_key);
 
@@ -991,7 +994,6 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
 
     __np_cleanup__:
         np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
-        np_unref_obj(np_aaatoken_t, msg_source_key, "_np_keycache_find_or_create");
         np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
         if (hs_alias_key) np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
         np_unref_obj(np_key_t, msg_source_key, "_np_keycache_find_or_create");

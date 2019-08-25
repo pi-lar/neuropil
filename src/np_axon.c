@@ -440,7 +440,6 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
     if (!_np_route_my_key_has_connection(context))
     {
         log_msg(LOG_WARN, "--- request for forward message out, but no connections left ...");
-        np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
         return false;
     }
 
@@ -499,7 +498,6 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
     if (!_np_route_my_key_has_connection(context))
     {
         log_msg(LOG_WARN, "--- request for discovery message out, but no connections left ...");
-        np_unref_obj(np_message_t, available_msg, ref_obj_creation);
         return false;
     }
 
@@ -546,7 +544,6 @@ bool _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
     if (!_np_route_my_key_has_connection(context))
     {
         log_msg(LOG_WARN, "--- request for discovery message out, but no connections left ...");
-        np_unref_obj(np_message_t, discover_msg, ref_obj_creation);
         return false;
     }
 
@@ -907,6 +904,13 @@ bool _np_out_update(np_state_t* context, const np_util_event_t event)
 
     np_key_t* target = sll_first(tmp)->val;
 
+    if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey)) {
+        log_msg(LOG_WARN, "--- request for update message out, but this is already the nearest node ...");
+        np_key_unref_list(tmp, "_np_route_lookup");
+        sll_free(np_key_ptr, tmp);
+        return false;
+    }
+
     _np_message_set_to(update_msg, target->dhkey);
 
     // 4: chunk the message if required
@@ -921,13 +925,14 @@ bool _np_out_update(np_state_t* context, const np_util_event_t event)
         iter->val->uuid = strndup(update_msg->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting update request to target key %s / %p", _np_key_as_str(target), target);
         np_util_event_t update_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
-        _np_key_handle_event(target, update_event, false);
+        _np_keycache_handle_event(context, target->dhkey, update_event, false);
         pll_next(iter);
     }
 
     // 5 cleanup
     np_key_unref_list(tmp, "_np_route_lookup");
     sll_free(np_key_ptr, tmp);
+
     return true;
 }
 
@@ -935,29 +940,19 @@ bool _np_out_leave(np_state_t* context, const np_util_event_t event)
 {
     log_trace_msg(LOG_TRACE, "start: bool _np_out_leave(...) {");
 
-    NP_CAST(event.user_data, np_key_t, property_key);
+    NP_CAST(event.user_data, np_message_t, leave_msg);
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
 
-    np_tree_t* jrb_data     = np_tree_create();
-    np_tree_t* jrb_my_node  = np_tree_create();
-    np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
-    np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
-
-    // 1: create nack message
-    np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out, FUNC);
-    _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_LEAVE_REQUEST, NULL);
-
     // 2: chunk the message if required
-    _np_message_calculate_chunking(msg_out);
-    _np_message_serialize_chunked(msg_out);
+    _np_message_calculate_chunking(leave_msg);
+    _np_message_serialize_chunked(leave_msg);
 
     // 3: send over the message parts
-    pll_iterator(np_messagepart_ptr) iter = pll_first(msg_out->msg_chunks);
+    pll_iterator(np_messagepart_ptr) iter = pll_first(leave_msg->msg_chunks);
 
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(msg_out->uuid, NP_UUID_BYTES);
+        iter->val->uuid = strndup(leave_msg->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting leave to target key %s / %p", _np_key_as_str(target_key), target_key);
         np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, event.target_dhkey, leave_event, false);
@@ -966,7 +961,6 @@ bool _np_out_leave(np_state_t* context, const np_util_event_t event)
     }
 
     // 5 cleanup
-    np_tree_free(jrb_my_node);
     np_unref_obj(np_key_t, target_key, "_np_keycache_find");
     return true;
 }
@@ -1034,15 +1028,8 @@ bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
         np_tree_t* jrb_body = np_tree_create();
         // get our node identity from the cache			
         np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context);
-        np_msgproperty_t* hs_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
 
-        // create real handshake message ...            
-        /*np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
-        np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(hs_prop->ack_mode));
-        np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(hs_prop->token_max_ttl + 0.0));
-        np_tree_insert_str( hs_message->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d((double)np_time_now()));
-        */
-        np_tree_insert_str( my_token->extensions, NP_HS_PRIO, np_treeval_new_ul(my_node->handshake_priority));
+        np_tree_insert_str(my_token->extensions, NP_HS_PRIO, np_treeval_new_ul(my_node->handshake_priority));
         _np_aaatoken_update_extensions_signature(my_token);
         
         np_aaatoken_encode(jrb_body, my_token);
@@ -1069,8 +1056,6 @@ bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
 
             np_util_event_t handshake_send_evt = { .type=(evt_internal|evt_message), .user_data=iter->val, .context=context, .target_dhkey=event.target_dhkey };
             _np_keycache_handle_event(context, event.target_dhkey, handshake_send_evt, false);
-            // __np_axon_invoke_on_user_send_callbacks(hs_message, hs_prop);
-            // np_unref_obj(np_message_t, hs_message, ref_obj_creation);
         }
     }
     else

@@ -105,6 +105,7 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
 {
     np_node_t* node = _np_key_get_node(node_key);
     np_network_t* network = _np_key_get_network(node_key);
+    
     np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node->protocol));
 
     np_treeval_t address;
@@ -189,8 +190,6 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 
     free (key_dup);
 
-    ref_replace_reason(np_key_t, node_key, "_np_keycache_find_or_create", FUNC);
-
     return (new_node);
 }
 
@@ -268,7 +267,8 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
         i_host_proto = _np_network_parse_protocol_string(s_host_proto);
     } 
 
-    if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL) {
+    if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL)
+    {
         free(details);
         return NULL;
     }
@@ -322,13 +322,12 @@ sll_return(np_node_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, 
     {
         np_tree_elem_t* node_data = np_tree_find_int(data, i);
 
-        bool free_s_key = false;
-
-        char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val, &free_s_key);
+        // bool free_s_key = false;
+        // char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val, &free_s_key);
         np_node_t* node = _np_node_decode_from_jrb(context, node_data->val.value.tree);
         sll_append(np_node_ptr, node_list, node);
 
-        free(s_key);
+        // free(s_key);
     }
     return (node_list);
 }

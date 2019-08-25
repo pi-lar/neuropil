@@ -43,7 +43,7 @@ Test(np_jobqueue, _np_jobqueue, .description = "test the jobqueue module of the 
 
 	    // a message for the subject
 		np_message_t* msg = NULL;
-		np_new_obj(np_message_t, msg);
+		np_new_obj(np_message_t, msg, ref_obj_creation);
 		_np_message_create(msg, dhkey, dhkey, test_subject, "urn:np:test:data:{ name: \"key\", value: \"value\" }");
 
 		cr_expect( NULL != context->np_module_jobqueue, "jobqueue module should be initialized");

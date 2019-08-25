@@ -199,7 +199,6 @@ bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_BLOB_1024);
     if ( ret) 
     {
-        // NP_CAST(event.user_data, np_message_t, message);
         // TODO: // ret &= _np_message_validate_format(message);
     }
     return ret;
@@ -212,48 +211,54 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 
     NP_CAST(event.user_data, void_ptr, raw_message);
 
+    bool clean_message = true;
     np_message_t* msg_in = NULL;
-    np_new_obj(np_message_t, msg_in);
+    np_new_obj(np_message_t, msg_in, ref_obj_creation);
 
     bool is_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, raw_message);
-    if (is_deserialization_successful == false) 
+    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
+    {   // check if the message is really a handshake message
+        is_deserialization_successful &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
+    }
+
+    if (is_deserialization_successful) 
+    {
+        log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
+                    "deserialized message %s (source: \"%s\")", msg_in->uuid, event.user_data);
+
+        CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE")
+        {
+            const char* str_msg_subject = msg_subject->val.value.s;
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
+
+            np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
+            if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in)) 
+            {
+                _np_message_deserialize_chunked(msg_in);
+
+                np_dhkey_t handshake_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_HANDSHAKE);
+                np_util_event_t handshake_evt = { .type=(evt_external|evt_message), .context=context, 
+                                                .user_data=msg_in, .target_dhkey=event.target_dhkey};
+                _np_keycache_handle_event(context, handshake_dhkey, handshake_evt, false);
+                clean_message = false;
+            }
+            else
+            {
+                log_msg(LOG_DEBUG, "duplicate handshake message detected, dropping it ...");
+            }
+        }
+    }
+    else 
     {
         log_msg(LOG_WARN, "error deserializing initial message from new partner node");
-        goto __np_cleanup__;
+        np_memory_free(context, raw_message);
+        clean_message = false;
     }
 
-    log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
-                  "deserialized message %s (source: \"%s\")", msg_in->uuid, event.user_data);
-    _np_message_trace_info("in", msg_in);
-
-    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE");
-    const char* str_msg_subject = msg_subject->val.value.s;
-
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
-
-    // wrap with bloom filter
-    if (0 != strncmp(str_msg_subject, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) ) goto __np_cleanup__;
-
-    np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
-    if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in)) 
-    {
-        np_handshake_token_t* handshake_token = NULL;        
-        _np_message_deserialize_chunked(msg_in);
-
-        np_dhkey_t handshake_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_HANDSHAKE);
-        np_util_event_t handshake_evt = { .type=(evt_external|evt_message), .context=context, 
-                                          .user_data=msg_in, .target_dhkey=event.target_dhkey};
-        _np_keycache_handle_event(context, handshake_dhkey, handshake_evt, false);
-    }
-    else
-    {
-        log_msg(LOG_DEBUG, "duplicate handshake message detected, dropping it ...");
-        goto __np_cleanup__;
-    }
+    if (clean_message)
+        np_unref_obj(np_message_t, raw_message, ref_obj_creation);
 
     __np_cleanup__:
-        np_memory_free(context, raw_message);
-        np_unref_obj(np_message_t, msg_in, "");
         return;
 } 
 

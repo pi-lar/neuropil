@@ -55,7 +55,6 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                 np_messagepart_ptr to_add = NULL;
                 _LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
                     to_add = pll_first(msg_to_check->msg_chunks)->val; // get the messagepart we received
-                    np_ref_obj(np_messagepart_t, to_add, FUNC);
                 }
                 log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                         "message (%s) %p / %p / %p", msg_uuid, msg_in_cache, msg_in_cache->msg_chunks, to_add);
@@ -64,13 +63,12 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                 _LOCK_ACCESS(&msg_in_cache->msg_chunks_lock)
                 {
                     // try to add the new received messagepart to the msg in cache
-                    np_ref_obj(np_messagepart_t, to_add, ref_message_messagepart);
-                    if(false == pll_insert(np_messagepart_ptr, msg_in_cache->msg_chunks, to_add, false, _np_messagepart_cmp)) {
-                        np_unref_obj(np_messagepart_t, to_add, ref_message_messagepart);
-                        // new entry is rejected (already present)
+                    if(true == pll_insert(np_messagepart_ptr, msg_in_cache->msg_chunks, to_add, false, _np_messagepart_cmp)) {
+                        // new entry is added (was not present)
+                        pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
                     }
-                    np_unref_obj(np_messagepart_t, to_add, FUNC);
-
+                    // we saved the chunk, but the message capsule can go now
+                    np_unref_obj(np_message_t, msg_to_check, ref_obj_creation);
                     // now we check if all chunks are complete for this msg
                     current_count_of_chunks = pll_size(msg_in_cache->msg_chunks);
                 }
@@ -85,9 +83,8 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                 else
                 {
                     ret = msg_in_cache;
-                    np_ref_obj(np_message_t, ret); // function ret ref
-
                     // removing the message from the cache system
+                    msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
                     np_tree_del_str(context->msg_part_cache, msg_uuid);
                     np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
 
@@ -115,7 +112,6 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
         log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                 "message %s (%s) is unchunked  ", subject, msg_uuid);
         ret = msg_to_check;
-        np_ref_obj(np_message_t, ret); // function ret ref
     }
     return ret;
 }
@@ -195,6 +191,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     {
         alias_node = _np_key_get_node(node_key);
         log_debug_msg(LOG_DEBUG, "start: void __np_alias_set(...) %p / %p {", node_key, alias_node);
+        np_unref_obj(np_key_t, node_key, "_np_keycache_find");
     }
 
     sll_append(void_ptr, alias_key->entities, handshake_token);
@@ -249,6 +246,7 @@ void __np_create_session(np_util_statemachine_t* statemachine, const np_util_eve
                 true
             );
     }
+
     alias_node->_handshake_status++;
     alias_node->session_key_is_set = true;
 
@@ -310,10 +308,11 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         memcpy(event.user_data, dec_msg, MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 
         np_message_t* msg_in = NULL;
-        np_new_obj(np_message_t, msg_in);
+        np_new_obj(np_message_t, msg_in, ref_obj_creation);
         if (!_np_message_deserialize_header_and_instructions(msg_in, event.user_data) )
         {
             np_memory_free(context, event.user_data);
+            // np_unref_obj(msg_in, msg_in, ref_obj_creation);
             return;
         }
 
@@ -474,6 +473,8 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
             np_key_t* subject_key = _np_keycache_find(context, subject_dhkey);
 
             ret &= (NULL != subject_key);
+
+            np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
         }
 
         CHECK_STR_FIELD_BOOL(usr_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
@@ -497,19 +498,17 @@ void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_
     // TODO: messag part cache should be a component on its own, but for now just use it
     np_message_t* msg_to_use = _np_alias_check_msgpart_cache(context, message);
 
-    if (msg_to_use != NULL) {
-
-        if (_np_message_deserialize_chunked(msg_to_use) ) 
+    if (msg_to_use != NULL && _np_message_deserialize_chunked(msg_to_use) )
+    {
+        CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
         {
-            CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
-            {
-                np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
-                np_util_event_t msg_event = event;
-                msg_event.user_data = msg_to_use;
-                _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
-            }
+            np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
+            np_util_event_t msg_event = event;
+            msg_event.user_data = msg_to_use;
+            log_msg(LOG_INFO, "handling   message (%s) for subject: %s", msg_to_use->uuid, str_msg_subject->val.value.s);
+            _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
         }
-    }
+    } 
 } 
 
 void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_event_t event) 

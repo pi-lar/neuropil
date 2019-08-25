@@ -49,7 +49,7 @@ void __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_jobargs_t args)
                 log_debug_msg(LOG_DEBUG | LOG_ROUTING, "Sending Ping to check bootstrap node is reachable (%s)", _np_key_as_str((np_key_t*)iter->val.value.v));
                 
                 np_message_t* out_msg = NULL;
-                np_new_obj(np_message_t, out_msg);
+                np_new_obj(np_message_t, out_msg, ref_obj_creation);
 
                 _np_message_create(out_msg, ((np_key_t*)iter->val.value.v)->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
