@@ -5,9 +5,9 @@ PLATFORM ?= $(shell uname -s)
 CC=/usr/local/opt/llvm/bin/clang
 # /usr/local/Cellar/llvm/7.0.1/bin/clang
 
-CFLAGS=-I/usr/local/opt/llvm/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include -fPIC
+CFLAGS  = -I/usr/local/opt/llvm/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include -fPIC
 # CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
-CFLAGS = -c -Wall -Wextra -g -gdwarf-2 -std=c99 -fprofile-instr-generate -O1 -DDEBUG -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
+CFLAGS += -c -Wall -Wextra -g -gdwarf-2 -std=c99 -fprofile-instr-generate -O1 -DDEBUG -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL -Wno-flag-enum
 # CFLAGS+=--analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o build/html
 # CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
 # CFLAGS=-c -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
