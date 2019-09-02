@@ -21,10 +21,6 @@ ensure_submodules() {
   git submodule update --init --recursive
 }
 ensure_criterion() {
-  if  [ -e ./ext_tools/Criterion/build/libcriterion.so ];
-  then
-    return
-  fi
   ( 
   cd ext_tools/Criterion
   mkdir -p build
