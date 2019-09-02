@@ -3,3 +3,6 @@ test:
   artifacts:
     reports:
       junit: report.xml
+  cache:
+    paths:
+      - venv
