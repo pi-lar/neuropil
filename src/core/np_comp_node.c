@@ -16,6 +16,7 @@
 #include "np_message.h"
 #include "np_responsecontainer.h"
 #include "np_route.h"
+#include "np_memory.h"
 
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
@@ -189,7 +190,7 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
     if (NULL != my_node) 
     {
         sll_append(void_ptr, node_key->entities, my_node);
-        np_memory_ref_replace_reason(my_node, "_np_node_from_token", "__np_node_set");
+        ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_node_set");
 
         // handle handshake token after wildcard join
         char* tmp_connection_str = np_get_connection_string_from(node_key, false);

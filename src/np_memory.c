@@ -31,7 +31,7 @@
 #include "np_messagepart.h"
 #include "np_crypto.h"
 #include "np_statistics.h"
-
+#include "np_memory.h"
 
 #include "np_constants.h"
 #include "np_settings.h"
