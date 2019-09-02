@@ -1,2 +1,5 @@
 test:
   script: ./do test
+  artifacts:
+    reports:
+      junit: report.xml
