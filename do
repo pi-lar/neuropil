@@ -38,7 +38,7 @@ task_build() {
   ensure_venv
   ensure_submodules
 
-  scons release=1
+  scons debug=1
 }
 
 task_clean() {
@@ -53,7 +53,7 @@ task_test() {
   ensure_criterion
 
   scons debug=1 test=1
-  export LD_LIBRARY_PATH=./ext_tools/Criterion/build
+  export LD_LIBRARY_PATH=./ext_tools/Criterion/build;./build/lib
   ./bin/neuropil_test_suite -j1 --xml=report.xml
 }
 
