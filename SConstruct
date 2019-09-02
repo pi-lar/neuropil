@@ -79,8 +79,10 @@ if build_tests_enable_test_coverage:
     default_env.GCovInjectObjectEmitters()
     default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage'], LDFLAGS = ['--coverage'], LIBS="gcov")
     '''
-    default_env = Environment(CC = 'gcc')
-    default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage','-fprofile-arcs','-ftest-coverage'], LDFLAGS = ['--coverage'], LIBS="gcov") 
+    #default_env = Environment(CC = 'gcc')
+    #default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage','-fprofile-arcs','-ftest-coverage'], LDFLAGS = ['--coverage'], LIBS="gcov") 
+    default_env = Environment(CC = 'clang')
+    default_env.Append(CCFLAGS = ['-g', '-O0'])
 else:
     default_env = Environment(CC = 'clang')
 
@@ -378,6 +380,7 @@ if install:
         Depends(py_install, bindings_python_build)
 
 # clean up
+Clean('.', os.path.join('ext_tools',"Criterion","build"))
 Clean('.', os.path.join('bindings','luajit','build'))
 Clean('.', os.path.join('bindings','python_cffi','build'))
 Clean('.', os.path.join('doc','build'))
