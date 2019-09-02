@@ -23,7 +23,8 @@ config.log
 /.cquery
 /.project
 *.key
-ext_tools/*
 *perf.data*
 /release
 bindings/luajit/neuropil_ffi.lua
+/venv/
+report.xml
