@@ -62,6 +62,12 @@ task_doc() {
   scons doc=1 target=doc
 }
 
+task_release() {
+  ensure_venv
+
+  find build
+}
+
 task_test() {
   ensure_venv
   ensure_submodules
@@ -73,7 +79,7 @@ task_test() {
 }
 
 usage() {
-  echo "$0  build | debug | test | clean"
+  echo "$0  build | debug | test | clean | release"
   exit 1
 }
 
@@ -83,6 +89,7 @@ case "$cmd" in
   build) task_build "$1";;
   test) task_test "$@";;
   debug) task_debug "$@";;
+  release) task_release ;;
   doc) task_doc ;;
   clean) task_clean ;;
   *) usage ;;

@@ -154,7 +154,7 @@ void np_util_statemachine_add_state(np_util_statemachine_state_t** states, struc
 
     states[state._state_id]->f_enter = state.f_enter;
     states[state._state_id]->f_exit  = state.f_exit;
-    states[state._state_id]->f_error = state.f_error;
+    states[state._state_id]->f_error = state.f_error;    
 
     /*
     fprintf(stdout, " s: %d.%25s -> %p / %p\n", 

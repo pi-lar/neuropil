@@ -80,9 +80,9 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
 
 #define NP_UTIL_STATEMACHINE_TRANSITION(MACHINE, SOURCE_STATE, TARGET_STATE, ACTION, CONDITION)           \
     np_util_statemachine_add_transition(MACHINE, SOURCE_STATE, (struct np_util_statemachine_transition_s) \
-    { \
-        ._active=true, ._source_state=SOURCE_STATE, ._target_state=TARGET_STATE, \
-        .f_action=ACTION, .f_condition=CONDITION \
+    {                                                                                                     \
+        ._active=true, ._source_state=SOURCE_STATE, ._target_state=TARGET_STATE,                          \
+        .f_action=ACTION, .f_condition=CONDITION                                                          \
     }) 
     
 #define NP_UTIL_STATEMACHINE_STATE(MACHINE, STATE, NAME, ERROR_FUNC, ENTER_FUNC, EXIT_FUNC) \

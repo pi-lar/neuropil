@@ -5,6 +5,7 @@ cache:
 stages:
   - test
   - build
+  - release
 
 test:
   stage: test
@@ -36,3 +37,14 @@ build:documentation:
     name: neuropil-documentation
     paths:
       - build/doc/html
+
+
+
+release:
+  stage: release
+  script: ./do release
+  dependencies:
+    - build:documentation
+    - build:freebsd
+    - build:linux
+
