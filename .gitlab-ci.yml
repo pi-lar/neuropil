@@ -28,3 +28,11 @@ build:freebsd:
     name: neuropil-freebsd
     paths:
       - build/freebsd
+
+build:documentation:
+  stage: build
+  script: ./do doc
+  artifacts:
+    name: neuropil-documentation
+    paths:
+      - build/doc/html

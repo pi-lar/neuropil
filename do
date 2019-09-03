@@ -56,6 +56,12 @@ task_clean() {
   scons -c
 }
 
+task_doc() {
+  ensure_venv
+
+  scons doc=1 target=doc
+}
+
 task_test() {
   ensure_venv
   ensure_submodules
@@ -77,6 +83,7 @@ case "$cmd" in
   build) task_build "$1";;
   test) task_test "$@";;
   debug) task_debug "$@";;
+  doc) task_doc ;;
   clean) task_clean ;;
   *) usage ;;
 esac
