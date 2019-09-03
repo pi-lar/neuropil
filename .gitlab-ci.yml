@@ -59,6 +59,13 @@ smoke_tests:
   dependencies:
     - prepare
 
+PRD:tag:
+  stage: release
+  script: ./do release
+  when: manual
+  dependencies:
+    - prepare
+
 PRD:files:
   stage: release
   script: false || to define
@@ -72,6 +79,18 @@ PRD:documentation:
   when: manual
   dependencies:
     - build:documentation
+
+PRD:demo:
+  stage: release
+  script: 
+    - ssh -o StrictHostKeyChecking=no demo_deploy /usr/local/bin/supervisorctl stop all
+    - ssh -o StrictHostKeyChecking=no demo_deploy rm neuropil/*neuropil*
+    - scp -r bin/. demo_deploy:/home/neuropil_deploy/neuropil
+    - scp -r build/lib/. demo_deploy:/home/neuropil_deploy/neuropil
+    - ssh -o StrictHostKeyChecking=no demo_deploy /usr/local/bin/supervisorctl start all
+  when: manual
+  dependencies:
+    - build:documentation    
 
 TST:files:
   stage: release
