@@ -6,20 +6,17 @@ stages:
   - test
   - build
 
-before_script:
-  - ls -lh
-  
 test:
   stage: test
-  script: bash -x ./do test --filter="*np_util_statemachine_t_core*"
+  script: ./do test --filter="*np_util_statemachine_t_core*"
   artifacts:
     reports:
       junit: report.xml
 
 build:linux:
   stage: build
-  script: bash -x ./do build
+  script: ./do build
 
 build:freebsd:
   stage: build
-  script: bash -x ./do build
+  script: ./do build
