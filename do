@@ -54,7 +54,7 @@ task_test() {
 
   scons debug=1 test=1
   export LD_LIBRARY_PATH=./ext_tools/Criterion/build:./build/lib
-  ./bin/neuropil_test_suite -j1 --xml=report.xml
+  ./bin/neuropil_test_suite -j1 --xml=report.xml "$@"
 }
 
 
@@ -67,7 +67,7 @@ cmd="${1:-}"
 shift || true
 case "$cmd" in
   build) task_build ;;
-  test) task_test ;;
+  test) task_test "$@";;
   clean) task_clean ;;
   *) usage ;;
 esac
