@@ -42,7 +42,7 @@ build:documentation:
 
 prepare:
   stage: prepare
-  script: ./do collect --pw "$NEUROPIL_BUILD_PW" --sign-file "$NEUROPIL_BUILD_KEYFILE"
+  script: ./do collect --pw "$NEUROPIL_BUILD_PW" --sign_file "$NEUROPIL_BUILD_KEYFILE"
   artifacts:
     name: neuropil-release
     paths:
