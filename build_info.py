@@ -5,6 +5,10 @@ import platform as p
 import argparse
 import tarfile
 import subprocess
+import getpass
+import requests
+from pprint import pprint
+
 try:
     from urllib.parse import quote_plus
 except:
@@ -14,15 +18,13 @@ rx = re.compile("#define NEUROPIL_RELEASE	[\"'](.*)[\"']")
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-SIGN_KEY_FILE = "build_sign.key"
-
-def sign_file(filepath,pw):
+def sign_file(filepath, sign_file, pw):
     data = {
         'pw':pw,
         'filepath':filepath
     }
     cmds = [
-            ["openssl","dgst","-sha256","-sign",SIGN_KEY_FILE,"-passin","pass:%(pw)s"% data,"-out","%(filepath)s.sig.raw"% data,"%(filepath)s"% data],
+            ["openssl","dgst","-sha256","-sign",sign_file,"-passin","pass:%(pw)s"% data,"-out","%(filepath)s.sig.raw"% data,"%(filepath)s"% data],
             ["openssl","base64","-in","%(filepath)s.sig.raw"% data, "-out", "%(filepath)s.sha256.sig" % data],
             ["rm","%(filepath)s.sig.raw"% data]
         ]
@@ -30,11 +32,11 @@ def sign_file(filepath,pw):
         #print("Calling: \""+" ".join(cmd)+"\"")
         subprocess.check_call(cmd)
 
-def sign_folder(folder,pw):    
+def sign_folder(sign_file,folder,pw):    
     for root, dirs, files in os.walk(os.path.join(dir_path, folder)):
         for file in files:
             if not file.endswith(".sig"):
-                sign_file("%s/%s%s"%(dir_path,folder,file ), pw)
+                sign_file(sign_file, "%s/%s%s"%(dir_path,folder,file ), pw)
 
 
 def get_version():
@@ -54,43 +56,112 @@ def get_version_tag():
 def get_build_name():
     return quote_plus("%s__%s__%s__%s" % (get_version_tag(), p.system(), p.release(), p.machine()))
 
+targets = [
+    {
+        'key':"freebsd",
+        'tarfile_name': "{target}_{version_tag}.tar.gz",
+    },
+    {
+        'key':"linux",
+        'tarfile_name': "{target}_{version_tag}.tar.gz",
+    },
+]
 if __name__ == "__main__":
-    if not os.path.isdir('release'):
-        os.mkdir('release')
     parser = argparse.ArgumentParser(description='Build helper.')
-    parser.add_argument('--build',help='build the tar file',action="store_true")
+    parser.add_argument('--collect',help='build the tar file',action="store_true")
+    parser.add_argument('--gitlab_release',help='Creates a gitlab release',action="store_true")
     parser.add_argument('--pw',help='provide the password in the build process')
+    parser.add_argument('--sign_file', default="build_sign.key", help='provide the key file used in the build process')
     parser.add_argument('--version',help='prints the current version',action="store_true")
     parser.add_argument('--versiontag',help='prints the current version tag',action="store_true")
     args = parser.parse_args()
-    action = False
-    if args.build:
-        if not args.pw:
-            print("missing parameter -pw in build")
-            action = False
-        else:
-            tarfilepath = "release/%s.tar.gz" % (get_build_name())
-            if not os.path.isfile(SIGN_KEY_FILE):    
-                print("Creating DEV sign key. DO NOT USE FOR TEST OR PRODUCTION!")            
-                subprocess.check_call(("openssl genpkey -algorithm RSA -out build_sign.key -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
-            action = True
-            sign_folder("bin/",args.pw)
-            sign_folder("build/lib/",args.pw)            
-            with tarfile.open(tarfilepath, "w:gz") as tar:
-                pass
-                tar.add("build/lib/", arcname=os.path.basename("build/lib/"))
-                tar.add("bin/", arcname=os.path.basename("bin/"))
-                tar.add("README", arcname=os.path.basename("README"))
-                tar.add("LICENSE", arcname=os.path.basename("LICENSE"))
-            print("Created TAR file in %s"%(tarfilepath))            
-            sign_file(tarfilepath, args.pw)
-            print("Signed  TAR file in %s"%(tarfilepath))            
-
+    version = get_version()
+    version_tag = get_version_tag()
     if args.version:
-        action = True
-        print(get_version())
-    if args.versiontag:
-        action = True
-        print(get_version_tag())
-    if action != True:
+        print(version)
+    elif args.versiontag:
+        print(version_tag)
+    elif args.collect or args.gitlab_release:
+        if args.collect:
+            if not args.pw:
+                args.pw = getpass.getpass("Please insert key password: ")
+            
+            if not os.path.isfile(args.sign_file):    
+                print("Creating DEV sign key. DO NOT USE FOR TEST OR PRODUCTION!")            
+                subprocess.check_call(("openssl genpkey -algorithm RSA -out "+args.sign_file+" -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
+            
+            #sign_folder("bin/", args.pw)
+            #sign_folder("build/lib/", args.pw)
+            
+            for target_conf in targets:
+                target = target_conf['key']
+                tarfile_name = target_conf['tarfile_name'].format(**locals())
+                tarfilepath = os.path.join("build",target,tarfile_name)
+                
+                with tarfile.open(tarfilepath, "w:gz") as tar:                
+                    tar.add(os.path.join("build",target,"lib"),         arcname=os.path.basename(os.path.join(version_tag, "lib")))
+                    tar.add(os.path.join("build",target,"bin"),         arcname=os.path.basename(os.path.join(version_tag, "bin")))
+                    tar.add(os.path.join("build","doc","html"),         arcname=os.path.basename(os.path.join(version_tag, "doc")))
+                    tar.add(os.path.join("include","neuropil.h"),       arcname=os.path.basename(os.path.join(version_tag, "include","neuropil.h")))
+                    tar.add(os.path.join("README"),                     arcname=os.path.basename(os.path.join(version_tag, "README")))
+                    tar.add(os.path.join("LICENSE"),                    arcname=os.path.basename(os.path.join(version_tag, "LICENSE")))
+                print("Created TAR file in {tarfilepath}".format(**locals()))
+                sign_file(tarfilepath, args.sign_file,  args.pw)
+                print("Signed  TAR file in {tarfilepath}".format(**locals()))
+
+        if args.gitlab_release:
+            GITLAB_API_TOKEN = os.environ.get("GITLAB_API_TOKEN")
+            if not GITLAB_API_TOKEN:
+                GITLAB_API_TOKEN = getpass.getpass("Please insert GITLAB_API_TOKEN: ")
+            
+            release_url = 'https://gitlab.com/api/v4/projects/14096230/releases'
+            headers = {
+                  'PRIVATE-TOKEN': GITLAB_API_TOKEN
+            }
+            import collections
+            release_payload = collections.OrderedDict({ 
+                "name": version_tag,
+                "tag_name": version,
+                "ref": subprocess.check_output(['git','rev-parse','HEAD']).decode("utf-8")[:-1],
+                "description": "Neuropil Release {version}".format(**locals()), 
+                "assets": { 
+                     "links": [] 
+                }
+            })
+            i=0
+            for target_conf in targets:
+                for ext in ["",".sha256.sig"]:
+                    target = target_conf['key']
+                    tarfile_name = target_conf['tarfile_name'].format(**locals())
+                    tarfilepath = os.path.join("build",target,tarfile_name+ext)
+                    url = 'https://gitlab.com/api/v4/projects/14096230/uploads'
+                    files = {'file': open(tarfilepath,"rb") }
+                    r = requests.post(url, files=files, headers=headers)                
+                    try:
+                        r.raise_for_status()
+                    except:
+                        print("create asset response:")
+                        print(r.text)
+                        raise
+                    url = r.json()['url'] 
+                    i += 1
+                    release_payload["assets"]["links"].append({
+                        "name": "{tarfile_name}{ext}".format(**locals()),
+                        "url": "https://gitlab.com/pi-lar/neuropil{url}".format(**locals())
+                        })         
+
+            r = requests.post(release_url, json=release_payload, headers=headers)
+            try:
+                r.raise_for_status()
+            except:
+                print("create release payload:")
+                pprint(release_payload)
+                print("")
+                print("create release response:")
+                print(r.text)
+                print("")
+                raise
+
+  
+    else:
         parser.print_help()

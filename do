@@ -43,7 +43,7 @@ task_build() {
   scons release=1 target="$1"
 }
 
-task_debug() {
+task_build_debug() {
   ensure_venv
   ensure_submodules
 
@@ -62,10 +62,34 @@ task_doc() {
   scons doc=1 target=doc
 }
 
-task_release() {
+task_collect() {
   ensure_venv
 
-  find build
+  if [ ! -f build/freebsd/lib/libneuropil.so ]
+  then
+    task_build freebsd
+  fi
+  if [ ! -f build/linux/lib/libneuropil.so ]
+  then
+    task_build linux
+  fi
+  if [ ! -f build/doc/html/index.html ]
+  then
+    task_doc
+  fi
+
+  ./build_info.py --collect "$@"
+}
+
+task_release() {
+    ensure_venv
+
+  if [ ! -f "build/linux/*.tar.gz" ]
+  then
+    task_collect
+  fi
+
+  ./build_info.py --gitlab_release
 }
 
 task_test() {
@@ -79,7 +103,7 @@ task_test() {
 }
 
 usage() {
-  echo "$0  build | debug | test | clean | release"
+  echo "$0  build | build_debug | test | clean | collect | release"
   exit 1
 }
 
@@ -88,7 +112,8 @@ shift || true
 case "$cmd" in
   build) task_build "$1";;
   test) task_test "$@";;
-  debug) task_debug "$@";;
+  build_debug) task_build_debug "$@";;
+  collect) task_collect "$@";;
   release) task_release ;;
   doc) task_doc ;;
   clean) task_clean ;;
