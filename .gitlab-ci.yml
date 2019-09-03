@@ -1,7 +1,12 @@
+stages:
+  - test
+  - build
+
 before_script:
   - ls -lh
   
 test:
+  stage: test
   script: ./do test --filter="*np_util_statemachine_t_core*"
   artifacts:
     reports:
@@ -9,3 +14,11 @@ test:
   cache:
     paths:
       - venv
+
+build:linux:
+  stage: build
+  script: ./do build
+
+build:freebsd:
+  stage: build
+  script: ./do build
