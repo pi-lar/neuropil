@@ -5,6 +5,8 @@ cache:
 stages:
   - test
   - build
+  - prepare
+  - smoke_tests
   - release
 
 test:
@@ -38,13 +40,47 @@ build:documentation:
     paths:
       - build/doc/html
 
-
-
-release:
-  stage: release
-  script: ./do release
+prepare:
+  stage: prepare
+  script: ./do collection --pw "$NEUROPIL_BUILD_PW" --sign-file "$NEUROPIL_BUILD_KEYFILE"
+  artifacts:
+    name: neuropil-release
+    paths:
+      - build/linux.tar.gz
+      - build/freebsd.tar.gz
   dependencies:
     - build:documentation
     - build:freebsd
     - build:linux
 
+smoke_tests:
+  stage: smoke_tests
+  script: true || to define
+  dependencies:
+    - prepare
+
+PRD:files:
+  stage: release
+  script: false || to define
+  when: manual
+  dependencies:
+    - prepare
+
+PRD:documentation:
+  stage: release
+  script: false || to define
+  when: manual
+  dependencies:
+    - build:documentation
+
+TST:files:
+  stage: release
+  script: false || to define
+  dependencies:
+    - prepare
+
+TST:documentation:
+  stage: release
+  script: false || to define
+  dependencies:
+    - build:documentation
