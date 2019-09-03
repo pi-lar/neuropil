@@ -320,7 +320,7 @@ if build_bindings_python:
 
 test_env = default_env.Clone()
 test_env.Append(LIBS = ['criterion'] )
-test_env.Append(LIBPATH = ['./ext_tools/Criterion/build'] )
+test_env.Append(LIBPATH = ['./build/test/ext_tools/Criterion/build'] )
 test_env.Append(CPPPATH = ['./ext_tools/Criterion/include'] )
 conf = Configure(test_env)
 

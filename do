@@ -23,15 +23,15 @@ ensure_submodules() {
 }
 
 ensure_criterion() {
-  if  [ -e ./ext_tools/Criterion/build/libcriterion.so ];
+  if  [ -e ./build/test/ext_tools/Criterion/build/libcriterion.so ];
   then
     return
   fi
   ( 
-  cd ext_tools/Criterion
-  mkdir -p build
-  cd build
-  cmake ..
+  root="$(pwd)"
+  mkdir -p build/test/ext_tools/Criterion/build
+  cd build/test/ext_tools/Criterion/build
+  cmake "${root}/ext_tools/Criterion"
   cmake --build .
   )
 }
@@ -40,7 +40,7 @@ task_build() {
   ensure_venv
   ensure_submodules
 
-  scons release=1
+  scons release=1 target="$1"
 }
 
 task_debug() {
@@ -62,7 +62,7 @@ task_test() {
   ensure_criterion  
 
   scons debug=1 test=1 target=test
-  export LD_LIBRARY_PATH=./ext_tools/Criterion/build:./build/test/lib
+  export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
   ./build/test/bin/neuropil_test_suite -j1 --xml=report.xml "$@"
 }
 
@@ -74,7 +74,7 @@ usage() {
 cmd="${1:-}"
 shift || true
 case "$cmd" in
-  build) task_build ;;
+  build) task_build "$1";;
   test) task_test "$@";;
   debug) task_debug "$@";;
   clean) task_clean ;;
