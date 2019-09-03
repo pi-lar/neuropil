@@ -53,7 +53,7 @@ task_test() {
   ensure_criterion
 
   scons debug=1 test=1
-  export LD_LIBRARY_PATH=./ext_tools/Criterion/build;./build/lib
+  export LD_LIBRARY_PATH=./ext_tools/Criterion/build:./build/lib
   ./bin/neuropil_test_suite -j1 --xml=report.xml
 }
 
