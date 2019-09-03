@@ -1,3 +1,6 @@
+before_script:
+  - ls -lh
+  
 test:
   script: ./do test --filter="*np_util_statemachine_t_core*"
   artifacts:
