@@ -34,7 +34,7 @@ bool invalid_condition(np_util_statemachine_t* statemachine, const np_util_event
     return false;
 }
 
-Test(np_util_statemachine_t, np_util_statemachine_t, .description = "test the statemachine implementation") {
+Test(np_util_statemachine_t, np_util_statemachine_t_core, .description = "test the statemachine implementation") {
     
     np_util_statemachine_t sm;
 

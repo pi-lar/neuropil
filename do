@@ -59,11 +59,11 @@ task_clean() {
 task_test() {
   ensure_venv
   ensure_submodules
-  ensure_criterion
+  ensure_criterion  
 
-  scons debug=1 test=1
-  export LD_LIBRARY_PATH=./ext_tools/Criterion/build:./build/lib
-  ./bin/neuropil_test_suite -j1 --xml=report.xml "$@"
+  scons debug=1 test=1 target=test
+  export LD_LIBRARY_PATH=./ext_tools/Criterion/build:./build/test/lib
+  ./build/test/bin/neuropil_test_suite -j1 --xml=report.xml "$@"
 }
 
 usage() {

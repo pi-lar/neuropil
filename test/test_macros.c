@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <math.h>
+#include <inttypes.h>
 
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -60,17 +61,17 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port) {
     struct np_settings* settings = np_default_settings(NULL);
 
     if(desc != NULL && strlen(desc) > 0)
-        snprintf(settings->log_file, 256, "neuropil_test_%s_%s.log", name, desc);
+        snprintf(settings->log_file, 256, "logs/neuropil_test_%s_%s.log", name, desc);
     else
-        snprintf(settings->log_file, 256, "neuropil_test_%s.log", name);
+        snprintf(settings->log_file, 256, "logs/neuropil_test_%s.log", name);
 
     settings->log_level |= LOG_GLOBAL;
     settings->n_threads = 1;
     ret = np_new_context(settings);
-    assert(ret != NULL);
-    assert(np_get_status(ret) == np_stopped);
-    assert(np_ok == np_listen(ret, porttype, "localhost", port));
-    assert(np_get_status(ret) == np_running);
+    cr_assert(ret != NULL);    
+    cr_expect_eq(np_get_status(ret), np_stopped, "np_get_status retuned %"PRIu8 );
+    cr_expect(np_ok == np_listen(ret, porttype, "localhost", port));    
+    cr_expect_eq(np_get_status(ret), np_running, "np_get_status retuned %"PRIi32 );
 
     return ret;
 }
