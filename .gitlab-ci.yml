@@ -1,3 +1,7 @@
+cache:
+  paths:
+    - venv
+
 stages:
   - test
   - build
@@ -11,9 +15,6 @@ test:
   artifacts:
     reports:
       junit: report.xml
-  cache:
-    paths:
-      - venv
 
 build:linux:
   stage: build
