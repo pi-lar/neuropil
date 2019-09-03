@@ -15,8 +15,16 @@ test:
 
 build:linux:
   stage: build
-  script: ./do build
-
+  script: ./do build linux
+  artifacts:
+    name: neuropil-linux
+    paths:
+      - build/linux
+    
 build:freebsd:
   stage: build
-  script: ./do build
+  script: ./do build freebsd
+  artifacts:
+    name: neuropil-freebsd
+    paths:
+      - build/freebsd
