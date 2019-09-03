@@ -17,9 +17,11 @@ ensure_venv() {
   source ./venv/bin/activate
   set -u
 }
+
 ensure_submodules() {
   git submodule update --init --recursive
 }
+
 ensure_criterion() {
   if  [ -e ./ext_tools/Criterion/build/libcriterion.so ];
   then
@@ -38,7 +40,14 @@ task_build() {
   ensure_venv
   ensure_submodules
 
-  scons debug=1
+  scons release=1
+}
+
+task_debug() {
+  ensure_venv
+  ensure_submodules
+
+  scons debug=1 "$@"
 }
 
 task_clean() {
@@ -57,9 +66,8 @@ task_test() {
   ./bin/neuropil_test_suite -j1 --xml=report.xml "$@"
 }
 
-
 usage() {
-  echo "$0  build | test | clean"
+  echo "$0  build | debug | test | clean"
   exit 1
 }
 
@@ -68,6 +76,7 @@ shift || true
 case "$cmd" in
   build) task_build ;;
   test) task_test "$@";;
+  debug) task_debug "$@";;
   clean) task_clean ;;
   *) usage ;;
 esac
