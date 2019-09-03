@@ -68,8 +68,10 @@ install = int(ARGUMENTS.get('install', 0))
 build_bindings = bool(int(ARGUMENTS.get('bindings', False)))
 build_bindings_lua = bool(int(ARGUMENTS.get('lua_binding', build_bindings)))
 build_bindings_python = bool(int(ARGUMENTS.get('python_binding', build_bindings)))
+target = ARGUMENTS.get('target', "test")
 
 
+buildDir = os.path.join('build', target)
 # use clang to compile the source code
 if build_tests_enable_test_coverage:
     '''
@@ -96,12 +98,12 @@ if os.getenv("CC"):
 default_env["CXX"] = os.getenv("CXX")
 default_env["ENV"].update(x for x in os.environ.items() if x[0].startswith("CCC_"))
 
-variantDir = 'build/obj/'
+variantDir = os.path.join(buildDir,'obj')
 
-default_env.VariantDir(variantDir+'framework', 'framework', duplicate=0)
-default_env.VariantDir(variantDir+'src', 'src', duplicate=0)
-default_env.VariantDir(variantDir+'test', 'test', duplicate=0)
-default_env.VariantDir(variantDir+'examples', 'examples', duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'framework'), 'framework', duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'src'), 'src', duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'test'), 'test', duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'examples'), 'examples', duplicate=0)
 
 default_env.Decider('MD5')
 
@@ -191,7 +193,7 @@ if verbose:
     default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
 
 default_env.Append(CPPPATH = ['./include','./framework'])
-default_env.Append(LIBPATH = ['./build/lib'])
+default_env.Append(LIBPATH = [os.path.join('.', buildDir,'lib')])
 
 print ("continuing with CCFLAGS set to: {dump}".format(dump=default_env.Dump(key='CCFLAGS')) )
 print ("continuing with LDFLAGS set to: {dump}".format(dump=default_env.Dump(key='LDFLAGS')) )
@@ -270,21 +272,21 @@ neuropil_env.Append(BUILDERS = {'Analyzer' : analyze_builder})
 
 if build_doc and sphinx_exe:
     #neuropil_env.Sphinx('./build/html', './doc/source')
-    compile_documentation = neuropil_env.Command("compile.documentation", None, lambda target,source,env: exec_call('make html -C doc BUILDDIR=../build'.split(' ')))
+    compile_documentation = neuropil_env.Command("compile.documentation", None, lambda target,source,env: exec_call(['make','html','-C','doc','BUILDDIR='+os.path.join('..',buildDir)]))
 
 if int(analyze) and scan_build_exe:
-    neuropil_env.Analyzer('build/sca')
+    neuropil_env.Analyzer(os.path.join(buildDir,'sca'))
 
 # if int(analyze):
 #     neuropil_env.Append(CPPPATH='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES  = ['dtime.c',      'np_time.c',            'neuropil.c',       'np_aaatoken.c',        'np_axon.c',        'np_dendrit.c']
+SOURCES  = ['dtime.c',       'np_time.c',            'neuropil.c',       'np_aaatoken.c',        'np_axon.c',        'np_dendrit.c']
 SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_comp_intent.c', 'core/np_comp_node.c', 'core/np_comp_alias.c']
 SOURCES += ['np_glia.c',    'np_jobqueue.c',        'np_dhkey.c',       'np_key.c',             'np_keycache.c',    'np_bootstrap.c']
 SOURCES += ['np_log.c',     'np_memory.c',          'np_message.c',     'np_network.c',     'np_node.c']
 SOURCES += ['np_route.c',   'np_tree.c',            'np_util.c',        'np_treeval.c',         'np_threads.c' ]
-SOURCES += ['np_scache.c',          'np_event.c',       'np_messagepart.c',     'np_statistics.c',  'np_responsecontainer.c']
+SOURCES += ['np_scache.c',  'np_event.c',       'np_messagepart.c',     'np_statistics.c',  'np_responsecontainer.c']
 SOURCES += ['np_legacy.c',  'np_serialization.c',   'np_shutdown.c',    'np_token_factory.c',   'np_crypto.c' ]
 SOURCES += ['util/np_statemachine.c', ]
 
@@ -293,7 +295,7 @@ SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sys
 # source code 3rd party libraries
 SOURCES += ['event/ev.c', 'json/parson.c','msgpack/cmp.c','gpio/bcm2835.c']
 
-SOURCES = [variantDir + "src/" + s for s in SOURCES]
+SOURCES = [os.path.join(variantDir, "src" , s) for s in SOURCES]
 
 print ('####')
 print ('#### building neuropil libraries/testsuite/example programs:')
@@ -301,8 +303,8 @@ print ('####')
 
 # build the neuropil library as static and shared library
 if not build_tests_enable_test_coverage:
-    np_stlib = neuropil_env.Library('build/lib/neuropil', SOURCES)
-np_dylib = neuropil_env.SharedLibrary('build/lib/neuropil', SOURCES)
+    np_stlib = neuropil_env.Library(os.path.join(buildDir, 'lib','neuropil'), SOURCES)
+np_dylib = neuropil_env.SharedLibrary(os.path.join(buildDir,'lib','neuropil'), SOURCES)
 
 bindings_python_build = False
 if build_bindings_lua:
@@ -318,7 +320,7 @@ if build_bindings_python:
 
 test_env = default_env.Clone()
 test_env.Append(LIBS = ['criterion'] )
-test_env.Append(LIBPATH = ['./ext_tools/Criterion/build'] )
+test_env.Append(LIBPATH = ['./build/test/ext_tools/Criterion/build'] )
 test_env.Append(CPPPATH = ['./ext_tools/Criterion/include'] )
 conf = Configure(test_env)
 
@@ -330,9 +332,9 @@ if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
     print ('Test cases included')
     # include the neuropil build path library infos
     test_env.Append(LIBS = ['criterion', 'sodium','ncurses','neuropil'])
-    test_suite = test_env.Program('bin/neuropil_test_suite',    variantDir+'test/test_suite.c')
+    test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_suite'),    os.path.join(variantDir,'test','test_suite.c'))
     Depends(test_suite, np_dylib)    
-    test_suite = test_env.Program('bin/neuropil_test_units',     variantDir+'test/test_units.c')
+    test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_units'),     os.path.join(variantDir,'test','test_units.c'))
     Depends(test_suite, np_dylib)
 else:
     print ('Test cases not included')
@@ -366,7 +368,7 @@ else:
         program_env.Append(LIBS = libs)
         if not build_program or build_program == program:
             print ('building neuropil_{program_name}'.format(program_name=program))
-            prg_np = program_env.Program('bin/neuropil_%s'%program, variantDir+'examples/neuropil_%s.c'%program)
+            prg_np = program_env.Program(os.path.join(buildDir, 'bin','neuropil_%s'%program), os.path.join(variantDir,'examples','neuropil_%s.c'%program))
             Depends(prg_np, np_dylib)
 
 

@@ -166,7 +166,7 @@ void prometheus_metric_add_label(prometheus_metric* self, prometheus_label label
 
         prometheus_item* n_item = calloc(1,sizeof(prometheus_item));
         n_item->next = self->labels;
-        n_item->data = malloc(sizeof(prometheus_label));
+        n_item->data = calloc(1, sizeof(prometheus_label));
         memcpy(n_item->data, &label, sizeof(prometheus_label));
         self->labels = n_item;
 
@@ -184,8 +184,8 @@ void prometheus_metric_replace_label(prometheus_metric* self, prometheus_label l
         prometheus_item* n_item = self->labels;
         while(n_item != NULL){
             prometheus_label* item = n_item->data;
-            if(strcmp(label.name, item->name)==0) {
-                strncpy(item->value,label.value,255);
+            if(strcmp(label.name, item->name)==0) {                
+                strncpy(item->value, label.value, 255);
                 replaced = true;
             }
             n_item = n_item->next;

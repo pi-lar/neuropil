@@ -28,3 +28,4 @@ config.log
 bindings/luajit/neuropil_ffi.lua
 /venv/
 report.xml
+tmp/*

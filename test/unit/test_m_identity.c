@@ -2,6 +2,7 @@
 // neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
+#include <sys/stat.h>
 #include <criterion/criterion.h>
 
 #include "neuropil.h"
@@ -13,12 +14,12 @@ np_state_t* context;
 
 void np_identity_setup() {
     struct np_settings* settings = np_default_settings(NULL);
-    snprintf(settings->log_file, 256, "neuropil_test_np_identity_module.log");
+    snprintf(settings->log_file, 256, "logs/neuropil_test_np_identity_module.log");
     settings->log_level |= LOG_GLOBAL;
     settings->n_threads = 1;
     context = np_new_context(settings);
-    assert(context != NULL);
-    assert(np_get_status(context) == np_stopped);
+    cr_assert(context != NULL);
+    cr_assert(np_get_status(context) == np_stopped);
 }
 
 void np_identity_destroy() {
@@ -29,6 +30,7 @@ TestSuite(np_identity, np_identity_setup, np_identity_destroy);
 
 Test(np_identity, np_identity_signing, .description = "test the identity usage/import of the neuropil library")
 {
+	mkdir("tmp", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	FILE* buffer = NULL;
 
 	// first step: create a new private key, set some data to the token
@@ -52,7 +54,7 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	np_token_fingerprint(context, my_token_1, false, &my_token_fp);
 
 	// store the secret token in a file
-	if ( NULL != (buffer = fopen("./.np_id", "wb")) ) {
+	if ( NULL != (buffer = fopen("./tmp/.np_id", "wb")) ) {
 		// convert to base64
 		size_t base64_length = sodium_base64_encoded_len(NP_SECRET_KEY_BYTES, sodium_base64_VARIANT_ORIGINAL);
 		char base64_array[base64_length];
@@ -62,7 +64,7 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	}
 
 	// store the public token in a file
-	if ( NULL != (buffer = fopen("./.np_id.pub", "wb")) ) {
+	if ( NULL != (buffer = fopen("./tmp/.np_id.pub", "wb")) ) {
 		struct np_token pub_token = {0};
 		memcpy(&pub_token, &my_token_1, sizeof(struct np_token));
 		// and wipe out the secret key from the token
@@ -101,9 +103,11 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	np_id my_token_2_fp;
 	np_token_fingerprint(context, my_token_2, true, &my_token_2_fp);
 	np_id_str(my_token_fp_str, my_token_2_fp);
+	char tmp_filename[255];
+	snprintf(tmp_filename, 255, "./tmp/%s", my_token_fp_str);
 
 	// store the secret token in a file
-	if ( NULL != (buffer = fopen(my_token_fp_str, "wb")) ) {
+	if ( NULL != (buffer = fopen(tmp_filename, "wb")) ) {
 		// convert to base64
 		size_t token_length = sizeof(struct np_token);
 		size_t base64_length = sodium_base64_encoded_len(token_length, sodium_base64_VARIANT_ORIGINAL);

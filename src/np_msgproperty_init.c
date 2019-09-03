@@ -250,7 +250,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     np_msgproperty_t* __authenticate = NULL;
     np_new_obj(np_msgproperty_t, __authenticate, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __authenticate);
+    //sll_append(np_msgproperty_ptr, ret, __authenticate);
 
     __authenticate->msg_subject = strdup(_NP_MSG_AUTHENTICATION_REQUEST);
     __authenticate->rep_subject = strdup(_NP_MSG_AUTHENTICATION_REPLY);
@@ -269,7 +269,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     np_msgproperty_t* __authenticate_reply = NULL;
     np_new_obj(np_msgproperty_t, __authenticate_reply, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __authenticate_reply);
+    //sll_append(np_msgproperty_ptr, ret, __authenticate_reply);
 
     __authenticate_reply->msg_subject = strdup(_NP_MSG_AUTHENTICATION_REPLY);
     __authenticate_reply->rep_subject = NULL;
@@ -287,7 +287,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     np_msgproperty_t* __authorize = NULL;
     np_new_obj(np_msgproperty_t, __authorize, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __authorize);
+    //sll_append(np_msgproperty_ptr, ret, __authorize);
 
     __authorize->msg_subject = strdup(_NP_MSG_AUTHORIZATION_REQUEST);
     __authorize->rep_subject = strdup(_NP_MSG_AUTHORIZATION_REPLY);
@@ -306,7 +306,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     np_msgproperty_t* __authorize_reply = NULL;
     np_new_obj(np_msgproperty_t, __authorize_reply, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __authorize_reply);
+    //sll_append(np_msgproperty_ptr, ret, __authorize_reply);
 
     __authorize_reply->msg_subject = strdup(_NP_MSG_AUTHORIZATION_REPLY);
     __authorize_reply->rep_subject = NULL;
@@ -324,7 +324,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 
     np_msgproperty_t* __account = NULL;
     np_new_obj(np_msgproperty_t, __account, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __account);
+    //sll_append(np_msgproperty_ptr, ret, __account);
 
     __account->msg_subject = strdup(_NP_MSG_ACCOUNTING_REQUEST);
     __account->rep_subject = NULL;

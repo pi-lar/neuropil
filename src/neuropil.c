@@ -270,7 +270,8 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
                 context->msg_part_cache = np_tree_create();
 
                 _np_shutdown_init(context);
-                np_threads_start_workers(context, context->settings->n_threads);
+                np_threads_start_workers(context, context->settings->n_threads);                
+                TSP_SET(context->status, np_running);
 
                 log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
                 log_msg(LOG_INFO, "neuropil successfully initialized: node: %s", _np_key_as_str(context->my_node_key));

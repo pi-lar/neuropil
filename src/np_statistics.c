@@ -220,9 +220,9 @@ void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metr
     if (np_module_initiated(statistics)) {
         np_module_var(statistics);
         
-        prometheus_label node_label;         
-        prometheus_label ident_label;         
-        prometheus_label instance_label;         
+        prometheus_label node_label = {0};   
+        prometheus_label ident_label = {0};      
+        prometheus_label instance_label = {0};
         strcpy(node_label.name,"node");
         strcpy(instance_label.name,"instance");
         strcpy(ident_label.name,"identity");

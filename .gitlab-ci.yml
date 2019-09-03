@@ -5,6 +5,7 @@ cache:
 stages:
   - test
   - build
+  - release
 
 test:
   stage: test
@@ -15,8 +16,35 @@ test:
 
 build:linux:
   stage: build
-  script: ./do build
-
+  script: ./do build linux
+  artifacts:
+    name: neuropil-linux
+    paths:
+      - build/linux
+    
 build:freebsd:
   stage: build
-  script: ./do build
+  script: ./do build freebsd
+  artifacts:
+    name: neuropil-freebsd
+    paths:
+      - build/freebsd
+
+build:documentation:
+  stage: build
+  script: ./do doc
+  artifacts:
+    name: neuropil-documentation
+    paths:
+      - build/doc/html
+
+
+
+release:
+  stage: release
+  script: ./do release
+  dependencies:
+    - build:documentation
+    - build:freebsd
+    - build:linux
+

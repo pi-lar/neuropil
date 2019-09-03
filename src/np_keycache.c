@@ -207,7 +207,7 @@ bool _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_util_event_t ar
     {
         RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
-            // log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
+            log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
             np_util_statemachine_invoke_auto_transitions(&iter->sm);            
             log_debug_msg(LOG_DEBUG, "sm %p %d %s", iter, iter->type, iter->sm._state_table[iter->sm._current_state]->_state_name);
         }
