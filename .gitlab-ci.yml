@@ -54,7 +54,7 @@ package:
 
 smoke_tests:
   stage: smoke_tests
-  script: true || to define
+  script: ./do smoke
   dependencies:
     - package
 

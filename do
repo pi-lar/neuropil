@@ -105,8 +105,24 @@ task_test() {
   ./build/test/bin/neuropil_test_suite -j1 --xml=report.xml "$@"
 }
 
+task_smoke() {
+  rm -rf smoke_test
+  mkdir -p smoke_test/logs
+  (
+  cd smoke_test
+
+  tar xf ../build/package/linux*.tar.gz
+  cd neuropil*
+  export LD_LIBRARY_PATH=./lib
+
+  ./bin/neuropil_node -d 3 -l ../logs -b 10000 -s 2 -w localhost -u localhost -e 10001 -y 0 -o 2 -p udp4 & 
+  ./bin/neuropil_node -d 3 -l ../logs -b 10010 -s 2 -w localhost -u localhost -e 10011 -y 0 -o 3 -p udp4  -j "*:udp4:localhost:10000" & 
+  sleep 1
+  )
+}
+
 usage() {
-  echo "$0  build | build_debug | test | clean | package | release | deploy"
+  echo "$0  build | build_debug | test | clean | package | release | deploy | smoke"
   exit 1
 }
 
@@ -119,6 +135,7 @@ case "$cmd" in
   package) task_package "$@";;
   release) task_release ;;
   deploy) task_deploy ;;
+  smoke) task_smoke ;;
   doc) task_doc ;;
   prepare_ci) task_prepare_ci ;;
   clean) task_clean ;;
