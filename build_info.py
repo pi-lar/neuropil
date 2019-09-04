@@ -84,7 +84,7 @@ if __name__ == "__main__":
         args.pw = os.environ.get("NEUROPIL_BUILD_PW")
         
     if not args.sign_file:
-        args.sign_file = os.environ.get("NEUROPIL_BUILD_KEYFILE")
+        args.sign_file = os.environ.get("NEUROPIL_BUILD_KEYFILE")                                         
 
     if not args.pw:
         args.pw = getpass.getpass("Please insert key password: ")
@@ -100,6 +100,7 @@ if __name__ == "__main__":
 
             if not os.path.isfile(args.sign_file):    
                 print("Creating DEV sign key. DO NOT USE FOR TEST OR PRODUCTION!")            
+                print("Sign Key: " + args.sign_file)
                 subprocess.check_call(("openssl genpkey -algorithm RSA -out "+args.sign_file+" -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
             
 
