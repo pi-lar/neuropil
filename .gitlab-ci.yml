@@ -46,8 +46,7 @@ package:
   artifacts:
     name: neuropil-release
     paths:
-      - build/linux/*.tar.gz*
-      - build/freebsd/*.tar.gz*
+      - build/package/*.tar.gz*
   dependencies:
     - build:documentation
     - build:freebsd

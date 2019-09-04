@@ -8,6 +8,7 @@ import subprocess
 import getpass
 import requests
 import collections
+import pathlib
 from pprint import pprint
 
 try:
@@ -95,25 +96,32 @@ if __name__ == "__main__":
     elif args.package or args.gitlab_release:
         if args.package:
             
+            pathlib.Path(os.path.join("build","package")).mkdir(parents=True, exist_ok=True)
+
             if not os.path.isfile(args.sign_file):    
                 print("Creating DEV sign key. DO NOT USE FOR TEST OR PRODUCTION!")            
                 subprocess.check_call(("openssl genpkey -algorithm RSA -out "+args.sign_file+" -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
             
-            #sign_folder("bin/", args.pw)
-            #sign_folder("build/lib/", args.pw)
-            
+
+            doc_tarfile_name = "doc_{version_tag}.tar.gz".format(**locals())
+            doc_tarfilepath = os.path.join("build","package",tarfile_name)
+            with tarfile.open(doc_tarfilepath, "w:gz") as tar:                
+                tar.add(os.path.join("build","doc","html"),         arcname=os.path.join(version_tag, "doc"))
+            print("Created TAR file in {tarfilepath}".format(**locals()))
+            sign_file(doc_tarfilepath, args.sign_file,  args.pw)
+            print("Signed  TAR file in {tarfilepath}".format(**locals()))
             for target_conf in targets:
                 target = target_conf['key']
                 tarfile_name = target_conf['tarfile_name'].format(**locals())
-                tarfilepath = os.path.join("build",target,tarfile_name)
+                tarfilepath = os.path.join("build","package",tarfile_name)
                 
                 with tarfile.open(tarfilepath, "w:gz") as tar:                
-                    tar.add(os.path.join("build",target,"lib"),         arcname=os.path.basename(os.path.join(version_tag, "lib")))
-                    tar.add(os.path.join("build",target,"bin"),         arcname=os.path.basename(os.path.join(version_tag, "bin")))
-                    tar.add(os.path.join("build","doc","html"),         arcname=os.path.basename(os.path.join(version_tag, "doc")))
-                    tar.add(os.path.join("include","neuropil.h"),       arcname=os.path.basename(os.path.join(version_tag, "include","neuropil.h")))
-                    tar.add(os.path.join("README"),                     arcname=os.path.basename(os.path.join(version_tag, "README")))
-                    tar.add(os.path.join("LICENSE"),                    arcname=os.path.basename(os.path.join(version_tag, "LICENSE")))
+                    tar.add(os.path.join("build",target,"lib"),         arcname=os.path.join(version_tag, "lib"))
+                    tar.add(os.path.join("build",target,"bin"),         arcname=os.path.join(version_tag, "bin"))
+                    tar.add(os.path.join("build","doc","html"),         arcname=os.path.join(version_tag, "doc"))
+                    tar.add(os.path.join("include","neuropil.h"),       arcname=os.path.join(version_tag, "include","neuropil.h"))
+                    tar.add(os.path.join("README"),                     arcname=os.path.join(version_tag, "README"))
+                    tar.add(os.path.join("LICENSE"),                    arcname=os.path.join(version_tag, "LICENSE"))
                 print("Created TAR file in {tarfilepath}".format(**locals()))
                 sign_file(tarfilepath, args.sign_file,  args.pw)
                 print("Signed  TAR file in {tarfilepath}".format(**locals()))
@@ -137,12 +145,27 @@ if __name__ == "__main__":
                      "links": [] 
                 }
             })
-            i=0
+            url = 'https://gitlab.com/api/v4/projects/14096230/uploads'
+            files = {'file': open(doc_tarfilepath,"rb") }
+            r = requests.post(url, files=files, headers=headers)                
+            try:
+                r.raise_for_status()
+            except:
+                print("create asset response:")
+                print(r.text)
+                raise
+            url = r.json()['url'] 
+            i += 1
+            release_payload["assets"]["links"].append({
+                "name": "{doc_tarfile_name}".format(**locals()),
+                "url": "https://gitlab.com/pi-lar/neuropil{url}".format(**locals())
+                })         
+
             for target_conf in targets:
                 for ext in ["",".sha256.sig"]:
                     target = target_conf['key']
                     tarfile_name = target_conf['tarfile_name'].format(**locals())
-                    tarfilepath = os.path.join("build",target,tarfile_name+ext)
+                    tarfilepath = os.path.join("build","package",tarfile_name+ext)
                     url = 'https://gitlab.com/api/v4/projects/14096230/uploads'
                     files = {'file': open(tarfilepath,"rb") }
                     r = requests.post(url, files=files, headers=headers)                
@@ -152,8 +175,7 @@ if __name__ == "__main__":
                         print("create asset response:")
                         print(r.text)
                         raise
-                    url = r.json()['url'] 
-                    i += 1
+                    url = r.json()['url']                     
                     release_payload["assets"]["links"].append({
                         "name": "{tarfile_name}{ext}".format(**locals()),
                         "url": "https://gitlab.com/pi-lar/neuropil{url}".format(**locals())
