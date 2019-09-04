@@ -74,6 +74,15 @@ task_release() {
   ./build_info.py --gitlab_release
 }
 
+task_deploy() {
+
+  ssh -o StrictHostKeyChecking=no demo_deploy /usr/local/bin/supervisorctl stop all
+  ssh -o StrictHostKeyChecking=no demo_deploy rm neuropil/*neuropil*
+  scp -r bin/. demo_deploy:/home/neuropil_deploy/neuropil
+  scp -r build/lib/. demo_deploy:/home/neuropil_deploy/neuropil
+  ssh -o StrictHostKeyChecking=no demo_deploy /usr/local/bin/supervisorctl start all
+}
+
 task_test() {
   ensure_venv
   ensure_submodules
@@ -85,7 +94,7 @@ task_test() {
 }
 
 usage() {
-  echo "$0  build | build_debug | test | clean | package | release"
+  echo "$0  build | build_debug | test | clean | package | release | deploy"
   exit 1
 }
 
@@ -97,6 +106,7 @@ case "$cmd" in
   build_debug) task_build_debug "$@";;
   package) task_package "$@";;
   release) task_release ;;
+  deploy) task_deploy ;;
   doc) task_doc ;;
   clean) task_clean ;;
   *) usage ;;
