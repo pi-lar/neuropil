@@ -7,7 +7,6 @@ stages:
   - build
   - package
   - smoke_tests
-  - release
   - deploy
 
 test:
@@ -60,30 +59,19 @@ smoke_tests:
   dependencies:
     - package
 
-release:production:
-  stage: release
-  script: ./do release
-  when: manual
-  dependencies:
-    - package
-
-release:test:
-  stage: release
-  script: true || to define
-  dependencies:
-    - package
-
 deploy:production:
   stage: deploy
   script: 
+    - ./do release
     - ./do deploy
+  when: manual
   dependencies:
-    - release:production
+    - package
     - build:documentation    
 
 deploy:test:
   stage: deploy
   script: true || to define
   dependencies:
-    - release:test
+    - package
     - build:documentation
