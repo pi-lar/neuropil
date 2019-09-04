@@ -79,17 +79,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     version = get_version()
     version_tag = get_version_tag()
-
-    if not args.pw:
-        args.pw = os.environ.get("NEUROPIL_BUILD_PW")
-        
-    if not args.sign_file:
-        args.sign_file = os.environ.get("NEUROPIL_BUILD_KEYFILE")
-    if not args.sign_file:
-        args.sign_file = input("Please insert file location for sign key: ")
-
-    if not args.pw:
-        args.pw = getpass.getpass("Please insert key password: ")
         
     if args.version:
         print(version)
@@ -98,9 +87,19 @@ if __name__ == "__main__":
     elif args.package or args.gitlab_release:
         doc_tarfile_name = "doc_{version_tag}.tar.gz".format(**locals())
         doc_tarfilepath = os.path.join("build","package",doc_tarfile_name)
-        
+
         if args.package:
-            
+            if not args.pw:
+                args.pw = os.environ.get("NEUROPIL_BUILD_PW")
+                
+            if not args.sign_file:
+                args.sign_file = os.environ.get("NEUROPIL_BUILD_KEYFILE")
+            if not args.sign_file:
+                args.sign_file = input("Please insert file location for sign key: ")
+
+            if not args.pw:
+                args.pw = getpass.getpass("Please insert key password: ")            
+                
             pathlib.Path(os.path.join("build","package")).mkdir(parents=True, exist_ok=True)
 
             if not os.path.isfile(args.sign_file):    
@@ -158,8 +157,7 @@ if __name__ == "__main__":
                 print("create asset response:")
                 print(r.text)
                 raise
-            url = r.json()['url'] 
-            i += 1
+            url = r.json()['url']             
             release_payload["assets"]["links"].append({
                 "name": "{doc_tarfile_name}".format(**locals()),
                 "url": "https://gitlab.com/pi-lar/neuropil{url}".format(**locals())
