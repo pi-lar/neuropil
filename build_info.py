@@ -73,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument('--package',help='build the tar file',action="store_true")
     parser.add_argument('--gitlab_release',help='Creates a gitlab release',action="store_true")
     parser.add_argument('--pw',help='provide the password in the build process')
-    parser.add_argument('--sign_file', default="build_sign.key", help='provide the key file used in the build process')
+    parser.add_argument('--sign_file', help='provide the key file used in the build process')
     parser.add_argument('--version',help='prints the current version',action="store_true")
     parser.add_argument('--versiontag',help='prints the current version tag',action="store_true")
     args = parser.parse_args()
@@ -85,6 +85,8 @@ if __name__ == "__main__":
         
     if not args.sign_file:
         args.sign_file = os.environ.get("NEUROPIL_BUILD_KEYFILE")
+    if not args.sign_file:
+        args.sign_file = input("Please insert file location for sign key: ")
 
     if not args.pw:
         args.pw = getpass.getpass("Please insert key password: ")
