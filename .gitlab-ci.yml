@@ -61,6 +61,8 @@ smoke_tests:
 
 deploy:production:
   stage: deploy
+  before_script: 
+    - ./do prepare_ci
   script: 
     - ./do release
     - ./do deploy
@@ -71,6 +73,8 @@ deploy:production:
 
 deploy:test:
   stage: deploy
+  before_script: 
+    - ./do prepare_ci
   script: true || to define
   dependencies:
     - package

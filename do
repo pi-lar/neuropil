@@ -36,6 +36,18 @@ ensure_criterion() {
   )
 }
 
+task_prepare_ci(){
+  eval $(ssh-agent -s)
+
+  ##
+  ## Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+  ## We're using tr to fix line endings which makes ed25519 keys work
+  ## without extra base64 encoding.
+  ## https://gitlab.com/gitlab-examples/ssh-private-key/issues/1#note_48526556
+  ##
+  echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+}
+
 task_build() {
   ensure_venv
   ensure_submodules
@@ -108,6 +120,7 @@ case "$cmd" in
   release) task_release ;;
   deploy) task_deploy ;;
   doc) task_doc ;;
+  prepare_ci) task_prepare_ci ;;
   clean) task_clean ;;
   *) usage ;;
 esac
