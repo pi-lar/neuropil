@@ -104,12 +104,12 @@ if __name__ == "__main__":
             
 
             doc_tarfile_name = "doc_{version_tag}.tar.gz".format(**locals())
-            doc_tarfilepath = os.path.join("build","package",tarfile_name)
+            doc_tarfilepath = os.path.join("build","package",doc_tarfile_name)
             with tarfile.open(doc_tarfilepath, "w:gz") as tar:                
                 tar.add(os.path.join("build","doc","html"),         arcname=os.path.join(version_tag, "doc"))
-            print("Created TAR file in {tarfilepath}".format(**locals()))
+            print("Created TAR file in {doc_tarfilepath}".format(**locals()))
             sign_file(doc_tarfilepath, args.sign_file,  args.pw)
-            print("Signed  TAR file in {tarfilepath}".format(**locals()))
+            print("Signed  TAR file in {doc_tarfilepath}".format(**locals()))
             for target_conf in targets:
                 target = target_conf['key']
                 tarfile_name = target_conf['tarfile_name'].format(**locals())
