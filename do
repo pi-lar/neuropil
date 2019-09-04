@@ -65,29 +65,11 @@ task_doc() {
 task_collect() {
   ensure_venv
 
-  if [ ! -f build/freebsd/lib/libneuropil.so ]
-  then
-    task_build freebsd
-  fi
-  if [ ! -f build/linux/lib/libneuropil.so ]
-  then
-    task_build linux
-  fi
-  if [ ! -f build/doc/html/index.html ]
-  then
-    task_doc
-  fi
-
   ./build_info.py --collect "$@"
 }
 
 task_release() {
     ensure_venv
-
-  if [ ! -f "build/linux/*.tar.gz" ]
-  then
-    task_collect
-  fi
 
   ./build_info.py --gitlab_release
 }
