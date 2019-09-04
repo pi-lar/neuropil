@@ -62,10 +62,10 @@ task_doc() {
   scons doc=1 target=doc
 }
 
-task_collect() {
+task_package() {
   ensure_venv
 
-  ./build_info.py --collect "$@"
+  ./build_info.py --package "$@"
 }
 
 task_release() {
@@ -85,7 +85,7 @@ task_test() {
 }
 
 usage() {
-  echo "$0  build | build_debug | test | clean | collect | release"
+  echo "$0  build | build_debug | test | clean | package | release"
   exit 1
 }
 
@@ -95,7 +95,7 @@ case "$cmd" in
   build) task_build "$1";;
   test) task_test "$@";;
   build_debug) task_build_debug "$@";;
-  collect) task_collect "$@";;
+  package) task_package "$@";;
   release) task_release ;;
   doc) task_doc ;;
   clean) task_clean ;;

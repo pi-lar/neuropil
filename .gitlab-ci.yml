@@ -5,7 +5,7 @@ cache:
 stages:
   - test
   - build
-  - prepare
+  - package
   - smoke_tests
   - release
 
@@ -40,9 +40,9 @@ build:documentation:
     paths:
       - build/doc/html
 
-prepare:
-  stage: prepare
-  script: ./do collect --pw "$NEUROPIL_BUILD_PW" --sign_file "$NEUROPIL_BUILD_KEYFILE"
+package:
+  stage: package
+  script: ./do package
   artifacts:
     name: neuropil-release
     paths:
@@ -57,21 +57,21 @@ smoke_tests:
   stage: smoke_tests
   script: true || to define
   dependencies:
-    - prepare
+    - package
 
 PRD:tag:
   stage: release
   script: ./do release
   when: manual
   dependencies:
-    - prepare
+    - package
 
 PRD:files:
   stage: release
   script: false || to define
   when: manual
   dependencies:
-    - prepare
+    - package
 
 PRD:documentation:
   stage: release
@@ -96,7 +96,7 @@ TST:files:
   stage: release
   script: false || to define
   dependencies:
-    - prepare
+    - package
 
 TST:documentation:
   stage: release

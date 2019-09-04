@@ -7,6 +7,7 @@ import tarfile
 import subprocess
 import getpass
 import requests
+import collections
 from pprint import pprint
 
 try:
@@ -68,7 +69,7 @@ targets = [
 ]
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Build helper.')
-    parser.add_argument('--collect',help='build the tar file',action="store_true")
+    parser.add_argument('--package',help='build the tar file',action="store_true")
     parser.add_argument('--gitlab_release',help='Creates a gitlab release',action="store_true")
     parser.add_argument('--pw',help='provide the password in the build process')
     parser.add_argument('--sign_file', default="build_sign.key", help='provide the key file used in the build process')
@@ -77,14 +78,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
     version = get_version()
     version_tag = get_version_tag()
+
+    if not args.pw:
+        args.pw = os.environ.get("NEUROPIL_BUILD_PW")
+        
+    if not args.sign_file:
+        args.sign_file = os.environ.get("NEUROPIL_BUILD_KEYFILE")
+
+    if not args.pw:
+        args.pw = getpass.getpass("Please insert key password: ")
+        
     if args.version:
         print(version)
     elif args.versiontag:
         print(version_tag)
-    elif args.collect or args.gitlab_release:
-        if args.collect:
-            if not args.pw:
-                args.pw = getpass.getpass("Please insert key password: ")
+    elif args.package or args.gitlab_release:
+        if args.package:
             
             if not os.path.isfile(args.sign_file):    
                 print("Creating DEV sign key. DO NOT USE FOR TEST OR PRODUCTION!")            
@@ -118,7 +127,7 @@ if __name__ == "__main__":
             headers = {
                   'PRIVATE-TOKEN': GITLAB_API_TOKEN
             }
-            import collections
+            
             release_payload = collections.OrderedDict({ 
                 "name": version_tag,
                 "tag_name": version,
