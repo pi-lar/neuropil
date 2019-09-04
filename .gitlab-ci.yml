@@ -2,10 +2,6 @@ cache:
   paths:
     - venv
 
-before_script:
-  - env
-  - ls -l "$NEUROPIL_BUILD_KEYFILE"
-
 stages:
   - test
   - build
@@ -72,6 +68,7 @@ deploy:production:
   when: manual
   dependencies:
     - package
+    - build:documentation    
 
 deploy:test:
   stage: deploy
@@ -80,3 +77,4 @@ deploy:test:
   script: true || to define
   dependencies:
     - package
+    - build:documentation
