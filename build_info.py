@@ -96,6 +96,9 @@ if __name__ == "__main__":
     elif args.versiontag:
         print(version_tag)
     elif args.package or args.gitlab_release:
+        doc_tarfile_name = "doc_{version_tag}.tar.gz".format(**locals())
+        doc_tarfilepath = os.path.join("build","package",doc_tarfile_name)
+        
         if args.package:
             
             pathlib.Path(os.path.join("build","package")).mkdir(parents=True, exist_ok=True)
@@ -105,8 +108,7 @@ if __name__ == "__main__":
                 subprocess.check_call(("openssl genpkey -algorithm RSA -out "+args.sign_file+" -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
             
 
-            doc_tarfile_name = "doc_{version_tag}.tar.gz".format(**locals())
-            doc_tarfilepath = os.path.join("build","package",doc_tarfile_name)
+            
             with tarfile.open(doc_tarfilepath, "w:gz") as tar:                
                 tar.add(os.path.join("build","doc","html"),         arcname=os.path.join(version_tag, "doc"))
             print("Created TAR file in {doc_tarfilepath}".format(**locals()))
