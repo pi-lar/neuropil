@@ -677,8 +677,8 @@ void np_destroy(np_context*ac, bool gracefully)
     //sodium_destroy() /*not available*/
         
     // _np_network_set_key(context->my_node_key->network, NULL);    
-    np_unref_obj(np_key_t, context->my_node_key, ref_state_nodekey);    
-    np_unref_obj(np_key_t, context->my_identity, ref_state_identitykey);    
+    //np_unref_obj(np_key_t, context->my_node_key, ref_state_nodekey);    
+    //np_unref_obj(np_key_t, context->my_identity, ref_state_identitykey);    
 
     _np_route_destroy(context);
     _np_keycache_destroy(context);            
