@@ -432,6 +432,17 @@ void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const n
             log_msg(LOG_WARN, "deletion from routing table unsuccesful, reason unknown !!!");
         }
     }
+
+    // and clean up
+    _np_network_disable(trinity.network);
+    np_unref_obj(np_network_t, trinity.network, "__np_create_identity_network");
+    np_unref_obj(np_node_t, trinity.node, ref_obj_creation);        
+    np_unref_obj(np_aaatoken_t, trinity.token, "__np_set_identity");
+
+    sll_free(void_ptr, node_key->entities);
+
+    node_key->type = np_key_type_unknown;
+
 }
 
 void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -596,7 +607,7 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
 
     np_dhkey_t leave_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_LEAVE_REQUEST);
     np_util_event_t leave_evt = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
-    _np_keycache_handle_event(context, leave_prop_dhkey, leave_evt, false);
+    _np_keycache_handle_event(context, leave_prop_dhkey, leave_evt, true);
 
     np_tree_free(jrb_my_node);
 

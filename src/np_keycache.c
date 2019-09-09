@@ -55,20 +55,24 @@ bool _np_keycache_init(np_state_t* context)
     }
     return ret;
 }
+
 void _np_keycache_destroy(np_state_t* context){
     if (np_module_initiated(keycache)) {
         np_module_var(keycache);
         np_key_t *iter = NULL;
 
-        while((iter = RB_ROOT(_module->__key_cache)) != NULL)
+        _LOCK_MODULE(np_keycache_t)
         {
-            _np_key_destroy(iter);
+            while((iter = RB_ROOT(_module->__key_cache)) != NULL)
+            {
+                _np_key_destroy(iter);
+            }
+            free(_module->__key_cache);       
         }
-        free(_module->__key_cache);       
-        
         np_module_free(keycache);
     }
 }
+
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhkey)
 {
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");

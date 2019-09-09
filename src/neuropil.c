@@ -651,37 +651,47 @@ void np_str_id(np_id (*id), const char str[65])
     sodium_hex2bin(*id, NP_FINGERPRINT_BYTES, str, NP_FINGERPRINT_BYTES*2, NULL, NULL, NULL);
 }
 
-void np_destroy(np_context*ac, bool gracefully)
+void np_destroy(np_context* ac, bool gracefully)
 {
     np_ctx_cast(ac);
 
-    if(gracefully)
-        np_shutdown_notify_others(context);
+    if (gracefully) 
+    {
+        np_shutdown_add_callback(context, _np_shutdown_notify_others);
+    }
 
+    _np_shutdown_run_callbacks(context);
+
+    np_util_event_t shutdown_event = { .type=(evt_shutdown|evt_internal), .context=ac, .user_data=NULL};
+    if (context->my_node_key != NULL ) 
+    {
+        shutdown_event.target_dhkey = context->my_node_key->dhkey;
+        _np_keycache_handle_event(context, context->my_node_key->dhkey, shutdown_event, true);
+    }
+
+    if (context->my_identity != NULL && 
+        context->my_identity != context->my_node_key) 
+    {
+        shutdown_event.target_dhkey=context->my_identity->dhkey;
+        _np_keycache_handle_event(context, context->my_identity->dhkey, shutdown_event, true);
+    }    
+    
     _np_log_fflush(context, true);
     
     TSP_SET(context->status, np_shutdown);
 
-    // verifiy all other threads are stopped
-    np_threads_shutdown_workers(context);    
-
-    _np_shutdown_run_callbacks(context);
-
+    // verify all other threads are stopped
+    np_threads_shutdown_workers(context);
     // destroy modules
     // _np_sysinfo_destroy_cache(context);
     _np_shutdown_destroy(context);    
     _np_bootstrap_destroy(context);
-    _np_jobqueue_destroy(context);    
+    _np_jobqueue_destroy(context);
     _np_time_destroy(context);
      
-    //sodium_destroy() /*not available*/
-        
-    // _np_network_set_key(context->my_node_key->network, NULL);    
-    //np_unref_obj(np_key_t, context->my_node_key, ref_state_nodekey);    
-    //np_unref_obj(np_key_t, context->my_identity, ref_state_identitykey);    
-
+    // sodium_destroy() /* not available */
     _np_route_destroy(context);
-    _np_keycache_destroy(context);            
+    // _np_keycache_destroy(context);            
     _np_event_destroy(context);    
     _np_dhkey_destroy(context);
     _np_msgproperty_destroy(context);        
@@ -691,7 +701,6 @@ void np_destroy(np_context*ac, bool gracefully)
     _np_log_destroy(context);
 
     np_tree_free(context->msg_part_cache);
-    np_tree_free(context->msg_tokens);
     TSP_DESTROY(context->status);
     free(context);
 }

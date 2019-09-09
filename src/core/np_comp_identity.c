@@ -80,13 +80,23 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
-    NP_CAST( sll_first(my_identity_key->entities)->val, np_aaatoken_t, identity);
-    np_unref_obj(np_aaatoken_t, identity, ref_key_aaa_token);
+    if (FLAG_CMP(my_identity_key->type, np_key_type_node))
+    {
+        NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_network_t, my_network);
+        _np_network_disable(my_network);
+        np_unref_obj(np_network_t, my_network, "__np_create_identity_network");
+
+        NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_node_t, my_node);
+        np_unref_obj(np_node_t, my_node, ref_obj_creation);        
+    }
+
+    NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_aaatoken_t, my_token);
+    np_unref_obj(np_aaatoken_t, my_token, "__np_set_identity");
+
+    sll_free(void_ptr, my_identity_key->entities);
 
     _np_keycache_remove(context, my_identity_key->dhkey);
     my_identity_key->is_in_keycache = false;
-
-    sll_clear(void_ptr, my_identity_key->entities);
 
     my_identity_key->type = np_key_type_unknown;
 }
@@ -112,7 +122,6 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
         {
             my_identity_key->type |= np_key_type_ident;
             context->my_identity = my_identity_key;
-            np_ref_obj(np_aaatoken_t, identity, "__ref_my_identity");
         }
         log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, identity, identity->type);
     }
@@ -124,7 +133,6 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
         if (NULL == context->my_identity || context->my_identity == context->my_node_key)
         {
             context->my_identity = my_identity_key;
-            np_ref_obj(np_aaatoken_t, identity, "__ref_my_identity");
         }
         log_debug_msg(LOG_DEBUG, "context->my_identity =  %p %p %d", context->my_identity, identity, identity->type);
     }
@@ -228,7 +236,7 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 
         CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE")
         {
-            const char* str_msg_subject = msg_subject->val.value.s;
+            // const char* str_msg_subject = msg_subject->val.value.s;
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
 
             np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
@@ -256,11 +264,30 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
     }
 
     if (clean_message)
-        np_unref_obj(np_message_t, raw_message, ref_obj_creation);
+        np_unref_obj(np_message_t, msg_in, ref_obj_creation);
 
-    __np_cleanup__:
-        return;
 } 
+
+void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void _np_set_identity(...){");
+
+    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+
+    if (FLAG_CMP(my_identity_key->type, np_key_type_node) &&
+        my_identity_key == context->my_node_key)
+    {
+        NP_CAST(sll_last(my_identity_key->entities)->val, np_network_t, my_network);
+        _np_network_disable(my_network);
+    }
+    
+    if(FLAG_CMP(my_identity_key->type, np_key_type_ident) &&
+       my_identity_key == context->my_identity )
+    { 
+        // TODO: disable followup authn / authz requests
+    }
+}
 
 bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {

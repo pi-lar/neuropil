@@ -16,44 +16,53 @@
 extern "C" {
 #endif
 
-NP_API_INTERN
-bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-bool __is_identity_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    bool __is_identity_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-void __np_identity_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    void __np_identity_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-void __np_create_identity_network(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    void __np_create_identity_network(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-NP_API_INTERN
-bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN 
-void __np_identity_handle_account(np_util_statemachine_t* statemachine, const np_util_event_t event);
+    NP_API_INTERN
+    bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+    NP_API_INTERN
+    void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+    NP_API_INTERN
+    bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+    NP_API_INTERN
+    bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+    NP_API_INTERN
+    void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+    NP_API_INTERN
+    void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+    NP_API_INTERN
+    bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+    NP_API_INTERN 
+    void __np_identity_handle_account(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 
 #ifdef __cplusplus

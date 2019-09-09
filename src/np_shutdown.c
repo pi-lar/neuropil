@@ -32,6 +32,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
 
 #define __NP_SHUTDOWN_SIGNAL SIGINT
+
 np_module_struct(shutdown) {
     np_state_t* context;
     TSP(sll_return(np_destroycallback_t), on_destroy);
@@ -51,12 +52,15 @@ static void __np_shutdown_signal_handler(int sig) {
 void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
     np_ctx_cast(ac);
 
+    if (np_module_not_initiated(shutdown)) return;
+
     TSP_SCOPE(np_module(shutdown)->on_destroy) {
         sll_append(np_destroycallback_t, np_module(shutdown)->on_destroy, clb);
     }
 }
 
-bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event) {    
+bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event)
+{
     if (np_module(shutdown)->invoke) {     
         log_warn(LOG_MISC, "Received terminating process signal. Shutdown in progress.");
         np_destroy(context, false);   
@@ -66,7 +70,7 @@ bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event) {
 
 void _np_shutdown_init(np_state_t* context) {
 
-    if (!np_module_initiated(shutdown)) {
+    if (np_module_not_initiated(shutdown)) {
         np_module_malloc(shutdown);
         TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));
         _module->invoke = false;
@@ -93,11 +97,15 @@ void _np_shutdown_destroy(np_state_t* context) {
     }    
 }
 
-void _np_shutdown_run_callbacks(np_context*ac) {
+void _np_shutdown_run_callbacks(np_context*ac) 
+{
     np_ctx_cast(ac);
 
-    np_destroycallback_t clb;
-    TSP_SCOPE(np_module(shutdown)->on_destroy) {
+    if (np_module_not_initiated(shutdown)) return;
+
+    TSP_SCOPE(np_module(shutdown)->on_destroy) 
+    {
+        np_destroycallback_t clb;
         while ((clb = sll_head(np_destroycallback_t, np_module(shutdown)->on_destroy)) != NULL)
         {
             clb(context);
@@ -105,8 +113,8 @@ void _np_shutdown_run_callbacks(np_context*ac) {
     }
 }
 
-void np_shutdown_notify_others(np_state_t* context) {
-
+void _np_shutdown_notify_others(np_state_t* context) 
+{
     np_sll_t(np_key_ptr, routing_table)  = _np_route_get_table(context);
     np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors(context);
     np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);
@@ -119,7 +127,6 @@ void np_shutdown_notify_others(np_state_t* context) {
         _np_keycache_handle_event(context, leave_dhkey, shutdown_evt, true);
         sll_next(iter_keys);
     }
-    
     // TODO: wait for node components to switch state to IN_DESTROY
 
     sll_free(np_key_ptr, merge_table);

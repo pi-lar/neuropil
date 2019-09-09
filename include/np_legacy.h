@@ -60,6 +60,8 @@ extern "C" {
 #define np_module_typedef(m) typedef np_module_struct(m) np_module_type(m);
 
 #define np_module_member_name(m) CONCAT(np_module_, m)
+
+#define np_module_member_name(m) CONCAT(np_module_, m)
 #define np_module_member(m) np_module_type(m) * np_module_member_name(m);
 
 #define np_module_var(m) np_module_struct(m) * _module = np_module(m);
@@ -74,7 +76,10 @@ extern "C" {
         context->np_module_member_name(m) = NULL
 
 #define np_module(m) (context->np_module_member_name(m))
+#define np_module_init_null(m) context->np_module_member_name(m) = NULL;
+
 #define np_module_initiated(m) (context->np_module_member_name(m) != NULL)
+#define np_module_not_initiated(m) (context->np_module_member_name(m) == NULL)
 
 #define np_ctx_cast(ac)				\
     assert(ac != NULL);				\

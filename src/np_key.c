@@ -187,13 +187,14 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_DESTROY , __np_node_shutdown       , __is_shutdown_event); // node is not used anymore
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_USE_NODE, __np_node_update         ,  NULL); // i.e. send out ping / piggy messages
 
-        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_IDENTITY, "IN_USE_IDENTITY", __keystate_noop, __np_create_identity_network, __keystate_noop); // create local network in case of node private key
+        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_IDENTITY, "IN_USE_IDENTITY", __keystate_noop, __np_create_identity_network, __np_identity_destroy); // create local network in case of node private key
 
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_USE_IDENTITY, __np_extract_handshake      , __is_unencrypted_np_message); // check for local identity validity
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_USE_IDENTITY, __np_identity_handle_authn  , __is_authn_request); // check for local identity validity
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_USE_IDENTITY, __np_identity_handle_authz  , __is_authz_request); // check for local identity validity
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_USE_IDENTITY, __np_identity_handle_account, __is_account_request); // check for local identity validity
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY     , __np_identity_destroy       , __is_identity_invalid); // check for local identity validity
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY     , __np_identity_shutdown      , __is_shutdown_event); // node is not used anymore
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY     , __np_identity_shutdown      , __is_identity_invalid); // check for local identity validity
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_INTENT, "IN_USE_INTENT", __keystate_noop, __keystate_noop, __keystate_noop);
 
@@ -287,24 +288,20 @@ void _np_key_destroy(np_key_t* to_destroy)
         keyident = _np_key_as_str(to_destroy);
 
         log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures: %s", keyident);
-
         log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, np_memory_get_refcount(to_destroy));
 
         np_key_t* deleted;
         np_key_t* added;
 
-        _np_route_leafset_update(to_destroy, false, &deleted, &added);
-        _np_route_update(to_destroy, false, &deleted, &added);
-        _np_set_latency(to_destroy->dhkey, 0);
-        _np_set_success_avg(to_destroy->dhkey, 0);
-        _np_network_disable(to_destroy->network);
+        _np_keycache_remove(context, to_destroy->dhkey);
 
-        // if(to_destroy->is_in_keycache) {
-        //     _np_keycache_remove(context, to_destroy->dhkey);
-        // }
+        // _np_route_leafset_update(to_destroy, false, &deleted, &added);
+        // _np_route_update(to_destroy, false, &deleted, &added);
+
+        // _np_network_disable(to_destroy->network);
 
         // delete old receive tokens
-        if (NULL != to_destroy->recv_tokens)
+/*        if (NULL != to_destroy->recv_tokens)
         {
             pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->recv_tokens);
             while (NULL != iter)
@@ -315,9 +312,9 @@ void _np_key_destroy(np_key_t* to_destroy)
             pll_free(np_aaatoken_ptr, to_destroy->recv_tokens);
             to_destroy->recv_tokens = NULL;
         }
-
+*/
         // delete send tokens
-        if (NULL != to_destroy->send_tokens)
+/*        if (NULL != to_destroy->send_tokens)
         {
             pll_iterator(np_aaatoken_ptr) iter = pll_first(to_destroy->send_tokens);
             while (NULL != iter)
@@ -328,8 +325,8 @@ void _np_key_destroy(np_key_t* to_destroy)
             pll_free(np_aaatoken_ptr, to_destroy->send_tokens);
             to_destroy->send_tokens = NULL;
         }
-    
-        np_sll_t(np_key_ptr, aliasse) = _np_keycache_find_aliase(to_destroy);
+    */
+/*        np_sll_t(np_key_ptr, aliasse) = _np_keycache_find_aliase(to_destroy);
         sll_iterator(np_key_ptr) iter = sll_first(aliasse);
 
         while (iter != NULL) {
@@ -341,18 +338,20 @@ void _np_key_destroy(np_key_t* to_destroy)
             sll_next(iter);
         }
         sll_free(np_key_ptr, aliasse);
-
+*/
+/*
         if (to_destroy->parent_key != NULL) {
             np_unref_obj(np_key_t, to_destroy->parent_key, ref_key_parent);
             to_destroy->parent_key = NULL;
         }
-
+*/
+/*
         if(to_destroy->node) np_unref_obj(np_node_t, to_destroy->node, ref_key_node);
         if(to_destroy->network) {
             _np_network_set_key(to_destroy->network, NULL);
             np_unref_obj(np_network_t,  to_destroy->network,    ref_key_network);
         }
-
+*/
         log_debug_msg(LOG_KEY | LOG_DEBUG, "cleanup of key and associated data structures done.");            
     }
 }
