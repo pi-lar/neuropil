@@ -112,7 +112,7 @@ default_env.Decider('MD5')
 
 
 if build_x64 == -1:
-    build_x64  = "64" in str(platform.processor())
+    build_x64  = "64" in str(platform.machine())
 else:
     build_x64 = build_x64 == True  # normalize
     if build_x64 == True and "64" not in str(platform.processor()):

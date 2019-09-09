@@ -80,9 +80,10 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 // write_type_arr[np_treeval_type_npval_count] = &write_short_type;
 // write_type_arr[np_treeval_type_npval_count] = NULL;
 
-
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 {
+    if (sll_size(list_of_keys) <= 1) return; // no double entries to remove
+
     sll_iterator(np_key_ptr) iter1 = sll_first(list_of_keys);
     sll_iterator(np_key_ptr) tmp = NULL;
 

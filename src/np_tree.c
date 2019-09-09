@@ -36,8 +36,8 @@
 const char* const np_special_strs[] = {
 	//"np.test1",	// for test purposes. do not include into list
 	"np.test2",	// for test purposes
-	"localhost",
 	"np.test3",	// for test purposes
+	"localhost",
 	"_np.ack",
 	"_np.ack_to",
 	"_np.from",

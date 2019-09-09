@@ -385,21 +385,24 @@ char* np_get_connection_string_from(np_key_t* node_key, bool includeHash)
     assert (FLAG_CMP(node_key->type, np_key_type_node) || FLAG_CMP(node_key->type, np_key_type_wildcard) );
 
     np_node_t* node_data = _np_key_get_node(node_key);
-    return (
-            np_build_connection_string(
-                    includeHash == true ? _np_key_as_str(node_key) : NULL,
-                    _np_network_get_protocol_string(context, node_data->protocol),
-                    node_data->dns_name,
-                    node_data->port,
-                    includeHash)
-        );
+    if (node_data) 
+    {
+        return (np_build_connection_string(
+                        includeHash == true ? _np_key_as_str(node_key) : NULL,
+                        _np_network_get_protocol_string(context, node_data->protocol),
+                        node_data->dns_name,
+                        node_data->port,
+                        includeHash)
+            );
+    }
+
+    return NULL;
 }
 
 char* np_build_connection_string(char* hash, char* protocol, char*dns_name,char* port, bool includeHash)
 {
     log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, bool includeHash){");
     char* connection_str;
-
     if (true == includeHash) {
         asprintf(&connection_str, "%s:%s:%s:%s",
             hash,

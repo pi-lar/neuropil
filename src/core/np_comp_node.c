@@ -178,8 +178,8 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
     log_debug_msg(LOG_TRACE, "start: void __np_node_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
-
     NP_CAST(event.user_data, np_aaatoken_t, node_token);
+
     sll_append(void_ptr, node_key->entities, node_token);
     np_ref_obj(np_aaatoken_t, node_token, "__np_node_set");
 
@@ -623,27 +623,30 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
-    log_msg(LOG_ERROR, "__np_create_client_network %p (%d)", node_key, node_key->type);
+    log_msg(LOG_DEBUG, "__np_create_client_network %p (%d)", node_key, node_key->type);
 
     // lookup wildcard to extract existing np_network_t structure
     char* tmp_connection_str  = np_get_connection_string_from(node_key, false);
-    np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
-    np_key_t* wildcard_key    = _np_keycache_find(context, wildcard_dhkey);
-
-    // take over existing wildcard network if it exists
-    if (NULL != wildcard_key && wildcard_key != node_key)
+    if (tmp_connection_str)
     {
-        struct __np_node_trinity wildcard_trinity = {0};
-          
-        __np_key_to_trinity(wildcard_key, &wildcard_trinity);
-        sll_append(void_ptr, node_key->entities, _np_key_get_network(wildcard_key) );
-        np_ref_obj(np_network_t, wildcard_trinity.network);
+        np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
+        np_key_t*  wildcard_key   = _np_keycache_find(context, wildcard_dhkey);
 
-        __np_key_to_trinity(node_key, &trinity);
-        
-        np_unref_obj(np_key_t, wildcard_key, "_np_keycache_find");
-    } 
-    free(tmp_connection_str);
+        // take over existing wildcard network if it exists
+        if (NULL != wildcard_key && wildcard_key != node_key)
+        {
+            struct __np_node_trinity wildcard_trinity = {0};
+            
+            __np_key_to_trinity(wildcard_key, &wildcard_trinity);
+            sll_append(void_ptr, node_key->entities, _np_key_get_network(wildcard_key) );
+            np_ref_obj(np_network_t, wildcard_trinity.network);
+
+            __np_key_to_trinity(node_key, &trinity);
+            
+            np_unref_obj(np_key_t, wildcard_key, "_np_keycache_find");
+        }
+        free(tmp_connection_str);
+    }
 
     if (NULL == trinity.network && NULL != trinity.node) 
     {   // create outgoing network

@@ -18,6 +18,9 @@
 #include "np_legacy.h"
 #include "np_memory.h"
 #include "np_message.h"
+#include "np_network.h"
+#include "np_node.h"
+#include "np_route.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
@@ -68,7 +71,7 @@ bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_e
 
 bool __is_identity_authn(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
-    
+    return false;    
 }
 
 void __np_identity_update(np_util_statemachine_t* statemachine, const np_util_event_t event) { }
@@ -252,7 +255,7 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
             }
             else
             {
-                log_msg(LOG_DEBUG, "duplicate handshake message detected, dropping it ...");
+                log_msg(LOG_INFO, "duplicate handshake message (%s) detected, dropping it ...", msg_in->uuid);
             }
         }
     }
