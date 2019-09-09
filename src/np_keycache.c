@@ -17,16 +17,17 @@
 
 #include "core/np_comp_node.h"
 
-#include "np_legacy.h"
 #include "np_aaatoken.h"
-#include "np_log.h"
+#include "np_constants.h"
 #include "np_dhkey.h"
+#include "np_legacy.h"
+#include "np_list.h"
+#include "np_log.h"
 #include "np_network.h"
 #include "np_node.h"
-#include "np_threads.h"
 #include "np_key.h"
-#include "np_list.h"
-#include "np_constants.h"
+#include "np_settings.h"
+#include "np_threads.h"
 #include "np_util.h"
 
 // RB_HEAD(rbt_msgproperty, np_msgproperty_s);
@@ -203,19 +204,44 @@ np_key_t* _np_keycache_find_by_details(
     return (ret);
 }
 
-bool _np_keycache_check_state(np_state_t* context, NP_UNUSED  np_util_event_t args) 
+bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t args) 
 {
+    static np_dhkey_t current_iterator = {0};
     np_key_t *iter = NULL;
+    np_dhkey_t zero = {0};
+    uint16_t i = 0;
+    bool process_state_check = false;
 
     _LOCK_MODULE(np_keycache_t)
     {
         RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
         {
-            log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
-            np_util_statemachine_invoke_auto_transitions(&iter->sm);            
-            log_debug_msg(LOG_DEBUG, "sm %p %d %s", iter, iter->type, iter->sm._state_table[iter->sm._current_state]->_state_name);
+            if (_np_dhkey_equal(&zero, &current_iterator) )
+                current_iterator = iter->dhkey;
+
+            // fast forward to dhkey and then begin to execute state changes
+            if ( (_np_dhkey_equal(&iter->dhkey, &current_iterator) || true == process_state_check) && 
+                 i < _NP_KEYCACHE_ITERATION_STEPS)
+            {
+                log_msg(LOG_DEBUG, "iteration on key %s", _np_key_as_str(iter));
+                process_state_check = true;
+                // log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
+                np_util_statemachine_invoke_auto_transitions(&iter->sm);
+                log_debug_msg(LOG_DEBUG, "sm %p %d %s", iter, iter->type, iter->sm._state_table[iter->sm._current_state]->_state_name);
+                i++;
+            }
+            // iteration steps interval reached, store dhkey for next iteration
+            if (i >= _NP_KEYCACHE_ITERATION_STEPS) 
+            {
+                log_msg(LOG_DEBUG, "stopping iteration at key %s", _np_key_as_str(iter));
+                current_iterator = iter->dhkey;
+                break;
+            }
         }
+        // end of list interval exit - reset start dhkey to zero
+        if (i < _NP_KEYCACHE_ITERATION_STEPS) _np_dhkey_assign(&current_iterator, &zero);
     }
+
     return true;
 }
 
