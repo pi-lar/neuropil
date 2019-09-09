@@ -68,10 +68,10 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port) {
     settings->log_level |= LOG_GLOBAL;
     settings->n_threads = 1;
     ret = np_new_context(settings);
-    cr_assert(ret != NULL);    
-    cr_expect_eq(np_get_status(ret), np_stopped, "np_get_status retuned %"PRIu8 );
-    cr_expect(np_ok == np_listen(ret, porttype, "localhost", port));    
-    cr_expect_eq(np_get_status(ret), np_running, "np_get_status retuned %"PRIi32 );
+    cr_assert(ret != NULL);
+    cr_expect(np_stopped == np_get_status(ret), "np_get_status returned %"PRIu8, np_get_status(ret) );
+    cr_expect(np_ok      == np_listen(ret, porttype, "localhost", port));
+    cr_expect(np_running == np_get_status(ret), "np_get_status returned %"PRIi8, np_get_status(ret) );
 
     return ret;
 }

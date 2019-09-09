@@ -103,7 +103,6 @@ struct np_state_s
     //void* modules[np_modules_END];
     MAP(np_module_member, NP_CTX_MODULES)
 
-
     // reference to the physical node / key
     np_key_t* my_node_key;
 
@@ -111,14 +110,12 @@ struct np_state_s
     np_key_t* my_identity;
     char* realm_name;
 
-    np_tree_t *msg_tokens;
     np_tree_t* msg_part_cache;
 
     int thread_count;
 
     bool enable_realm_server; // act as a realm server for other nodes or not
     bool enable_realm_client; // act as a realm client and ask server for aaatokens
-
 
     np_aaa_callback authenticate_func; // authentication callback
     np_aaa_callback authorize_func;    // authorization callback
@@ -311,23 +308,6 @@ char* np_get_connection_string_from(np_key_t* node_key, bool includeHash);
 
 NP_API_EXPORT
 char* np_build_connection_string(char* hash, char* protocol, char*dns_name, char* port, bool includeHash);
-
-/**
-.. c:function:: void _np_ping_send(np_state_t* context, np_key_t* key)
-
-   Sends a ping message to a key. Can be used to check the connectivity to a node
-   The ping message is acknowledged in network layer. This function is mainly used by the neuropil subsystem.
-   All it does is updating the internal np_node_t statistics to prevent possible np_node_t purging from the cache.
-   In case of doubt: do not use it.
-
-   :param key: the np_key_t where the ping should be send to
-*/
-NP_API_INTERN
-void _np_ping_send(np_state_t* context, np_key_t* key);
-
-
-NP_API_INTERN
-void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum type);
 
 #define np_time_now() _np_time_now(context)
 NP_API_PROTEC

@@ -103,11 +103,12 @@ np_context* np_new_context(struct np_settings * settings_in) {
     }
 
     //TODO: check settings for bad configuration
-
     context = (np_state_t *)calloc(1, sizeof(np_state_t));
     CHECK_MALLOC(context);
 
     context->settings = settings;
+
+    MAP(np_module_init_null, NP_CTX_MODULES);
 
     if (sodium_init() == -1) {
         log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
@@ -135,7 +136,6 @@ np_context* np_new_context(struct np_settings * settings_in) {
         log_msg(LOG_ERROR, "neuropil_init: could not init time cache");
         status = np_startup;
     }
-
     else if (_np_dhkey_init(context) == false)
     {
         log_msg(LOG_ERROR, "neuropil_init: could not init distributed hash table");
@@ -164,6 +164,9 @@ np_context* np_new_context(struct np_settings * settings_in) {
 
         context->enable_realm_client = false;
         context->enable_realm_server = false;
+
+        // initialize message part handling cache
+        context->msg_part_cache = np_tree_create();
 
         _np_log_rotate(context, true);
     }
@@ -262,13 +265,9 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
             {
                 log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
                 ret = np_startup;
-            } 
+            }
             else 
             {
-                    // initialize message handling system
-                context->msg_tokens     = np_tree_create();
-                context->msg_part_cache = np_tree_create();
-
                 _np_shutdown_init(context);
                 np_threads_start_workers(context, context->settings->n_threads);                
                 TSP_SET(context->status, np_running);
@@ -279,16 +278,15 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
             }
         }
         
-        if (ret == np_ok) {
-            TSP_SET(context->status, np_stopped);
-        }
-        else {
+        if (ret != np_ok) 
+        {
             TSP_SET(context->status, np_error);
         }
     }
 
     return ret;
 }
+
 enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) {
     char * safe_protocol = protocol ? strndup(protocol,5) : NULL;
     char * safe_host = host ? strndup(host,200) : NULL;

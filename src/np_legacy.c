@@ -51,11 +51,9 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
-
 NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_ptr);
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_evt_callback_t);
-
 
 /**
  * The default authorize function, allows no authorizations and generates warnings
@@ -356,7 +354,6 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
 
-
 void np_send_response_msg(np_context*ac, np_message_t* original, np_tree_t *body)
 {
     // np_ctx_cast(ac);
@@ -452,50 +449,5 @@ void np_send_join(np_context*ac, const char* node_string)
 
     np_unref_obj(np_key_t, node_key, "_np_keycache_find_or_create");    
     np_bootstrap_add(context, node_string);
-}
-
-/**
-* Sends a ACK msg for the given message.
-* @param msg_to_ack
-*/
-void _np_send_ack(const np_message_t * const msg_to_ack, enum np_msg_ack_enum type)
-{ 
-    assert(msg_to_ack != NULL);
-    np_state_t* context = np_ctx_by_memory(msg_to_ack);
-
-    CHECK_STR_FIELD_BOOL(msg_to_ack->instructions, _NP_MSG_INST_ACK, msg_ack_mode, "NO ACK MODE DEFINED FOR msg") 
-    {
-        if(FLAG_CMP(msg_ack_mode->val.value.ush, type)) 
-        {
-            uint32_t seq = 0;
-
-            CHECK_STR_FIELD_BOOL(msg_to_ack->header, _NP_MSG_HEADER_FROM, ack_to, "ACK target missing for msg")
-            {
-                np_dhkey_t ack_dhkey = ack_to->val.value.dhkey;
-
-                // create new ack message & handlers
-                np_message_t* ack_msg = NULL;
-                np_new_obj(np_message_t, ack_msg, ref_obj_creation);
-
-                np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACK);
-
-                _np_message_create(ack_msg, ack_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, NULL);
-                np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg_to_ack->uuid));
-                np_tree_insert_str( ack_msg->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
-
-                // send the ack out
-                // no direct connection possible, route through the dht
-                if(_np_job_submit_route_event(context, 0.0, prop, NULL, ack_msg))
-                {
-                    log_info(LOG_ROUTING,
-                             "ACK_HANDLING route  send ack (%s) for message (%s / %s)",
-                             ack_msg->uuid, msg_to_ack->uuid, 
-                             (msg_to_ack->msg_property ? msg_to_ack->msg_property->msg_subject : "?")
-                    );
-                }
-                np_unref_obj(np_message_t, ack_msg, ref_obj_creation);
-            }
-        }
-    }
 }
 
