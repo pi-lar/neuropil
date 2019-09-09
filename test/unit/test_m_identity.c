@@ -23,7 +23,7 @@ void np_identity_setup() {
 }
 
 void np_identity_destroy() {
-	np_destroy(context, true);
+	np_destroy(context, false);
 }
 
 TestSuite(np_identity, np_identity_setup, np_identity_destroy);

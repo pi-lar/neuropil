@@ -32,6 +32,9 @@ TestSuite(np_message_t );
 Test(np_message_t, serialize_np_message_t_with_dhkey, .description = "test the serialization of a message object with dhkey in body")
 {
     CTX() {
+
+        struct np_mx_properties props = np_get_mx_properties(context, "serialize_np_message_t");
+
         log_trace_msg(LOG_TRACE, "start test.serialize_np_message_t_with_dhkey");
         // Build source message and necessary data
         np_dhkey_t write_dhkey_from;
@@ -116,6 +119,8 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
     CTX() {
         log_trace_msg(LOG_TRACE, "start test.serialize_np_message_t_with_dhkey_unchunked_instructions");
 
+        struct np_mx_properties props = np_get_mx_properties(context, "serialize_np_message_t");
+
         // Build source message and necessary data
         np_dhkey_t write_dhkey_from;
         write_dhkey_from.t[0] = 1;
@@ -158,7 +163,6 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 
         np_jobargs_t write_args = _np_job_create_args(context, write_msg, NULL, NULL, "tst");
         
-
         // Do the serialsation
         _np_message_calculate_chunking(write_msg);
         bool write_ret = _np_message_serialize_chunked(write_args.msg);
@@ -254,9 +258,7 @@ Test(np_message_t, _message_chunk_and_serialize, .description = "test the chunki
         np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
 
         _np_message_calculate_chunking(msg_out);
-
         _np_message_serialize_chunked(msg_out);
-
         _np_message_deserialize_chunked(msg_out);
 
         np_tree_elem_t* body_node_2 = np_tree_find_int(msg_out->body, 20);

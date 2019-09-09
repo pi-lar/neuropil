@@ -46,7 +46,7 @@ Test(np_aaatoken_t, create_node_token, .description = "test the creation of a no
 
 		// re-set the validity of this token for this test only	
 		test_token_1->expires_at = test_token_1->not_before + 1.;
-		_np_aaatoken_set_signature(test_token_1, test_token_1);
+		_np_aaatoken_set_signature(test_token_1, NULL); // self signed
 		cr_expect(true == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the token is valid");
 
 		np_tree_t* aaa_tree = np_tree_create();
@@ -90,7 +90,6 @@ Test(np_aaatoken_t, create_node_token, .description = "test the creation of a no
 		np_unref_obj(np_aaatoken_t, test_token_1, "_np_token_factory_new_node_token");
 		np_unref_obj(np_aaatoken_t, test_token_2, "np_token_factory_read_from_tree");
 		np_unref_obj(np_aaatoken_t, test_token_3, ref_obj_creation);
-
 	}
 }
 
