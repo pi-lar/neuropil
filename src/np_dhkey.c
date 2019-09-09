@@ -53,24 +53,43 @@ char* _np_dhkey_generate_hash (const char* key_in)
     return digest_out;
 }
 
-np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
-{
-    char name[256];
-    snprintf (name, 256, "%s:%s", strOrig, port);	
-
-    char* digest = _np_dhkey_generate_hash (name);
-
-    np_dhkey_t tmp = np_dhkey_create_from_hash(digest);
-
-    free (digest);
-    return tmp;
-}
-
 np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
 {
     log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hash(const char* strOrig){");
     np_dhkey_t kResult = { 0 };
-    np_str_id(*(np_id*)&kResult, strOrig);
+
+	char substring[9];
+	substring[8] = '\0';
+	
+    for (uint8_t i = 0; i < 8; i++)
+	{	// log_debug_msg(LOG_KEY | LOG_DEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
+		memcpy(substring, strOrig + i*8, 8);	
+		kResult.t[i] = strtoul((const char*) substring, NULL, 16);
+	}
+    // np_str_id((np_id*)&kResult, strOrig);
+    // np_str_id(*(np_id*)&kResult, strOrig);
+    return kResult;
+}
+
+np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
+{
+    char name[256];
+    snprintf (name, 255, "%s:%s", strOrig, port);	
+
+    np_dhkey_t kResult = { 0 };
+    unsigned char md_value[32];
+
+    crypto_hash_sha256(md_value, (unsigned char*) name, strnlen(name, 255));
+
+    memcpy(&kResult.t[0], &md_value[ 0], 4);
+    memcpy(&kResult.t[1], &md_value[ 4], 4);
+    memcpy(&kResult.t[2], &md_value[ 8], 4);
+    memcpy(&kResult.t[3], &md_value[12], 4);
+    memcpy(&kResult.t[4], &md_value[16], 4);
+    memcpy(&kResult.t[5], &md_value[20], 4);
+    memcpy(&kResult.t[6], &md_value[24], 4);
+    memcpy(&kResult.t[7], &md_value[28], 4);
+
     return kResult;
 }
 
@@ -295,37 +314,24 @@ uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
 uint8_t _np_dhkey_hexalpha_at (np_state_t* context, const np_dhkey_t* key, const int8_t index_of_key)
 {
     log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_hexalpha_at");
-    uint8_t j = 1;
-    uint32_t answer = 0;
-
-    const uint8_t tuple_size = 32;			// tuple is defined in np_dhkey_s
-    const uint8_t size_of_element = 4;		// element is 4 bit 
-    const uint8_t elements_in_tuple = tuple_size / size_of_element; // 8
+    uint8_t answer = 0;
+    // const uint8_t tuple_size = 32;			// tuple is defined in np_dhkey_s
+    // const uint8_t size_of_element = 4;		// element is 4 bit 
+    const uint8_t elements_in_tuple = 8; // tuple_size / size_of_element; // 8
     
-
     uint8_t tuple      = index_of_key / elements_in_tuple; // array index of tuple
     uint8_t tuple_rest = index_of_key % elements_in_tuple; // position in tuple
 
-    log_debug_msg(LOG_KEY | LOG_DEBUG, "lookup_pos: %"PRIi8"-> key[%"PRIu8"]: %08"PRIx32" mod %"PRIu8, index_of_key, tuple, key->t[tuple], tuple_rest);
-
+    char element[4];
+    memcpy(&element[0], &key->t[tuple], sizeof(uint32_t) );
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "lookup_pos: %"PRIi8"-> key[%"PRIu8"]: %08x ( %"PRIu32" / %"PRIu32" ) mod %"PRIu8, index_of_key, tuple, key->t[tuple], key->t[tuple], element, tuple_rest/2 );
     // shift the bitmask in a way only the desired element is preserved
-    uint32_t bit_mask = 0xf0000000;
-    for (; j <= tuple_rest; ++j)
-    {		
-        bit_mask = bit_mask >> size_of_element;
-    }
-    log_debug_msg(LOG_KEY | LOG_DEBUG, "bitmask: %08"PRIx32, bit_mask);
+    memcpy(&answer, element + (tuple_rest/2), sizeof(uint8_t) );
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "bitmask & key->[%"PRIu8"]: %"PRIx8" (%"PRIu8, tuple, answer, tuple_rest);
     // filter with bitmask
-    answer = key->t[tuple] & bit_mask;
-    log_debug_msg(LOG_KEY | LOG_DEBUG, "bitmask & key->[%"PRIu8"]: %08"PRIx32, tuple, answer);
-
-    // the answer may now be shifted till the element is on the right side of the register
-    for (; j < elements_in_tuple; ++j)
-    {
-        // shift result to the end of the number
-        answer = answer >> size_of_element;
-    }
-    log_debug_msg(LOG_KEY | LOG_DEBUG, "final answer: %"PRIu32" (%0"PRIx32")", answer, answer);
+    if (tuple_rest%2 == 0) answer  = answer >> 4; 
+    answer &= 0x0f;
+    log_debug_msg(LOG_KEY | LOG_DEBUG, "final answer: %"PRIu8" (%0"PRIx8")", answer, answer);
 
     log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_hexalpha_at");	
     return (uint8_t) answer;
@@ -335,10 +341,10 @@ uint8_t _np_dhkey_hexalpha_at (np_state_t* context, const np_dhkey_t* key, const
 
 void _np_dhkey_str(const np_dhkey_t* k, char* key_string)
 {
-    
     np_id_str(key_string, *(np_id*)k);
 } 
+
 void _np_str_dhkey(const char* key_string,  np_dhkey_t* k)
-{    
-    np_str_id(*(np_id*)k, key_string);
+{   // np_str_id(*(np_id*)k, key_string);
+    np_str_id((np_id*)k, key_string);
 } 
