@@ -145,13 +145,13 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 
 			if ((i % 1000) == 0)
 			{
-				cr_log_warn(
+				cr_log_info(
 					"routing table has %"PRIu64" of %"PRIu64" (%.0f%%) keys filled by %"PRIu64" inserted keys ",
 					current_size, NP_ROUTES_TABLE_SIZE, ((float)current_size / (float) NP_ROUTES_TABLE_SIZE)*100, i);
 			}
 		}
 		
-		cr_log_warn(
+		cr_log_info(
 			"routing table has %"PRIu64" of %"PRIu64" (%.0f%%) keys filled by %"PRIu64" inserted keys ",
 			current_size, NP_ROUTES_TABLE_SIZE, ((float)current_size / (float) NP_ROUTES_TABLE_SIZE)*100, i);
 

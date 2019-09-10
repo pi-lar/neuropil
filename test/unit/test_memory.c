@@ -21,6 +21,7 @@
 
 #undef NP_BENCHMARKING
 
+
 #include "np_legacy.h"
 #include "np_log.h"
 #include "np_message.h"
@@ -238,8 +239,8 @@ TestSuite(np_memory_t );
              }
          }
 
-         cr_log_warn("###########\n");
-         cr_log_warn("deleted %.0f items, created %.0f items\n", del, add);
+         cr_log_info("###########\n");
+         cr_log_info("deleted %.0f items, created %.0f items\n", del, add);
 
          CALC_AND_PRINT_STATISTICS("memory new_time  :", new_time, max_count);
          CALC_AND_PRINT_STATISTICS("memory free_time :", free_time, max_count);

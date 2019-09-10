@@ -86,7 +86,7 @@ Test(np_scache_t, np_simple_cache_performance, .description = "test the performa
 			MEASURE_TIME(retrieve_arr, j, item = np_simple_cache_get(context, cache_table, key));
 		}
 
-		cr_log_warn("###########\n");
+		cr_log_info("###########\n");
 		CALC_AND_PRINT_STATISTICS("scache insert  : ", insert_arr, max_entries);
 		CALC_AND_PRINT_STATISTICS("scache retrieve: ", retrieve_arr, max_entries);
 	}

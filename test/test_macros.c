@@ -33,7 +33,7 @@
             stddev += pow(array[j] - avg, 2);                                                \
         }                                                                                    \
         stddev = sqrt(stddev/(max_size-1));                                                  \
-        cr_log_warn("%s --> %.6f / %.6f / %.6f / %.6f \n", name, min, avg, max, stddev); \
+        cr_log_info("%s --> %.6f / %.6f / %.6f / %.6f \n", name, min, avg, max, stddev); \
 }
 
 np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port);
