@@ -11,7 +11,7 @@ stages:
 
 test:
   stage: test
-  script: ./do test --filter="*np_util_statemachine_t_core*"
+  script: ./do test
   artifacts:
     reports:
       junit: report.xml
