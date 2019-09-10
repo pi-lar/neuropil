@@ -195,6 +195,8 @@ Test(test_serialization, serialize_np_dhkey_t_in_np_tree_t_, .description = "tes
 	}
 }
 
+// 		special strings are not supported at the moment
+/*
 Test(test_serialization, _np_tree_special_str, .description = "test the implementation of special strings in the tree implementation")
 {
 	CTX() {
@@ -208,7 +210,6 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 		cr_assert(_np_tree_is_special_str("np.test2", &idx) == true, "expecting np.test2 to be a special string");
 		cr_expect(idx == 0, "expecting np.test2 to be at position 0 and not %"PRIu8, idx);
 		cr_expect(strcmp("np.test2", (tmp = _np_tree_get_special_str(idx))) == 0, "expecting retunred special string to be np.test2 and not %s", tmp);
-
 
 		cr_expect(_np_tree_is_special_str("np.test3", &idx) == true, "expecting np.test3 to be a special string");
 		cr_expect(idx == 2, "expecting np.test3 to be at position 2");
@@ -242,6 +243,7 @@ Test(test_serialization, _np_tree_special_str, .description = "test the implemen
 		np_tree_free(tst);
 	}
 }
+*/
 
 Test(test_serialization, np_tree_serialize, .description = "test the serialization of a  jtree")
 {
@@ -353,19 +355,23 @@ Test(test_serialization, np_tree_serialize, .description = "test the serializati
 
 		cr_assert((tmp8 = cmp_out.error) == 0, "Expect no error in deserialisation (error: %"PRIu8")", tmp8);
 
-		tmpEle = np_tree_find_str(out_jrb, "np.test2");
+/*		tmpEle = np_tree_find_str(out_jrb, "np.test2");
 
 		cr_assert(tmpEle != NULL, "Expect to find element np.test2");
 		cr_assert(tmpEle->key.type == np_treeval_type_special_char_ptr, "Expect element key to be of type np_treeval_type_special_char_ptr");
 		cr_expect(tmpEle->key.value.ush == 0, "Expect element key to be the same");
 		cr_expect(tmpEle->val.type == np_treeval_type_char_ptr, "Expect element value to be of type np_treeval_type_char_ptr");
 		cr_expect(strcmp(np_treeval_to_str(tmpEle->val, NULL), "test") == 0, "Expect element value to be the same");
+*/
 
-
-		/*
+		
+		cr_assert(out_jrb->size == 8, "deserialized tree is: %p (size %d)", out_jrb, out_jrb->size);
 		log_msg(LOG_INFO, "deserialized tree is: %p (size %d)", out_jrb, out_jrb->size);
-		log_msg(LOG_INFO, "id: %d", tree_find_str(out_jrb, "id")->val.value.i);
-		log_msg(LOG_INFO, "from: %s", tree_find_str(out_jrb, "from")->val.value.s);
+
+		cr_assert(18000 == np_tree_find_str(out_jrb, "id")->val.value.i, "id: %d", np_tree_find_str(out_jrb, "id")->val.value.i);
+		log_msg(LOG_INFO, "id: %d", np_tree_find_str(out_jrb, "id")->val.value.i);
+
+/*		log_msg(LOG_INFO, "from: %s", tree_find_str(out_jrb, "from")->val.value.s);
 		log_msg(LOG_INFO, "mail: %s", tree_find_str(out_jrb, "mail")->val.value.s);
 		log_msg(LOG_INFO, "to: %s", tree_find_str(out_jrb, "to")->val.value.s);
 		log_msg(LOG_INFO, "exp: %f", tree_find_str(out_jrb, "exp")->val.value.d);
