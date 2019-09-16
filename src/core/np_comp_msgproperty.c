@@ -1105,6 +1105,8 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
         _np_msgproperty_send_discovery_messages(statemachine, event);
     }
 
+    __np_intent_check(statemachine, event);
+
     property->last_update = now;
     _np_msgproperty_job_msg_uniquety(property);
 }

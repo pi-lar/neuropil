@@ -706,4 +706,53 @@ void __np_intent_update(np_util_statemachine_t* statemachine, const np_util_even
 bool __is_intent_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
 void __np_intent_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // no updates received for xxx minutes?
 
-void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // send out intents if dht distance is not mmatching anymore
+void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{    
+    np_ctx_memory(statemachine->_user_data);
+
+    NP_CAST(statemachine->_user_data, np_key_t, intent_key);
+    if (intent_key->entities == NULL) return;
+    if (sll_size(intent_key->entities) < 2) return;
+
+    // NP_CAST(sll_first(intent_key->entities)->val, np_msgproperty_t, property);
+    NP_CAST(sll_last(intent_key->entities)->val, struct __np_token_ledger, ledger);
+    
+    if (ledger == NULL) return;
+    pll_iterator(np_aaatoken_ptr) iter = NULL;
+
+    // check for outdated sender token
+    iter = pll_first(ledger->send_tokens);
+    while (NULL != iter)
+    {
+        np_aaatoken_t* tmp_token = iter->val;
+        pll_next(iter);
+
+        if (NULL  != tmp_token &&
+            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
+        {
+            log_debug_msg(LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
+            pll_remove(np_aaatoken_ptr, ledger->send_tokens, tmp_token, _np_intent_cmp_exact);
+            np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
+            break;
+        }
+    }    
+
+    // check for outdated sender token
+    iter = pll_first(ledger->recv_tokens);
+    while (NULL != iter)
+    {
+        np_aaatoken_t* tmp_token = iter->val;
+        pll_next(iter);
+
+        if (NULL  != tmp_token &&
+            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
+        {
+            log_debug_msg(LOG_DEBUG, "deleting old / invalid receiver msg token %p", tmp_token);
+            pll_remove(np_aaatoken_ptr, ledger->recv_tokens, tmp_token, _np_intent_cmp_exact);
+            np_unref_obj(np_aaatoken_t, tmp_token, "recv_tokens");
+            break;
+        }
+    }
+} 
+
+// TODO: send out intents if dht distance is not mmatching anymore
