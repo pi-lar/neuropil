@@ -836,15 +836,14 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
             log_debug_msg(LOG_DEBUG, "--- new mxtoken for subject: %25s --------", property->msg_subject);
             np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(property);
             pll_insert(np_aaatoken_ptr, token_list, msg_token_new, false, _np_aaatoken_cmp);
-            np_ref_obj(np_aaatoken_t, msg_token_new, ref_aaatoken_local_mx_tokens);
+            ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", ref_aaatoken_local_mx_tokens);
         }
         else if ( (iter->val->expires_at - now) <= fmin(property->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC) )
         {   // Create a new msg token
             log_debug_msg(LOG_DEBUG, "--- refresh mxtoken for subject: %25s --------", property->msg_subject);
             np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(property);
             np_aaatoken_t* tmp_token = pll_replace(np_aaatoken_ptr, token_list, msg_token_new, _np_aaatoken_cmp);
-
-            np_ref_obj(np_aaatoken_t, msg_token_new, ref_aaatoken_local_mx_tokens);
+            ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", ref_aaatoken_local_mx_tokens);
             np_unref_obj(np_aaatoken_ptr, tmp_token, ref_aaatoken_local_mx_tokens);  
 
             log_debug_msg(LOG_DEBUG, "--- done creation of mxtoken: %25s issuer: %s uuid %s", property->msg_subject, iter->val->issuer, iter->val->uuid);
