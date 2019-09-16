@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	port =  ((np_state_t*)context)->my_node_key->node->port;
+	// port =  ((np_state_t*)context)->my_node_key->node->port;
 	/**
 	   \endcode
 	*/
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 	} else {
 		fprintf(stdout, "Node waits for connections.\n");
 		fprintf(stdout, "Please start another node with the following arguments:\n");
-		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string(context));
+		fprintf(stdout, "\n\t-j %s\n", np_get_connection_string(context));
 	}
 
 	fprintf(stdout, "Wait for node to connect.\n");

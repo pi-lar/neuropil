@@ -48,8 +48,8 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code]",
-		"r:c:",
+		"[-r realmname]",
+		"r:",
 		&realm,
 		&code
 	)) == NULL) {
@@ -75,12 +75,6 @@ int main(int argc, char **argv)
 	{
 		np_set_realm_name(context, realm);
 		np_enable_realm_client(context);
-		if (NULL != code)
-		{
-			np_tree_insert_str(context->my_node_key->aaa_token->extensions,
-				"passcode",
-				np_treeval_new_hash(code));
-		}
 	}
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
