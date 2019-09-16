@@ -142,7 +142,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
         }        
         np_unref_obj(np_node_t, node_entry,"_np_node_decode_from_jrb");
-        free(connect_str);
+        // free(connect_str);
     }
     sll_free(np_node_ptr, o_piggy_list);
 

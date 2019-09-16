@@ -73,14 +73,13 @@ np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
 
 np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
 {
-    char name[256];
-    snprintf (name, 255, "%s:%s", strOrig, port);	
+    char name[256] = {0};
+    snprintf (name, 255, "%s:%s", strOrig, port);
 
-    np_dhkey_t kResult = { 0 };
-    unsigned char md_value[32];
-
+    unsigned char md_value[32] = {0};
     crypto_hash_sha256(md_value, (unsigned char*) name, strnlen(name, 255));
 
+    np_dhkey_t kResult = { 0 };
     memcpy(&kResult.t[0], &md_value[ 0], 4);
     memcpy(&kResult.t[1], &md_value[ 4], 4);
     memcpy(&kResult.t[2], &md_value[ 8], 4);
