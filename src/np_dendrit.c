@@ -103,26 +103,28 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
     while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
+        np_dhkey_t search_key = {0};
+        _np_str_dhkey(node_entry->host_key, &search_key);
         // add entries in the message to our routing table
         // routing table is responsible to handle possible double entries
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
-        char* connect_str = np_build_connection_string(NULL, 
-                                                       _np_network_get_protocol_string(context, node_entry->protocol), 
-                                                       node_entry->dns_name, 
-                                                       node_entry->port, 
-                                                       false);
-        np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
-
         np_key_t* piggy_key = _np_keycache_find(context, search_key);
         if (piggy_key == NULL)
         {   // unkown key, just send a join request 
+            char* connect_str = np_build_connection_string(NULL, 
+                                                        _np_network_get_protocol_string(context, node_entry->protocol), 
+                                                        node_entry->dns_name, 
+                                                        node_entry->port, 
+                                                        false);
+            np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
             piggy_key = _np_keycache_find_or_create(context, search_key);
-
+            
             np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
             _np_key_handle_event(piggy_key, new_node_evt, false);
 
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
+            free(connect_str);
         }
         else if (_np_key_get_node(piggy_key)->joined_network                                           &&
                  _np_key_get_node(piggy_key)->success_avg > BAD_LINK                                   &&
