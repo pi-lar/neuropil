@@ -36,10 +36,10 @@ Test(np_aaatoken_t, create_node_token, .description = "test the creation of a no
 		np_new_obj(np_key_t, test_key);
 		test_key->dhkey = dhkey;
 
-		np_node_t* test_node = NULL;
-		np_new_obj(np_node_t, test_node, ref_key_node);
-		_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
-		test_key->node = test_node;
+		// np_node_t* test_node = NULL;
+		// np_new_obj(np_node_t, test_node, ref_key_node);
+		// _np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
+		// test_key->node = test_node;
 
 		test_token_1 = _np_token_factory_new_node_token(context, IPv4 | UDP, "localhost", "1111");
 		cr_assert(NULL != test_token_1, "expect the token to be not NULL");
@@ -101,20 +101,19 @@ Test(np_aaatoken_t, encode_decode_loop, .description = "test the encoding and de
 		np_aaatoken_t* test_token_2 = NULL;
 		np_key_t* test_key = NULL;
 
-		np_node_t* test_node = NULL;
-		np_new_obj(np_node_t, test_node);
-		_np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
+		// np_node_t* test_node = NULL;
+		// np_new_obj(np_node_t, test_node);
+		// _np_node_update(test_node, IPv4 | UDP, "localhost", "1111");
 
 		ref = _np_token_factory_new_node_token(context, IPv4 | UDP, "localhost", "1111");
 
 		np_new_obj(np_key_t, test_key);
 		test_key->dhkey = np_aaatoken_get_fingerprint(ref, false);
-		np_ref_obj(np_node_t, test_node, ref_key_node); 
-		test_key->node = test_node;		
-		np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token); 
-		test_key->aaa_token = ref;
+		// np_ref_obj(np_node_t, test_node, ref_key_node); 
+		// test_key->node = test_node;		
+		// np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token); 
+		// test_key->aaa_token = ref;
 		
-
 		test_token_1 = ref;
 		for (int i = 0; i < 10; ++i)
 		{
@@ -139,7 +138,7 @@ Test(np_aaatoken_t, encode_decode_loop, .description = "test the encoding and de
 		}
 
 		np_unref_obj(np_key_t, test_key, ref_obj_creation);
-		np_unref_obj(np_node_t, test_node, ref_obj_creation);
+		// np_unref_obj(np_node_t, test_node, ref_obj_creation);
 	}
 }
 Test(np_aaatoken_t, test_audience_filtering, .description="test the filtering based on audience/issuer/realm field")

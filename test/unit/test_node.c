@@ -34,7 +34,7 @@ Test(np_node_t, _node_create, .description = "test the creation of node structur
 		_np_node_update(new_node_1, IPv4 | UDP, "localhost", "1111");
 
 		np_aaatoken_t* node_token_1 = _np_token_factory_new_node_token(context, IPv4 | UDP, "localhost", "1111");
-		np_key_t* node_key_1 = _np_key_create_from_token(node_token_1);
+		np_node_t* node_1 = _np_node_from_token(node_token_1, node_token_1->type);
 		np_key_t* node_key_2 = _np_node_decode_from_str(context, "e596f97cec7761a0a228451b4fa69b1f0cf7409ad5b830b173c2f264c97a0522:udp4:localhost:2222");
 	}
 }

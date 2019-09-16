@@ -158,7 +158,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 		sll_iterator(np_key_ptr) iter = sll_first(my_keys);
 		while (NULL != iter)
 		{			
-			np_unref_obj(np_node_t, iter->val->node, ref_obj_creation);
+			// np_unref_obj(np_node_t, iter->val->node, ref_obj_creation);
 			np_unref_obj(np_key_t, iter->val, "_np_keycache_find_or_create");
 			sll_next(iter);
 		}			
