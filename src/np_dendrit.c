@@ -176,7 +176,7 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     
     np_aaatoken_t* sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
 
-    if (_np_messsage_threshold_breached(msg_prop) || NULL == sender_token )
+    if (_np_messsage_threshold_breached(msg_prop) || NULL == sender_token )
     {
         // cleanup of msgs in property receiver msg cache
         _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
@@ -283,7 +283,8 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     if (ident_token_ele != NULL)
     {    
     	join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
-        if (false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) 
+        if (NULL == join_ident_token || 
+            false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) 
         {
             // silently exit join protocol for invalid identity token
             log_debug_msg(LOG_TRACE, "JOIN request: invalid identity token");
@@ -467,16 +468,19 @@ bool _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event)
 
     // extract e2e encryption details for sender
     msg_token = np_token_factory_read_from_tree(context, discover_msg_in->body);
+    if (msg_token)
+    {
+        np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
+        np_dhkey_t discovery_sender = np_dhkey_create_from_hostport(msg_subject.value.s, "0");
 
-    np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
-    np_dhkey_t discovery_sender = np_dhkey_create_from_hostport(msg_subject.value.s, "0");
+        np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_sender };
+        _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
 
-    np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_sender };
-    _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
-
-    __np_cleanup__:
         np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
+    }
+
+    __np_cleanup__: {}
 
     return true;
 }
@@ -491,11 +495,13 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
     np_message_intent_public_token_t* msg_token = NULL;
 
     msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
-    np_dhkey_t available_msg_type = _np_msgproperty_dhkey(INBOUND, msg_token->subject);
-    
-    np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-    _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
-
+    if (msg_token)
+    {
+        np_dhkey_t available_msg_type = _np_msgproperty_dhkey(INBOUND, msg_token->subject);
+        
+        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
+        _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+    }
     return true;
 }
 
@@ -511,16 +517,19 @@ bool _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event)
 
     // extract e2e encryption details for sender
     msg_token = np_token_factory_read_from_tree(context, discover_msg_in->body); 
+    if (msg_token)
+    {
+        np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
+        np_dhkey_t discovery_receiver = np_dhkey_create_from_hostport(msg_subject.value.s, "0");    
 
-    np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
-    np_dhkey_t discovery_receiver = np_dhkey_create_from_hostport(msg_subject.value.s, "0");    
+        np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_receiver };
+        _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
 
-    np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_receiver };
-    _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
-
-    __np_cleanup__:
         np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
         np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
+    }
+    
+    __np_cleanup__: {}
 
     return true;
 }
@@ -535,11 +544,12 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
     np_message_intent_public_token_t* msg_token = NULL;
 
     msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
-    np_dhkey_t available_msg_type = _np_msgproperty_dhkey(OUTBOUND, msg_token->subject);
-    
-    np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-    _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
-
+    if (msg_token)
+    {
+        np_dhkey_t available_msg_type = _np_msgproperty_dhkey(OUTBOUND, msg_token->subject);    
+        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
+        _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+    }
     return true;
 }
 
