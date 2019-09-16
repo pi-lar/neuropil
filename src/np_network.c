@@ -696,23 +696,28 @@ void _np_network_stop(np_network_t* network, bool force) {
     {
         EV_P;
         if ( (network->is_running == true /*&& last_send_diff >= NP_PI/500 */) &&
-                (force == true || 0 == sll_size(network->out_events)) )
+             (force == true || 0 == sll_size(network->out_events))              )
         {
-            if (FLAG_CMP(network->type , np_network_type_server)) {
+            if (FLAG_CMP(network->type , np_network_type_server)) 
+            {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
                 loop = _np_event_get_loop_in(context);
-                if (force == true) {                        
+                if (force == true) 
+                {                        
                     ev_io_stop(EV_A_ &network->watcher);
                     ev_io_set(&network->watcher, network->socket, EV_NONE);
                     ev_io_start(EV_A_ &network->watcher);
                     _np_event_reconfigure_loop_in(context);
                 }
             }
-            if (FLAG_CMP(network->type, np_network_type_client)) {
+
+            if (FLAG_CMP(network->type, np_network_type_client))
+            {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
                 loop = _np_event_get_loop_out(context);
                 ev_io_set(&network->watcher, network->socket, EV_NONE);
-                if (force == true) {
+                if (force == true) 
+                {
                     ev_io_stop(EV_A_ &network->watcher);
                     _np_event_reconfigure_loop_out(context);
                 }
@@ -735,7 +740,6 @@ void _np_network_start(np_network_t* network, bool force){
         NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
         _LOCK_ACCESS(&network->out_events_lock) {
             NP_PERFORMANCE_POINT_END(network_start_out_events_lock);
-                                
             EV_P;
             if (network->is_running == false)
             {
@@ -774,7 +778,6 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
 
     _LOCK_ACCESS(&network->out_events_lock)
     {
-
         if (NULL != network->out_events)
         {
             if (0 < sll_size(network->out_events))
@@ -788,8 +791,8 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
             sll_free(void_ptr, network->out_events);
         }
     }
+    
     if (0 < network->socket) close (network->socket);
-
     network->initialized = false;
 
     // finally destroy the mutex 
@@ -990,7 +993,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is sender", ng, ng->socket);
                     ev_io_init(
                         &ng->watcher, _np_network_write,
-                        ng->socket, EV_WRITE);
+                        ng->socket, EV_NONE);
                 }
             }
             else {
