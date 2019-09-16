@@ -228,9 +228,6 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
     np_aaatoken_t* my_node_token = _np_key_get_token(context->my_node_key);
     log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, my_node_token, my_node_token->type);
 
-    // np_waitref_obj(np_key_t, context->my_node_key, my_node_key);
-    // np_waitref_obj(np_aaatoken_t, my_node_key->aaa_token, my_node_token);
-
     ASSERT(FLAG_CMP(my_node_token->type, np_aaatoken_type_node), "Can only derive handshake token from node token. current token type: %"PRIu8, my_node_token->type);
     ASSERT(my_node_token->scope == np_aaatoken_scope_private, "Can only derive handshake token from private token. current token scope: %"PRIu8, my_node_token->scope);
 
@@ -268,7 +265,6 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
 #endif
 
     // np_unref_obj(np_aaatoken_t, my_node_token, FUNC);
-    // np_unref_obj(np_key_t, my_node_key, FUNC);
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
 
     _np_aaatoken_trace_info("build_handshake", ret);

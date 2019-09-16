@@ -76,11 +76,6 @@ bool _np_default_authorizefunc (np_context* ac, struct np_token* token )
 bool _np_aaa_authorizefunc (np_context* ac, struct np_token* token )
 {
     np_ctx_cast(ac);
-    np_key_t* aaa_target = NULL;
-    np_new_obj(np_key_t, aaa_target);
-    
-    np_ref_switch(np_aaatoken_t, aaa_target->aaa_token, ref_key_aaa_token, token);
-
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
 //	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
@@ -88,11 +83,6 @@ bool _np_aaa_authorizefunc (np_context* ac, struct np_token* token )
 //	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
 //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
     log_debug_msg(LOG_DEBUG, "realm authorization request for subject: %s", token->subject);
-
-    np_msgproperty_t* aaa_props = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-    _np_job_submit_transform_event(context, 0.0, aaa_props, aaa_target, NULL);
-
-    np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 
     return (false);
 }
@@ -110,6 +100,7 @@ bool _np_default_authenticatefunc (np_context* ac, struct np_token* token )
 
     return (true);
 }
+
 /**
  * The default realm client authenticate function. Forwards the authenticate request to the realm server
  * @param token
@@ -118,9 +109,6 @@ bool _np_default_authenticatefunc (np_context* ac, struct np_token* token )
 bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
 {
     np_ctx_cast(ac);
-    np_key_t* aaa_target = NULL;
-    np_new_obj(np_key_t, aaa_target);
-    np_ref_switch(np_aaatoken_t, aaa_target->aaa_token, ref_key_aaa_token, token);
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
 //	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
@@ -128,11 +116,6 @@ bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
 //	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
 //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
     log_debug_msg(LOG_DEBUG, "realm authentication request for subject: %s", token->subject);
-
-    np_msgproperty_t* aaa_props = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-    _np_job_submit_transform_event(context, 0.0, aaa_props, aaa_target, NULL);
-
-    np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
 
     return (false);
 }
@@ -150,6 +133,7 @@ bool _np_default_accountingfunc (np_context* ac, struct np_token* token )
 
     return (false);
 }
+
 /**
  * The default realm client accounting function. Forwards the accounting request to the realm server
  * @param token
@@ -158,22 +142,13 @@ bool _np_default_accountingfunc (np_context* ac, struct np_token* token )
 bool _np_aaa_accountingfunc (np_context*ac, struct  np_token* token)
 {
     np_ctx_cast(ac);
-    np_key_t* aaa_target = NULL;
-    np_new_obj(np_key_t, aaa_target);
-    np_ref_switch(np_aaatoken_t, aaa_target->aaa_token, ref_key_aaa_token, token);
 
 //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
 //	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
 //	log_debug_msg(LOG_DEBUG, "subject           : %s", token->subject);
 //	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
 //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
-
     log_debug_msg(LOG_DEBUG, "realm accounting request for subject: %s", token->subject);
-
-    np_msgproperty_t* aaa_props = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-    _np_job_submit_transform_event(context, 0.0, aaa_props, aaa_target, NULL);
-
-    np_unref_obj(np_key_t, aaa_target, ref_obj_creation);
     return (false);
 }
 

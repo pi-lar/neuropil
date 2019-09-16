@@ -12,15 +12,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void _np_glia_route_lookup (np_state_t* context, np_jobargs_t args);
-
+/*
 // critical self invoking functions
 void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t args);
 void _np_renew_node_token_jobexec(np_state_t* context, np_jobargs_t args);
 
 void _np_cleanup_ack_jobexec(np_state_t* context, np_jobargs_t args);
-void _np_cleanup_keycache_jobexec(np_state_t* context, np_jobargs_t args);
 
 void _np_send_subject_discovery_messages(np_state_t* context, np_msg_mode_type mode_type, const char* subject);
 void _np_send_msg_interest(const char* subject);
@@ -34,6 +31,7 @@ void _np_glia_log_flush(np_state_t* context, np_jobargs_t args);
 
 typedef void(*__np_glia_check_connections_handler)(np_key_t*, bool, np_key_t**, np_key_t**);
 void __np_glia_check_connections(np_sll_t(np_key_ptr, connections), __np_glia_check_connections_handler fn);
+*/
 
 #ifdef __cplusplus
 }

@@ -324,8 +324,7 @@ enum np_return np_node_fingerprint(np_context* ac, np_id (*id))
         ret = np_invalid_argument;
     }
     else {
-        np_dhkey_t fp = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
-
+        np_dhkey_t fp = np_aaatoken_get_fingerprint(_np_key_get_token(context->my_node_key), false);
         memcpy(id, &fp , NP_FINGERPRINT_BYTES);
     }
     return ret;
@@ -349,7 +348,7 @@ enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool 
         } else {
             id_token = np_token_factory_new_identity_token(context, 20.0, NULL);
             np_user4aaatoken(id_token, identity);
-            _np_aaatoken_set_signature(id_token, context->my_identity->aaa_token);
+            _np_aaatoken_set_signature(id_token, _np_key_get_token(context->my_identity) );
         }
         np_aaatoken4user(identity, id_token);
 
@@ -423,8 +422,11 @@ bool np_has_joined(np_context* ac)
     bool ret = false;
     np_ctx_cast(ac);
 
-    if (_np_route_my_key_has_connection(context) && context->my_node_key != NULL && context->my_node_key->node != NULL) {
-        ret = context->my_node_key->node->joined_network;
+    if (_np_route_my_key_has_connection(context) && 
+        context->my_node_key != NULL && 
+        _np_key_get_node(context->my_node_key) != NULL) 
+    {
+        ret = _np_key_get_node(context->my_node_key)->joined_network;
     }
 
     return ret;

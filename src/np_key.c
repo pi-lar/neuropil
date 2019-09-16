@@ -377,19 +377,6 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     
     sll_init(void_ptr, new_key->entities); // link to components attached to this key id
 
-    new_key->node = NULL;		  // link to a neuropil node if this key represents a node
-    new_key->network = NULL;      // link to a neuropil node if this key represents a node
-    new_key->aaa_token = NULL;
-
-    // used internally only
-    // new_key->recv_property = NULL;
-    // new_key->send_property = NULL;
-
-    new_key->local_mx_tokens = NULL; // link to runtime interest data on which this node is interested in
-
-    new_key->send_tokens = NULL; // link to runtime interest data on which this node is interested in
-    new_key->recv_tokens = NULL; // link to runtime interest data on which this node is interested in
-
     new_key->parent_key = NULL;
 
     _np_threads_mutex_init(context, &new_key->key_lock, "key_lock");

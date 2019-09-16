@@ -108,16 +108,10 @@ np_node_t*  _np_node_decode_from_jrb (np_state_t* context, np_tree_t* data);
 /** np_node_encode routines
  **/
 NP_API_INTERN
-void _np_node_encode_to_str  (char *s, uint16_t len, np_key_t* key);
-
-NP_API_INTERN
 uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, node_keys), bool include_stats);
 
 NP_API_INTERN
 void _np_node_encode_to_jrb  (np_tree_t* data, np_key_t* node_key, bool include_stats);
-
-NP_API_INTERN
-np_key_t* _np_key_create_from_token(np_aaatoken_t* token);
 
 /** various getter method, mostly unused **/
 NP_API_INTERN

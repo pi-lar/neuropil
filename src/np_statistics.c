@@ -12,6 +12,7 @@
 #include "np_message.h"
 
 #include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
 #include "util/np_event.h"
 
 #include "np_scache.h"
@@ -226,10 +227,13 @@ void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metr
         strcpy(node_label.name,"node");
         strcpy(instance_label.name,"instance");
         strcpy(ident_label.name,"identity");
-        if(context->my_node_key) {
+        if(context->my_node_key) 
+        {
             _np_dhkey_str(&context->my_node_key->dhkey, node_label.value);            
-            if(context->my_node_key->node)
-                sprintf(instance_label.value, "%s:%s", context->my_node_key->node->dns_name,context->my_node_key->node->port);
+            if(_np_key_get_node(context->my_node_key))
+                sprintf(instance_label.value, "%s:%s", 
+                        _np_key_get_node(context->my_node_key)->dns_name,
+                        _np_key_get_node(context->my_node_key)->port);
         }
         if(context->my_identity)
             _np_dhkey_str(&context->my_identity->dhkey, ident_label.value);

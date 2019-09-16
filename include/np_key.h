@@ -70,31 +70,6 @@ struct np_key_s
 
     np_mutex_t key_lock;
 
-
-	// deprecated from here on ...
-	/*
-	only available for node key
-	*/
-	np_node_t*    node;		    // link to a neuropil node if this key represents a node
-	/*
-	only available for node key
-	*/
-	np_network_t* network;	    // link to a neuropil network if this key represents a node
-
-	/*
-	only available for node and ident key
-	*/
-	np_aaatoken_t* aaa_token; // link to aaatoken for this key (if it exists)
-
-	// required structure if this node becomes a mitm for message exchange
-	np_pll_t(np_aaatoken_ptr, local_mx_tokens); // link to runtime interest data on which this node is interested in
-	
-	// np_msgproperty_t* recv_property;
-	// np_msgproperty_t* send_property;
-
-	np_pll_t(np_aaatoken_ptr, recv_tokens); // link to runtime interest data on which this node is interested in
-	np_pll_t(np_aaatoken_ptr, send_tokens); // link to runtime interest data on which this node is interested in
-
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);

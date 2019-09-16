@@ -74,8 +74,8 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     entry->success_avg = 0.5;
     
     for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
-        entry->latency_win[i] = 0.031415;
-    entry->latency = 0.031415;
+        entry->latency_win[i] = 0.01;
+    entry->latency = 0.01;
 }
 
 void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* node)
@@ -86,21 +86,6 @@ void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     if (entry->port) free (entry->port);
 }
 
-/** np_node_encode:
- ** encodes the #node# into a string, putting it in #s#, which has
- ** #len# bytes in it.
- **/
-void _np_node_encode_to_str (char *s, uint16_t len, np_key_t* key)
-{
-    np_ctx_memory(key);
-    snprintf (s, len, "%s:", _np_key_as_str(key));
-
-    if (NULL != key->node->dns_name) {
-        snprintf (s + strlen (s), len - strlen (s), "%s:", _np_network_get_protocol_string(context, key->node->protocol));
-        snprintf (s + strlen (s), len - strlen (s), "%s:", key->node->dns_name);
-        snprintf (s + strlen (s), len - strlen (s), "%s",  key->node->port);
-    }
-} 
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_stats)
 {
     np_node_t* node = _np_key_get_node(node_key);
@@ -335,33 +320,6 @@ sll_return(np_node_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, 
         // free(s_key);
     }
     return (node_list);
-}
-
-np_key_t* _np_key_create_from_token(np_aaatoken_t* token)
-{
-    np_ctx_memory(token);
-    // TODO: check whether metadata is used as a hash key in general
-    np_dhkey_t search_key = np_aaatoken_get_fingerprint(token, false);
-    np_key_t*  node_key   = _np_keycache_find_or_create(context, search_key);
-    
-    if (NULL == node_key->node && token->extensions != NULL && token->extensions->size > 0)
-    {
-        node_key->node = _np_node_decode_from_jrb(context, token->extensions);
-        if(node_key->node != NULL){
-            ref_replace_reason(
-                np_node_t, node_key->node,
-                "_np_node_decode_from_jrb",
-                ref_key_node		
-            );
-        }
-    }
-    ref_replace_reason(
-            np_key_t, node_key,
-            "_np_keycache_find_or_create",
-            FUNC
-    );
-    
-    return (node_key);
 }
 
 int _np_node_cmp(np_node_t* a, np_node_t* b) 
