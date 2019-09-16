@@ -173,9 +173,9 @@ int _np_http_query_args(htparser * parser, const char * data,
         np_tree_clear( client->ht_request.ht_query_args);
     if (NULL == client->ht_request.ht_query_args)
         client->ht_request.ht_query_args = np_tree_create();
-
-    char* query_string = strndup(data, in_len);
-    char* kv_pair = strtok(query_string, "&=");
+    char *query_string = NULL, *to_parse = NULL;
+    query_string = to_parse = strndup(data, in_len);
+    char* kv_pair = strsep(&to_parse, "&=");
 
     while (NULL != kv_pair) {
         if (NULL == key) {
@@ -189,7 +189,7 @@ int _np_http_query_args(htparser * parser, const char * data,
             key = NULL;
             val = NULL;
         }
-        kv_pair = strtok(NULL, "&=");
+        kv_pair = strsep(&to_parse, "&=");
     }
     free(query_string);
     return 0;

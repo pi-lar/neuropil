@@ -89,6 +89,8 @@ bool _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_util_event_t a
         np_tree2buffer(context, payload, buffer);
 
         np_send(context, _NP_SYSINFO_DATA, buffer, payload->byte_size);
+
+        np_tree_free(payload);
     }
     else 
     {
@@ -329,8 +331,6 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context)
     np_tree_insert_int( ret, count++, np_treeval_new_tree(tmp));
     np_tree_free( tmp);
 
-    np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "usage");	
-
     _LOCK_MODULE(np_sysinfo_t)
     {
         np_tree_elem_t* iter = RB_MIN(np_tree_s, np_module(sysinfo)->_cache);
@@ -341,8 +341,6 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context)
             iter = RB_NEXT(np_tree_s, np_module(sysinfo)->_cache, iter);
         }
     }
-
-    np_unref_obj(np_key_t, my_node_key, "usage");
 
     return ret;
 }
@@ -374,9 +372,11 @@ int _np_http_handle_sysinfo_hash(ht_request_t* request, ht_response_t* ret, void
     {
         log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
 
-        char* path = strndup(request->ht_path, 8+64+1);
-        char* tmp_target_hash = strtok(path, "/"); // /sysinfo
-        tmp_target_hash = strtok(NULL, "/");
+        char *path = NULL, *to_parse = NULL;
+        path = to_parse = strndup(request->ht_path, 8+64+1);
+        
+        char* tmp_target_hash = strsep(&to_parse, "/"); // /sysinfo
+        tmp_target_hash = strsep(&to_parse, "/");
 
         if (NULL != tmp_target_hash) {
             if (strlen(tmp_target_hash) == 64) {
@@ -392,7 +392,6 @@ int _np_http_handle_sysinfo_hash(ht_request_t* request, ht_response_t* ret, void
             }
         }
         free(path);
-
     }
     else 
     {

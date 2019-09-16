@@ -205,8 +205,9 @@ void __np_switchwindow_draw(np_context* context) {
             werase(_current->win);
             int displayedRows = 0;
 
-            char * buffer = strdup(_current->buffer);
-            char * line   = strtok(buffer, "\n");
+            char * buffer = NULL, *to_parse = NULL;
+            buffer = to_parse = strdup(_current->buffer);
+            char * line   = strsep(&to_parse, "\n");
             int y = 0;
             if (line != NULL) {
                 do {
@@ -219,9 +220,8 @@ void __np_switchwindow_draw(np_context* context) {
                         displayedRows++;
                     }
                     y++;
-                } while ((line = strtok(NULL, "\n")) != NULL && displayedRows <= ud->term_height_bottom);
+                } while ((line = strsep(&to_parse, "\n")) != NULL && displayedRows <= ud->term_height_bottom);
             }
-
             wrefresh(_current->win);
             free(buffer);
         }

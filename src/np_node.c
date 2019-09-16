@@ -152,7 +152,8 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 {
     assert (key != 0);
 
-    char *key_dup = strndup(key, 255);
+    char *key_dup = NULL, *to_parse = NULL;
+    key_dup = to_parse = strndup(key, 255);
     assert (key_dup != NULL);
 
     uint16_t iLen = strlen(key);
@@ -164,14 +165,14 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     char     *s_hostport = NULL;
 
     // key is mandatory element in string
-    s_hostkey = strtok(key_dup, ":");
+    s_hostkey = strsep(&to_parse, ":");
     // log_debug_msg(LOG_DEBUG, "node decoded, extracted hostkey %s", sHostkey);
 
     if (iLen > strlen(s_hostkey))
     {
-        s_hostproto = strtok(NULL, ":");
-        s_hostname  = strtok(NULL, ":");
-        s_hostport  = strtok(NULL, ":");
+        s_hostproto = strsep(&to_parse, ":");
+        s_hostname  = strsep(&to_parse, ":");
+        s_hostport  = strsep(&to_parse, ":");
     }
 
     // string encoded data contains key, eventually plus hostname and hostport
@@ -251,18 +252,21 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e expected_type)
 {
     np_ctx_memory(token);
+    
     if (FLAG_CMP(token->type, expected_type) == false) {
         log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", token->subject);
         return NULL;
     }
 
-    char* details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], sizeof(token->subject) - strlen(_NP_URN_NODE_PREFIX));
+    char *to_free = NULL, *details = NULL;
+    to_free = details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], 255);
+    log_debug_msg(LOG_ERROR, "## decoding node from token str: %s", details);
 
     // MANDATORY paramter
     uint8_t i_host_proto = UNKNOWN_PROTO;
-    char* s_host_proto = strtok(details, ":");
-    char* s_host_name  = strtok(NULL,    ":");
-    char* s_host_port  = strtok(NULL,    ":");
+    char* s_host_proto = strsep(&details, ":");
+    char* s_host_name  = strsep(&details, ":");
+    char* s_host_port  = strsep(&details, ":");
 
     if (s_host_proto != NULL) {
         i_host_proto = _np_network_parse_protocol_string(s_host_proto);
@@ -270,6 +274,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 
     if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL)
     {
+        log_debug_msg(LOG_ERROR, "## decoding node from token str: %i / %p / %p", i_host_proto, s_host_name, s_host_port);
         free(details);
         return NULL;
     }
@@ -280,8 +285,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
     _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
     log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s",
                              i_host_proto, s_host_name, s_host_port);
-       
-    free(details);
+    free(to_free);
 
     return (new_node);
 }
