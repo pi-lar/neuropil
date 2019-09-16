@@ -596,12 +596,12 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             if (NULL == alias_key || FLAG_CMP(ng->socket_type, TCP) )
             {
                 // TODO: always enqueue via jobqueue
-                _np_key_handle_event(key, in_event, false);
+                _np_keycache_handle_event(context, key->dhkey, in_event, false);
             }
             else if (NULL != alias_key )
             {
                 // TODO: always enqueue via jobqueue
-                _np_key_handle_event(alias_key, in_event, false);
+                _np_keycache_handle_event(context, alias_key->dhkey, in_event, false);
                 np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
             }
             else
