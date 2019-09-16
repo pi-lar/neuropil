@@ -966,7 +966,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     hs_event.type = (evt_external | evt_token);
     _np_keycache_handle_event(context, search_key, hs_event, false);
     
-    log_msg(LOG_ERROR, "Update msg source done! %p", msg_source_key);
+    log_msg(LOG_DEBUG, "Update msg source done! %p", msg_source_key);
 
     // TODO: passive check, then don't setup alias key, but alias_key == node_key
     // if ((msg_source_key->node->protocol & PASSIVE) == PASSIVE && alias_key->network == NULL) {
@@ -975,6 +975,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
     hs_event.type = (evt_internal | evt_token);
     _np_key_handle_event(hs_alias_key, hs_event, false);
+    np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
 
     log_debug_msg(LOG_TRACE, "Update alias done! %p", hs_alias_key);
 
@@ -989,13 +990,12 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
         hs_event.user_data = handshake_token;
         _np_key_handle_event(hs_wildcard_key, hs_event, false);
         log_debug_msg(LOG_TRACE, "Update wildcard done!");
+        np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
     } 
     free(tmp_connection_str);
 
     __np_cleanup__:
         np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
-        np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
-        if (hs_alias_key) np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
         np_unref_obj(np_key_t, msg_source_key, "_np_keycache_find_or_create");
 
     return true;

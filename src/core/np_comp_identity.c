@@ -98,9 +98,7 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     sll_free(void_ptr, my_identity_key->entities);
 
-    _np_keycache_remove(context, my_identity_key->dhkey);
-    my_identity_key->is_in_keycache = false;
-
+    ref_replace_reason(np_key_t, my_identity_key, "__np_set_identity", "_np_keycache_finalize");
     my_identity_key->type = np_key_type_unknown;
 }
 
@@ -111,6 +109,8 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     NP_CAST(event.user_data, np_aaatoken_t, identity);
+
+    np_ref_obj(np_key_t, my_identity_key, "__np_set_identity");
 
     if (FLAG_CMP(identity->type, np_aaatoken_type_node) )
     {
@@ -140,18 +140,16 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
         log_debug_msg(LOG_DEBUG, "context->my_identity =  %p %p %d", context->my_identity, identity, identity->type);
     }
 
-    my_identity_key->is_in_keycache = true;            
-
     // to be moved
     if (context->my_node_key != NULL &&
         _np_key_cmp(my_identity_key, context->my_node_key) != 0) 
     {
-        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(context->my_node_key->aaa_token, false);
-        np_aaatoken_set_partner_fp(context->my_identity->aaa_token, node_dhkey);
-        _np_aaatoken_update_extensions_signature(context->my_node_key->aaa_token);
+        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(_np_key_get_token(context->my_node_key), false);
+        np_aaatoken_set_partner_fp(_np_key_get_token(context->my_identity), node_dhkey);
+        _np_aaatoken_update_extensions_signature(_np_key_get_token(context->my_node_key));
         
-        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(context->my_identity->aaa_token, false);
-        np_aaatoken_set_partner_fp(context->my_node_key->aaa_token, ident_dhkey);
+        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(_np_key_get_token(context->my_identity), false);
+        np_aaatoken_set_partner_fp(_np_key_get_token(context->my_node_key), ident_dhkey);
     }
     
     _np_aaatoken_update_extensions_signature(identity);

@@ -177,28 +177,31 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     NP_CAST(event.user_data, np_aaatoken_t, handshake_token);
 
-    np_node_t* alias_node = NULL;
-    np_dhkey_t search_key = {0};
+    alias_key->type |= np_key_type_alias;
+    np_ref_obj(np_key_t, alias_key, "__np_alias_set");
 
+    sll_append(void_ptr, alias_key->entities, handshake_token);
+
+    np_dhkey_t search_key = {0};
     _np_str_dhkey(handshake_token->issuer, &search_key);
+
+    np_node_t* alias_node = NULL;
     np_key_t* node_key = _np_keycache_find(context, search_key);
     if (node_key == NULL) 
     {
         alias_node = _np_node_from_token(handshake_token, handshake_token->type);
         alias_node->_handshake_status++;
     }
-    else 
+    else
     {
         alias_node = _np_key_get_node(node_key);
         log_debug_msg(LOG_DEBUG, "start: void __np_alias_set(...) %p / %p {", node_key, alias_node);
         np_unref_obj(np_key_t, node_key, "_np_keycache_find");
     }
 
-    sll_append(void_ptr, alias_key->entities, handshake_token);
     sll_append(void_ptr, alias_key->entities, alias_node);
     np_ref_obj(no_node_t, alias_node, "__np_alias_set");
 
-    alias_key->type |= np_key_type_alias;
     handshake_token->state = AAA_VALID;
 }
 
@@ -209,8 +212,9 @@ void __np_create_session(np_util_statemachine_t* statemachine, const np_util_eve
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     NP_CAST(sll_first(alias_key->entities)->val, np_aaatoken_t, handshake_token);
-    np_node_t* alias_node = _np_key_get_node(alias_key);
-
+    
+    np_node_t*     alias_node = _np_key_get_node(alias_key);
+    
     np_aaatoken_t* my_token = _np_key_get_token(context->my_node_key);
     np_node_t* my_node = _np_key_get_node(context->my_node_key);
 
@@ -323,8 +327,9 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
     } else {
         np_memory_free(context, event.user_data);
         char tmp[255];
+
         log_msg(LOG_WARN,
-            "error on decryption of message (source: \"%s\")", np_network_get_desc(alias_key,tmp));
+            "error on decryption of message (source: %s:%s)", _np_key_get_node(alias_key)->dns_name, _np_key_get_node(alias_key)->port);
     }
 } 
 
@@ -567,6 +572,7 @@ void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_eve
                 np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
                 np_util_event_t msg_event = event;
                 msg_event.user_data = msg_to_use;
+                log_msg(LOG_INFO, "handling   message (%s) for subject: %s", msg_to_use->uuid, str_msg_subject->val.value.s);
                 _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
             }
         }
@@ -574,7 +580,14 @@ void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_eve
 } 
 
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
-void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+
+void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+ 
+    alias_key->type = np_key_type_unknown;
+    ref_replace_reason(np_key_t, alias_key, "__np_alias_set", "_np_keycache_finalize" );
+}
 
 void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {

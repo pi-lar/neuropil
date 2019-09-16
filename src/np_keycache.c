@@ -76,7 +76,7 @@ void _np_keycache_destroy(np_state_t* context){
 
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhkey)
 {
-    log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(np_dhkey_t search_dhkey){");
+    log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(...){" );
 
     // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create start");
     np_key_t* key = NULL;
@@ -142,13 +142,14 @@ np_key_t* _np_keycache_find_by_details(
         bool require_dns,
         bool require_port,
         bool require_hash
-    ){
+    )
+{
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_by_details(		char* details_container,		bool search_myself,		handshake_status_e is_handshake_send,		bool require_handshake_status,		bool require_dns,		bool require_port,		bool require_hash	){");
     np_key_t* ret = NULL;
     np_key_t *iter = NULL;
 
-    np_waitref_obj(np_key_t, context->my_node_key, my_node_key, "np_waitref_key");
-    np_waitref_obj(np_key_t, context->my_identity, my_identity, "np_waitref_identity");
+    np_key_t* my_node_key = context->my_node_key;
+    np_key_t* my_identity = context->my_identity;
 
     _LOCK_MODULE(np_keycache_t)
     {
@@ -163,11 +164,11 @@ np_key_t* _np_keycache_find_by_details(
                         continue;
                     }
                 }
-
+                np_node_t* node = _np_key_get_node(iter);
                 if (
                         (!require_handshake_status ||
-                                (NULL != iter->node &&
-                                    iter->node->_handshake_status == search_handshake_status									
+                                (NULL != node &&
+                                    node->_handshake_status == search_handshake_status									
                                 ) 
 
                         ) &&
@@ -177,15 +178,15 @@ np_key_t* _np_keycache_find_by_details(
                                 )
                         ) &&
                         (!require_dns ||
-                                (NULL != iter->node &&
-                                NULL != iter->node->dns_name &&
-                                strstr(details_container, iter->node->dns_name) != NULL
+                                (NULL != node &&
+                                NULL != node->dns_name &&
+                                strstr(details_container, node->dns_name) != NULL
                                 )
                         ) &&
                         (!require_port ||
-                                (NULL != iter->node &&
-                                NULL != iter->node->port &&
-                                strstr(details_container, iter->node->port) != NULL
+                                (NULL != node &&
+                                NULL != node->port &&
+                                strstr(details_container, node->port) != NULL
                                 )
                         )
                 )
@@ -198,8 +199,6 @@ np_key_t* _np_keycache_find_by_details(
             }
         }
     }
-    np_unref_obj(np_key_t, my_identity,"np_waitref_identity");
-    np_unref_obj(np_key_t, my_node_key,"np_waitref_key");
 
     return (ret);
 }
@@ -337,7 +336,7 @@ np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key)
     {
         np_new_obj(np_key_t, subject_key);
     }
-    np_ref_obj(np_key_t, subject_key,ref_keycache);
+    np_ref_obj(np_key_t, subject_key, ref_keycache);
     
     _LOCK_MODULE(np_keycache_t)
     {

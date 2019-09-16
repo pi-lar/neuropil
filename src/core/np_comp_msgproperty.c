@@ -164,6 +164,7 @@ bool _np_msgproperty_init (np_state_t* context)
             np_util_event_t ev_rx = { .type=(evt_property|evt_internal), .context=context, .user_data=property };
             _np_key_handle_event(my_property_key_rx, ev_rx, false);
             np_ref_obj(np_msgproperty_t, property, ref_system_msgproperty); 
+            np_unref_obj(np_key_t, my_property_key_rx, "_np_keycache_find_or_create");
 
             // fprintf(stdout, "register handler (tx): %s\n", property->msg_subject);
             // sending property
@@ -172,6 +173,7 @@ bool _np_msgproperty_init (np_state_t* context)
             np_util_event_t ev_tx = { .type=(evt_property|evt_internal), .context=context, .user_data=property };
             _np_key_handle_event(my_property_key_tx, ev_tx, false);
             np_ref_obj(np_msgproperty_t, property, ref_system_msgproperty); 
+            np_unref_obj(np_key_t, my_property_key_tx, "_np_keycache_find_or_create");
         }            
         sll_next(__np_internal_messages);
     }
@@ -291,6 +293,7 @@ void np_msgproperty_register(np_msgproperty_t* msg_property)
             np_util_event_t ev_rx = { .type=(evt_property|evt_internal), .context=context, .user_data=msg_property };
             _np_key_handle_event(my_property_key_rx, ev_rx, false);
             np_ref_obj(np_msgproperty_t, msg_property, ref_system_msgproperty); 
+            np_unref_obj(np_key_t, my_property_key_rx, "_np_keycache_find_or_create");
             log_debug_msg(LOG_DEBUG, "register handler: %s", _np_key_as_str(my_property_key_rx));
         }
 
@@ -301,6 +304,7 @@ void np_msgproperty_register(np_msgproperty_t* msg_property)
             np_util_event_t ev_tx = { .type=(evt_property|evt_internal), .context=context, .user_data=msg_property };
             _np_key_handle_event(my_property_key_tx, ev_tx, false);
             np_ref_obj(np_msgproperty_t, msg_property, ref_system_msgproperty); 
+            np_unref_obj(np_key_t, my_property_key_tx, "_np_keycache_find_or_create");
             log_debug_msg(LOG_DEBUG, "register handler: %s", _np_key_as_str(my_property_key_tx));
         }
     }            
@@ -979,11 +983,12 @@ void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(statemachine->_user_data, np_key_t,         my_property_key);
     NP_CAST(event.user_data,          np_msgproperty_t, property);
 
+    np_ref_obj(no_key_t, my_property_key, "__np_set_property");
+    my_property_key->type |= np_key_type_subject;
+
     sll_append(void_ptr, my_property_key->entities, property);
     log_debug_msg(LOG_DEBUG, "sto  :msgproperty %s: %p added to list: %p / %p", property->msg_subject, property, my_property_key, my_property_key->entities);
     
-    my_property_key->type |= np_key_type_subject;
-
     if (property->is_internal == false) {
         _np_msgproperty_create_token_ledger(statemachine, event);
     
@@ -997,7 +1002,6 @@ void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event
             sll_append(np_evt_callback_t, property->clb_outbound, _np_out_default);
         }
     }
-
 }
 
 void __np_property_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -1024,7 +1028,6 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
     // upsert message intent token
     np_aaatoken_t* intent_token = _np_msgproperty_get_mxtoken(statemachine, event);
     if (NULL == intent_token) return;
-
 
     np_tree_t* intent_data = np_tree_create();
     np_aaatoken_encode(intent_data, intent_token);

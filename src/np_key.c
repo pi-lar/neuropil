@@ -294,11 +294,7 @@ void _np_key_destroy(np_key_t* to_destroy)
         np_key_t* added;
 
         _np_keycache_remove(context, to_destroy->dhkey);
-
-        // _np_route_leafset_update(to_destroy, false, &deleted, &added);
-        // _np_route_update(to_destroy, false, &deleted, &added);
-
-        // _np_network_disable(to_destroy->network);
+        np_unref_obj(np_key_t, to_destroy, "_np_keycache_finalize");
 
         // delete old receive tokens
 /*        if (NULL != to_destroy->recv_tokens)
@@ -390,7 +386,7 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
     np_key_t* old_key = (np_key_t*) key;
 
-    _np_key_destroy(old_key);
+    sll_free(void_ptr, old_key->entities);
 
     _np_threads_mutex_destroy(context, &old_key->key_lock);
 
@@ -399,21 +395,6 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     {
         free (old_key->dhkey_str);
         old_key->dhkey_str = NULL;
-    }
-
-    // unref and delete of other object pointers has to be done outside of this function
-    // otherwise double locking the memory pool will lead to a deadlock
-    // np_unref_obj(np_msgproperty_t, 	old_key->recv_property, ref_key_recv_property);
-    // np_unref_obj(np_msgproperty_t, 	old_key->send_property, ref_key_send_property);
-    np_unref_obj(np_aaatoken_t,		old_key->aaa_token, ref_key_aaa_token);
-
-    if (old_key->local_mx_tokens != NULL) {
-        pll_iterator(np_aaatoken_ptr) iter = pll_first(old_key->local_mx_tokens);
-        while(iter != NULL){
-            np_unref_obj(np_aaatoken_t, iter->val,ref_aaatoken_local_mx_tokens);
-            pll_next(iter);
-        }
-        pll_free(np_aaatoken_ptr, old_key->local_mx_tokens);
     }
 
     // _np_threads_mutex_destroy(context, &old_key->key_lock);

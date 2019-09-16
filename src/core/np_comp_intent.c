@@ -146,9 +146,9 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
             cmp_aaatoken_replace   = _np_intent_cmp;
             allow_dups = false;
         }
-
+        
         // update #1 key specific data
-        np_ref_obj(np_aaatoken_t, token,"send_tokens");
+        np_ref_obj(np_aaatoken_t, token, "send_tokens");
         ret = pll_replace(np_aaatoken_ptr, ledger->send_tokens, token, cmp_aaatoken_replace);
         if (NULL == ret)
         {
@@ -157,31 +157,13 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
         else
         {
             token->state = ret->state;
-            np_ref_obj(np_aaatoken_t, ret, FUNC);
-            np_unref_obj(np_aaatoken_t, ret,"send_tokens");
+            // np_ref_obj(np_aaatoken_t, ret, FUNC);
+            // np_unref_obj(np_aaatoken_t, ret,"send_tokens");
         }
         log_debug_msg(LOG_DEBUG, "added new single sender token for message hash %s",
                 _np_key_as_str(subject_key) );
     }
 
-    // check for outdated token
-    pll_iterator(np_aaatoken_ptr) iter = pll_first(ledger->send_tokens);
-    while (NULL != iter)
-    {
-        log_debug_msg(LOG_DEBUG, "checking sender msg tokens %p/%p", iter, iter->val);
-        np_aaatoken_t* tmp_token = iter->val;
-        pll_next(iter);
-
-        if (NULL  != tmp_token &&
-            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent))
-        {
-            log_debug_msg(LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
-            pll_remove(np_aaatoken_ptr, ledger->send_tokens, tmp_token, _np_intent_cmp_exact);
-            np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
-            break;
-        }
-    }    
-    log_debug_msg(LOG_DEBUG, ".step3._np_aaatoken_add_sender %d", pll_size(ledger->send_tokens));
     return ret;
 }
 
@@ -291,7 +273,7 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
         }
 
         // update #1 key specific data
-        np_ref_obj(np_aaatoken_t, token,"recv_tokens");
+        np_ref_obj(np_aaatoken_t, token, "recv_tokens");
         ret = pll_replace(np_aaatoken_ptr, ledger->recv_tokens, token, cmp_aaatoken_replace);
         if (NULL == ret)
         {
@@ -300,33 +282,11 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
         else
         {
             token->state = ret->state;
-            np_ref_obj(np_aaatoken_t, ret, FUNC);
-            np_unref_obj(np_aaatoken_t, ret,"recv_tokens");
+            // np_ref_obj(np_aaatoken_t, ret, FUNC);
+            // np_unref_obj(np_aaatoken_t, ret,"recv_tokens");
         }
         log_debug_msg(LOG_DEBUG, "added new single receiver token for message hash %s", _np_key_as_str(subject_key) );
     }
-
-    // check for outdated token
-    log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_add_receiver %d", pll_size(ledger->recv_tokens));
-
-    pll_iterator(np_aaatoken_ptr) iter = pll_first(ledger->recv_tokens);
-    while (NULL != iter)
-    {
-        np_aaatoken_t* tmp_token = iter->val;
-        log_debug_msg(LOG_DEBUG, "checking receiver msg tokens %p/%p", iter, iter->val);
-
-        pll_next(iter);
-
-        if (NULL  != tmp_token &&
-            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent) )
-        {
-            log_debug_msg(LOG_DEBUG, "deleting old / invalid receiver msg tokens %p", tmp_token);
-            pll_remove(np_aaatoken_ptr, ledger->recv_tokens, tmp_token, _np_intent_cmp_exact);
-            np_unref_obj(np_aaatoken_t, tmp_token,"recv_tokens");
-            break;
-        }
-    }
-    log_debug_msg(LOG_DEBUG, ".step3._np_aaatoken_add_receiver %d", pll_size(ledger->recv_tokens));
 
     return ret;    
 }
