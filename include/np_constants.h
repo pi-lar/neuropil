@@ -18,6 +18,7 @@ extern "C" {
 	#define ref_state_nodekey						"ref_state_nodekey"
 	#define ref_state_identitykey					"ref_state_identitykey"
 	#define ref_obj_creation						"ref_obj_creation"
+	#define ref_obj_usage	 						"ref_obj_usage"
 	#define ref_keycache							"ref_keycache"
 	#define ref_key_recv_property					"ref_key_recv_property"
 	#define ref_key_send_property					"ref_key_send_property"
@@ -38,7 +39,7 @@ extern "C" {
 	#define ref_ack_key								"ref_ack_key"
 	#define ref_msgproperty_current_recieve_token	"ref_msgproperty_current_recieve_token"
 	#define ref_msgproperty_current_sender_token	"ref_msgproperty_current_sender_token"
-	#define ref_bootstrap_list						"ref_bootstrap_list	"
+	#define ref_bootstrap_list						"ref_bootstrap_list"
 
 	#define NP_SERIALISATION_NODE_KEY				"np.n.k"
 	#define NP_SERIALISATION_NODE_PROTOCOL			"np.n.pr"
