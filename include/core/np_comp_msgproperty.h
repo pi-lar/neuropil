@@ -387,6 +387,8 @@ NP_API_INTERN
 void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
+NP_API_INTERN
+void _np_msgproperty_cleanup_sender_cache(np_msgproperty_t* msg_prop);
 
 /**
  ** handle treshold breaches

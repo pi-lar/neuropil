@@ -589,10 +589,37 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop)
     {
         sll_iterator(np_message_ptr) old_iter = iter_prop_msg_cache_in;
         sll_next(iter_prop_msg_cache_in); // we need to iterate before we delete the old iter
+
         np_message_t* old_msg = old_iter->val;
         if (_np_message_is_expired(old_msg)) {
             log_msg(LOG_WARN,"purging expired message (subj: %s, uuid: %s) from receiver cache ...", msg_prop->msg_subject, old_msg->uuid);
             sll_delete(np_message_ptr, msg_prop->msg_cache_in, old_iter);
+            np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
+            _np_msgproperty_threshold_decrease(msg_prop);
+        }
+    }
+    log_msg(LOG_AAATOKEN | LOG_DEBUG, "cleanup receiver cache for subject %s done", msg_prop->msg_subject);
+}
+
+void _np_msgproperty_cleanup_sender_cache(np_msgproperty_t* msg_prop)
+{
+    np_ctx_memory(msg_prop);
+
+    log_debug_msg(LOG_DEBUG,
+            "this node is a sender of messages, checking msgcache (%p / %u) ...",
+            msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
+
+    sll_iterator(np_message_ptr) iter_prop_msg_cache_out = sll_first(msg_prop->msg_cache_out);
+    while (iter_prop_msg_cache_out != NULL)
+    {
+        sll_iterator(np_message_ptr) old_iter = iter_prop_msg_cache_out;
+        // we need to iterate before we delete the old iter        
+        sll_next(iter_prop_msg_cache_out); 
+
+        np_message_t* old_msg = old_iter->val;
+        if (_np_message_is_expired(old_msg)) {
+            log_msg(LOG_WARN,"purging expired message (subj: %s, uuid: %s) from receiver cache ...", msg_prop->msg_subject, old_msg->uuid);
+            sll_delete(np_message_ptr, msg_prop->msg_cache_out, old_iter);
             np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
             _np_msgproperty_threshold_decrease(msg_prop);
         }
@@ -774,8 +801,15 @@ np_aaatoken_t* _np_msgproperty_get_mxtoken(np_util_statemachine_t* statemachine,
         return NULL;
     }
 
-    if (pll_size(token_list)==0) return NULL;
-    else                         return pll_first(token_list)->val;
+    if (pll_size(token_list)==0)
+    {
+        return NULL;
+    }
+    else                         
+    {
+        np_ref_obj(np_aaatoken_t, pll_first(token_list)->val, ref_obj_usage);
+        return pll_first(token_list)->val;
+    }
 }
 
 void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -810,23 +844,6 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
 
     double now = np_time_now();
     pll_iterator(np_aaatoken_ptr) iter = pll_first(token_list);
-
-    // check and delete outdated token
-    while (NULL != iter)
-    {
-        log_debug_msg(LOG_DEBUG, "checking mx msg tokens %p/%p", iter, iter->val);
-        np_aaatoken_t* tmp_token = iter->val;
-        pll_next(iter);
-
-        if (NULL  != tmp_token &&
-            false == _np_aaatoken_is_valid(tmp_token, np_aaatoken_type_message_intent) )
-        {
-            log_msg(LOG_INFO, "deleting old / invalid mx msg token %p", tmp_token);
-            pll_remove(np_aaatoken_ptr, token_list, tmp_token, _np_aaatoken_cmp_exact);
-            np_unref_obj(np_aaatoken_t, tmp_token, ref_aaatoken_local_mx_tokens);
-            break;
-        }
-    }
     
     // create new mx token
     iter = pll_first(token_list);
@@ -1030,11 +1047,11 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
 
     np_tree_t* intent_data = np_tree_create();
     np_aaatoken_encode(intent_data, intent_token);
+    np_unref_obj(np_aaatoken_t, intent_token, ref_obj_usage);
 
     np_dhkey_t target_dhkey = np_dhkey_create_from_hostport(property->msg_subject, "0");
 
     np_util_event_t discover_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=target_dhkey};
-
 
     np_dhkey_t send_dhkey = _np_msgproperty_dhkey(OUTBOUND, property->msg_subject);
     np_dhkey_t recv_dhkey = _np_msgproperty_dhkey(INBOUND, property->msg_subject);
@@ -1090,7 +1107,8 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
     }
 
     if ( FLAG_CMP(property->mode_type, OUTBOUND ) ) {
-        _np_msgproperty_check_sender_msgcache(property);
+        // _np_msgproperty_check_sender_msgcache(property);
+        _np_msgproperty_cleanup_sender_cache(property);
     }
 
     if ( FLAG_CMP(property->mode_type, INBOUND ) ) {
@@ -1102,9 +1120,9 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
     {
         _np_msgproperty_upsert_token(statemachine, event);
         _np_msgproperty_send_discovery_messages(statemachine, event);
+    
+        __np_intent_check(statemachine, event);
     }
-
-    __np_intent_check(statemachine, event);
 
     property->last_update = now;
     _np_msgproperty_job_msg_uniquety(property);
@@ -1264,7 +1282,7 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
     {
         log_msg(LOG_INFO, "start: void adding sending intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
         np_aaatoken_t* old_token = _np_intent_add_sender(my_property_key, intent_token);
-        np_unref_obj(np_aaatoken_t, old_token, "_np_intent_add_sender");
+        np_unref_obj(np_aaatoken_t, old_token, "send_tokens");
 
         _np_msgproperty_check_receiver_msgcache(real_prop, _np_aaatoken_get_issuer(intent_token));
     }
@@ -1273,7 +1291,7 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
     {
         log_msg(LOG_INFO, "start: void adding receiver intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
         np_aaatoken_t* old_token = _np_intent_add_receiver(my_property_key, intent_token);
-        np_unref_obj(np_aaatoken_t, old_token, "_np_intent_add_receiver");
+        np_unref_obj(np_aaatoken_t, old_token, "recv_tokens");
 
         _np_msgproperty_check_sender_msgcache(real_prop);
     }

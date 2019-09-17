@@ -189,6 +189,7 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
         else
         {
             log_msg(LOG_INFO,"possible message processing overload - retrying later", msg_in->uuid);
+            np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token");
         }
         ret = false;
     } 
@@ -503,6 +504,8 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
         
         np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
         _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+        // done in __np_property_handle_intent
+        // np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
     return true;
 }
@@ -551,6 +554,9 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
         np_dhkey_t available_msg_type = _np_msgproperty_dhkey(OUTBOUND, msg_token->subject);    
         np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
         _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+
+        // done in __np_property_handle_intent
+        // np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
     return true;
 }

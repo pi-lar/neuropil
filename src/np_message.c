@@ -94,17 +94,7 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
 
     log_debug_msg(LOG_MEMORY | LOG_DEBUG, "msg (%s) freeing memory", msg->uuid);
 
-    // sll_free(np_responsecontainer_on_t, msg->on_ack);
-    // sll_free(np_responsecontainer_on_t, msg->on_timeout);
-    // sll_free(np_message_on_reply_t, msg->on_reply);
-
     np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
-
-//	if (NULL != np_tree_find_str(msg->instructions, NP_MSG_INST_UUID)) {
-//		char* msg_uuid = np_tree_find_str(msg->instructions, NP_MSG_INST_UUID)->val.value.s;
-//		log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now deleting msg (%s) %p / %p", msg_uuid, msg, msg->msg_chunks);
-//	}
-
     
     np_tree_free( msg->header);
     np_tree_free( msg->instructions);

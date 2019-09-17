@@ -282,8 +282,6 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
         else
         {
             token->state = ret->state;
-            // np_ref_obj(np_aaatoken_t, ret, FUNC);
-            // np_unref_obj(np_aaatoken_t, ret,"recv_tokens");
         }
         log_debug_msg(LOG_DEBUG, "added new single receiver token for message hash %s", _np_key_as_str(subject_key) );
     }
@@ -714,7 +712,6 @@ void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event
     if (intent_key->entities == NULL) return;
     if (sll_size(intent_key->entities) < 2) return;
 
-    // NP_CAST(sll_first(intent_key->entities)->val, np_msgproperty_t, property);
     NP_CAST(sll_last(intent_key->entities)->val, struct __np_token_ledger, ledger);
     
     if (ledger == NULL) return;
@@ -732,7 +729,7 @@ void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event
         {
             log_debug_msg(LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
             pll_remove(np_aaatoken_ptr, ledger->send_tokens, tmp_token, _np_intent_cmp_exact);
-            np_unref_obj(np_aaatoken_t, tmp_token,"send_tokens");
+            np_unref_obj(np_aaatoken_t, tmp_token, "send_tokens");
             break;
         }
     }    

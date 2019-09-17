@@ -249,34 +249,37 @@ void _np_memory_destroy(np_state_t* context){
     np_module_free(memory);
 }
 
-bool _np_memory_init(np_state_t* context) {
+bool _np_memory_init(np_state_t* context) 
+{
     np_module_malloc(memory);
 
-    for (int i = 0; i < np_memory_types_MAX_TYPE; i++) {
+    for (int i = 0; i < np_memory_types_MAX_TYPE; i++) 
+    {
         _module->__np_memory_container[i] = NULL;
     }
-#define register(type,items_per_block,min_items, new_fn, free_fn, clear_fn ) \
+
+#define np_register(type,items_per_block,min_items, new_fn, free_fn, clear_fn ) \
 np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type##_t), items_per_block, min_items, new_fn, free_fn, clear_fn)
-#define register_defaultobj(type, count_of_itens_in_block, min_count) register(type, count_of_itens_in_block, min_count, _np_##type##_t_new, _np_##type##_t_del, np_memory_clear_space);	
+#define np_register_defaultobj(type, count_of_itens_in_block, min_count) np_register(type, count_of_itens_in_block, min_count, _np_##type##_t_new, _np_##type##_t_del, np_memory_clear_space);	
 
-    register_defaultobj(message, 4, 4);
-    register_defaultobj(key, 4, 4);
-    register_defaultobj(msgproperty, 4, 4);
-    register_defaultobj(thread, 1, 1);
-    register_defaultobj(node, 4, 4);
-    register_defaultobj(network, 4, 4);
-    register_defaultobj(responsecontainer, 4, 4);
-    register_defaultobj(messagepart, 4, 20);
-    register_defaultobj(aaatoken, 4, 4);
-    register_defaultobj(crypto, 4, 4);
+    np_register_defaultobj(message, 4, 4);
+    np_register_defaultobj(key, 4, 4);
+    np_register_defaultobj(msgproperty, 4, 4);
+    np_register_defaultobj(thread, 1, 1);
+    np_register_defaultobj(node, 4, 4);
+    np_register_defaultobj(network, 4, 4);
+    np_register_defaultobj(responsecontainer, 4, 4);
+    np_register_defaultobj(messagepart, 4, 20);
+    np_register_defaultobj(aaatoken, 4, 4);
+    np_register_defaultobj(crypto, 4, 4);
 
-#undef register
-#undef register_defaultobj
+#undef np_register
+#undef np_register_defaultobj
 
     // np_memory_register_type(context, np_memory_types_np_job_t, sizeof(np_job_t), 4, JOBQUEUE_MAX_SIZE, NULL, NULL, np_memory_clear_space);
     // np_memory_register_type(context, np_memory_types_np_jobargs_t, sizeof(np_jobargs_t), 4, JOBQUEUE_MAX_SIZE/2, NULL, NULL, np_memory_clear_space);
 
-    np_memory_register_type(context, np_memory_types_BLOB_1024, MSG_CHUNK_SIZE_1024, 4, 20, NULL, NULL, np_memory_clear_space);
+    np_memory_register_type(context, np_memory_types_BLOB_1024, MSG_CHUNK_SIZE_1024, 8, 20, NULL, NULL, np_memory_clear_space);
     np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40, 4, 20, NULL, NULL, np_memory_randomize_space);
 
     return true;
@@ -385,9 +388,9 @@ void np_memory_register_type(
     }
 }
 
-bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
+void __np_memory_refresh_space(np_memory_itemconf_t* config) {
     assert(config != NULL);
-    bool refreshed = false;
+    // bool refreshed = false;
     np_memory_container_t* container = config->container;
     np_ctx_decl(container->module->context);
     void* data = GET_ITEM(config);
@@ -408,10 +411,10 @@ bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
                 container->on_refresh_space(context, container->type, container->size_per_item, data);
             }
             config->needs_refresh = false;
-            refreshed = true;
+            // refreshed = true;
         }
     }
-    return refreshed;
+    // return refreshed;
 }
 
 void __np_memory_itemstats_update(np_memory_container_t* container) {
@@ -467,7 +470,7 @@ bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
                     /*decrease only if we have more then the min threshhold (failsafe)*/
                     total_space_available >= (container->min_count_of_items + container->count_of_items_per_block) &&
                     (
-                        /*decrease if the growth of items is negative for the mesured period, the grows is min as great as a block, and the growth size is free*/
+                    /* decrease if the growth of items is negative for the mesured period, the grows is min as great as a block, and the growth size is free*/
                     (0 > growth &&
                         fabs(growth) > container->count_of_items_per_block &&
                         total_free_space > fabs(growth)
@@ -551,7 +554,8 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
     }
 }
 
-void* np_memory_new(np_state_t* context, enum np_memory_types_e type) {
+void* np_memory_new(np_state_t* context, enum np_memory_types_e type)
+{
     NP_PERFORMANCE_POINT_START(memory_new);
     void* ret = NULL;
     np_memory_container_t* container = np_module(memory)->__np_memory_container[type];
@@ -581,7 +585,7 @@ void* np_memory_new(np_state_t* context, enum np_memory_types_e type) {
                             next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
                         }
                     }
-                    // second bast as we need to refresh the item
+                    // second best as we need to refresh the item
                     __np_memory_refresh_space(next_config);
                 }
             }
@@ -646,9 +650,6 @@ void np_memory_free(np_state_t*context, void* item) {
 
                 if (container->on_refresh_space != NULL) {
                     config->needs_refresh = true;
-                }
-
-                if (config->needs_refresh) {
                     _LOCK_ACCESS(&container->free_items_lock) {
                         sll_append(np_memory_itemconf_ptr, container->free_items, config);
                     }
@@ -657,8 +658,10 @@ void np_memory_free(np_state_t*context, void* item) {
                     _LOCK_ACCESS(&container->refreshed_items_lock) {
                         sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
                     }
-                }            }
+                } 
+           }
         }
+
         if (rm) {
             _LOCK_ACCESS(&container->current_in_use_lock) {
                 container->current_in_use -= 1;
@@ -688,11 +691,13 @@ void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED  np_jobargs
                 //debugf("\t__np_memory_space_decrease\n");
                 __np_memory_space_decrease(container);
             }
+            /*
             else if (__np_memory_space_increase_nessecary(container))
             {
                 //debugf("__np_memory_space_increase\n");
                 __np_memory_space_increase(container, container->count_of_items_per_block);
             }
+            */
 
             uint32_t list_size = 0;
             _LOCK_ACCESS(&container->free_items_lock) {

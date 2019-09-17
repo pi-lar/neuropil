@@ -157,11 +157,10 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
 {
     log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo (uuid: %s )", msg->uuid);
 
-    np_tree_t* payload = np_tree_create();
-    np_buffer2tree(context, msg->data, payload);
-    // np_tree_deserialize(context, payload, msg->data);
+    np_tree_t payload = {0}; // np_tree_create();
+    np_buffer2tree(context, msg->data, &payload);
 
-    np_tree_elem_t* source = np_tree_find_str(payload, _NP_SYSINFO_SOURCE);
+    np_tree_elem_t* source = np_tree_find_str(&payload, _NP_SYSINFO_SOURCE);
     if (NULL == source) 
     {
         log_msg(LOG_WARN | LOG_SYSINFO,
@@ -172,7 +171,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
     char* source_val = np_treeval_to_str(source->val, &source_str_free);
 
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO,"caching content for key %s (size: %"PRIu16", byte_size: %"PRIu32")",
-        source_val, payload->size, payload->byte_size);
+        source_val, payload.size, payload.byte_size);
 
     // insert / replace cache item
     _LOCK_MODULE(np_sysinfo_t)
@@ -181,7 +180,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
         // only insert if the data is newer
         if(NULL != item && item->val.value.tree != NULL)
         {
-            np_tree_elem_t* new_check = np_tree_find_str(payload, _NP_SYSINFO_MY_NODE_TIMESTAMP);
+            np_tree_elem_t* new_check = np_tree_find_str(&payload, _NP_SYSINFO_MY_NODE_TIMESTAMP);
             np_tree_elem_t* old_check = np_tree_find_str(item->val.value.tree, _NP_SYSINFO_MY_NODE_TIMESTAMP);
 
             if( NULL != new_check && 
@@ -189,7 +188,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
                new_check->val.value.d > old_check->val.value.d) 
             {
                 log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "removing old sysinfo for newer data (uuid:%s)", msg->uuid);
-                np_tree_replace_str(np_module(sysinfo)->_cache, source_val, np_treeval_new_tree(payload));				
+                np_tree_replace_str(np_module(sysinfo)->_cache, source_val, np_treeval_new_tree(&payload));
             } 
             else
             {
@@ -199,7 +198,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
         else
         {
             log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "got sysinfo (uuid: %s) for a new node", msg->uuid);
-            np_tree_replace_str(np_module(sysinfo)->_cache, source_val, np_treeval_new_tree(payload));
+            np_tree_replace_str(np_module(sysinfo)->_cache, source_val, np_treeval_new_tree(&payload));
 
             char new_sysinfo[9+64+1];
             snprintf(new_sysinfo, 9+64+1, "/sysinfo/%s", source_val);
@@ -209,7 +208,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
     if (source_str_free == true) {
         free(source_val);
     }
-
+    np_tree_clear(&payload);
     return true;
 }
 
