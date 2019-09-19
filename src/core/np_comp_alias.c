@@ -180,6 +180,14 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     alias_key->type |= np_key_type_alias;
     np_ref_obj(np_key_t, alias_key, "__np_alias_set");
 
+    // TCP setup
+    np_network_t* alias_network = _np_key_get_network(alias_key);
+    if (alias_network != NULL) {
+        _np_network_stop(alias_network, true);
+        _np_network_set_key(alias_network, alias_key);
+        _np_network_start(alias_network, true);
+    }
+
     sll_append(void_ptr, alias_key->entities, handshake_token);
 
     np_dhkey_t search_key = {0};
@@ -211,9 +219,9 @@ void __np_create_session(np_util_statemachine_t* statemachine, const np_util_eve
     log_debug_msg(LOG_TRACE, "start: void __np_create_session(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
-    NP_CAST(sll_first(alias_key->entities)->val, np_aaatoken_t, handshake_token);
-    
-    np_node_t*     alias_node = _np_key_get_node(alias_key);
+
+    np_aaatoken_t* handshake_token = _np_key_get_token(alias_key);
+    np_node_t*     alias_node      = _np_key_get_node(alias_key);
     
     np_aaatoken_t* my_token = _np_key_get_token(context->my_node_key);
     np_node_t* my_node = _np_key_get_node(context->my_node_key);

@@ -35,17 +35,10 @@
 #include "dtime.h"
 #include "np_log.h"
 #include "np_legacy.h"
-#include "np_aaatoken.h"
-#include "np_glia.h"
-#include "np_jobqueue.h"
-#include "np_tree.h"
 #include "np_dhkey.h"
 #include "np_key.h"
 #include "np_keycache.h"
-#include "np_message.h"
-#include "np_messagepart.h"
 #include "np_memory.h"
-#include "np_node.h"
 #include "np_threads.h"
 #include "np_event.h"
 #include "np_types.h"
@@ -53,7 +46,6 @@
 #include "np_settings.h"
 #include "np_util.h"
 #include "np_statistics.h"
-#include "np_dendrit.h"
 
 static char* URN_TCP_V4 = "tcp4";
 static char* URN_TCP_V6 = "tcp6";
@@ -330,6 +322,34 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
     }
 }
 
+struct __np_network_data {
+    struct sockaddr_storage from;
+    char ipstr[CHAR_LENGTH_IP];
+    char port[CHAR_LENGTH_PORT];
+    void* data;
+    int16_t in_msg_len;
+    np_network_t* ng_tcp_host;
+    np_key_t* key;
+};
+
+void __np_network_get_ip_and_port(struct __np_network_data* network_data) 
+{
+    if (network_data->from.ss_family == AF_INET)
+    {
+        // AF_INET
+        struct sockaddr_in *s = (struct sockaddr_in *) &network_data->from;
+        inet_ntop(AF_INET, &s->sin_addr, network_data->ipstr, sizeof network_data->ipstr);
+        snprintf(network_data->port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin_port));
+    }
+    else
+    {
+        // AF_INET6
+        struct sockaddr_in6 *s = (struct sockaddr_in6 *) &network_data->from;
+        inet_ntop(AF_INET6, &s->sin6_addr, network_data->ipstr, sizeof network_data->ipstr);
+        snprintf(network_data->port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin6_port));
+    }
+}
+
 void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
 {
     np_ctx_decl(ev_userdata(loop));
@@ -339,18 +359,15 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp accept event");
         return;
     }
-    // calling address and port
-    char ipstr[CHAR_LENGTH_IP] = { 0 };
-    char port[CHAR_LENGTH_PORT] = { 0 };
 
-    struct sockaddr_storage from = { 0 };
-    socklen_t fromlen = sizeof(from);
+    struct __np_network_data data_container = {0};
+    socklen_t fromlen = sizeof(struct sockaddr_storage);
 
     np_state_t* state = context;
     np_key_t* key = (np_key_t*)event->data; // state->my_node_key->network;
     np_network_t* ng = _np_key_get_network(state->my_node_key);
 
-    int client_fd = accept(ng->socket, (struct sockaddr*)NULL, NULL);
+    int client_fd = accept(ng->socket, (struct sockaddr*) &data_container.from, &fromlen);
 
     if (client_fd < 0) {
         if (errno != EWOULDBLOCK && errno != EAGAIN) {
@@ -367,59 +384,19 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
         );
         int optval;
         optval = 1;
-        if (setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) {
+        if (setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0) 
+        {
             log_msg(LOG_NETWORK | LOG_WARN, "setsockopt (SO_KEEPALIVE): %s: ", strerror(errno));
         }
         else
         {
-            int err = -1;
-            do {
-                err = getpeername(client_fd, (struct sockaddr*) &from, &fromlen);
-            } while (0 != err && errno != ENOTCONN);
+            __np_network_get_ip_and_port(&data_container);
 
-            if (from.ss_family == AF_INET)
-            {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
-                // AF_INET
-                struct sockaddr_in *s = (struct sockaddr_in *) &from;
-                snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin_port));
-                inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-            }
-            else
-            {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
-                // AF_INET6
-                struct sockaddr_in6 *s = (struct sockaddr_in6 *) &from;
-                snprintf(port, CHAR_LENGTH_PORT, "%d", ntohs(s->sin6_port));
-                inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-            }
-
-            if(strncmp(ng->ip, ipstr, strnlen(ipstr, CHAR_LENGTH_IP - 1))!=0)
-                memcpy(ng->ip, ipstr, strnlen(ipstr, CHAR_LENGTH_IP - 1));
-
-            if (strncmp(ng->port, port, strnlen(port, CHAR_LENGTH_PORT - 1)) != 0)
-                memcpy(ng->port, port, strnlen(port, CHAR_LENGTH_PORT - 1));
-
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                "received connection request from %s:%s (client fd: %d, source fd: %d)",
-                ipstr, port, client_fd, ng->socket);
-
-            np_dhkey_t search_key = np_dhkey_create_from_hostport(ipstr, port);
-            np_key_t*  alias_key = _np_keycache_find(context, search_key);
-            char* alias_key_reason = "_np_keycache_find";
-            np_network_t* old_network = NULL;
             np_network_t* new_network = NULL;
-
-            if (alias_key != NULL) {
-                old_network = _np_key_get_network(alias_key);
-            }
-            else {
-                // init new alias key
-                alias_key = _np_keycache_create(context, search_key);
-                alias_key_reason = "_np_keycache_create";                             
-                np_ref_switch(np_key_t, alias_key->parent_key, ref_key_parent, key);
-            }
             np_new_obj(np_network_t, new_network);
+
+            np_dhkey_t search_key = np_dhkey_create_from_hostport(&data_container.ipstr[0], &data_container.port[0]);
+            np_key_t* alias_key = _np_keycache_create(context, search_key);
 
             new_network->socket = client_fd;
             new_network->socket_type = ng->socket_type;
@@ -436,8 +413,9 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
             new_network->initialized = true;
             new_network->type = np_network_type_server;
             
-            _np_network_set_key(new_network, alias_key);
+            _np_network_set_key(new_network, key); // will be reset to alias key after first (handshake) message
             sll_append(void_ptr, alias_key->entities, new_network);
+
             log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving", new_network, new_network->socket);
 
             ev_io_init(
@@ -448,26 +426,12 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
             );
             _np_network_enable(new_network);
 
-            if (old_network != NULL) {
-                np_unref_obj(np_network_t, old_network, ref_key_network);
-            }
-
             log_debug_msg(LOG_NETWORK | LOG_DEBUG,
                 "created network for key: %s and watching it.", _np_key_as_str(alias_key));
-            np_unref_obj(np_key_t, alias_key, alias_key_reason);
+            np_unref_obj(np_key_t, alias_key, "_np_keycache_create");
         }
     }
 }
-
-struct __np_network_data {
-    struct sockaddr_storage from;
-    char ipstr[CHAR_LENGTH_IP];
-    char port[CHAR_LENGTH_PORT];
-    void* data;
-    int16_t in_msg_len;
-    np_network_t* ng_tcp_host;
-    np_key_t* key;
-};
 
 void _np_network_bidirektional(struct ev_loop *loop, ev_io *event, int revents) {
 
@@ -509,91 +473,54 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     // do {
         np_network_t* ng = _np_key_get_network(key);
 
-        struct __np_network_data * data_container = calloc(1, sizeof(struct __np_network_data));
-        data_container->key = key;
-        data_container->data = np_memory_new(context, np_memory_types_BLOB_1024);
+        struct __np_network_data data_container = {0}; // calloc(1, sizeof(struct __np_network_data));
+        data_container.key = key;
+        data_container.data = np_memory_new(context, np_memory_types_BLOB_1024);
 
         int16_t in_msg_len = 0;
 
         // catch a msg even if it was chunked into smaller byte parts by the underlying network
         // do {
             if (FLAG_CMP(ng->socket_type, TCP)) {
-                last_recv_result = recv(event->fd, ((char*)data_container->data)+in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
+                last_recv_result = recv(event->fd, ((char*)data_container.data)+in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
+                int err = -1;
+                do {
+                    err = getpeername(event->fd, (struct sockaddr*) &data_container.from, &fromlen);
+                } while (0 != err && errno != ENOTCONN);
             } 
             else
             {
-                last_recv_result = recvfrom(event->fd, ((char*)data_container->data) + in_msg_len,
-                    MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &data_container->from, &fromlen);
+                last_recv_result = recvfrom(event->fd, ((char*)data_container.data) + in_msg_len,
+                    MSG_CHUNK_SIZE_1024 - in_msg_len, 0, (struct sockaddr*) &data_container.from, &fromlen);
             }
 
             if (last_recv_result < 0) {
-                np_memory_free(context, data_container->data);
-                free(data_container);
+                np_memory_free(context, data_container.data);
         		return;
             }
+
+            __np_network_get_ip_and_port(&data_container);
+
             in_msg_len += last_recv_result;
             _np_statistics_add_received_bytes(last_recv_result);
             // repeat if msg is not 1024 bytes in size and the timeout is not reached
         // } while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
 
-        // already done when tcp accepting the connection
-        // if (FLAG_CMP(ng->socket_type, TCP)) { // if our own socket is tcp use peername to get the remote IP
-        //     if (in_msg_len >= 0) {
-        //         uint8_t retry = 2;
-        //         int peer_result=0;
-        //         do {
-        //             if (peer_result != 0) 
-        //             {
-        //                 np_time_sleep(NP_SLEEP_MIN);
-        //             }
-        //             peer_result = getpeername(event->fd, (struct sockaddr*) &data_container->from, &fromlen);
-        //         } while ((peer_result != 0 || peer_result == EAGAIN) && retry-- != 0);
-
-        //         if (0 != peer_result) {
-        //             log_msg(LOG_WARN, "could not receive socket peer: %s (%d)",
-        //                 strerror(errno), errno);
-        //             np_memory_free(context, data_container->data);
-        //             free(data_container);
-        //             return;
-        //         }
-        //         key = key->parent_key; // and then use the parent key for input handling
-        //         data_container->ng_tcp_host = ng;
-        // }
-        //     if (key != NULL) ng = _np_key_get_network(key); // update ng to be on the safe side
-        // }
-
         log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %"PRIi16" bytes via (fd: %d) ", in_msg_len, event->fd);
 
-        if (in_msg_len == MSG_CHUNK_SIZE_1024) {
-            
+        if (in_msg_len == MSG_CHUNK_SIZE_1024) 
+        {    
             msgs_received++;
-            data_container->in_msg_len = in_msg_len;
-
-            if (data_container->from.ss_family == AF_INET)
-            {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP4");
-                // AF_INET
-                struct sockaddr_in *s = (struct sockaddr_in *) &data_container->from;
-                snprintf(data_container->port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin_port));
-                inet_ntop(AF_INET, &s->sin_addr, data_container->ipstr, sizeof data_container->ipstr);
-            }
-            else
-            {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "connection is IP6");
-                // AF_INET6
-                struct sockaddr_in6 *s = (struct sockaddr_in6 *) &data_container->from;
-                snprintf(data_container->port, CHAR_LENGTH_PORT-1, "%d", ntohs(s->sin6_port));
-                inet_ntop(AF_INET6, &s->sin6_addr, data_container->ipstr, sizeof data_container->ipstr);
-            }
+            data_container.in_msg_len = in_msg_len;
 
             // we registered this token info before in the first handshake message
-            np_dhkey_t search_key = np_dhkey_create_from_hostport( data_container->ipstr, data_container->port);
+            np_dhkey_t search_key = np_dhkey_create_from_hostport( &data_container.ipstr[0], &data_container.port[0]);
             np_key_t* alias_key = _np_keycache_find(context, search_key);
 
-            np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container->data, 
+            np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container.data, 
                                          .context=context, .target_dhkey=search_key };
 
-            if (NULL == alias_key || FLAG_CMP(ng->socket_type, TCP) )
+            if (FLAG_CMP(ng->socket_type, TCP) || NULL == alias_key )
             {
                 // TODO: always enqueue via jobqueue
                 _np_keycache_handle_event(context, key->dhkey, in_event, false);
@@ -607,15 +534,13 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             else
             {
                 log_debug_msg(LOG_ERROR, "network in unknown state for key %s", _np_key_as_str(key) );
-            }
-            
+            }            
         }
         else 
         {
             log_debug_msg(LOG_INFO | LOG_NETWORK, "Dropping data package due to invalid package size (%"PRIu16")", in_msg_len);
-            np_memory_free(context, data_container->data);
+            np_memory_free(context, data_container.data);
         }
-        free(data_container);
     // there may be more then one msg in our socket pipeline
     // } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
     
@@ -938,10 +863,12 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
         if (!FLAG_CMP(type, PASSIVE)) 
         {
             // client socket - wait for writeable socket
-            if (prepared_socket_fd > 0) {
+            if (prepared_socket_fd > 0) 
+            {
                 ng->socket = prepared_socket_fd;
             }
-            else {
+            else
+            {
                 ng->socket = socket(ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
 
                 if (0 > ng->socket)
@@ -1008,26 +935,26 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             // handshake packages) we need to check the connection status for a moment
             if (prepared_socket_fd < 1) 
             {
+                int l_errno = 0;
                 int retry_connect = 3;
                 int connection_status = -1;
                 do {
                     connection_status = connect(
                         ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
-
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "TRY CONNECT: %"PRIi32, connection_status);
-                    if (connection_status != 0) 
+                    l_errno = errno;
+                    if (connection_status != 0 && l_errno != EISCONN)
                     {
-                        np_time_sleep(NP_PI / 10);
+                        log_msg(LOG_ERROR, "trying tcp connect: %"PRIi32" (%s)", connection_status, strerror(l_errno) );
+                        np_time_sleep(NP_PI / 100);
                     }
-                } while (0 != connection_status && retry_connect-- > 0);
+                } while (0 != connection_status && retry_connect-- > 0 && l_errno != EISCONN);
 
-                if (0 != connection_status) {
-                    if (errno != EISCONN) {
-                        log_msg(LOG_ERROR,
-                            "could not connect: %s (%d)", strerror(errno), errno);
-                        __np_network_close(ng);
-                        return false;
-                    }
+                if (0 != connection_status && l_errno != EISCONN) 
+                {
+                    log_msg(LOG_ERROR,
+                        "could not connect: %s (%d)", strerror(errno), errno);
+                    __np_network_close(ng);
+                    return false;
                 }
             }
             log_debug_msg(LOG_NETWORK | LOG_DEBUG,
