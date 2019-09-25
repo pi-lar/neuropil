@@ -536,7 +536,7 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
 
     log_msg(LOG_INFO, "forwarding message (%s) for subject: %s", message_in->uuid, str_msg_subject.value.s);
 
-    np_dhkey_t msg_handler = _np_msgproperty_dhkey(OUTBOUND, _DEFAULT);
+    np_dhkey_t msg_handler = _np_msgproperty_dhkey(OUTBOUND, _FORWARD);
 
     np_util_event_t forward_event = event;
     forward_event.target_dhkey = str_msg_to.value.dhkey;

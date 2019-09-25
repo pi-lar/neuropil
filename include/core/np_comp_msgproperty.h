@@ -33,6 +33,7 @@ extern "C" {
 #define _NP_URN_IDENTITY_PREFIX				_NP_URN_PREFIX"id:"
 
 #define _DEFAULT							"_NP.DEFAULT"
+#define _FORWARD							"_NP.FORWARD"
 
 static const char* _NP_MSG_ACK                    = "_NP.ACK";
 static const char* _NP_MSG_HANDSHAKE              = "_NP.HANDSHAKE";

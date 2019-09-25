@@ -376,9 +376,6 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     new_key->parent_key = NULL;
 
     _np_threads_mutex_init(context, &new_key->key_lock, "key_lock");
-
-    log_msg(LOG_DEBUG, "Created new key");
-
 }
 
 void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* key)

@@ -462,9 +462,10 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                     tmp_2 = np_module(route)->table[index + k];
                     np_node_t* tmp_2_node = _np_key_get_node(tmp_2);
                     np_node_t* tmp_1_node = _np_key_get_node(tmp_1);
-                    // TODO: make it more algorithmic ...
-                    if ( tmp_2_node->success_avg >= tmp_1_node->success_avg &&
-                         tmp_2_node->latency      < tmp_1_node->latency )
+                    // normalize values
+                    double metric_1 = 1.0 - tmp_1_node->success_avg + tmp_1_node->latency;
+                    double metric_2 = 1.0 - tmp_2_node->success_avg + tmp_2_node->latency;
+                    if (metric_1 > metric_2) // node 2 more stable and/or faster than node 1
                     {
                         tmp_1 = np_module(route)->table[index + k];
                     }
@@ -787,8 +788,8 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
             {
                 pick = 0;
                 np_key_t *k_node;
-                np_key_t *pick_node;
-
+                np_key_t *pick_node = NULL;
+                // slowest node selection
                 for (k = 1; k < __MAX_ENTRY; k++)
                 {
                     pick_node = np_module(route)->table[index + pick];
@@ -802,24 +803,27 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
                         pick_node = np_module(route)->table[index + pick];
                         break;
                     }
-                    else
-                    {
-                        if (_np_key_get_node(k_node)->latency > _np_key_get_node(pick_node)->latency)
-                        {							
-                            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f",
-                                                                    index, _np_key_get_node(k_node)->latency, _np_key_get_node(pick_node)->latency);
-                            pick = k;
-                            pick_node = np_module(route)->table[index + pick];
-                        }
+
+                    double latency_diff = _np_key_get_node(k_node)->latency - _np_key_get_node(pick_node)->latency;
+                    if (latency_diff > 0) // pick_node is slower than new node and
+                    {							
+                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d.%d: k.%f < p.%f",
+                                                                index, pick, _np_key_get_node(k_node)->latency, _np_key_get_node(pick_node)->latency);
+                        pick = k;
+                        pick_node = np_module(route)->table[index + pick];
                     }
                 }
-                
-                if(pick_node != NULL) 
+
+                if (pick_node != NULL)       // we have a pick node
                 {
-                    deleted_from = pick_node;
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);
-                    np_module(route)->table[index + pick] = key;
-                    add_to = key;
+                    double latency_diff = _np_key_get_node(pick_node)->latency - _np_key_get_node(key)->latency;
+                    if (latency_diff > NP_PI/1000) // pick_node has reasonably lower latency than new node
+                    {
+                        deleted_from = pick_node;
+                        np_module(route)->table[index + pick] = key;
+                        add_to = key;
+                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);
+                    }
                 }
             }
         }

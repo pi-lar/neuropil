@@ -22,6 +22,9 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event);
 NP_API_INTERN
 bool _np_out_default(np_state_t* context, np_util_event_t event);
 
+NP_API_INTERN
+bool _np_out_forward(np_state_t* context, np_util_event_t event);
+
 // sends a handshake message to the target node, assumes physical neighbourhood
 NP_API_INTERN
 bool _np_out_handshake(np_state_t* context, const np_util_event_t event);

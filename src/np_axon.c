@@ -430,6 +430,57 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
     return true;
 }
 
+bool _np_out_forward(np_state_t* context, np_util_event_t event)
+{
+    log_debug_msg(LOG_DEBUG, "start: bool _np_out_default(np_state_t* context, np_util_event_t msg_event){");
+    np_message_intent_public_token_t* msg_token = NULL;
+
+    NP_CAST(event.user_data, np_message_t, forward_msg);
+
+    if (!_np_route_my_key_has_connection(context))
+    {
+        log_msg(LOG_WARN, "--- request for forward message out, but no connections left ...");
+        return false;
+    }
+
+    // 1: find next hop based on fingerprint of the token
+    CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_TO, msg_to_ele);    
+    
+    np_sll_t(np_key_ptr, tmp) = NULL;
+    uint8_t i = 0;
+    do {
+        tmp = _np_route_lookup(context, msg_to_ele.value.dhkey, i);
+        i++;
+    } while (sll_size(tmp) == 0 && i < 5);
+
+    np_key_t* target = sll_first(tmp)->val;
+
+    if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
+    {
+        return false;
+    }
+
+    log_msg(LOG_INFO, "sending    message (%s) to: %s (%d)", forward_msg->uuid, _np_key_as_str(target), sll_size(tmp));
+    
+    // 3: send over the message parts
+    pll_iterator(np_messagepart_ptr) iter = pll_first(forward_msg->msg_chunks);
+    while (NULL != iter) 
+    {
+        iter->val->uuid = strndup(forward_msg->uuid, NP_UUID_BYTES);
+        log_debug_msg(LOG_DEBUG, "submitting request to target key %s / %p", _np_key_as_str(target), target);
+        np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
+        _np_keycache_handle_event(context, target->dhkey, send_event, false);
+        pll_next(iter);
+    }
+    // 4 cleanup
+    np_key_unref_list(tmp, "_np_route_lookup");
+    sll_free(np_key_ptr, tmp);
+
+    __np_cleanup__: {}
+
+    return true;
+}
+
 bool _np_out_default(np_state_t* context, np_util_event_t event)
 {
     log_debug_msg(LOG_DEBUG, "start: bool _np_out_default(np_state_t* context, np_util_event_t msg_event){");
@@ -457,7 +508,6 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
 
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
     {
-        np_unref_obj(np_message_t, forward_msg, ref_obj_creation);
         return false;
     }
 

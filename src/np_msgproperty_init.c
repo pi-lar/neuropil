@@ -35,6 +35,23 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __default_properties->token_max_ttl = 30;
     __default_properties->token_min_ttl = 20;
 
+    np_msgproperty_t* __forward_properties = NULL;
+    np_new_obj(np_msgproperty_t, __forward_properties, ref_system_msgproperty);
+    sll_append(np_msgproperty_ptr, ret, __forward_properties);
+
+    __forward_properties->msg_subject = strdup(_FORWARD);
+    __forward_properties->rep_subject = NULL;
+    __forward_properties->mode_type = OUTBOUND;
+    __forward_properties->mep_type = DEFAULT_TYPE;
+    __forward_properties->priority = 0;
+    __forward_properties->ack_mode = ACK_NONE;
+    __forward_properties->retry = 0;
+    sll_append(np_evt_callback_t, __forward_properties->clb_outbound , _np_out_forward);    
+    __forward_properties->msg_ttl = 20.0;
+    __forward_properties->max_threshold = UINT16_MAX;
+    __forward_properties->token_max_ttl = 30;
+    __forward_properties->token_min_ttl = 20;
+
 
     np_msgproperty_t* __handshake_properties = NULL;
     np_new_obj(np_msgproperty_t, __handshake_properties, ref_system_msgproperty);

@@ -261,40 +261,40 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
     node->latency = total / NP_NODE_SUCCESS_WINDOW;
     if (node->latency != old)
     {
-        log_msg(LOG_INFO, "connection to node %s:%s latency      now: %1.3f (update with: %1.3f)",
+        log_msg(LOG_INFO, "connection to node %s:%s latency      now: %1.6f (update with: %1.6f)",
                 node->dns_name, node->port, node->latency, node->latency_win[node->latency_win_index]);                
     }
 
     // insert into the routing table after a specific time period
-    // reason: routing is also based on latency, therefore we need a stable connection before inserting
+    // reason: routing is based on latency, therefore we need a stable connection before inserting
     if ( node->is_in_routing_table == false && 
         (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*2) < np_time_now() ) 
     {
         np_key_t* added = NULL, *deleted = NULL;
-        np_node_t* node = NULL;
+        np_node_t* node_1 = NULL;
         
         _np_route_update(node_key, true, &deleted, &added);
 
         if (added != NULL) 
         {
-            node = _np_key_get_node(added);
-            node->is_in_routing_table = true;
+            node_1 = _np_key_get_node(added);
+            node_1->is_in_routing_table = true;
             log_debug_msg(LOG_INFO, "added   to   table  : %s:%s:%s / %f / %1.2f",
                 _np_key_as_str(added),
-                node->dns_name, node->port,
-                node->last_success,
-                node->success_avg);
+                node_1->dns_name, node_1->port,
+                node_1->last_success,
+                node_1->success_avg);
         }
 
         if (deleted != NULL) 
         {
-            node = _np_key_get_node(deleted);
-            node->is_in_routing_table = false;
+            node_1 = _np_key_get_node(deleted);
+            node_1->is_in_routing_table = false;
             log_debug_msg(LOG_INFO, "deleted from table  : %s:%s:%s / %f / %1.2f",
                 _np_key_as_str(deleted),
-                node->dns_name, node->port,
-                node->last_success,
-                node->success_avg);
+                node_1->dns_name, node_1->port,
+                node_1->last_success,
+                node_1->success_avg);
             // TODO: issue leave event and delete node, respect leafset table
         }
     }
@@ -327,7 +327,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
         sll_of_keys = _np_route_row_lookup(node_key);
         char* source_sll_of_keys = "_np_route_row_lookup";
         
-        if (sll_size(sll_of_keys) <= 5)
+        if (sll_size(sll_of_keys) < 5)
         {   // nothing found, send leafset to exchange some data at least
             // prevents small clusters from not exchanging all data
             np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion

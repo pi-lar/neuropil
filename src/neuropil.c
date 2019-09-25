@@ -78,7 +78,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
     else {
         ret = settings;
     }	
-    ret->n_threads = 10;
+    ret->n_threads = 5;
     snprintf(ret->log_file, 256, "%.0f_neuropil.log",_np_time_now(NULL)*100);
     ret->log_level = LOG_ERROR;
     ret->log_level |= LOG_WARN;
