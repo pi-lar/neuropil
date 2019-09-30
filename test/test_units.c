@@ -11,6 +11,7 @@
 #endif
 
 #include "unit/test_aaatoken.c"
+#include "unit/test_bloom.c"
 #include "unit/test_dhkey.c"
 // #include "unit/test_heap.c" // TODO: fixme
 #include "unit/test_jrb_impl.c"
