@@ -18,19 +18,21 @@ disconnect at any time, messages will still be transported to their destinations
 Use Cases
 *********
 
-* B2B message exchange with Kerberos like AAA capabilites
 * global and secure micro-service driver
-* establish data ownership with ACL
+* establishment of data ownerships based on distributed ACL/ABAC rules
 * enable exclusive access to devices / resources for partners
-* establish secure application defined networks (ADN)
+* establish secure application defined networks (ADN) and ad-hoc VPN connections
 
 .. raw:: html
 
    <hr width=200>
 
+
 Features
 ********
 
+* zero-trust framework to comply with high data protection and security laws
+* zero discovery of identities and data channels
 * distributed messaging layer with built-in governance capbilities
 * technical double encryption layer to implement zero-knowledge infrastructures
 * message chunking to prevent side channel analysis from network sniffers
@@ -40,21 +42,27 @@ Features
 * only one dependency to the external encryption library (libsodium)
 * pull based message exchange to prevent overload and to enable lean management for it services
 * event / task driven architecture (coroutine inspired) which executes small pieces of code asynchronously
-* three levels of message acknowledgement: hop-by-hop, destination, client_ack
 
 .. raw:: html
 
    <hr width=200>
 
+
 Roadmap
 *******
 
-* more documentation
 * finalize message exchange pattern definitions (currently one-to-one only)
 * implement backpressure routing algorithm
 * implement group encryption
-* review and formalize message and token structure
 * define message callbacks in case of undelivered messages
-* hook in a javascript / lua / python bindings for message callback handling
-* more test cases
+* hook in a javascript bindings for message callback handling
+* implement token / message structure
+* more documentation and test cases
 * ... and many many more ideas ...
+
+
+Achieved goals
+**************
+
+* there is an existing Lua and Python binding
+* Token and message structure has bee defined

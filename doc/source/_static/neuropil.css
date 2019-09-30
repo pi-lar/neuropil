@@ -9,15 +9,14 @@ body {
     background-size: 1940px;
 }
 
-div.bodywrapper {
-	opacity: 10%;	
+div.documentwrapper {
+    background-color: #ffffff;
+	top: 10px;
 }
 
 div.sphinxsidebar {
     background-color: #ffffff;
-	position: fixed;
-	top: 20px;
-    left: 111%;
+	top: 10px;
 }
 
 div.footer {
