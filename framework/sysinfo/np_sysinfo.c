@@ -262,6 +262,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context)
     np_tree_insert_str( ret, _NP_SYSINFO_MY_NEIGHBOURS"_count", np_treeval_new_ul(sll_size(neighbour_table)));
     np_tree_insert_str( ret, _NP_SYSINFO_MY_NEIGHBOURS, np_treeval_new_tree(neighbours));
 
+    np_key_unref_list(neighbour_table, "_np_route_neighbors");
     sll_free(np_key_ptr, neighbour_table);
     np_tree_free(neighbours);
 
@@ -279,6 +280,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context)
     np_tree_insert_str( ret, _NP_SYSINFO_MY_ROUTES"_count", np_treeval_new_ul(sll_size(routing_table) ) );
     np_tree_insert_str( ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));	
 
+    np_key_unref_list(routing_table, "_np_route_get_table");
     sll_free(np_key_ptr, routing_table);
     np_tree_free(routes);
 

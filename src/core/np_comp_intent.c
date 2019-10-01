@@ -656,7 +656,7 @@ void __np_intent_receiver_update(np_util_statemachine_t* statemachine, const np_
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "discovery: received new receiver token %s for %s", intent_token->uuid, intent_token->subject);
 
     np_aaatoken_t* old_token = _np_intent_add_receiver(intent_key, intent_token);
-    np_unref_obj(np_aaatoken_t, old_token, "_np_intent_add_receiver");
+    np_unref_obj(np_aaatoken_t, old_token, "recv_tokens");
 
     _np_intent_propagate_sender(intent_key, intent_token);
 } 
@@ -672,7 +672,7 @@ void __np_intent_sender_update(np_util_statemachine_t* statemachine, const np_ut
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "discovery: received new sender token %s for %s", intent_token->uuid, intent_token->subject);
 
     np_aaatoken_t* old_token = _np_intent_add_sender(intent_key, intent_token);
-    np_unref_obj(np_aaatoken_t, old_token, "_np_intent_add_sender");
+    np_unref_obj(np_aaatoken_t, old_token, "send_tokens");
 
     _np_intent_propagate_receiver(intent_key, intent_token);
 }

@@ -754,10 +754,6 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
 
     // do not process if the target is not available anymore (but do process if no target is required at all)
     bool exec_funcs = true;
-    if (job_to_execute.args.target != NULL) {
-        
-        exec_funcs = !job_to_execute.args.target->in_destroy;
-    }
 
     if (exec_funcs && job_to_execute.processorFuncs != NULL) {
 

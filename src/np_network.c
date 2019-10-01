@@ -260,11 +260,10 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
     np_ctx_decl(ev_userdata(loop));
 
     if (event->data == NULL) return;
-    // log_debug(LOG_DEBUG, "%p", event->data);
-    NP_CAST(event->data, np_key_t, key);
-    // log_debug(LOG_DEBUG, "%p", key->entities);
 
+    NP_CAST(event->data, np_key_t, key);
     np_network_t* network = _np_key_get_network(key);
+    
     if (!FLAG_CMP(revents, EV_ERROR) && FLAG_CMP(revents, EV_WRITE))
     {
         _LOCK_ACCESS(&network->out_events_lock)
@@ -514,8 +513,8 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             data_container.in_msg_len = in_msg_len;
 
             // we registered this token info before in the first handshake message
-            np_dhkey_t search_key = np_dhkey_create_from_hostport( &data_container.ipstr[0], &data_container.port[0]);
-            np_key_t* alias_key = _np_keycache_find(context, search_key);
+            np_dhkey_t search_key = np_dhkey_create_from_hostport(&data_container.ipstr[0], &data_container.port[0]);
+            np_key_t*  alias_key  = _np_keycache_find(context, search_key);
 
             np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container.data, 
                                          .context=context, .target_dhkey=search_key };
@@ -529,12 +528,14 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             {
                 // TODO: always enqueue via jobqueue
                 _np_keycache_handle_event(context, alias_key->dhkey, in_event, false);
-                np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
             }
             else
             {
                 log_debug_msg(LOG_ERROR, "network in unknown state for key %s", _np_key_as_str(key) );
             }            
+
+            if (NULL != alias_key) np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
+
         }
         else 
         {
@@ -543,7 +544,6 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
         }
     // there may be more then one msg in our socket pipeline
     // } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
-    
 }
 
 /* 
@@ -613,10 +613,13 @@ void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
 }
 */
 
-void _np_network_stop(np_network_t* network, bool force) {		    
+void _np_network_stop(np_network_t* network, bool force) 
+{		    
     assert(NULL != network);
 
     np_ctx_memory(network);
+    log_trace_msg(LOG_TRACE, "start: void _np_network_stop(...){");
+
     _LOCK_ACCESS(&network->out_events_lock) 
     {
         EV_P;
@@ -627,39 +630,35 @@ void _np_network_stop(np_network_t* network, bool force) {
             {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping server network %p", network);
                 loop = _np_event_get_loop_in(context);
-                if (force == true) 
-                {                        
-                    ev_io_stop(EV_A_ &network->watcher);
-                    ev_io_set(&network->watcher, network->socket, EV_NONE);
-                    ev_io_start(EV_A_ &network->watcher);
-                    _np_event_reconfigure_loop_in(context);
-                }
+                _np_event_suspend_loop_in(context);
+                ev_io_stop(EV_A_ &network->watcher);
+                // ev_io_set(&network->watcher, network->socket, EV_NONE);
+                // ev_io_start(EV_A_ &network->watcher);
+                _np_event_resume_loop_in(context);
             }
 
             if (FLAG_CMP(network->type, np_network_type_client))
             {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
                 loop = _np_event_get_loop_out(context);
-                ev_io_set(&network->watcher, network->socket, EV_NONE);
-                if (force == true) 
-                {
-                    ev_io_stop(EV_A_ &network->watcher);
-                    _np_event_reconfigure_loop_out(context);
-                }
+                _np_event_suspend_loop_out(context);
+                ev_io_stop(EV_A_ &network->watcher);
+                // ev_io_set(&network->watcher, network->socket, EV_NONE);
+                // ev_io_start(EV_A_ &network->watcher);
+                _np_event_resume_loop_out(context);
             }
             network->is_running = false;
         }
     }
 }
 
-void _np_network_start(np_network_t* network, bool force){
-
+void _np_network_start(np_network_t* network, bool force)
+{
     assert(NULL != network);
 
-    log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_start(np_network_t* network){");
+    log_trace_msg(LOG_TRACE, "start: void _np_network_start(...){");
     np_ctx_memory(network);
 
-    np_ref_obj(np_network_t, network, FUNC);
     TSP_GET(bool, network->can_be_enabled, can_be_enabled);
     if (can_be_enabled) {
         NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
@@ -670,24 +669,27 @@ void _np_network_start(np_network_t* network, bool force){
             {
                 if (FLAG_CMP(network->type , np_network_type_server)) {
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
-                    EV_A = _np_event_get_loop_in(context);
+                    loop = _np_event_get_loop_in(context);
+                    _np_event_suspend_loop_in(context);
+                    // ev_io_stop(EV_A_ &network->watcher);
                     ev_io_set(&network->watcher, network->socket, EV_READ);
                     ev_io_start(EV_A_ &network->watcher);
-                    _np_event_reconfigure_loop_in(context);
+                    _np_event_resume_loop_in(context);
                 }
 
                 if (FLAG_CMP(network->type, np_network_type_client)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);						
-                    EV_A = _np_event_get_loop_out(context);
+                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
+                    loop = _np_event_get_loop_out(context);
+                    _np_event_suspend_loop_out(context);
+                    // ev_io_stop(EV_A_ &network->watcher);
                     ev_io_set(&network->watcher, network->socket, EV_WRITE);
                     ev_io_start(EV_A_ &network->watcher);
-                    _np_event_reconfigure_loop_out(context);
+                    _np_event_resume_loop_out(context);
                 }
                 network->is_running = true;
             }
         }
     }
-    np_unref_obj(np_network_t, network, FUNC);
 }
 
 /**
@@ -695,12 +697,10 @@ void _np_network_start(np_network_t* network, bool force){
  */
 void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data)
 {
-    log_trace_msg(LOG_TRACE | LOG_NETWORK, "start: void _np_network_t_del(void* nw){");
+    log_trace_msg(LOG_TRACE, "start: void _np_network_t_del(void* nw){");
     np_network_t* network = (np_network_t*) data;
 
-    _np_network_stop(network, true);
-    network->watcher.data = NULL;
-
+    // network->watcher.data = NULL;
     _LOCK_ACCESS(&network->out_events_lock)
     {
         if (NULL != network->out_events)
@@ -722,8 +722,7 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
 
     // finally destroy the mutex 
     _np_threads_mutex_destroy(context, &network->out_events_lock);
-
-    TSP_DESTROY( network->can_be_enabled);
+    TSP_DESTROY(network->can_be_enabled);
 }
 
 void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data)

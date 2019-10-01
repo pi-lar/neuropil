@@ -90,7 +90,7 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
         np_unref_obj(np_network_t, my_network, "__np_create_identity_network");
 
         NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_node_t, my_node);
-        np_unref_obj(np_node_t, my_node, ref_obj_creation);        
+        np_unref_obj(np_node_t, my_node, "__np_create_identity_network");        
     }
 
     NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_aaatoken_t, my_token);
@@ -181,19 +181,22 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
         // create node structure (do we still need it ???)
         np_node_t* my_node = _np_node_from_token(identity, np_aaatoken_type_node);
         sll_append(void_ptr, my_identity_key->entities, my_node);
+        ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_create_identity_network")
 
         // create incoming network
         np_network_t* my_network = NULL;
         np_new_obj(np_network_t, my_network);
-        _np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, my_node->protocol);
-        _np_network_set_key(my_network, my_identity_key);
+        if (_np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, my_node->protocol) ) 
+        {
+            _np_network_set_key(my_network, my_identity_key);
 
-        sll_append(void_ptr, my_identity_key->entities, my_network);
-        np_ref_obj(np_network_t, my_network, "__np_create_identity_network");
+            sll_append(void_ptr, my_identity_key->entities, my_network);
+            ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_identity_network")
 
-        log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
+            log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
 
-        _np_network_enable(my_network);
+            _np_network_enable(my_network);
+        }
     }
 }
 

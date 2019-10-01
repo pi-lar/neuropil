@@ -239,7 +239,7 @@ void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFil
             _np_log_fflush(context, true);
         }
 #else // DEBUG
-        else if (sll_size(np_module(log)->__logger->logentries_l) > 20) {
+        else if (sll_size(np_module(log)->__logger->logentries_l) > MISC_LOG_FLUSH_AFTER_X_ITEMS) {
             _np_event_invoke_file(context);        
         }
 #endif // DEBUG
@@ -273,7 +273,7 @@ void _np_log_fflush(np_state_t* context, bool force)
         if (0 == lock_result) {
             if (flush_status < 1 ) {
                 if (flush_status < 0) {
-                    flush_status = (force == true || sll_size(np_module(log)->__logger->logentries_l) > 100) ? 0 : 1;
+                    flush_status = (force == true || sll_size(np_module(log)->__logger->logentries_l) > MISC_LOG_FLUSH_AFTER_X_ITEMS) ? 0 : 1;
                 }
                 if(flush_status == 0) {
                     entry = sll_head(char_ptr, np_module(log)->__logger->logentries_l);

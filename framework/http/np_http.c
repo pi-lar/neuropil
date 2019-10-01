@@ -600,6 +600,8 @@ bool _np_http_init(np_state_t* context, char* domain, char* port) {
 
     np_new_obj(np_network_t, __local_http->network);
     _np_network_init(__local_http->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
+    np_ref_obj(np_network_t, __local_http->network, ref_obj_creation);
+
     // _np_network_enable(__local_http->network);
 
     if (NULL == __local_http->network || false == __local_http->network->initialized )

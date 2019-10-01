@@ -38,16 +38,16 @@ endif
 endif
 
 # adjust these settings to your location of libsodium and libcriterion
-INCLUDES=-I./framework -I./include -I./tpl/criterion-v2.3.2/include  -I/usr/include -I/usr/local/opt/llvm/include 
+INCLUDES=-I./framework -I./include -I./ext_tools/Criterion/include  -I/usr/include -I/usr/local/opt/llvm/include 
 
 SODIUM_LIBRARIES=-L/usr/local/lib -lsodium
-CRITERION_LIBRARIES=-L./tpl/criterion-v2.3.2/lib -lcriterion
+CRITERION_LIBRARIES=-L./build/test/ext_tools/Criterion/build -lcriterion
 NCURSES_LIBRARIES=-L/usr/local/lib -lncurses
 
 TARGET=x86_64-apple-darwin-macho
 # TARGET=x86_64-pc-gnu-elf
 
-SOURCES_LIB  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_axon.c src/np_bootstrap.c src/np_dendrit.c src/np_crypto.c
+SOURCES_LIB  = src/dtime.c src/neuropil.c src/np_aaatoken.c src/np_axon.c src/np_bloom.c src/np_bootstrap.c src/np_crypto.c src/np_dendrit.c
 SOURCES_LIB += src/core/np_comp_identity.c src/core/np_comp_msgproperty.c src/core/np_comp_intent.c src/core/np_comp_node.c src/core/np_comp_alias.c
 SOURCES_LIB += src/np_dhkey.c src/np_event.c src/np_glia.c src/np_jobqueue.c src/np_key.c src/np_keycache.c src/np_legacy.c
 SOURCES_LIB += src/np_log.c src/np_memory.c src/np_message.c src/np_messagepart.c src/np_network.c
@@ -111,7 +111,7 @@ neuropil_test_suites: $(TESTS)
 	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(CRITERION_LIBRARIES) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER_LINK) -Lbuild/lib -lneuropil $< -o bin/$@
 
 test_fuzzing: $(TESTS)
-	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER_LINK) -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
+	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(CRITERION_LIBRARIES) $(SODIUM_LIBRARIES) $(CLANG_SANITIZER_LINK) -Lbuild/lib -lneuropil build/obj/$@.o -o bin/$@
 
 
 build/lib/libneuropil.dylib: $(OBJECTS) $(FWOBJECTS)

@@ -142,7 +142,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_update");
     np_ctx_memory(node_key);
 
-    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (node_key->in_destroy == true && joined))
+    if (!np_module_initiated(route) || np_module(route)->my_key == NULL)
         return;
 
     if (_np_key_cmp(node_key, np_module(route)->my_key) == 0)
@@ -728,7 +728,7 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
 {
     np_ctx_memory(key);
 
-    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (key->in_destroy == true && joined))
+    if (!np_module_initiated(route) || np_module(route)->my_key == NULL)
         return;
 
     _LOCK_MODULE(np_routeglobal_t)

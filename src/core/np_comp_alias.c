@@ -178,12 +178,14 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     NP_CAST(event.user_data, np_aaatoken_t, handshake_token);
 
     alias_key->type |= np_key_type_alias;
+    // ref_replace_reason(np_key_t, alias_key, ref_obj_creation, "__np_alias_set");
     np_ref_obj(np_key_t, alias_key, "__np_alias_set");
 
-    // TCP setup
+    // fix TCP setup and set correct key
     np_network_t* alias_network = _np_key_get_network(alias_key);
     if (alias_network != NULL) {
         _np_network_stop(alias_network, true);
+        ref_replace_reason(np_network_t, alias_network, ref_obj_creation, "__np_alias_set");
         _np_network_set_key(alias_network, alias_key);
         _np_network_start(alias_network, true);
     }
@@ -198,6 +200,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     if (node_key == NULL) 
     {
         alias_node = _np_node_from_token(handshake_token, handshake_token->type);
+        // ref_replace_reason(np_key_t, alias_key, "_np_node_from_token", "__np_alias_set");
         alias_node->_handshake_status++;
     }
     else
@@ -208,7 +211,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     }
 
     sll_append(void_ptr, alias_key->entities, alias_node);
-    np_ref_obj(no_node_t, alias_node, "__np_alias_set");
+    np_ref_obj(np_node_t, alias_node, "__np_alias_set");
 
     handshake_token->state = AAA_VALID;
 }
@@ -339,6 +342,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         log_msg(LOG_WARN,
             "error on decryption of message (source: %s:%s)", _np_key_get_node(alias_key)->dns_name, _np_key_get_node(alias_key)->port);
     }
+    alias_key->last_update = np_time_now();
 } 
 
 bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -382,7 +386,7 @@ bool __is_forward_message(np_util_statemachine_t* statemachine, const np_util_ev
         CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
         {
             // messagepart is not addressed to our node --> forward
-            ret &= (0 != _np_dhkey_cmp(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey));
+            ret &= !_np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
         }
     }
     return ret;
@@ -587,12 +591,50 @@ void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_eve
     }
 } 
 
-bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_alias_invalid(...) {");
+
+    bool ret = false;
+
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+
+    if (!ret) ret = ( (alias_key->last_update + MISC_SEND_PINGS_MAX_EVERY_X_SEC) < np_time_now() );
+
+    np_dhkey_t search_key = {0};
+    _np_str_dhkey(_np_key_get_token(alias_key)->issuer, &search_key);
+    np_key_t* node_key = _np_keycache_find(context, search_key);
+
+    if      (ret && node_key == NULL) { ret = true; }
+    else if (ret && node_key != NULL) {
+        ret = false; 
+    }
+    np_unref_obj(np_key_t, node_key, "_np_keycache_find");
+    return ret;    
+}
 
 void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_alias_destroy(...) {");
+
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
- 
+
+    sll_iterator(void_ptr) iter = sll_first(alias_key->entities);
+    while (iter != NULL) 
+    {
+        if (_np_memory_rtti_check(iter->val, np_memory_types_np_node_t))     np_unref_obj(np_node_t,     iter->val, "__np_alias_set");
+        // if (_np_memory_rtti_check(iter->val, np_memory_types_np_aaatoken_t)) np_unref_obj(np_aaatoken_t, iter->val, "__np_alias_set");
+        if (_np_memory_rtti_check(iter->val, np_memory_types_np_network_t))  {
+            _np_network_stop(iter->val, true);
+            np_unref_obj(np_network_t,  iter->val, "__np_alias_set");
+        }
+        sll_next(iter);
+    }
+
+    sll_clear(void_ptr, alias_key->entities);
+
     alias_key->type = np_key_type_unknown;
     ref_replace_reason(np_key_t, alias_key, "__np_alias_set", "_np_keycache_finalize" );
 }

@@ -389,6 +389,8 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
     np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
     NP_CAST(sll_first(prop_key->entities)->val, np_msgproperty_t, my_property);
 
+    bool ret = false;
+
     np_message_intent_public_token_t* tmp_token = _np_intent_get_receiver(prop_key, event.target_dhkey);
     if (NULL != tmp_token)
     {
@@ -418,16 +420,16 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
         // decrease threshold counters
         _np_msgproperty_threshold_decrease(my_property);
         np_unref_obj(np_aaatoken_t, tmp_token, "_np_intent_get_receiver");
+        ret = true;
     }
     else
     {
         log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has NO valid token / %p", message->uuid, my_property->msg_subject, my_property);
         _np_msgproperty_add_msg_to_send_cache(my_property, message);
-        return false;
     }
     np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
 
-    return true;
+    return ret;
 }
 
 bool _np_out_forward(np_state_t* context, np_util_event_t event)
@@ -457,6 +459,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
 
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
     {
+        np_key_unref_list(tmp, "_np_route_lookup");
         return false;
     }
 
@@ -508,6 +511,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
 
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
     {
+        np_key_unref_list(tmp, "_np_route_lookup");
         return false;
     }
 
@@ -519,6 +523,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
         _np_message_calculate_chunking(forward_msg);
         _np_message_serialize_chunked(forward_msg);
     }
+    
     // 3: send over the message parts
     pll_iterator(np_messagepart_ptr) iter = pll_first(forward_msg->msg_chunks);
     while (NULL != iter) 
@@ -860,20 +865,23 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
     _np_message_calculate_chunking(ack_msg);
     _np_message_serialize_chunked(ack_msg);
 
-    np_key_t* target_key = _np_keycache_find(context, msg_event.target_dhkey);
-
     // 3: send over the message parts
     pll_iterator(np_messagepart_ptr) iter = pll_first(ack_msg->msg_chunks);
     while (NULL != iter) 
     {
+#ifdef DEBUG
+        np_key_t* target_key = _np_keycache_find(context, msg_event.target_dhkey);
+        if (NULL != target_key) {
+            log_debug_msg(LOG_DEBUG, "submitting ack to target key %s / %p", _np_key_as_str(target_key), target_key);
+            np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+        }
+#endif // DEBUG
         iter->val->uuid = strndup(ack_msg->uuid, NP_UUID_BYTES);
-        log_debug_msg(LOG_DEBUG, "submitting ack to target key %s / %p", _np_key_as_str(target_key), target_key);
         np_util_event_t ack_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=msg_event.target_dhkey};
         _np_keycache_handle_event(context, msg_event.target_dhkey, ack_event, false);
 
         pll_next(iter);
     }
-    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
 
     return true;
 }
@@ -909,7 +917,6 @@ bool _np_out_piggy(np_state_t* context, const np_util_event_t event)
 {
     log_trace_msg(LOG_TRACE, "start: bool _np_out_piggy(...) {");
 
-    np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
     NP_CAST(event.user_data, np_message_t, piggy_msg);
     
     // 2: chunk the message if required
@@ -921,13 +928,16 @@ bool _np_out_piggy(np_state_t* context, const np_util_event_t event)
     while (NULL != iter) 
     {
         iter->val->uuid = strndup(piggy_msg->uuid, NP_UUID_BYTES);
+#ifdef DEBUG
+        np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
         log_debug_msg(LOG_DEBUG, "submitting piggy to target key %s / %p", _np_key_as_str(target_key), target_key);
+        np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+#endif // DEBUG
         np_util_event_t piggy_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, event.target_dhkey, piggy_event, false);
 
         pll_next(iter);
     }
-    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
 
     return true;
 }
@@ -991,7 +1001,6 @@ bool _np_out_leave(np_state_t* context, const np_util_event_t event)
     log_trace_msg(LOG_TRACE, "start: bool _np_out_leave(...) {");
 
     NP_CAST(event.user_data, np_message_t, leave_msg);
-    np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
 
     // 2: chunk the message if required
     _np_message_calculate_chunking(leave_msg);
@@ -1003,7 +1012,11 @@ bool _np_out_leave(np_state_t* context, const np_util_event_t event)
     while (NULL != iter) 
     {
         iter->val->uuid = strndup(leave_msg->uuid, NP_UUID_BYTES);
+#ifdef DEBUG
+        np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
         log_debug_msg(LOG_DEBUG, "submitting leave to target key %s / %p", _np_key_as_str(target_key), target_key);
+        np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+#endif // DEBUG
         np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, event.target_dhkey, leave_event, false);
 
@@ -1011,7 +1024,6 @@ bool _np_out_leave(np_state_t* context, const np_util_event_t event)
     }
 
     // 5 cleanup
-    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
     return true;
 }
 
@@ -1025,7 +1037,6 @@ bool _np_out_join(np_state_t* context, const np_util_event_t event)
     np_tree_t* jrb_my_node  = np_tree_create();
     np_tree_t* jrb_my_ident = NULL;
 
-    np_key_t* target = _np_keycache_find(context, event.target_dhkey);
     // 1: create join payload
     np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
     np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
@@ -1047,14 +1058,17 @@ bool _np_out_join(np_state_t* context, const np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(join_msg->msg_chunks);
     while (NULL != iter) {
         iter->val->uuid = strndup(join_msg->uuid, NP_UUID_BYTES);
+#ifdef DEBUG
+        np_key_t* target = _np_keycache_find(context, event.target_dhkey);
         log_debug_msg(LOG_DEBUG, "submitting join request to target key %s / %p", _np_key_as_str(target), target);
+        np_unref_obj(np_key_t, target, "_np_keycache_find");
+#endif // DEBUG
         np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, event.target_dhkey, join_event, false);
         pll_next(iter);
     }
 
     // 5 cleanup
-    np_unref_obj(np_key_t, target, "_np_keycache_find");
     np_tree_free(jrb_my_node);
     if (NULL != jrb_my_ident) np_tree_free(jrb_my_ident);
 

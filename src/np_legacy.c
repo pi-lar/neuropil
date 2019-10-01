@@ -422,8 +422,9 @@ void np_send_join(np_context*ac, const char* node_string)
     }
     np_key_t* node_key = _np_keycache_find_or_create(context, search_key);
 
-    np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=new_node };
-    _np_key_handle_event(node_key, new_node_evt, false);
+    np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, 
+                                     .user_data=new_node, .target_dhkey=search_key };
+    _np_keycache_handle_event(context, search_key, new_node_evt, false);
 
     np_unref_obj(np_key_t, node_key, "_np_keycache_find_or_create");    
     np_bootstrap_add(context, node_string);

@@ -61,7 +61,6 @@ struct np_key_s
 	double last_update;
 
 	bool   is_in_keycache;
-	bool   in_destroy;
 
 	enum np_key_type type;
 	np_key_t* parent_key; // reference to parent/partner key
@@ -102,6 +101,22 @@ np_key_t* _np_key_get_by_key_hash(np_state_t* context,	char* targetDhkey);
 
 NP_API_INTERN
 void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force);
+
+struct __np_node_trinity {
+    np_aaatoken_t  *token;
+    np_node_t      *node;
+    np_network_t   *network;
+};
+
+NP_API_INTERN
+void __np_key_to_trinity(np_key_t* key, struct __np_node_trinity *trinity);
+NP_API_INTERN
+np_network_t* _np_key_get_network(np_key_t* key);
+NP_API_INTERN
+np_node_t* _np_key_get_node(np_key_t* key);
+NP_API_INTERN
+np_aaatoken_t* _np_key_get_token(np_key_t* key);
+
 
 #ifdef __cplusplus
 }

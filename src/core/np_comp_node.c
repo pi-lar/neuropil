@@ -7,63 +7,22 @@
 // this file conatins the state machine conditions, transitions and states that a node can
 // have. It is included form np_key.c, therefore there are no extra #include directives.
 
+#include "core/np_comp_node.h"
+
 #include "np_axon.h"
 #include "np_aaatoken.h"
 #include "np_event.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_legacy.h"
+#include "np_memory.h"
 #include "np_message.h"
 #include "np_responsecontainer.h"
 #include "np_route.h"
-#include "np_memory.h"
 
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
-struct __np_node_trinity {
-    np_aaatoken_t  *token;
-    np_node_t      *node;
-    np_network_t   *network;
-};
-
-void __np_key_to_trinity(np_key_t* key, struct __np_node_trinity *trinity) 
-{
-    sll_iterator(void_ptr) iter = sll_first(key->entities);
-
-    while (iter != NULL) {
-
-        if (_np_memory_rtti_check(iter->val, np_memory_types_np_node_t))     trinity->node    = iter->val;
-        if (_np_memory_rtti_check(iter->val, np_memory_types_np_aaatoken_t)) trinity->token   = iter->val;
-        if (_np_memory_rtti_check(iter->val, np_memory_types_np_network_t))  trinity->network = iter->val;
-
-        sll_next(iter);
-    }
-}
-
-np_network_t* _np_key_get_network(np_key_t* key) 
-{
-    struct __np_node_trinity trinity = {0};
-    __np_key_to_trinity(key, &trinity);
-
-    return trinity.network;
-}
-
-np_node_t* _np_key_get_node(np_key_t* key) 
-{
-    struct __np_node_trinity trinity = {0};
-    __np_key_to_trinity(key, &trinity);
-
-    return trinity.node;
-}
-
-np_aaatoken_t* _np_key_get_token(np_key_t* key) 
-{
-    struct __np_node_trinity trinity = {0};
-    __np_key_to_trinity(key, &trinity);
-
-    return trinity.token;
-}
 
 // IN_SETUP -> IN_USE transition condition / action #1
 bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -128,12 +87,24 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
     
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
-    if (!ret) ret  = (node_key->type == np_key_type_node);
-    if ( ret) ret &= (_np_key_get_token(node_key) != NULL);
-    if ( ret) {
-        np_aaatoken_t* node_token = _np_key_get_token(node_key);
-        ret &= !_np_aaatoken_is_valid(node_token, node_token->type);
+    if (!ret) ret = (node_key->type != np_key_type_node);
+
+    if (!ret) ret = (_np_key_get_node(node_key) == NULL);
+    np_node_t* node = _np_key_get_node(node_key);
+    if ( (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*3) < np_time_now() ) 
+    {
+        if (!ret) ret  = !node->is_in_leafset && !node->is_in_routing_table;
+        log_debug_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
+                        ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*2), np_time_now());
     }
+
+    if (!ret) ret = (_np_key_get_token(node_key) == NULL);
+    np_aaatoken_t* node_token = _np_key_get_token(node_key);
+    if (!ret) ret  = !_np_aaatoken_is_valid(node_token, node_token->type);
+
+    log_debug_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
+                    ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*2), np_time_now());
+
     return ret;
 }
 
@@ -211,7 +182,7 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
     }
     else 
     {
-       log_msg(LOG_ERROR, "start: void __np_node_set(...) {");
+        log_msg(LOG_ERROR, "start: void __np_node_set(...) {");
         abort();
     }
 }
@@ -519,10 +490,10 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
         }
         else if (FLAG_CMP(trinity.token->type, np_aaatoken_type_handshake))
         {
-            // sll_remove(void_ptr, alias_or_node_key->entities, trinity.token, void_ptr_sll_compare_type);
-            // np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
+            sll_remove(void_ptr, alias_or_node_key->entities, trinity.token, void_ptr_sll_compare_type);
+            np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
             sll_append(void_ptr, alias_or_node_key->entities, token);
-            np_ref_obj(np_aaatoken_t, token, "__np_node_upgrade");
+            np_ref_obj(np_aaatoken_t, token, "__np_node_set");
 
             token->state |= AAA_AUTHENTICATED;
             trinity.node->_joined_status++;
@@ -553,37 +524,25 @@ void __np_node_update_token(np_util_statemachine_t* statemachine, const np_util_
     // comapare new and old node token, take over changes
 }
 
-void __np_wildcard_finalize(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_wildcard_finalize(...) {");
-
-    NP_CAST(statemachine->_user_data, np_key_t, wildcard_key);
-
-    // we do not need this key anymore
-    wildcard_key->type = np_key_type_unknown;
-    ref_replace_reason(np_key_t, wildcard_key, "__np_wildcard_set", "_np_keycache_finalize");
-}
-
 void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{    
+{   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_destroy(...) {");
+    log_debug_msg(LOG_DEBUG, "start: void __np_node_destroy(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
-    _np_network_stop(trinity.network, true);    
+    _np_network_disable(trinity.network);
+
     np_unref_obj(np_network_t, trinity.network, "__np_create_client_network");
     np_unref_obj(np_node_t, trinity.node, "__np_node_set");
     np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
 
     sll_clear(void_ptr, node_key->entities);
 
-    ref_replace_reason(np_key_t, wildcard_key, "__np_node_set", "_np_keycache_finalize");
-    node_key->type = np_key_type_unknown;
+    ref_replace_reason(np_key_t, node_key, "__np_node_set", "_np_keycache_finalize");
 }
 
 void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -592,13 +551,13 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
     log_debug_msg(LOG_TRACE, "start: void __np_node_shutdown(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
-
+    
     np_tree_t* jrb_data     = np_tree_create();
     np_tree_t* jrb_my_node  = np_tree_create();
     np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
     np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
 
-    // 1: create nack message
+    // 1: create leave message
     np_message_t* msg_out = NULL;
     np_new_obj(np_message_t, msg_out, ref_obj_creation);
     _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_LEAVE_REQUEST, jrb_data);
@@ -609,6 +568,7 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
 
     np_tree_free(jrb_my_node);
 
+    node_key->type = np_key_type_unknown;
 }
 
 void __np_create_client_network (np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -637,20 +597,25 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
             __np_key_to_trinity(wildcard_key, &wildcard_trinity);
             if (NULL != wildcard_trinity.network) 
             {
-                sll_append(void_ptr, node_key->entities, _np_key_get_network(wildcard_key) );
-                np_ref_obj(np_network_t, wildcard_trinity.network);
+                _np_network_stop(wildcard_trinity.network, true);
                 _np_network_set_key(wildcard_trinity.network, node_key);
+
+                sll_append(void_ptr, node_key->entities, _np_key_get_network(wildcard_key) );
+                sll_remove(void_ptr, wildcard_key->entities, wildcard_trinity.network, void_ptr_sll_compare_type);
                 __np_key_to_trinity(node_key, &trinity);
+
+                _np_network_start(wildcard_trinity.network, true);
             }
             np_unref_obj(np_key_t, wildcard_key, "_np_keycache_find");
         }
         else if (wildcard_key == node_key) 
         {
-            // TODO: crashes, don't understand why ...
-            // np_unref_obj(np_key_t, wildcard_key, "_np_keycache_find");
+            np_unref_obj(np_key_t, wildcard_key, "_np_keycache_find");
         }
         free(tmp_connection_str);
     }
+
+    // TODO: check alias key for already existing tcp passive network connection (partner is passive)
 
     if (NULL == trinity.network && NULL != trinity.node) 
     {   // create outgoing network
@@ -659,10 +624,12 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
 
         if (_np_network_init(my_network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, -1, UNKNOWN_PROTO))
         {
+            // TODO: set an arbitrary constructed alias key because of tcp passive network connection (this node is passive)
+            // remote port but "localhost"
             _np_network_set_key(my_network, node_key);
             
             sll_append(void_ptr, node_key->entities, my_network);
-            np_ref_obj(np_network_t, my_network, "__np_create_client_network");
+            ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_client_network");
 
             _np_network_enable(my_network);
         }
@@ -678,15 +645,33 @@ bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_e
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key); 
 
-    if ( (node_key->created_at + 60) < np_time_now() ) return true;
+    if ( (node_key->created_at + 10.0) < np_time_now() ) return true;
 
     return false;
 }
 
 void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
-    NP_CAST(statemachine->_user_data, np_key_t, wildcard_key);
- 
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_wildcard_destroy(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, wildcard_key); 
+    
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(wildcard_key, &trinity);
+    if (NULL != trinity.network) 
+    {
+        _np_network_stop(trinity.network, true);
+        np_unref_obj(np_network_t, trinity.network, "__np_create_client_network");
+    }
+
+    if (NULL != trinity.node) 
+    {
+        np_unref_obj(np_node_t, trinity.network, "__np_wildcard_set");
+    }
+
+    sll_clear(void_ptr, wildcard_key->entities);
+
     wildcard_key->type = np_key_type_unknown;
     ref_replace_reason(np_key_t, wildcard_key, "__np_wildcard_set", "_np_keycache_finalize");
 }
@@ -703,6 +688,7 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
     __np_key_to_trinity(node_key, &trinity);
 
     if (trinity.network == NULL) return;
+    else                         _np_network_start(trinity.network, false);
 
     char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
     memcpy(packet, hs_messagepart->msg_part, 984);
@@ -732,6 +718,9 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
 
     struct __np_node_trinity my_trinity = {0};
     __np_key_to_trinity(context->my_node_key, &my_trinity);
+
+    if (trinity.network == NULL) return;
+    else                         _np_network_start(trinity.network, false);
 
     // replace with our onw local sequence number for next hop
     np_tree_replace_str(part->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(my_trinity.network->seqend++));
@@ -772,7 +761,7 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
 
         /* send data */
         if (NULL != trinity.network->out_events) {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %d) %p (%d bytes) to queue for %s:%s", part->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port);
+            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %p) %p (%d bytes) to queue for %s:%s", part->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port);
             char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
 
             log_debug_msg(LOG_NETWORK | LOG_DEBUG,
@@ -901,5 +890,6 @@ void __np_node_handle_response(np_util_statemachine_t* statemachine, const np_ut
     {
         log_msg(LOG_INFO, "unknown responsehandler called, not doing any action ...");
     }
+
     np_unref_obj(np_responsecontainer_t, response, "");
 }

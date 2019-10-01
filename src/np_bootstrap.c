@@ -8,22 +8,21 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "np_bootstrap.h"
+
+#include "core/np_comp_msgproperty.h"
 #include "np_constants.h"
-#include "np_legacy.h"
-#include "np_settings.h"
-#include "np_util.h"
-#include "np_log.h"
-#include "np_tree.h"
 #include "np_jobqueue.h"
 #include "np_key.h"
-#include "np_message.h"
-#include "core/np_comp_msgproperty.h"
-#include "util/np_event.h"
-
-#include "np_responsecontainer.h"
-
+#include "np_keycache.h"
 #include "np_legacy.h"
-#include "np_bootstrap.h"
+#include "np_log.h"
+#include "np_message.h"
+#include "np_responsecontainer.h"
+#include "np_settings.h"
+#include "np_tree.h"
+#include "np_util.h"
+#include "util/np_event.h"
 
 
 np_module_struct(bootstrap)

@@ -173,7 +173,7 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     char* msg_subject = np_treeval_to_str(msg_subject_ele, &free_msg_subject);
     
     np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(INBOUND, msg_subject);
-    np_key_t* prop_key    = _np_keycache_find(context, prop_dhkey);
+    np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
     np_msgproperty_t* msg_prop = _np_msgproperty_get(context, INBOUND, msg_subject);
     
     np_aaatoken_t* sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
@@ -201,10 +201,11 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
         _np_msgproperty_threshold_decrease(msg_prop);
         np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token"); // _np_aaatoken_get_sender_token
     }
+
     np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
 
     __np_cleanup__:
-    if (free_msg_subject) free(msg_subject);
+        if (free_msg_subject) free(msg_subject);
 
     return ret;
 }
@@ -362,13 +363,10 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     {   // silently exit join protocol as we already joined this key
         log_debug_msg(LOG_DEBUG, "JOIN request: no corresponding identity key found");
     }
-    
-    // authenticate identity key
-    
+        
     __np_cleanup__:
         if (join_ident_token != NULL) {
             np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
-            // np_unref_obj(np_key_t, join_ident_key, "_np_keycache_find_or_create");
         }
         np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
         np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
@@ -383,7 +381,7 @@ bool _np_in_ack(np_state_t* context, np_util_event_t msg_event)
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
     np_dhkey_t ack_in_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
-    np_key_t* ack_key = _np_keycache_find(context, ack_in_dhkey);
+    np_key_t*  ack_key      = _np_keycache_find(context, ack_in_dhkey);
     NP_CAST(sll_first(ack_key->entities)->val, np_msgproperty_t, property);
 
     CHECK_STR_FIELD(msg->body, _NP_MSG_INST_RESPONSE_UUID, ack_uuid);
@@ -402,7 +400,7 @@ bool _np_in_ack(np_state_t* context, np_util_event_t msg_event)
     }
  
     __np_cleanup__:
-    np_unref_obj(np_key_t, ack_key, "_np_keycache_find");
+        np_unref_obj(np_key_t, ack_key, "_np_keycache_find");
 
     return true;
 }
@@ -978,16 +976,18 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
         log_msg(LOG_ERROR, "Handshake key is NULL!");
         goto __np_cleanup__;
     }
+
     // setup sending encryption
     np_util_event_t hs_event = msg_event;
     hs_event.user_data = handshake_token;
     hs_event.type = (evt_external | evt_token);
     _np_keycache_handle_event(context, search_key, hs_event, false);
     
-    log_msg(LOG_DEBUG, "Update msg source done! %p", msg_source_key);
+    log_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
 
-    // TODO: passive check, then don't setup alias key, but alias_key == node_key
-    // if ((msg_source_key->node->protocol & PASSIVE) == PASSIVE && alias_key->network == NULL) {
+    // TODO: passive check
+    // TODO: update the arbitrary constructed alias key because of tcp passive network connection (this node is passive)
+    // remote port but "localhost"
 
     // setup inbound decryption session with the alias key
     hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
@@ -995,9 +995,9 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
 
     hs_event.type = (evt_internal | evt_token);
     _np_key_handle_event(hs_alias_key, hs_event, false);
-    np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
 
-    log_debug_msg(LOG_TRACE, "Update alias done! %p", hs_alias_key);
+    log_debug_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
+    np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
 
     // finally delete possible wildcard key
     char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
@@ -1013,7 +1013,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
         _np_key_handle_event(hs_wildcard_key, hs_event, false);
         np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
 
-        log_debug_msg(LOG_TRACE, "Update wildcard done!");
+        log_debug_msg(LOG_TRACE, "Update wildcard key done!");
     } 
     free(tmp_connection_str);
 
