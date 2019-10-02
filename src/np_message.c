@@ -51,7 +51,9 @@ void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_message_t_new(void* msg){");
     np_message_t* msg_tmp = (np_message_t*) msg;
 
-    _np_threads_mutex_init(context, &msg_tmp->msg_chunks_lock,"msg_chunks_lock");
+    char mutex_str[64];
+    snprintf(mutex_str, 63, "%s", "urn:np:message:msg_chunks");
+    _np_threads_mutex_init(context, &msg_tmp->msg_chunks_lock, mutex_str);
 
     msg_tmp->uuid = np_uuid_create("msg", 0, NULL);
 

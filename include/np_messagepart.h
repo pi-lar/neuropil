@@ -21,7 +21,7 @@ struct np_messagepart_s
 {
 	np_tree_t* header;
 	np_tree_t* instructions;
-	char* uuid;
+	char uuid[NP_UUID_BYTES];
 	uint16_t part;
 	void* msg_part;
 } NP_API_INTERN;

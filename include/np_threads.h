@@ -99,7 +99,7 @@ typedef struct np_cond_s np_cond_t;
 
 /** mutex                                                        **/
 struct np_mutex_s {
-    char* desc;
+    char desc[64];
     pthread_mutex_t lock;
     pthread_mutexattr_t lock_attr;
     np_cond_t  condition;

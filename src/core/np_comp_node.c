@@ -773,17 +773,12 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
                 sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);
             }
             _np_event_invoke_out(context); 
-#ifdef DEBUG
-            if(!trinity.network->is_running){
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "msg (%s) cannot be send (now) as network is not running", part->uuid);
-            }
-#endif
+
         } else {
             log_debug_msg(LOG_INFO, "Dropping data package for msg %s due to not initialized out_events", part->uuid);
             np_memory_free(context, enc_buffer);
         }
     }
-    free(part->uuid);
 }
 
 bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event)

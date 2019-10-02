@@ -195,7 +195,9 @@ char* np_statistics_prometheus_export(np_context*ac);
                 container->durations_idx = 0;																\
                 container->durations_count = 0;																\
                 container->hit_count = 0;																	\
-                _np_threads_mutex_init(context, &container->access, "performance point "#NAME" access");	\
+                char mutex_str[64];                                                                         \
+                snprintf(mutex_str, 63, "urn:np:statistics:%s:%s", "perfpoint", #NAME);                     \
+                _np_threads_mutex_init(context, &container->access, mutex_str);	                            \
             }																														
 
     #define NP_PERFORMANCE_POINT_DESTROY()											                        \

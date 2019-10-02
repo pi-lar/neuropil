@@ -319,7 +319,9 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 #ifdef NP_MEMORY_CHECK_MAGIC_NO
         conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
 #endif
-        if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf_lock") != 0) {
+        char mutex_str[64];
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:config");
+        if (_np_threads_mutex_init(context, &(conf->access_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
         }
         _LOCK_ACCESS(&container->free_items_lock) {
@@ -358,19 +360,26 @@ void np_memory_register_type(
         container->type = type;
 
         sll_init(np_memory_itemconf_ptr, container->free_items);
-        if (_np_threads_mutex_init(context, &(container->free_items_lock), "MemoryV2 container free_items_lock") != 0) {
+        char mutex_str[64];
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:free_items");
+        if (_np_threads_mutex_init(context, &(container->free_items_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create free_items_lock for container type %"PRIu8, container->type);
         }
+
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:refreshed_items");
         sll_init(np_memory_itemconf_ptr, container->refreshed_items);
-        if (_np_threads_mutex_init(context, &(container->refreshed_items_lock), "MemoryV2 container refreshed_items_lock") != 0) {
+        if (_np_threads_mutex_init(context, &(container->refreshed_items_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create refreshed_items for container type %"PRIu8, container->type);
         }
+
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:total_items");
         sll_init(np_memory_itemconf_ptr, container->total_items);
-        if (_np_threads_mutex_init(context, &(container->total_items_lock), "MemoryV2 container total_items_lock") != 0) {
+        if (_np_threads_mutex_init(context, &(container->total_items_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create total_items for container type %"PRIu8, container->type);
         }
 
-        if (_np_threads_mutex_init(context, &(container->current_in_use_lock), "MemoryV2 container current_in_use_lock") == 0)
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:in_use");
+        if (_np_threads_mutex_init(context, &(container->current_in_use_lock), mutex_str) == 0)
         {
             int i = 0;
             while ((container->count_of_items_per_block * i) < container->min_count_of_items)

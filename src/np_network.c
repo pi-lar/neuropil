@@ -743,7 +743,10 @@ void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     ng->ip[0] = 0;
     ng->port[0] = 0;
 
+    char mutex_str[64];
+    snprintf(mutex_str, 63, "%s:%p", "urn:np:network:access", ng);
     _np_threads_mutex_init(context, &ng->access_lock, "network access_lock");
+    snprintf(mutex_str, 63, "%s:%p", "urn:np:network:out_events", ng);
     _np_threads_mutex_init(context, &ng->out_events_lock, "network out_events_lock");
 
     TSP_INITD( ng->can_be_enabled, true);

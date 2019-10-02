@@ -669,7 +669,9 @@ _np_statistics_debug_t* _np_statistics_debug_add(np_state_t * context, char* key
         item->max = 0;
         item->avg = 0;
         memcpy(item->key, key, strnlen(key, 254));
-        _np_threads_mutex_init(context, &item->lock,"debug_statistics");
+        char mutex_str[64];
+        snprintf(mutex_str, 63, "%s", "urn:np:statistics:access");
+        _np_threads_mutex_init(context, &item->lock, mutex_str);
 
         _LOCK_MODULE(np_utilstatistics_t) {
             sll_append(void_ptr, np_module(statistics)->__np_debug_statistics, (void_ptr)item);

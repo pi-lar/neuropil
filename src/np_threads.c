@@ -72,7 +72,7 @@ bool _np_threads_init(np_state_t* context)
             c = pthread_cond_init(&_module->__mutexes[module_id].condition.cond, &_module->__mutexes[module_id].condition.cond_attr);
             assert(c==0);
 
-            _module->__mutexes[module_id].desc = np_module_lock_str[module_id];
+            strncpy(_module->__mutexes[module_id].desc, np_module_lock_str[module_id], 63);
             log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
         }
         _module->threads = sll_init_part(np_thread_ptr);
@@ -172,7 +172,6 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
 
 #endif
 
-    
     return ret;
 }
 
@@ -281,7 +280,7 @@ int _np_threads_unlock_modules(np_state_t* context, np_module_lock_type module_i
 int _np_threads_mutex_init(np_state_t* context, np_mutex_t* mutex, const char* desc)
 {
     int ret = 0;
-    mutex->desc = strndup(desc, 32);
+    strncpy(mutex->desc, desc, 63);
     pthread_mutexattr_init(&mutex->lock_attr);
     pthread_mutexattr_settype(&mutex->lock_attr, PTHREAD_MUTEX_RECURSIVE);
 
@@ -405,7 +404,6 @@ void _np_threads_mutex_destroy(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
     if (mutex != NULL) {
         _np_threads_condition_destroy(context, &mutex->condition);
         pthread_mutex_destroy(&mutex->lock);
-        free(mutex->desc);
     }
 }
 
@@ -616,13 +614,17 @@ void _np_thread_t_new(NP_UNUSED np_state_t * context, NP_UNUSED uint8_t type, NP
     thread->max_job_priority = DBL_MAX;
     thread->min_job_priority = 0;
 
-    _np_threads_mutex_init(context, &thread->job_lock, "job_lock");
+    char mutex_str[64];
+    snprintf(mutex_str, 63, "%s:%p", "urn:np:thread:job", thread);
+    _np_threads_mutex_init(context, &thread->job_lock, mutex_str);
     thread->run_fn = NULL;
     // thread->job = { 0 };
     thread->thread_type = np_thread_type_other;
 
 #ifdef NP_THREADS_CHECK_THREADING
-    _np_threads_mutex_init(context, &thread->locklists_lock,"thread locklist");
+
+    snprintf(mutex_str, 63, "%s:%p", "urn:np:thread:lock_list", thread);
+    _np_threads_mutex_init(context, &thread->locklists_lock, mutex_str);
     sll_init(char_ptr, thread->has_lock);
     sll_init(char_ptr, thread->want_lock);
 #endif

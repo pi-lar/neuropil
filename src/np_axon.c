@@ -460,6 +460,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
     {
         np_key_unref_list(tmp, "_np_route_lookup");
+        sll_free(np_key_ptr, tmp);
         return false;
     }
 
@@ -469,7 +470,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(forward_msg->msg_chunks);
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(forward_msg->uuid, NP_UUID_BYTES);
+        memcpy(iter->val->uuid, forward_msg->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting request to target key %s / %p", _np_key_as_str(target), target);
         np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, target->dhkey, send_event, false);
@@ -512,6 +513,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey))
     {
         np_key_unref_list(tmp, "_np_route_lookup");
+        sll_free(np_key_ptr, tmp);
         return false;
     }
 
@@ -528,7 +530,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(forward_msg->msg_chunks);
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(forward_msg->uuid, NP_UUID_BYTES);
+        memcpy(iter->val->uuid, forward_msg->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting request to target key %s / %p", _np_key_as_str(target), target);
         np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, target->dhkey, send_event, false);
@@ -575,7 +577,7 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(available_msg->msg_chunks);
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(available_msg->uuid, NP_UUID_BYTES);
+        memcpy(iter->val->uuid, available_msg->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting discovery request to target key %s / %p", _np_key_as_str(target), target);
         np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, target->dhkey, send_event, false);
@@ -623,7 +625,7 @@ bool _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(discover_msg->msg_chunks);
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(discover_msg->uuid, NP_UUID_BYTES);
+        memcpy(iter->val->uuid, discover_msg->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting discovery request to target key %s / %p", _np_key_as_str(target), target);
         np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, target->dhkey, send_event, false);
@@ -869,6 +871,7 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(ack_msg->msg_chunks);
     while (NULL != iter) 
     {
+
 #ifdef DEBUG
         np_key_t* target_key = _np_keycache_find(context, msg_event.target_dhkey);
         if (NULL != target_key) {
@@ -876,7 +879,8 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
             np_unref_obj(np_key_t, target_key, "_np_keycache_find");
         }
 #endif // DEBUG
-        iter->val->uuid = strndup(ack_msg->uuid, NP_UUID_BYTES);
+
+        memcpy(iter->val->uuid, ack_msg->uuid, NP_UUID_BYTES);
         np_util_event_t ack_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=msg_event.target_dhkey};
         _np_keycache_handle_event(context, msg_event.target_dhkey, ack_event, false);
 
@@ -903,7 +907,7 @@ bool _np_out_ping(np_state_t* context, const np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(ping_msg->msg_chunks);
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(ping_msg->uuid, NP_UUID_BYTES);
+        memcpy(iter->val->uuid, ping_msg->uuid, NP_UUID_BYTES);
         np_util_event_t ping_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, ping_event.target_dhkey, ping_event, false);
 
@@ -927,12 +931,12 @@ bool _np_out_piggy(np_state_t* context, const np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(piggy_msg->msg_chunks);
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(piggy_msg->uuid, NP_UUID_BYTES);
 #ifdef DEBUG
         np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
         log_debug_msg(LOG_DEBUG, "submitting piggy to target key %s / %p", _np_key_as_str(target_key), target_key);
         np_unref_obj(np_key_t, target_key, "_np_keycache_find");
 #endif // DEBUG
+        memcpy(iter->val->uuid, piggy_msg->uuid, NP_UUID_BYTES);
         np_util_event_t piggy_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, event.target_dhkey, piggy_event, false);
 
@@ -982,8 +986,8 @@ bool _np_out_update(np_state_t* context, const np_util_event_t event)
     pll_iterator(np_messagepart_ptr) iter = pll_first(update_msg->msg_chunks);
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(update_msg->uuid, NP_UUID_BYTES);
         log_debug_msg(LOG_DEBUG, "submitting update request to target key %s / %p", _np_key_as_str(target), target);
+        memcpy(iter->val->uuid, update_msg->uuid, NP_UUID_BYTES);
         np_util_event_t update_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, target->dhkey, update_event, false);
         pll_next(iter);
@@ -1011,12 +1015,12 @@ bool _np_out_leave(np_state_t* context, const np_util_event_t event)
 
     while (NULL != iter) 
     {
-        iter->val->uuid = strndup(leave_msg->uuid, NP_UUID_BYTES);
 #ifdef DEBUG
         np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
         log_debug_msg(LOG_DEBUG, "submitting leave to target key %s / %p", _np_key_as_str(target_key), target_key);
         np_unref_obj(np_key_t, target_key, "_np_keycache_find");
 #endif // DEBUG
+        memcpy(iter->val->uuid, leave_msg->uuid, NP_UUID_BYTES);
         np_util_event_t leave_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, event.target_dhkey, leave_event, false);
 
@@ -1057,12 +1061,12 @@ bool _np_out_join(np_state_t* context, const np_util_event_t event)
     // 4: send over the message parts
     pll_iterator(np_messagepart_ptr) iter = pll_first(join_msg->msg_chunks);
     while (NULL != iter) {
-        iter->val->uuid = strndup(join_msg->uuid, NP_UUID_BYTES);
 #ifdef DEBUG
         np_key_t* target = _np_keycache_find(context, event.target_dhkey);
         log_debug_msg(LOG_DEBUG, "submitting join request to target key %s / %p", _np_key_as_str(target), target);
         np_unref_obj(np_key_t, target, "_np_keycache_find");
 #endif // DEBUG
+        memcpy(iter->val->uuid, join_msg->uuid, NP_UUID_BYTES);
         np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=event.target_dhkey};
         _np_keycache_handle_event(context, event.target_dhkey, join_event, false);
         pll_next(iter);

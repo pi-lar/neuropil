@@ -404,7 +404,9 @@ bool _np_jobqueue_init(np_state_t * context)
         _module->periodic_jobs = 0;
 
         dll_init(np_thread_ptr, _module->available_workers);
-        _np_threads_mutex_init(context, &_module->available_workers_lock, "available_workers_lock");
+        char mutex_str[64];      
+        snprintf(mutex_str, 63, "urn:np:jobqueue:%s", "workers:available");              
+        _np_threads_mutex_init(context, &_module->available_workers_lock, mutex_str);
     }
     return (true);
 }

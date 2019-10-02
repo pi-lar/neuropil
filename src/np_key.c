@@ -351,6 +351,8 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
 
     new_key->parent_key = NULL;
 
+    char mutex_str[64];      
+    snprintf(mutex_str, 63, "urn:np:key:%s", "access");              
     _np_threads_mutex_init(context, &new_key->key_lock, "key_lock");
 }
 
