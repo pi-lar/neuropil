@@ -114,9 +114,11 @@ void log_rotation(np_state_t* context)
         logger = NULL;
     } else {
         EV_P = _np_event_get_loop_file(context);
+        _np_event_suspend_loop_file(context);
 		ev_io_stop(EV_A_ &logger->watcher);
         ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
         ev_io_start(EV_A_ &logger->watcher);
+        _np_event_resume_loop_file(context);
         _np_event_reconfigure_loop_file(context);
     }
 

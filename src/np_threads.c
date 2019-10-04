@@ -67,13 +67,14 @@ bool _np_threads_init(np_state_t* context)
             assert(t==0);
             t = pthread_mutex_init(&_module->__mutexes[module_id].lock, &_module->__mutexes[module_id].lock_attr);
             assert(t==0);
+
             c = pthread_condattr_init(&_module->__mutexes[module_id].condition.cond_attr);
             assert(c==0);
             c = pthread_cond_init(&_module->__mutexes[module_id].condition.cond, &_module->__mutexes[module_id].condition.cond_attr);
             assert(c==0);
 
             strncpy(_module->__mutexes[module_id].desc, np_module_lock_str[module_id], 63);
-            log_debug_msg(LOG_MUTEX | LOG_DEBUG, "created module mutex %d", module_id);
+            log_debug_msg(LOG_DEBUG | LOG_MUTEX, "created module mutex %d / %p / %p", module_id, &_module, &_module->__mutexes[module_id]);
         }
         _module->threads = sll_init_part(np_thread_ptr);
         TSP_INIT(_module->threads);
@@ -120,7 +121,8 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
 
     log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locking module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
 
-    _np_threads_init(context);
+    if (!np_module_initiated(threads)) _np_threads_init(context);
+    
     int ret =  1;
 
 #if defined(NP_THREADS_CHECK_THREADING) 
@@ -430,11 +432,15 @@ int _np_threads_module_condition_timedwait(np_state_t* context, np_module_lock_t
 
 int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
 {
+    if (!np_module_initiated(threads)) return 0;
+
     return pthread_cond_broadcast(&np_module(threads)->__mutexes[module_id].condition.cond);
 }
 
 int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
 {
+    if (!np_module_initiated(threads)) return 0;
+
     log_debug_msg(LOG_DEBUG | LOG_MUTEX, "signalling %p", &np_module(threads)->__mutexes[module_id].condition.cond);
     return pthread_cond_signal(&np_module(threads)->__mutexes[module_id].condition.cond);
 }

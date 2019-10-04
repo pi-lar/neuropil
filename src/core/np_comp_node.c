@@ -581,7 +581,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
-    log_msg(LOG_DEBUG, "__np_create_client_network %p (%d)", node_key, node_key->type);
+    log_msg(LOG_DEBUG, "__np_create_client_network key %p (type: %d)", node_key, node_key->type);
 
     // lookup wildcard to extract existing np_network_t structure
     char* tmp_connection_str  = np_get_connection_string_from(node_key, false);
@@ -633,6 +633,16 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
 
             _np_network_enable(my_network);
         }
+        else 
+        {
+            log_msg(LOG_WARN, "creation of client network failed, invalidating key %p (type: %d)", node_key, node_key->type);
+            node_key->type = np_key_type_wildcard;
+            if (trinity.token != NULL) 
+            {
+                sll_remove(void_ptr, node_key->entities, trinity.token, void_ptr_sll_compare_type);
+                np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set"); 
+            }
+        }
     }
 
     node_key->last_update = np_time_now();
@@ -643,9 +653,12 @@ bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_e
     np_ctx_memory(statemachine->_user_data);
     log_debug_msg(LOG_TRACE, "start: bool __is_wildcard_invalid(...) {");
 
-    NP_CAST(statemachine->_user_data, np_key_t, node_key); 
+    bool ret = false;
 
-    if ( (node_key->created_at + 10.0) < np_time_now() ) return true;
+    NP_CAST(statemachine->_user_data, np_key_t, wildcard_key); 
+
+    if (!ret) ret  = wildcard_key->type == np_key_type_wildcard;
+    if ( ret) ret &= ( (wildcard_key->created_at + 10.0) < np_time_now() );
 
     return false;
 }
@@ -699,10 +712,9 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
             void_ptr,
             trinity.network->out_events,
             (void*)packet);
+        log_debug_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %d", sll_size(trinity.network->out_events));
+        _np_event_invoke_out(context); 
     }
-    _np_event_invoke_out(context); 
-
-    log_debug_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %d", sll_size(trinity.network->out_events));
 }
 
 void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -771,9 +783,8 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
             _LOCK_ACCESS(&trinity.network->out_events_lock) 
             {
                 sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);
+                _np_event_invoke_out(context); 
             }
-            _np_event_invoke_out(context); 
-
         } else {
             log_debug_msg(LOG_INFO, "Dropping data package for msg %s due to not initialized out_events", part->uuid);
             np_memory_free(context, enc_buffer);

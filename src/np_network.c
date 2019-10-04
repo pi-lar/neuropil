@@ -256,7 +256,7 @@ void _np_network_get_address(
 }
 
 void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
-{		
+{	
     np_ctx_decl(ev_userdata(loop));
 
     if (event->data == NULL) return;
@@ -266,7 +266,7 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
     
     if (!FLAG_CMP(revents, EV_ERROR) && FLAG_CMP(revents, EV_WRITE))
     {
-        _LOCK_ACCESS(&network->out_events_lock)
+        _TRYLOCK_ACCESS(&network->out_events_lock)
         {
             /*
                 a) if a data packet is available, try to send it until
@@ -300,7 +300,7 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
                 }
 
                 if (written_per_data != MSG_CHUNK_SIZE_1024) {
-                    log_msg(LOG_DEBUG | LOG_WARN,
+                    log_msg(LOG_DEBUG,
                         "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
                         data_to_send,
                         written_per_data, MSG_CHUNK_SIZE_1024,
@@ -620,7 +620,7 @@ void _np_network_stop(np_network_t* network, bool force)
     np_ctx_memory(network);
     log_trace_msg(LOG_TRACE, "start: void _np_network_stop(...){");
 
-    _LOCK_ACCESS(&network->out_events_lock) 
+    _LOCK_ACCESS(&network->access_lock) 
     {
         EV_P;
         if ( (network->is_running == true /*&& last_send_diff >= NP_PI/500 */) &&
@@ -635,6 +635,7 @@ void _np_network_stop(np_network_t* network, bool force)
                 // ev_io_set(&network->watcher, network->socket, EV_NONE);
                 // ev_io_start(EV_A_ &network->watcher);
                 _np_event_resume_loop_in(context);
+                _np_event_reconfigure_loop_in(context);
             }
 
             if (FLAG_CMP(network->type, np_network_type_client))
@@ -646,6 +647,7 @@ void _np_network_stop(np_network_t* network, bool force)
                 // ev_io_set(&network->watcher, network->socket, EV_NONE);
                 // ev_io_start(EV_A_ &network->watcher);
                 _np_event_resume_loop_out(context);
+                _np_event_reconfigure_loop_out(context);
             }
             network->is_running = false;
         }
@@ -662,29 +664,31 @@ void _np_network_start(np_network_t* network, bool force)
     TSP_GET(bool, network->can_be_enabled, can_be_enabled);
     if (can_be_enabled) {
         NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
-        _LOCK_ACCESS(&network->out_events_lock) {
+        _LOCK_ACCESS(&network->access_lock) {
             NP_PERFORMANCE_POINT_END(network_start_out_events_lock);
-            EV_P;
             if (network->is_running == false)
             {
+                EV_P;
                 if (FLAG_CMP(network->type , np_network_type_server)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
-                    loop = _np_event_get_loop_in(context);
+                    log_debug_msg(LOG_DEBUG, "starting server network %p", network);
                     _np_event_suspend_loop_in(context);
+                    loop = _np_event_get_loop_in(context);
                     // ev_io_stop(EV_A_ &network->watcher);
                     ev_io_set(&network->watcher, network->socket, EV_READ);
                     ev_io_start(EV_A_ &network->watcher);
                     _np_event_resume_loop_in(context);
+                    _np_event_reconfigure_loop_in(context);
                 }
 
                 if (FLAG_CMP(network->type, np_network_type_client)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
-                    loop = _np_event_get_loop_out(context);
+                    log_debug_msg(LOG_DEBUG, "starting client network %p", network);
                     _np_event_suspend_loop_out(context);
+                    loop = _np_event_get_loop_out(context);
                     // ev_io_stop(EV_A_ &network->watcher);
                     ev_io_set(&network->watcher, network->socket, EV_WRITE);
                     ev_io_start(EV_A_ &network->watcher);
                     _np_event_resume_loop_out(context);
+                    _np_event_reconfigure_loop_out(context);
                 }
                 network->is_running = true;
             }

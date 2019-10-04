@@ -121,13 +121,13 @@ void l_invoke_file (EV_P);
     {                                                                                                                    \
         NP_PERFORMANCE_POINT_START(event_suspend_##LOOPNAME);                                                            \
         _np_threads_lock_module(context, np_event_##LOOPNAME##_t_lock, FUNC);                                            \
-        ev_async_send(_np_event_get_loop_##LOOPNAME(context), &np_module(events)->__async_##LOOPNAME);                   \
         NP_PERFORMANCE_POINT_END(event_suspend_##LOOPNAME);                                                              \
     }                                                                                                                    \
     void _np_event_resume_loop_##LOOPNAME(np_state_t *context)                                                           \
     {                                                                                                                    \
         NP_PERFORMANCE_POINT_START(event_resume_##LOOPNAME);                                                             \
         _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);                                                \
+        _np_threads_module_condition_signal(context, np_event_##LOOPNAME##_t_lock);                                      \
         NP_PERFORMANCE_POINT_END(event_resume_##LOOPNAME);                                                               \
     }                                                                                                                    \
     void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context) {                                                    \
@@ -136,8 +136,11 @@ void l_invoke_file (EV_P);
     struct ev_loop* _np_event_get_loop_##LOOPNAME(np_state_t *context) {                                                 \
         return (np_module(events)->__loop_##LOOPNAME);                                                                   \
     }                                                                                                                    \
-    void _np_event_invoke_##LOOPNAME(np_state_t *context) {                                                              \
+    void _np_event_invoke_##LOOPNAME(np_state_t *context)                                                                \
+    {                                                                                                                    \
+        _np_threads_lock_module(context, np_event_##LOOPNAME##_t_lock, FUNC);                                            \
         np_module(events)->LOOPNAME##_lock_indent += NP_NETWORK_MAX_MSGS_PER_SCAN_OUT;                                   \
+        _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);                                                \
         _np_threads_module_condition_signal(context, np_event_##LOOPNAME##_t_lock);                                      \
     }                                                                                                                    \
 
@@ -196,18 +199,14 @@ void l_invoke_file (EV_P)
 {
     np_state_t * context = ev_userdata(EV_A);
 
-    _l_acquire_file(EV_A);
-    if (np_module(events)->file_lock_indent == 0) 
+    if (np_module(events)->file_lock_indent > 0) 
     {
-        _np_threads_module_condition_timedwait(context, np_event_file_t_lock, 0.1); 
-    }
-    else 
-    {
+        _l_acquire_file(EV_A);
+        ev_invoke_pending (EV_A);
+        _l_release_file(EV_A);
         np_module(events)->file_lock_indent--;
     }
-    _l_release_file(EV_A);
-
-    ev_invoke_pending (EV_A);
+    _np_threads_module_condition_timedwait(context, np_event_file_t_lock, 0.1);
 }
 
 void l_invoke_http (EV_P) 
@@ -224,16 +223,12 @@ void l_invoke_out (EV_P)
 {
     np_state_t * context = ev_userdata(EV_A);
 
-    _l_acquire_out(EV_A);
-    if (np_module(events)->out_lock_indent == 0) 
+    if (np_module(events)->out_lock_indent > 0) 
     {
-        _np_threads_module_condition_wait(context, np_event_out_t_lock); 
-    }
-    else 
-    {
+        _l_acquire_out(EV_A);
+        ev_invoke_pending (EV_A);
+        _l_release_out(EV_A);
         np_module(events)->out_lock_indent--;
     }
-    _l_release_out(EV_A);
-
-    ev_invoke_pending (EV_A);
+    _np_threads_module_condition_wait(context, np_event_out_t_lock);
 }
