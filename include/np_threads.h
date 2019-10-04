@@ -59,14 +59,6 @@ enum np_module_lock_e {
     /*16*/np_aaatoken_t_lock,
     /*17*/np_state_message_tokens_t_lock,
     PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
-    PREDEFINED_DUMMY_1,
-    PREDEFINED_DUMMY_2,
-    PREDEFINED_DUMMY_3,
-    PREDEFINED_DUMMY_4,
-    PREDEFINED_DUMMY_5,
-    PREDEFINED_DUMMY_6,
-    PREDEFINED_DUMMY_7,
-    PREDEFINED_DUMMY_8,
 } NP_ENUM NP_API_INTERN;
 
 static char* np_module_lock_str[PREDEFINED_DUMMY_START] = {

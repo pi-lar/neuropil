@@ -23,7 +23,7 @@ extern "C" {
 	NP_API_INTERN
 		void _np_shutdown_run_callbacks(np_context* context);
 	NP_API_INTERN
-		void _np_shutdown_notify_others(np_state_t* context);
+		void _np_shutdown_notify_others(np_context* context);
 
 #ifdef __cplusplus
 }

@@ -113,8 +113,10 @@ void _np_shutdown_run_callbacks(np_context*ac)
     }
 }
 
-void _np_shutdown_notify_others(np_state_t* context) 
+void _np_shutdown_notify_others(np_context* ctx) 
 {
+    NP_CAST(ctx, np_state_t, context);
+
     np_sll_t(np_key_ptr, routing_table)  = _np_route_get_table(context);
     np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors(context);
     np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);

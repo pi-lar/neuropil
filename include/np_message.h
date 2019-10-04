@@ -26,7 +26,6 @@ enum np_message_submit_type {
 
 struct np_message_s
 {
-     // link to memory pool
     char* uuid;	
 
     np_tree_t* header;
@@ -50,9 +49,9 @@ struct np_message_s
     enum np_message_submit_type submit_type;
 } NP_API_INTERN;
 
-#ifndef SWIG
+
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
-#endif
+
 
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
