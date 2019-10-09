@@ -143,8 +143,7 @@ int main(int argc, char **argv) {
 	uint64_t send_buf_len;
 
 	// log_msg(LOG_DEBUG, "now serializing message #1 (%p->%p)", msg->header, msg->header->flink);
-	np_jobargs_t job_args = { .msg=msg };
-	np_message_serialize(NULL, &job_args);
+	np_message_serialize(NULL, msg);
 
 	jrb_insert_str(msg->instructions, "_np.ack", new_jval_i(1));
 	jrb_insert_str(msg->instructions, "_np.seq", new_jval_ul(2));
@@ -155,7 +154,6 @@ int main(int argc, char **argv) {
 	// unsigned long send_buf_len;
 
 	log_msg(LOG_DEBUG, "now serializing message #2");
-	np_jobargs_t job_args_2 = { .msg=msg };
-	np_message_serialize(NULL, &job_args_2);
+	np_message_serialize(NULL, msg);
 
 }

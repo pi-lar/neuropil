@@ -49,7 +49,7 @@
 
 // TODO: make these configurable (via struct np_config)
 
-void _np_glia_log_flush(np_state_t* context, NP_UNUSED  np_jobargs_t args) 
+void _np_glia_log_flush(np_state_t* context, NP_UNUSED  np_util_event_t event) 
 {    
     _np_log_fflush(context, false);
 }

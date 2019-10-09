@@ -84,7 +84,7 @@ bool _np_bootstrap_init(np_state_t* context)
         TSP_SCOPE(_module->bootstrap_points) {
             _module->bootstrap_points = np_tree_create();
         }
-        np_job_submit_event_periodic(context,
+        np_jobqueue_submit_event_periodic(context,
             PRIORITY_MOD_LOWEST, 
             NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL, NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL,
             __np_bootstrap_reconnect,

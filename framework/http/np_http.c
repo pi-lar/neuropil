@@ -77,6 +77,7 @@ struct np_http_client_s {
 typedef struct np_http_client_s np_http_client_t;
 typedef np_http_client_t* np_http_client_ptr;
 
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wstrict-prototypes"
 NP_SLL_GENERATE_PROTOTYPES(np_http_client_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_http_client_ptr);
@@ -265,7 +266,7 @@ int _np_http_on_msg_complete(htparser* parser) {
 }
 
 void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
-    log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(NP_UNUSED np_jobargs_t* args) {");
+    log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(...) {");
 
     assert(PROCESSING == client->status);
     np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;

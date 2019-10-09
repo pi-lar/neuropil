@@ -82,7 +82,7 @@ void _np_shutdown_init(np_state_t* context) {
         int res = sigaction(__NP_SHUTDOWN_SIGNAL, &_module->sigact, NULL);
         log_debug(LOG_MISC, "Init signal %d", res);
 
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.05, 0.05, np_shutdown_check, "np_shutdown_check");
+        np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.05, 0.05, np_shutdown_check, "np_shutdown_check");
     }
 }
 void _np_shutdown_destroy(np_state_t* context) {

@@ -130,8 +130,7 @@ NP_API_INTERN
 void _np_network_enable(np_network_t* self);
 NP_API_INTERN
 void _np_network_set_key(np_network_t* self, np_key_t* key);
-NP_API_INTERN
-void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args);
+
 #ifdef __cplusplus
 }
 #endif

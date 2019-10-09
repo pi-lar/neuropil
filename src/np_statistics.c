@@ -140,7 +140,7 @@ bool _np_statistics_init(np_state_t* context) {
         sll_init(void_ptr, _module->__np_debug_statistics);
 #endif
 
-    np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,0.,
+    np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,0.,
                                  NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL,
                                  __np_statistics_gather_data_clb,
                                  "__np_statistics_gather_data_clb");

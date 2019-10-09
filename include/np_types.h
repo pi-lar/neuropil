@@ -35,7 +35,6 @@ typedef enum np_aaatoken_type np_aaatoken_type_e;
 typedef struct np_dhkey_s np_dhkey_t;
 
 typedef struct np_job_s np_job_t;
-typedef struct np_jobargs_s np_jobargs_t;
 
 typedef struct np_key_s np_key_t;
 typedef np_key_t* np_key_ptr;
@@ -82,8 +81,8 @@ typedef void (*np_msgproperty_on_reply_t) (const np_responsecontainer_t* const e
 typedef void (*np_threads_worker_run)     (np_state_t* context, np_thread_t* thread);
 
 // internal callback functions
-typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t);
-typedef bool (*np_evt_callback_t) (np_state_t* context, np_util_event_t);
+typedef void (*np_callback_t) (np_state_t* context, np_util_event_t event);
+typedef bool (*np_evt_callback_t) (np_state_t* context, np_util_event_t event);
 typedef int(*_np_cmp_t)(void* a, void* b);
 
 typedef struct np_usercallback_s {

@@ -835,7 +835,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             strcpy(special_thread->job.ident, "_np_event_in_run");
 #endif
         } else {
-            np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
+            np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
         }
 
         if (pool_size > worker_threads) {
@@ -845,7 +845,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             strcpy(special_thread->job.ident, "_np_event_out_run");
 #endif
         } else {
-            np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
+            np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
         } 
 
         if (pool_size > worker_threads) {
@@ -855,7 +855,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             strcpy(special_thread->job.ident, "_np_event_file_run");
 #endif
         } else {
-            np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_file, "_np_events_read_file");
+            np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_file, "_np_events_read_file");
         }        
 
 /*
@@ -867,12 +867,12 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 #endif
         } else {
 */
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC*10, _np_events_read_http, "_np_events_read_http");
+        np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_3, 0.0, MISC_READ_EVENTS_SEC*10, _np_events_read_http, "_np_events_read_http");
 //  }
 
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
+        np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, MISC_KEYCACHE_CLEANUP_INTERVAL_SEC, _np_keycache_check_state, "_np_keycache_check_state");
 
-        if ((pool_size-1) > worker_threads) {
+        if (pool_size > worker_threads) {
             // a bunch of threads plus a coordinator
             pool_size--;
             __np_createWorkerPool(context, pool_size-1);

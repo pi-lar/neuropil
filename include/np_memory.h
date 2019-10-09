@@ -26,8 +26,6 @@ extern "C" {
         np_memory_types_np_responsecontainer_t,
         np_memory_types_np_messagepart_t,
         np_memory_types_np_aaatoken_t,
-// 		np_memory_types_np_job_t,
-//		np_memory_types_np_jobargs_t,
         np_memory_types_np_crypto_t,
         np_memory_types_MAX_TYPE
     };
@@ -81,7 +79,7 @@ extern "C" {
         void np_memory_randomize_space(np_state_t* context, uint8_t type, size_t size, void* data);
 
     NP_API_INTERN
-        void _np_memory_job_memory_management(np_state_t* context, np_jobargs_t args);
+        void _np_memory_job_memory_management(np_state_t* context, np_util_event_t event);
 
     NP_API_INTERN
     void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc);

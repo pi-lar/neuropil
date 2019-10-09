@@ -158,7 +158,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
  **/
 bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
 {
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_callback_wrapper(np_jobargs_t* args){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_callback_wrapper(...){");
     
     NP_CAST(msg_event.user_data, np_message_t, msg_in);
 
@@ -411,7 +411,7 @@ bool _np_in_ack(np_state_t* context, np_util_event_t msg_event)
 // receive information about new nodes in the network and try to contact new nodes
 bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_DEBUG, "start: bool _np_in_update(np_jobargs_t* args){");
+    log_debug_msg(LOG_DEBUG, "start: bool _np_in_update(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 

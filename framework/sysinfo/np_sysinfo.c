@@ -115,7 +115,7 @@ void np_sysinfo_enable_client(np_state_t* context)
 
     np_set_mx_properties(context, _NP_SYSINFO_DATA, sysinfo_properties);
 
-    np_job_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
+    np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
                                  np_crypt_rand_mm(0, SYSINFO_PROACTIVE_SEND_IN_SEC*1000) / 1000.,
                                  //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
                                  SYSINFO_PROACTIVE_SEND_IN_SEC+.0,

@@ -208,15 +208,15 @@ bool _np_message_is_expired(const np_message_t* const self)
      return ret;
 }
 
-bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t args)
+bool _np_message_serialize_header_and_instructions(np_state_t* context, np_message_t* msg)
 {	
     cmp_ctx_t cmp;
     np_messagepart_ptr part = NULL;
 
-    _LOCK_ACCESS(&args.msg->msg_chunks_lock)
+    _LOCK_ACCESS(&msg->msg_chunks_lock)
     {
-        assert(args.msg->msg_chunks != NULL);
-        pll_iterator(np_messagepart_ptr) first =  pll_first(args.msg->msg_chunks);
+        assert(msg->msg_chunks != NULL);
+        pll_iterator(np_messagepart_ptr) first =  pll_first(msg->msg_chunks);
         assert(first != NULL);
         part = first->val;
         assert(part != NULL);
@@ -228,14 +228,14 @@ bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobar
 
     int i = cmp.buf-part->msg_part;
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size %hd)", msg->header->size);
-    np_tree_serialize(context, args.msg->header, &cmp);
+    np_tree_serialize(context, msg->header, &cmp);
     log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-            "serialized the header (size %"PRIu32" / %ld)", args.msg->header->byte_size, (cmp.buf-part->msg_part-i));
+            "serialized the header (size %"PRIu32" / %ld)", msg->header->byte_size, (cmp.buf-part->msg_part-i));
     i = cmp.buf-part->msg_part;
 
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the instructions (size %hd)", msg->header->size);
-    np_tree_serialize(context, args.msg->instructions, &cmp);
-    log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serialized the instructions (size %"PRIu32" / %ld)", args.msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
+    np_tree_serialize(context, msg->instructions, &cmp);
+    log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serialized the instructions (size %"PRIu32" / %ld)", msg->instructions->byte_size, (cmp.buf-part->msg_part-i));
     // i = cmp.buf-part->msg_part;
 
     return (true);
@@ -245,7 +245,7 @@ bool _np_message_serialize_chunked(np_message_t* msg)
 {
     np_state_t* context = np_ctx_by_memory(msg);
     NP_PERFORMANCE_POINT_START(message_serialize_chunked);
-    log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: bool _np_message_serialize_chunked(np_state_t* context, np_jobargs_t args){");	
+    log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: bool _np_message_serialize_chunked(...){");	
 
     np_ref_obj(np_message_t, msg);
 
