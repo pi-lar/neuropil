@@ -333,7 +333,8 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
 
         np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
                                            .user_data=msg_in, .target_dhkey=alias_key->dhkey};
-        _np_key_handle_event(alias_key, in_message_evt, false);
+        _np_keycache_handle_event(context, alias_key->dhkey, in_message_evt, false);
+        // _np_keycache_handle_event(context, alias_key->dhkey, in_message_evt, false);
 
     } else {
         np_memory_free(context, event.user_data);

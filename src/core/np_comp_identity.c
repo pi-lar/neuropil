@@ -118,7 +118,7 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
 
         sll_append(void_ptr, my_identity_key->entities, identity);
         np_ref_obj(np_aaatoken_t, identity, "__np_set_identity");
-    
+
         context->my_node_key = my_identity_key;
 
         if (NULL == context->my_identity) 
@@ -343,9 +343,10 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
     NP_CAST(event.user_data, np_aaatoken_t, authn_token);
 
     // transport layer encryption
-    if (authn_token->type == np_aaatoken_type_identity || authn_token->type == np_aaatoken_type_node)
+    if (authn_token->type == np_aaatoken_type_identity || 
+        authn_token->type == np_aaatoken_type_node      )
     {
-        if ( !FLAG_CMP(authn_token->state, AAA_AUTHENTICATED) ) 
+        if ( !FLAG_CMP(authn_token->state, AAA_AUTHENTICATED) )
         {
             log_debug_msg(LOG_DEBUG, "now checking (join/ident) authentication of token");
             struct np_token tmp_user_token = { 0 };
@@ -363,7 +364,12 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
                 np_dhkey_t leave_dhkey = np_aaatoken_get_fingerprint(authn_token, false);
                 np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .context=context, .user_data=NULL, .target_dhkey=leave_dhkey };
                 _np_keycache_handle_event(context, leave_dhkey, shutdown_evt, true);
+                np_unref_obj(np_aaatoken_t, authn_token, "np_token_factory_read_from_tree");
             }
+        }
+        else
+        {
+            np_unref_obj(np_aaatoken_t, authn_token, "np_token_factory_read_from_tree");
         }
     }
     else if (authn_token->type == np_aaatoken_type_message_intent) 

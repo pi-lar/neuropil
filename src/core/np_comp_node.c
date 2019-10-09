@@ -493,7 +493,7 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
             sll_remove(void_ptr, alias_or_node_key->entities, trinity.token, void_ptr_sll_compare_type);
             np_unref_obj(np_aaatoken_t, trinity.token, "__np_node_set");
             sll_append(void_ptr, alias_or_node_key->entities, token);
-            np_ref_obj(np_aaatoken_t, token, "__np_node_set");
+            ref_replace_reason(np_aaatoken_t, token, "np_token_factory_read_from_tree", "__np_node_set");
 
             token->state |= AAA_AUTHENTICATED;
             trinity.node->_joined_status++;

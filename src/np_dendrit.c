@@ -346,18 +346,18 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         authn_event.target_dhkey = msg_event.target_dhkey;
         authn_event.user_data = join_node_token;
 
-        _np_key_handle_event(context->my_identity, authn_event, false);
+        _np_keycache_handle_event(context, context->my_identity->dhkey, authn_event, false);
     }
     else if(join_node_key != NULL && join_ident_token != NULL)
     {   // update node token and wait for identity authentication
         log_debug_msg(LOG_DEBUG, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
         np_util_event_t token_event = { .context=context, .type=evt_token|evt_external };
-        token_event.target_dhkey = join_node_dhkey;
-        token_event.user_data = join_node_token;
+        token_event.target_dhkey    = join_node_dhkey;
+        token_event.user_data       = join_node_token;
         // update node token
-        _np_key_handle_event(join_node_key, token_event, false);
+        _np_keycache_handle_event(context, join_node_key->dhkey, token_event, false);
         // identity authn
-        _np_key_handle_event(context->my_identity, authn_event, false);
+        _np_keycache_handle_event(context, context->my_identity->dhkey, authn_event, false);
     }
     else
     {   // silently exit join protocol as we already joined this key
@@ -366,9 +366,9 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         
     __np_cleanup__:
         if (join_ident_token != NULL) {
-            np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
+            // np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
         }
-        np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
+        // np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
         np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
 
     return true;

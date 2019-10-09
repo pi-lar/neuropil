@@ -206,7 +206,10 @@ void l_invoke_file (EV_P)
         _l_release_file(EV_A);
         np_module(events)->file_lock_indent--;
     }
-    _np_threads_module_condition_timedwait(context, np_event_file_t_lock, 0.1);
+    else
+    {
+        _np_threads_module_condition_timedwait(context, np_event_file_t_lock, 0.1);
+    }
 }
 
 void l_invoke_http (EV_P) 
@@ -229,6 +232,9 @@ void l_invoke_out (EV_P)
         ev_invoke_pending (EV_A);
         _l_release_out(EV_A);
         np_module(events)->out_lock_indent--;
+    } 
+    else 
+    {
+        _np_threads_module_condition_wait(context, np_event_out_t_lock);
     }
-    _np_threads_module_condition_wait(context, np_event_out_t_lock);
 }
