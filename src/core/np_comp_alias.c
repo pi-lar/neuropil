@@ -124,9 +124,9 @@ void _np_alias_cleanup_msgpart_cache(np_state_t* context)
     
     _LOCK_MODULE(np_message_part_cache_t)
     {
-        if (context->msg_part_cache->size > 0) {
-            log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message parts (size: %d)", context->msg_part_cache->size);
-
+        if (context->msg_part_cache->size > 0) 
+        {
+            log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE checking (left-over) message parts (size: %d)", context->msg_part_cache->size);
             np_tree_elem_t* tmp = NULL;
             RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
             {

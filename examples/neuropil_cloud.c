@@ -159,7 +159,7 @@ int main(int argc, char **argv)
                 }
             }
         }
-        np_time_sleep(0); // slow down
+        np_time_sleep(0.0); // slow down
     }
 
     np_example_print(nodes[0], stderr, "!!! DONE WITH EVERYTHING !!!");

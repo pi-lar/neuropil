@@ -1280,7 +1280,7 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
 
     if (_np_dhkey_equal(&target_inbound_dhkey, &my_property_key->dhkey)) 
     {
-        log_msg(LOG_INFO, "start: void adding sending intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
+        log_msg(LOG_INFO, "adding sending intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
         np_aaatoken_t* old_token = _np_intent_add_sender(my_property_key, intent_token);
         np_unref_obj(np_aaatoken_t, old_token, "send_tokens");
 
@@ -1289,7 +1289,7 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
 
     if (_np_dhkey_equal(&target_outbound_dhkey, &my_property_key->dhkey)) 
     {
-        log_msg(LOG_INFO, "start: void adding receiver intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
+        log_msg(LOG_INFO, "adding receiver intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
         np_aaatoken_t* old_token = _np_intent_add_receiver(my_property_key, intent_token);
         np_unref_obj(np_aaatoken_t, old_token, "recv_tokens");
 

@@ -341,7 +341,9 @@ struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context,
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     struct __np_switchwindow_scrollable * ret = calloc(1, sizeof(struct __np_switchwindow_scrollable));
 
-    _np_threads_mutex_init(context, &ret->access, "__np_switchwindow_scrollable->access");
+    char mutex_str[64];
+    snprintf(mutex_str, 63, "urn:np:example:%s", "display:switchwindow:scrollable");
+    _np_threads_mutex_init(context, &ret->access, mutex_str);
 
     int h = ud->term_height_bottom, w = width/*140*/, x = 0/*, y = 39*/;
     ret->win = newwin(h, w, y, x);
@@ -389,7 +391,9 @@ void np_example_print(np_context * context, FILE * stream, const char * format_i
     if (to_add_size > 0) {
         if (ud->__log_mutex == NULL) {
             ud->__log_mutex = malloc(sizeof(np_mutex_t));
-            _np_threads_mutex_init(context, ud->__log_mutex, "Example logger mutex");
+            char mutex_str[64];
+            snprintf(mutex_str, 63, "%s", "urn:np:example:logger");
+            _np_threads_mutex_init(context, ud->__log_mutex, mutex_str);
         }
         _LOCK_ACCESS(ud->__log_mutex)
         {

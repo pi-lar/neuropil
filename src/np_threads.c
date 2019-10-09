@@ -400,7 +400,7 @@ int _np_threads_mutex_unlock(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
     return pthread_mutex_unlock(&mutex->lock);
 }
 
-void _np_threads_mutex_destroy(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
+void _np_threads_mutex_destroy(np_state_t* context, np_mutex_t* mutex)
 {
     log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: void _np_threads_mutex_destroy(np_mutex_t* mutex){");	
     if (mutex != NULL) {
@@ -409,8 +409,7 @@ void _np_threads_mutex_destroy(NP_UNUSED np_state_t* context, np_mutex_t* mutex)
     }
 }
 
-
-int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
+int _np_threads_module_condition_wait(np_state_t* context, np_module_lock_type module_id)
 {
     log_debug_msg(LOG_DEBUG | LOG_MUTEX, "waiting %p", &np_module(threads)->__mutexes[module_id].condition.cond);
 
@@ -430,14 +429,14 @@ int _np_threads_module_condition_timedwait(np_state_t* context, np_module_lock_t
     return ret;
 }
 
-int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
+int _np_threads_module_condition_broadcast(np_state_t* context, np_module_lock_type module_id)
 {
     if (!np_module_initiated(threads)) return 0;
 
     return pthread_cond_broadcast(&np_module(threads)->__mutexes[module_id].condition.cond);
 }
 
-int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module_lock_type module_id)
+int _np_threads_module_condition_signal(np_state_t* context, np_module_lock_type module_id)
 {
     if (!np_module_initiated(threads)) return 0;
 
@@ -777,8 +776,8 @@ void __np_createWorkerPool(NP_UNUSED np_state_t* context, uint8_t pool_size) {
 void np_threads_shutdown_workers(np_state_t* context){
     bool shutdown_complete;
     sll_iterator(np_thread_ptr) iter_threads;
-    do{
-        np_time_sleep(0.0001);
+    do {
+        np_time_sleep(0.0);
         _np_jobqueue_check(context);
         shutdown_complete = true;
         iter_threads = sll_first(np_module(threads)->threads);

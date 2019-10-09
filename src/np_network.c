@@ -548,73 +548,6 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     // } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
 }
 
-/* 
-void _np_network_handle_incomming_data(np_state_t* context, np_jobargs_t args) {
-    log_debug_msg(LOG_TRACE, "_np_network_handle_incomming_data");
-
-    struct __np_network_data * data_container = args.custom_data;
-    np_network_t* ng = data_container->key->network;
-
-    // deal with both IPv4 and IPv6:
-    {
-        if (strncmp(ng->ip, data_container->ipstr, strnlen(data_container->ipstr, CHAR_LENGTH_IP - 1)) != 0)
-            memcpy(ng->ip, data_container->ipstr, strnlen(data_container->ipstr, CHAR_LENGTH_IP-1));
-        
-        if (strncmp(ng->port, data_container->port, strnlen(data_container->port, CHAR_LENGTH_PORT - 1)) != 0)
-            memcpy(ng->port, data_container->port, strnlen(data_container->port, CHAR_LENGTH_PORT-1));
-    }
-
-    if (0 == data_container->in_msg_len)
-    {        
-        log_debug(LOG_NETWORK, "Received 0 size package");
-        np_memory_free(context, data_container->data);
-    }
-    else 
-    {
-        if (data_container->in_msg_len != MSG_CHUNK_SIZE_1024 && data_container->in_msg_len != (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40))
-        {
-            log_msg(LOG_NETWORK | LOG_WARN, "received wrong message size (%"PRIi16")", data_container->in_msg_len);
-            // job_submit_event(state->job, 0.0, _np_network_read);
-            log_debug_msg(LOG_INFO, "Dropping data package due to invalid package size (%"PRIi16")", data_container->in_msg_len);
-            np_memory_free(context, data_container->data);
-        }
-        else
-        {
-            np_key_t* alias_key = NULL;
-            char* alias_key_ref_reason = "";
-
-            // we registered this token info before in the first handshake message
-            np_dhkey_t search_key = np_dhkey_create_from_hostport( data_container->ipstr, data_container->port);
-            alias_key = _np_keycache_find(context, search_key);
-            alias_key_ref_reason = "_np_keycache_find";
-            if (NULL == alias_key) {
-                alias_key = _np_keycache_create(context, search_key);
-                alias_key_ref_reason = "_np_keycache_create";
-                alias_key->type |= np_key_type_alias;                
-                np_ref_switch(np_key_t, alias_key->parent_key, ref_key_parent, data_container->key);
-            }
-            
-            if(alias_key->network != NULL) alias_key->network->last_received_date = np_time_now();
-
-            if (alias_key->in_destroy == false) {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from (%d) %s:%s (size: %hd), insert into alias %s",
-                    ng->socket, data_container->ipstr, data_container->port, data_container->in_msg_len, _np_key_as_str(alias_key));
-            
-                _np_in_received(context, alias_key, data_container->data);
-            }
-            else {
-                np_memory_free(context, data_container->data);
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "received message from %s:%s (size: %hd), but alias is in destroy %s",
-                    data_container->ipstr, data_container->port, data_container->in_msg_len, _np_key_as_str(alias_key));
-            }
-
-            np_unref_obj(np_key_t, alias_key, alias_key_ref_reason);
-        }
-    }
-    free(data_container);
-}
-*/
-
 void _np_network_stop(np_network_t* network, bool force) 
 {		    
     assert(NULL != network);
@@ -755,7 +688,7 @@ void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     snprintf(mutex_str, 63, "%s:%p", "urn:np:network:out_events", ng);
     _np_threads_mutex_init(context, &ng->out_events_lock, "network out_events_lock");
 
-    TSP_INITD( ng->can_be_enabled, true);
+    TSP_INITD(ng->can_be_enabled, true);
 }
 
 /** _np_network_init:
@@ -856,7 +789,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                 ev_io_init(&ng->watcher, _np_network_read, ng->socket, EV_READ);
             }
             else {
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup server network of type %"PRIu8, type);
+                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "don't know how to setup server network of type %"PRIu8, type);
             }
         }
         ng->initialized = true;

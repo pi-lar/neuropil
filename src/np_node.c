@@ -245,7 +245,8 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 
     char *to_free = NULL, *details = NULL;
     to_free = details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], 255);
-    log_debug_msg(LOG_ERROR, "## decoding node from token str: %s", details);
+    
+    log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", details);
 
     // MANDATORY paramter
     uint8_t i_host_proto = UNKNOWN_PROTO;
@@ -259,7 +260,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 
     if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL)
     {
-        log_debug_msg(LOG_ERROR, "## decoding node from token str: %i / %p / %p", i_host_proto, s_host_name, s_host_port);
+        log_debug_msg(LOG_ERROR, "error decoding node from token str: %i / %p / %p", i_host_proto, s_host_name, s_host_port);
         free(details);
         return NULL;
     }

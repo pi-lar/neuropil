@@ -1007,7 +1007,7 @@ void* np_memory_waitref_obj(np_state_t* context, void* item, const char* reason,
             }
         }
         else {
-            np_time_sleep(NP_SLEEP_MIN);
+            np_time_sleep(0.0);
         }
     }
 

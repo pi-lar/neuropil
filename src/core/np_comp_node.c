@@ -772,20 +772,23 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
         memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
         /* send data */
-        if (NULL != trinity.network->out_events) {
+        if (NULL != trinity.network->out_events) 
+        {
             log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %p) %p (%d bytes) to queue for %s:%s", part->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port);
+#ifdef DEBUG
             char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
-
             log_debug_msg(LOG_NETWORK | LOG_DEBUG,
                 "(msg: %s) %s",
                 part->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
-            
+#endif // DEBUG
             _LOCK_ACCESS(&trinity.network->out_events_lock) 
             {
                 sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);
                 _np_event_invoke_out(context); 
             }
-        } else {
+        }
+        else 
+        {
             log_debug_msg(LOG_INFO, "Dropping data package for msg %s due to not initialized out_events", part->uuid);
             np_memory_free(context, enc_buffer);
         }

@@ -61,7 +61,7 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 	}
 	char* txt = NULL;
 	while ((txt = sll_head(char_ptr, cache->texts)) == NULL) {
-		np_time_sleep(0);
+		np_time_sleep(0.0);
 	}
 
 	if (*buffer == NULL)
