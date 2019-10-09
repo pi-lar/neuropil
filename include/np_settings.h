@@ -165,10 +165,10 @@ extern "C" {
     #define MISC_READ_EVENTS_SEC (NP_PI/1000)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
-    #define MISC_SEND_PINGS_SEC (NP_PI*3)
+    #define MISC_SEND_PINGS_SEC (NP_PI*10)
 #endif
 #ifndef MISC_SEND_PINGS_MAX_EVERY_X_SEC
-    #define MISC_SEND_PINGS_MAX_EVERY_X_SEC (NP_PI*10)
+    #define MISC_SEND_PINGS_MAX_EVERY_X_SEC (MISC_SEND_PINGS_SEC*2)
 #endif
 
 
@@ -183,7 +183,7 @@ extern "C" {
  * remove the link from the leafset/routing table
  */
 #ifndef BAD_LINK_REMOVE_GRACETIME
-    #define BAD_LINK_REMOVE_GRACETIME MISC_SEND_PINGS_SEC*3
+    #define BAD_LINK_REMOVE_GRACETIME (MISC_SEND_PINGS_SEC*3)
 #endif
 
 #ifndef PRIORITY_MOD_LOWEST

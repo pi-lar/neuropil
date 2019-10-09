@@ -91,11 +91,11 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
 
     if (!ret) ret = (_np_key_get_node(node_key) == NULL);
     np_node_t* node = _np_key_get_node(node_key);
-    if ( (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*3) < np_time_now() ) 
+    if ( (node_key->created_at + BAD_LINK_REMOVE_GRACETIME) < np_time_now() ) 
     {
         if (!ret) ret  = !node->is_in_leafset && !node->is_in_routing_table;
         log_debug_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
-                        ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*2), np_time_now());
+                        ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
 
     if (!ret) ret = (_np_key_get_token(node_key) == NULL);
@@ -103,7 +103,7 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
     if (!ret) ret  = !_np_aaatoken_is_valid(node_token, node_token->type);
 
     log_debug_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
-                    ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*2), np_time_now());
+                    ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
 
     return ret;
 }
@@ -239,7 +239,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
     // insert into the routing table after a specific time period
     // reason: routing is based on latency, therefore we need a stable connection before inserting
     if ( node->is_in_routing_table == false && 
-        (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC*2) < np_time_now() ) 
+        (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC) < np_time_now() ) 
     {
         np_key_t* added = NULL, *deleted = NULL;
         np_node_t* node_1 = NULL;
@@ -273,7 +273,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
     // follow up actions
     if ( 
         (  node->success_avg                                                         > BAD_LINK)     &&
-        ( (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC*node->success_avg)  <= np_time_now()  )
+        ( (node->last_success + MISC_SEND_PINGS_SEC*node->success_avg)  <= np_time_now()  )
        )
     {
         // issue ping messages
