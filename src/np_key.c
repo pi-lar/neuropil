@@ -413,13 +413,13 @@ void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
 
     // TODO: add per obj event queue
     // log_debug_msg(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
-    if (force) 
-    {
+    // if (force) 
+    // {
         _LOCK_ACCESS(&key->key_lock) 
         {   // push down all event from queue and execute this event
             np_util_statemachine_invoke_auto_transition(&key->sm, event);
         }
-    }
+/*    }
     else
     {
         if (0 == _np_threads_mutex_trylock(context, &key->key_lock, FUNC))
@@ -431,6 +431,6 @@ void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
         {   // check queue and append OR if queue is empty execute directly
             np_jobqueue_submit_event(context, NP_SLEEP_MIN, key->dhkey, event, FUNC);
         }
-    }       
+    }   */    
     // log_debug_msg(LOG_DEBUG, "sm a: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
 }

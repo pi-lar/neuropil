@@ -63,8 +63,9 @@ void l_invoke_file (EV_P);
     ev_async_init (&np_module(events)->__async_##LOOPNAME, async_cb);                                                    \
     ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__async_##LOOPNAME);                        \
     ev_set_userdata (np_module(events)->__loop_##LOOPNAME, context);                                                     \
-    ev_set_loop_release_cb(np_module(events)->__loop_##LOOPNAME, _l_release_##LOOPNAME, _l_acquire_##LOOPNAME);          \
     ev_verify(np_module(events)->__loop_##LOOPNAME);                                                                     \
+    
+    // ev_set_loop_release_cb(np_module(events)->__loop_##LOOPNAME, _l_release_##LOOPNAME, _l_acquire_##LOOPNAME);          \
 
 // ev_check check_watcher;
 // ev_check_init (&check_watcher, callback)
@@ -204,12 +205,14 @@ void l_invoke_file (EV_P)
     {
         _l_acquire_file(EV_A);
         ev_invoke_pending (EV_A);
-        _l_release_file(EV_A);
         np_module(events)->file_lock_indent--;
+        _l_release_file(EV_A);
     }
     else
     {
+        _l_acquire_file(EV_A);
         _np_threads_module_condition_timedwait(context, np_event_file_t_lock, 0.1);
+        _l_release_file(EV_A);
     }
 }
 
@@ -231,11 +234,13 @@ void l_invoke_out (EV_P)
     {
         _l_acquire_out(EV_A);
         ev_invoke_pending (EV_A);
-        _l_release_out(EV_A);
         np_module(events)->out_lock_indent--;
+        _l_release_out(EV_A);
     } 
     else 
     {
+        _l_acquire_out(EV_A);
         _np_threads_module_condition_wait(context, np_event_out_t_lock);
+        _l_release_out(EV_A);
     }
 }
