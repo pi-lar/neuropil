@@ -405,7 +405,10 @@ void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_u
 }
 
 bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{} // check for local identity validity 
+{
+    // check for local identity validity 
+     return false;
+}
 
 void __np_identity_handle_account(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {}
