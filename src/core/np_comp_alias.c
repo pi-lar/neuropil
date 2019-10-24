@@ -601,7 +601,7 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_even
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
 
-    if (!ret) ret = ( (alias_key->last_update + MISC_SEND_PINGS_MAX_EVERY_X_SEC) < np_time_now() );
+    if (!ret) ret = ( (alias_key->last_update + BAD_LINK_REMOVE_GRACETIME) < np_time_now() );
 
     np_dhkey_t search_key = {0};
     _np_str_dhkey(_np_key_get_token(alias_key)->issuer, &search_key);

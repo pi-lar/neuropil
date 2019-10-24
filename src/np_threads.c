@@ -736,7 +736,7 @@ np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, n
     #endif
 
     if(auto_run) {
-        _np_jobqueue_add_worker_thread(new_thread);
+        // _np_jobqueue_add_worker_thread(new_thread);
         _np_thread_run(new_thread);
     }
 
@@ -854,7 +854,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             strcpy(special_thread->job.ident, "_np_event_file_run");
 #endif
         } else {
-            np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_file, "_np_events_read_file");
+            np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_events_read_file, "_np_events_read_file");
         }        
 
 /*
@@ -873,8 +873,8 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 
         if (pool_size > worker_threads) {
             // a bunch of threads plus a coordinator
-            pool_size--;
             __np_createWorkerPool(context, pool_size-1);
+            pool_size--;
             special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_manager, true, np_thread_type_manager);
 #ifdef DEBUG
             strcpy(special_thread->job.ident, "__np_jobqueue_run_manager");

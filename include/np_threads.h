@@ -110,7 +110,7 @@ static const char* np_thread_type_str[] =  {
     "other",
     "main",
     "worker",
-    "manager",
+    "coord",
     "managed",
 };
 
