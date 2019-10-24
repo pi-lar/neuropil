@@ -267,10 +267,9 @@ void _np_statistics_destroy(np_state_t* context)
         np_module_var(statistics);
                
         sll_iterator(char_ptr) __watched_subjects_item = sll_first(_module->__watched_subjects);
-        while(__watched_subjects_item != NULL){
-
+        while(__watched_subjects_item != NULL) {
             free(np_simple_cache_get(context, _module->__cache, __watched_subjects_item->val)->value);
-            free(__watched_subjects_item->val);
+            // free(__watched_subjects_item->val);
             sll_next(__watched_subjects_item);
         }
         sll_free(char_ptr, _module->__watched_subjects);
@@ -288,7 +287,7 @@ void _np_statistics_destroy(np_state_t* context)
         
         NP_PERFORMANCE_POINT_DESTROY();
 
-         prometheus_destroy_context(_module->_prometheus_context);
+        prometheus_destroy_context(_module->_prometheus_context);
 
         np_tree_elem_t* tmp = NULL;
 
@@ -364,7 +363,7 @@ bool np_statistics_destroy(np_state_t* context)
         while (iter != NULL)
         {
             free(np_simple_cache_get(context, np_module(statistics)->__cache, iter->val)->value);
-            free(iter->val);
+            // free(iter->val);
             sll_next(iter);
         }
         sll_free(char_ptr, np_module(statistics)->__watched_subjects);

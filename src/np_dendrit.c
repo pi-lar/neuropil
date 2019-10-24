@@ -967,10 +967,10 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
                     handshake_token->subject, handshake_token->issuer, handshake_token->issued_at, handshake_token->expires_at);
     }    
     // store the handshake data in the node cache,
-    np_dhkey_t search_key = { 0 };
-    _np_str_dhkey(handshake_token->issuer, &search_key);
+    np_dhkey_t search_dhkey = { 0 };
+    _np_str_dhkey(handshake_token->issuer, &search_dhkey);
 
-    msg_source_key = _np_keycache_find_or_create(context, search_key);
+    msg_source_key = _np_keycache_find_or_create(context, search_dhkey);
     if (NULL == msg_source_key)
     {   // should never happen
         log_msg(LOG_ERROR, "Handshake key is NULL!");
@@ -981,7 +981,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     np_util_event_t hs_event = msg_event;
     hs_event.user_data = handshake_token;
     hs_event.type = (evt_external | evt_token);
-    _np_keycache_handle_event(context, search_key, hs_event, false);
+    _np_keycache_handle_event(context, search_dhkey, hs_event, false);
     
     log_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
 
@@ -994,7 +994,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     hs_alias_key->parent_key = msg_source_key;
 
     hs_event.type = (evt_internal | evt_token);
-    _np_key_handle_event(hs_alias_key, hs_event, false);
+    _np_keycache_handle_event(context, hs_alias_key->dhkey, hs_event, false);
 
     log_debug_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
     np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
@@ -1010,7 +1010,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
         np_util_event_t hs_event = msg_event;
         hs_event.type = (evt_external | evt_token);
         hs_event.user_data = handshake_token;
-        _np_key_handle_event(hs_wildcard_key, hs_event, false);
+        _np_keycache_handle_event(context, hs_wildcard_key->dhkey, hs_event, false);
         np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
 
         log_debug_msg(LOG_TRACE, "Update wildcard key done!");

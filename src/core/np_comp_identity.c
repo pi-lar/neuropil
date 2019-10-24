@@ -275,7 +275,7 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void _np_set_identity(...){");
+    log_debug_msg(LOG_TRACE, "start: void __np_identity_shutdown(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
@@ -358,6 +358,8 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
                 authn_token->state |= AAA_AUTHENTICATED;
                 np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
                 _np_keycache_handle_event(context, event.target_dhkey, authn_event, false);
+
+                _np_key_get_node(context->my_node_key)->joined_network = true;
             }
             else if (false == join_allowed && context->enable_realm_client == false) 
             {

@@ -256,68 +256,70 @@ void _np_network_get_address(
 }
 
 void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
-{	
+{
     np_ctx_decl(ev_userdata(loop));
 
+    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_READ))
+    {
+        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp read event");
+        return;
+    }
     if (event->data == NULL) return;
 
     NP_CAST(event->data, np_key_t, key);
     np_network_t* network = _np_key_get_network(key);
     
-    if (!FLAG_CMP(revents, EV_ERROR) && FLAG_CMP(revents, EV_WRITE))
+    _TRYLOCK_ACCESS(&network->out_events_lock)
     {
-        _TRYLOCK_ACCESS(&network->out_events_lock)
+        /*
+            a) if a data packet is available, try to send it until
+                a.1) timeout has been reached
+                a.2) the retry for a paket has been reached
+                a.3) the whole paket has been send
+        */
+        void* data_to_send = NULL;
+        ssize_t written_per_data = 0, current_write_per_data = 0;
+        data_to_send = sll_head(void_ptr, network->out_events);
+
+        if (data_to_send != NULL)
         {
-            /*
-                a) if a data packet is available, try to send it until
-                    a.1) timeout has been reached
-                    a.2) the retry for a paket has been reached
-                    a.3) the whole paket has been send
-            */
-            void* data_to_send = NULL;
-            ssize_t written_per_data = 0, current_write_per_data = 0;
-            data_to_send = sll_head(void_ptr, network->out_events);
-
-            if (data_to_send != NULL)
-            {
-                current_write_per_data = send(
-                                            network->socket,
-                                            (((char*)data_to_send) + written_per_data),
-                                            MSG_CHUNK_SIZE_1024 - written_per_data,
+            current_write_per_data = send(
+                                        network->socket,
+                                        (((char*)data_to_send) + written_per_data),
+                                        MSG_CHUNK_SIZE_1024 - written_per_data,
 #ifdef MSG_NOSIGNAL
-                                            MSG_NOSIGNAL
+                                        MSG_NOSIGNAL
 #else								
-                                            0
+                                        0
 #endif
-                                        );
+                                    );
 
-                if (current_write_per_data == MSG_CHUNK_SIZE_1024)
-                {
-                    written_per_data += current_write_per_data;
-                    _np_statistics_add_send_bytes(current_write_per_data);
-                } else {
-                    sll_prepend(void_ptr, network->out_events, data_to_send);
-                }
-
-                if (written_per_data != MSG_CHUNK_SIZE_1024) {
-                    log_msg(LOG_DEBUG,
-                        "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
-                        data_to_send,
-                        written_per_data, MSG_CHUNK_SIZE_1024,
-                        strerror(errno), errno);
-                }
-                else {
-                    network->last_send_date = np_time_now();
-                    log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
-                }
-                np_memory_free(context, data_to_send);
+            if (current_write_per_data == MSG_CHUNK_SIZE_1024)
+            {
+                written_per_data += current_write_per_data;
+                _np_statistics_add_send_bytes(current_write_per_data);
+            } else {
+                sll_prepend(void_ptr, network->out_events, data_to_send);
             }
 
-#ifdef DEBUG 
-            if (sll_size(network->out_events) > 0)
-                log_debug_msg(LOG_DEBUG | LOG_NETWORK, "%"PRIu32" packages still in delivery", sll_size(network->out_events));
-#endif
+            if (written_per_data != MSG_CHUNK_SIZE_1024) {
+                log_msg(LOG_DEBUG,
+                    "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
+                    data_to_send,
+                    written_per_data, MSG_CHUNK_SIZE_1024,
+                    strerror(errno), errno);
+            }
+            else {
+                network->last_send_date = np_time_now();
+                log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
+            }
+            np_memory_free(context, data_to_send);
         }
+
+#ifdef DEBUG 
+        if (sll_size(network->out_events) > 0)
+            log_debug_msg(LOG_DEBUG | LOG_NETWORK, "%"PRIu32" packages still in delivery", sll_size(network->out_events));
+#endif
     }
 }
 
@@ -353,7 +355,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
 {
     np_ctx_decl(ev_userdata(loop));
 
-    if ((EV_ERROR & revents) == EV_ERROR)
+    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE))
     {
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp accept event");
         return;
@@ -400,6 +402,10 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
             new_network->socket = client_fd;
             new_network->socket_type = ng->socket_type;
             new_network->seqend = 0;
+            new_network->initialized = true;
+            new_network->type = np_network_type_server;
+            new_network->can_be_enabled = true;
+            new_network->is_running = false;
 
             // it could be a passive socket
             sll_init(void_ptr, new_network->out_events);
@@ -408,9 +414,6 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
             int current_flags = fcntl(client_fd, F_GETFL);
             current_flags |= O_NONBLOCK;
             fcntl(client_fd, F_SETFL, current_flags);
-
-            new_network->initialized = true;
-            new_network->type = np_network_type_server;
             
             _np_network_set_key(new_network, key); // will be reset to alias key after first (handshake) message
             sll_append(void_ptr, alias_key->entities, new_network);
@@ -424,7 +427,6 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
                 EV_READ
             );
             _np_network_enable(new_network);
-
             log_debug_msg(LOG_NETWORK | LOG_DEBUG,
                 "created network for key: %s and watching it.", _np_key_as_str(alias_key));
             np_unref_obj(np_key_t, alias_key, "_np_keycache_create");
@@ -455,6 +457,11 @@ void _np_network_bidirektional(struct ev_loop *loop, ev_io *event, int revents) 
 void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
     np_ctx_decl(ev_userdata(loop));
+    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE))
+    {
+        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp read event");
+        return;
+    }
 
     // cast event data structure to np_state_t pointer
     socklen_t fromlen = sizeof(struct sockaddr_storage);
@@ -539,6 +546,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             if (NULL != alias_key) np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
 
         }
+        else if (in_msg_len == 0) 
+        {
+            log_debug_msg(LOG_INFO | LOG_NETWORK, "Stopping network due to zero size package (%"PRIu16")", in_msg_len);
+            _np_network_stop(ng, true);
+        }
         else 
         {
             log_debug_msg(LOG_INFO | LOG_NETWORK, "Dropping data package due to invalid package size (%"PRIu16")", in_msg_len);
@@ -609,7 +621,7 @@ void _np_network_start(np_network_t* network, bool force)
                     _np_event_suspend_loop_in(context);
                     loop = _np_event_get_loop_in(context);
                     // ev_io_stop(EV_A_ &network->watcher);
-                    ev_io_set(&network->watcher, network->socket, EV_READ);
+                    // ev_io_set(&network->watcher, network->socket, EV_READ);
                     ev_io_start(EV_A_ &network->watcher);
                     _np_event_resume_loop_in(context);
                     _np_event_reconfigure_loop_in(context);
@@ -620,7 +632,7 @@ void _np_network_start(np_network_t* network, bool force)
                     _np_event_suspend_loop_out(context);
                     loop = _np_event_get_loop_out(context);
                     // ev_io_stop(EV_A_ &network->watcher);
-                    ev_io_set(&network->watcher, network->socket, EV_WRITE);
+                    // ev_io_set(&network->watcher, network->socket, EV_WRITE);
                     ev_io_start(EV_A_ &network->watcher);
                     _np_event_resume_loop_out(context);
                     _np_event_reconfigure_loop_out(context);
@@ -861,7 +873,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is sender", ng, ng->socket);
                     ev_io_init(
                         &ng->watcher, _np_network_write,
-                        ng->socket, EV_NONE);
+                        ng->socket, EV_WRITE);
                 }
             }
             else {
@@ -885,7 +897,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                     l_errno = errno;
                     if (connection_status != 0 && l_errno != EISCONN)
                     {
-                        log_msg(LOG_ERROR, "trying tcp connect: %"PRIi32" (%s)", connection_status, strerror(l_errno) );
+                        log_msg(LOG_DEBUG, "trying tcp connect: %"PRIi32" (%s)", connection_status, strerror(l_errno) );
                         np_time_sleep(NP_PI / 100);
                     }
                 } while (0 != connection_status && retry_connect-- > 0 && l_errno != EISCONN);
