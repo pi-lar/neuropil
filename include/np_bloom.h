@@ -35,6 +35,7 @@ extern "C" {
         stable_bf,
         scalable_bf,
         decaying_bf,
+        neuropil_bf,
     };
     
     struct np_bloom_optable_s {
@@ -105,6 +106,14 @@ extern "C" {
     void _np_decaying_bloom_decay(np_bloom_t* bloom);
     NP_API_INTERN
     float _np_decaying_bloom_get_heuristic(np_bloom_t* bloom, np_id id);
+
+    NP_API_INTERN
+    np_bloom_t* _np_neuropil_bloom_create();
+    NP_API_INTERN
+    void _np_neuropil_bloom_add(np_bloom_t* bloom, np_id id);
+    NP_API_INTERN
+    bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_id id);
+    NP_API_INTERN
 
 #ifdef __cplusplus
 }
