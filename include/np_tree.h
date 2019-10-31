@@ -62,7 +62,6 @@ if(!np_tree_check_field(context, TREE, FIELD_NAME, _NP_MSG_HEADER_SUBJECT, &VAR_
 struct np_tree_conf_s {
     bool in_place;
     bool immutable;
-    bool disable_special_str;
 } NP_API_EXPORT;
 
 /**
@@ -309,12 +308,6 @@ NP_API_INTERN
 void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_ctx_t* cmp);
 NP_API_INTERN
 void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_object_t* obj, cmp_ctx_t* cmp, np_treeval_t* value, NP_UNUSED char* key_to_read_for);
-NP_API_INTERN
-void np_tree_insert_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val);
-NP_API_INTERN
-bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found);
-NP_API_INTERN
-const char* _np_tree_get_special_str(uint8_t idx);
 NP_API_INTERN
 void np_tree_del_element(np_tree_t* tree, np_tree_elem_t* to_delete);
 NP_API_INTERN

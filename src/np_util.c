@@ -45,7 +45,7 @@
 
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 {	
@@ -79,6 +79,35 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 // write_type_function write_type_arr[np_treeval_type_npval_count] = {NULL};
 // write_type_arr[np_treeval_type_npval_count] = &write_short_type;
 // write_type_arr[np_treeval_type_npval_count] = NULL;
+
+void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
+{
+    np_state_t* context = NULL; 
+    sll_iterator(np_key_ptr) iter = sll_first(sll_list);	
+    while (NULL != iter)
+    {
+        if (context == NULL && iter->val != NULL) {
+            context = np_ctx_by_memory(iter->val);
+        }
+        np_ref_obj(np_key_t, (iter->val), reason, reason_desc);
+        sll_next(iter);
+    }
+}
+
+void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
+{
+    np_state_t* context = NULL;
+    sll_iterator(np_key_ptr) iter = sll_first(sll_list);
+    while (NULL != iter)
+    {
+        
+        if (context == NULL && iter->val != NULL) {
+            context = np_ctx_by_memory(iter->val);
+        }
+        np_unref_obj(np_key_t, (iter->val), reason);
+        sll_next(iter);
+    }
+}
 
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 {
@@ -256,10 +285,6 @@ JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
                 else if (np_treeval_type_char_ptr == tmp->key.type)
                 {
                     name = strndup( np_treeval_to_str(tmp->key,NULL), strlen( np_treeval_to_str(tmp->key, NULL)));
-                }
-                else if (np_treeval_type_special_char_ptr == tmp->key.type)
-                {
-                    name = strdup(_np_tree_get_special_str( tmp->key.value.ush));
                 }
                 else
                 {

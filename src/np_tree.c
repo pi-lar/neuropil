@@ -29,87 +29,6 @@
 #include "np_dhkey.h"
 
 
-/* A list of replaceable strings.
-	do not include more than 255 items here
-	or expand the special_char_ptr implementation of the tree
-*/
-const char* const np_special_strs[] = {
-	//"np.test1",	// for test purposes. do not include into list
-	"np.test2",	// for test purposes
-	"np.test3",	// for test purposes
-	"localhost",
-	"_np.ack",
-	"_np.ack_to",
-	"_np.from",
-	"_np.garbage",
-	"_np.parts",
-	"_np.r_to",
-	"_np.sendnr",
-	"_np.seq",
-	"_np.subj",
-	"_np.to",
-	"_np.tstamp",
-	"_np.ttl",
-	"_np.uuid",
-	"ack_mode",
-	"max_threshold",
-	"mep_type",
-	"msg_threshold",
-	"np.n.d",
-	"np.n.k",
-	"np.n.p",
-	"np.n.pr",
-	"np.t.a",
-	"np.t.c",
-	"np.t.e",
-	"np.t.ex",
-	"np.t.i",
-	"np.t.ia",
-	"np.t.nb",
-	"np.t.p",
-	"np.t.r",
-	"np.t.s",
-	"np.t.si",
-	"np.t.u",
-	"np.t.partner",
-	"np.t.signature_extensions",
-	"_np.token.ident",
-	"_np.token.node",
-
-	"_NP.DEFAULT",
-	"_NP.ACK",
-	"_NP.HANDSHAKE",
-	"_NP.PING.REQUEST",
-	"_NP.LEAVE.REQUEST",
-	"_NP.JOIN.",
-	"_NP.JOIN.REQUEST",
-	"_NP.JOIN.ACK",
-	"_NP.JOIN.NACK",
-	"_NP.NODES.PIGGY",
-	"_NP.NODES.UPDATE",
-	"_NP.MESSAGE.DISCOVER.RECEIVER",
-	"_NP.MESSAGE.DISCOVER.SENDER",
-	"_NP.MESSAGE.RECEIVER.LIST",
-	"_NP.MESSAGE.SENDER.LIST",
-	"_NP.MESSAGE.AUTHENTICATE",
-	"_NP.MESSAGE.AUTHENICATION.REPLY",
-	"_NP.MESSAGE.AUTHORIZE",
-	"_NP.MESSAGE.AUTHORIZATION.REPLY",
-	"_NP.MESSAGE.ACCOUNT",
-	"_NP.MESSAGE.ACCOUNT",
-	"_NP.MESSAGE.ACCOUNT",
-
-	"_NP.SYSINFO.REQUEST",
-	"_NP.SYSINFO.REPLY",
-	"node",
-	"timestamp",
-	"neighbour_nodes",
-	"routing_nodes",
-	"source_hash",
-	"target_hash",
-
-};
-
 RB_GENERATE(np_tree_s, np_tree_elem_s, link, _np_tree_elem_cmp);
 
 //RB_GENERATE_STATIC(np_str_jtree, np_tree_elem_s, link, _np_tree_elem_cmp);
@@ -136,35 +55,6 @@ np_tree_t* np_tree_create()
 	return new_tree;
 }
 
-bool _np_tree_is_special_str(const char* in_question, uint8_t* idx_on_found) {
-	bool ret = false;		
-	return ret; //FIXME: special strings!
-	uint8_t item_count = sizeof(np_special_strs) / sizeof(np_special_strs[0]);
-	for (uint8_t i = 0; i < item_count; i++) {
-		const char* special_str = np_special_strs[i];
-	
-		if (strncmp(special_str, in_question, strlen(special_str)+1/*+ NULL Terminator*/) == 0) {
-			if(idx_on_found != NULL){
-				//log_debug_msg(LOG_TREE | LOG_DEBUG, "idx detected for %15s at %3"PRIu8" saving into %p",in_question, i, idx_on_found);
-				*idx_on_found = i;
-			}
-			ret = true;
-			break;
-		}
-	}
-	/*
-	if (!ret) {
-		log_debug_msg(LOG_TREE | LOG_DEBUG, "not in np_special_strs dictionary: \"%s\"", in_question);
-	}
-	*/
-
-	return ret;
-}
-
-const char* _np_tree_get_special_str(uint8_t idx) {
-	return np_special_strs[idx];
-}
-
 int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 {
 	log_trace_msg(LOG_TRACE, "start: int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2){");
@@ -178,12 +68,6 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, const np_tree_elem_t* j2)
 	{
 		if (jv1.type == np_treeval_type_char_ptr) {
 			return strncmp(jv1.value.s, jv2.value.s, strlen(jv1.value.s)+1);
-		}
-		else if (jv1.type == np_treeval_type_special_char_ptr){
-			int res = (int)jv1.value.ush - (int)jv2.value.ush;
-			if (res < 0) return -1;
-			if (res > 0) return  1;
-			return 0;
 		}
 		else if (jv1.type == np_treeval_type_double)
 		{
@@ -230,25 +114,12 @@ np_tree_elem_t* np_tree_find_gte_str(np_tree_t* n, const char *key, uint8_t *fnd
 	return (result);
 }
 
-np_tree_elem_t* np_tree_find_special_str(np_tree_t* n, const uint8_t key)
-{
-	assert(NULL != n);
-
-	np_treeval_t search_key = { .type = np_treeval_type_special_char_ptr, .value.ush = key };
-	np_tree_elem_t search_elem = { .key = search_key };
-	return RB_FIND(np_tree_s, n, &search_elem);
-}
-
 np_tree_elem_t* np_tree_find_str(np_tree_t* n, const char *key)
 {
 	assert(NULL != n);
 	assert(NULL != key);
 
 	np_tree_elem_t* ret = NULL;
-	uint8_t idx = 0;
-	if (_np_tree_is_special_str(key, &idx)) {
-		ret = np_tree_find_special_str(n, idx);
-	} 
 	if(ret == NULL) 
 	{
 		np_treeval_t search_key = { .type = np_treeval_type_char_ptr, .value.s = (char*)key };
@@ -385,12 +256,6 @@ void __np_tree_immutable_check(np_tree_t* tree) {
 	assert(tree->attr.immutable == false && "Tree is not in a state of modification");
 }
 
-void np_tree_del_special_str(np_tree_t* tree, const uint8_t idx)
-{
-	__np_tree_immutable_check(tree);
-	np_tree_del_element(tree, np_tree_find_special_str(tree, idx));
-}
-
 void np_tree_del_str(np_tree_t* tree, const char *key)
 {
 	__np_tree_immutable_check(tree);
@@ -467,55 +332,29 @@ void np_tree_insert_element(np_tree_t* tree, np_tree_elem_t* ele) {
 	tree->byte_size += np_tree_get_byte_size(ele);
 }
 
-void np_tree_insert_special_str(np_tree_t* tree, const uint8_t idx, np_treeval_t val)
-{
-	np_tree_elem_t* found = np_tree_find_special_str(tree, idx);
-
-	if (found == NULL)
-	{
-		// insert new value
-		found = (np_tree_elem_t*)malloc(sizeof(np_tree_elem_t));
-		CHECK_MALLOC(found);
-
-		found->key.value.ush = idx;
-		found->key.type = np_treeval_type_special_char_ptr;
-		found->key.size = sizeof(uint8_t);
-
-		np_tree_set_treeval(tree, found, val);
-		np_tree_insert_element(tree, found);
-	}
-}
-
 void np_tree_insert_str(np_tree_t* tree, const char *key, np_treeval_t val)
 {
 	assert(tree != NULL);
 	assert(key != NULL);
 
-	uint8_t idx = 0;
-	if (tree->attr.disable_special_str == false && _np_tree_is_special_str(key, &idx)) {
-		np_tree_insert_special_str(tree, idx, val);
-	} else {
-		np_tree_elem_t* found = np_tree_find_str(tree, key);
+	np_tree_elem_t* found = np_tree_find_str(tree, key);
+	if (found == NULL)
+	{	// insert new value
+		found = (np_tree_elem_t*)malloc(sizeof(np_tree_elem_t));
+		CHECK_MALLOC(found);
 
-		if (found == NULL)
-		{
-			// insert new value
-			found = (np_tree_elem_t*)malloc(sizeof(np_tree_elem_t));
-			CHECK_MALLOC(found);
-
-			if (tree->attr.in_place == true) {
-				found->key.value.s = (char*) key;
-			}
-			else {
-				found->key.value.s = strndup(key, 255);
-			}
-
-			found->key.type = np_treeval_type_char_ptr;
-			found->key.size = strnlen(found->key.value.s,255);
-
-			np_tree_set_treeval(tree, found, val);
-			np_tree_insert_element(tree, found);
+		if (tree->attr.in_place == true) {
+			found->key.value.s = (char*) key;
 		}
+		else {
+			found->key.value.s = strndup(key, 255);
+		}
+
+		found->key.type = np_treeval_type_char_ptr;
+		found->key.size = strnlen(found->key.value.s,255);
+
+		np_tree_set_treeval(tree, found, val);
+		np_tree_insert_element(tree, found);
 	}
 }
 
@@ -608,10 +447,12 @@ void np_tree_insert_dbl(np_tree_t* tree, double dkey, np_treeval_t val)
 
 void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t val) {
 
-	if (tree->attr.in_place == false){
+	if (tree->attr.in_place == false)
+	{
 		element->val = np_treeval_copy_of_val(val);
 	}
-	else{
+	else
+	{
 		//memmove(&element->val, &val, sizeof(np_treeval_t));
 		//memset(&element->val, &val, sizeof(np_treeval_t));
 		memcpy(&element->val, &val, sizeof(np_treeval_t));
@@ -630,23 +471,6 @@ void np_tree_replace_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeva
 	tree->byte_size += np_tree_get_byte_size(element);
 }
 
-void np_tree_replace_special_str(np_tree_t* tree, const uint8_t key, np_treeval_t val)
-{
-	assert(tree != NULL);
-
-	np_tree_elem_t* found = np_tree_find_special_str(tree, key);
-
-	if (found == NULL)
-	{
-		// insert new value
-		np_tree_insert_special_str(tree, key, val);
-	}
-	else
-	{
-		np_tree_replace_treeval(tree, found, val);
-	}
-}
-
 void np_tree_replace_str(np_tree_t* tree, const char *key, np_treeval_t val)
 {
 	assert(tree != NULL);
@@ -655,9 +479,8 @@ void np_tree_replace_str(np_tree_t* tree, const char *key, np_treeval_t val)
 	np_tree_elem_t* found = np_tree_find_str(tree, key);
 
 	if (found == NULL)
-	{
-		// insert new value
-		np_tree_insert_str( tree, key, val);
+	{	// insert new value
+		np_tree_insert_str(tree, key, val);
 	}
 	else
 	{
@@ -672,8 +495,7 @@ void np_tree_replace_int(np_tree_t* tree, int16_t ikey, np_treeval_t val)
 	np_tree_elem_t* found = np_tree_find_int(tree, ikey);
 
 	if (found == NULL)
-	{
-		// insert new value
+	{   // insert new value
 		np_tree_insert_int(tree, ikey, val);
 	}
 	else
@@ -689,8 +511,7 @@ void np_tree_replace_dhkey(np_tree_t* tree, np_dhkey_t key, np_treeval_t val)
 	np_tree_elem_t* found = np_tree_find_dhkey(tree, key);
 
 	if (found == NULL)
-	{
-		// insert new value
+	{	// insert new value
 		np_tree_insert_dhkey(tree, key, val);
 	}
 	else
@@ -741,7 +562,6 @@ void np_tree_copy(np_tree_t* source, np_tree_t* target) {
 	RB_FOREACH(tmp, np_tree_s, source)
 	{
 		if (tmp->key.type == np_treeval_type_char_ptr)					np_tree_insert_str( target, tmp->key.value.s, tmp->val);
-		else if (tmp->key.type == np_treeval_type_special_char_ptr)	np_tree_insert_special_str(target, tmp->key.value.ush, tmp->val);
 		else if (tmp->key.type == np_treeval_type_int)					np_tree_insert_int(target, tmp->key.value.i, tmp->val);
 		else if (tmp->key.type == np_treeval_type_double)				np_tree_insert_dbl( target, tmp->key.value.d, tmp->val);
 		else if (tmp->key.type == np_treeval_type_unsigned_long)		np_tree_insert_ulong(target, tmp->key.value.ul, tmp->val);
@@ -758,7 +578,6 @@ void np_tree_copy_inplace(np_tree_t* source, np_tree_t* target) {
 	RB_FOREACH(tmp, np_tree_s, source)
 	{
 		if (tmp->key.type == np_treeval_type_char_ptr)					np_tree_replace_str(target, tmp->key.value.s, tmp->val);
-		else if (tmp->key.type == np_treeval_type_special_char_ptr)	np_tree_replace_special_str(target, tmp->key.value.ush, tmp->val);
 		else if (tmp->key.type == np_treeval_type_int)					np_tree_replace_int(target, tmp->key.value.i, tmp->val);
 		else if (tmp->key.type == np_treeval_type_double)				np_tree_replace_dbl( target, tmp->key.value.d, tmp->val);
 		else if (tmp->key.type == np_treeval_type_unsigned_long)		np_tree_replace_ulong(target, tmp->key.value.ul, tmp->val);
@@ -799,8 +618,7 @@ void np_tree_serialize(np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 				np_treeval_type_dhkey            == tmp->key.type ||
 				np_treeval_type_unsigned_long    == tmp->key.type ||
 				np_treeval_type_double           == tmp->key.type ||
-				np_treeval_type_char_ptr         == tmp->key.type ||
-				np_treeval_type_special_char_ptr == tmp->key.type)
+				np_treeval_type_char_ptr         == tmp->key.type)
 			{
 				// log_debug_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp, msg->header, node, node->flink);
 				__np_tree_serialize_write_type(context,tmp->key, cmp); i++;
@@ -894,9 +712,6 @@ bool np_tree_deserialize( np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 		case np_treeval_type_char_ptr:
 			np_tree_insert_str( jtree, tmp_key.value.s, tmp_val);
 			break;
-		case np_treeval_type_special_char_ptr:
-			np_tree_insert_special_str(jtree, tmp_key.value.ush, tmp_val);
-			break;
 		default:
 			tmp_val.type = np_treeval_type_undefined;
 			break;
@@ -989,39 +804,6 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t* target) 
 	}
 }
 
-uint8_t __np_tree_serialize_read_type_special_str(cmp_ctx_t* cmp, np_treeval_t* target) {
-	log_trace_msg(LOG_TRACE, "start: uint8_t __np_tree_serialize_read_type_special_str(void* buffer_ptr, np_treeval_t* target) {");	
-
-	uint8_t idx = 0;
-	cmp_read_u8(cmp, &idx);
-	target->value.ush = idx;
-	target->type = np_treeval_type_special_char_ptr;
-	target->size = sizeof(uint8_t);
-
-	return cmp->error;
-}
-
-void __np_tree_serialize_write_type_special_str(uint8_t idx, cmp_ctx_t* target) {
-
-	//                        size of uint8 marker + size uint8 for index
-	uint32_t transport_size = (sizeof(uint8_t) + sizeof(uint8_t));
-
-	cmp_ctx_t cmp;
-	char buffer[transport_size];
-	void* buf_ptr = buffer;
-
-	cmp_init(&cmp, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-	cmp_write_u8(&cmp, idx);
-
-	if(cmp.error == 0) {
-		cmp_write_ext32(target, np_treeval_type_special_char_ptr, transport_size, buf_ptr);
-	}
-	else {
-		target->error = cmp.error;
-	}
-
-}
-
 void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_ctx_t* cmp)
 {
 	log_trace_msg(LOG_TRACE, "start: void __np_tree_serialize_write_type(np_treeval_t val, cmp_ctx_t* cmp){");
@@ -1100,9 +882,6 @@ void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_c
 		break;
 	case np_treeval_type_dhkey:
 		__np_tree_serialize_write_type_dhkey(val.value.dhkey, cmp);
-		break;
-	case np_treeval_type_special_char_ptr:
-		__np_tree_serialize_write_type_special_str(val.value.ush, cmp);
 		break;
 	case np_treeval_type_hash:
 		// log_debug_msg(LOG_DEBUG, "adding hash value %s to serialization", val.value.s);
@@ -1259,11 +1038,6 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 			{
 				cmp->error = __np_tree_serialize_read_type_dhkey(cmp, value);
 			}
-			else if (obj->as.ext.type == np_treeval_type_special_char_ptr)
-			{
-				cmp->error = __np_tree_serialize_read_type_special_str(cmp, value);
-			}
-
 			else if (obj->as.ext.type == np_treeval_type_hash)
 			{
 				value->type = np_treeval_type_hash;
