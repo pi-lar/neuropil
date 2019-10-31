@@ -25,17 +25,9 @@
 extern "C" {
 #endif
 
-NP_API_INTERN
-np_network_t* _np_key_get_network(np_key_t* key);
-NP_API_INTERN
-np_node_t* _np_key_get_node(np_key_t* key);
-NP_API_INTERN
-np_aaatoken_t* _np_key_get_token(np_key_t* key);
-
+// CHECKS
 NP_API_INTERN
 bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
-
-// IN_SETUP -> IN_USE transition condition / action #1
 NP_API_INTERN
 bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
