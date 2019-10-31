@@ -295,7 +295,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
     {   
         /* send one row of our routing table back to joiner #host# */    
         np_sll_t(np_key_ptr, sll_of_keys) = NULL;
-        sll_of_keys = _np_route_row_lookup(node_key);
+        sll_of_keys = _np_route_row_lookup(context, node_key->dhkey);
         char* source_sll_of_keys = "_np_route_row_lookup";
         
         if (sll_size(sll_of_keys) < 5)

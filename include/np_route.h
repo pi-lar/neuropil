@@ -63,7 +63,7 @@ sll_return(np_key_ptr) _np_route_neighbors (np_state_t* context);
  **
  **/
 NP_API_INTERN
-sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key);
+sll_return(np_key_ptr) _np_route_row_lookup (np_state_t* context, np_dhkey_t dhkey);
 
 /** route_get_table:
  ** returns all the entries in the routing table in an array of ChimeraHost.

@@ -99,7 +99,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
     o_piggy_list = _np_node_decode_multiple_from_jrb(context, msg->body);
 
-    log_info(LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
+    log_debug_msg(LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
 
     while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
@@ -110,21 +110,42 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
         np_key_t* piggy_key = _np_keycache_find(context, search_key);
         if (piggy_key == NULL)
-        {   // unkown key, just send a join request 
-            char* connect_str = np_build_connection_string(NULL, 
-                                                        _np_network_get_protocol_string(context, node_entry->protocol), 
-                                                        node_entry->dns_name, 
-                                                        node_entry->port, 
-                                                        false);
-            np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
-            piggy_key = _np_keycache_find_or_create(context, search_key);
-            
-            np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
-            _np_key_handle_event(piggy_key, new_node_evt, false);
+        {
+            bool send_join = false;
+            np_sll_t(np_key_ptr, sll_of_keys) = NULL;
+            sll_of_keys = _np_route_row_lookup(context, search_key);
 
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
-            np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
-            free(connect_str);
+            // send join if ...
+            if (sll_size(sll_of_keys) < NP_ROUTES_MAX_ENTRIES)  
+            {   // our routing table is not full
+                send_join = true;
+            }
+            else 
+            {   // our routing table is full, but the new dhkey is closer to us
+                _np_keycache_sort_keys_kd(sll_of_keys, &context->my_node_key->dhkey);
+                send_join = _np_dhkey_between(&piggy_key, &sll_first(sll_of_keys)->val->dhkey, &sll_last(sll_of_keys)->val->dhkey, true);
+                // log_msg(LOG_INFO, "xxxxxxx  node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
+            }
+
+            if (send_join) 
+            {
+                char* connect_str = np_build_connection_string(NULL, 
+                                        _np_network_get_protocol_string(context, node_entry->protocol), 
+                                        node_entry->dns_name, 
+                                        node_entry->port, 
+                                        false);
+                np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
+                piggy_key = _np_keycache_find_or_create(context, search_key);
+                
+                np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
+                _np_key_handle_event(piggy_key, new_node_evt, false);
+
+                log_msg(LOG_INFO, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
+                np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
+                free(connect_str);
+            }
+            np_key_unref_list(sll_of_keys, "_np_route_row_lookup");
+            sll_free(np_key_ptr, sll_of_keys);
         }
         else if (_np_key_get_node(piggy_key)->joined_network                                           &&
                  _np_key_get_node(piggy_key)->success_avg > BAD_LINK                                   &&
@@ -134,8 +155,9 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             // TODO: realize this via an event, otherwiese locking of the piggy key is not in place
             __np_node_add_to_leafset(&piggy_key->sm, msg_event);
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
-
-        } else {
+        } 
+        else 
+        {
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a further piggy actions. (%s)",
                                                    _np_key_as_str(piggy_key), 
                                                    _np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
