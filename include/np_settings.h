@@ -303,14 +303,16 @@ extern "C" {
 #define NP_SLEEP_MIN (NP_PI/1000)
 
 
-#define __MAX_ROW    64 /* length of key*/
-#define __MAX_COL    16 /* 16 different characters*/
-#define __MAX_ENTRY   3 /* three alternatives for each key*/
+#define __MAX_ROW    64 /* length of key                   */
+#define __MAX_COL    16 /* 16 different characters         */
+#define __MAX_ENTRY   3 /* three alternatives for each key */
+
+#define NP_ROUTES_MAX_ENTRIES __MAX_ENTRY
 #define NP_ROUTES_TABLE_SIZE (__MAX_ROW * __MAX_COL * __MAX_ENTRY)
 
 // TODO: change size to match the possible log10(hash key max value)
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
-#define NP_ROUTE_LEAFSET_SIZE  8 /* (must be even) excluding node itself */
+#define NP_ROUTE_LEAFSET_SIZE  12 /* (must be even) excluding node itself */
 
 
 #ifdef __cplusplus
