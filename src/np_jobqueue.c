@@ -281,30 +281,32 @@ double __np_jobqueue_run_jobs_once(np_state_t * context, np_thread_t* my_thread)
 
     np_job_t next_job = { 0 };
 
-    _LOCK_MODULE(np_jobqueue_t)
+    if (np_get_status(context) > np_uninitialized &&
+        np_get_status(context) < np_shutdown      )
     {
-        if (np_module(jobqueue)->job_list->count > 1)
+        _LOCK_MODULE(np_jobqueue_t)
         {
-            next_job = pheap_first(np_job_t, np_module(jobqueue)->job_list);
+            if (np_module(jobqueue)->job_list->count > 1)
+            {
+                next_job = pheap_first(np_job_t, np_module(jobqueue)->job_list);
 
-            // check time of job
-            if (now <= next_job.exec_not_before_tstamp) {
-                ret = fmin(ret, next_job.exec_not_before_tstamp - now);
-            } else {
-                next_job = pheap_head(np_job_t, np_module(jobqueue)->job_list);
-                run_next_job = true;
+                // check time of job
+                if (now <= next_job.exec_not_before_tstamp) {
+                    ret = fmin(ret, next_job.exec_not_before_tstamp - now);
+                } else {
+                    next_job = pheap_head(np_job_t, np_module(jobqueue)->job_list);
+                    run_next_job = true;
+                }
             }
         }
-    }
-    
-    if (run_next_job == true) 
-    {
-        my_thread->job = next_job;
-        np_thread_t* self = _np_threads_get_self(context);
-        __np_jobqueue_run_once(context, next_job);
-        ret = 0.0;
-    }
-    
+        if (run_next_job == true) 
+        {
+            my_thread->job = next_job;
+            np_thread_t* self = _np_threads_get_self(context);
+            __np_jobqueue_run_once(context, next_job);
+            ret = 0.0;
+        }
+    }    
     return ret;
 }
 
@@ -315,23 +317,24 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
     double sleep;
     np_thread_t * thread = _np_threads_get_self(context);
 
+    enum np_status np_runtime_status = np_get_status(context);
     do
     {
         np_threads_busyness(context, thread,true);
         sleep = __np_jobqueue_run_jobs_once(context, thread);        
         np_threads_busyness(context, thread,false);
 
-        now   = np_time_now();
-
-        if (sleep > 0.0) 
+        now = np_time_now();
+        if (sleep > 0.0)
         {
             _LOCK_MODULE(np_jobqueue_t)
             {
                 if (now+sleep > end) sleep = end-now;
                 _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
+                np_runtime_status = np_get_status(context);
             }
         }
-    } while (end > now);
+    } while (end > now && np_runtime_status > np_uninitialized && np_runtime_status < np_shutdown);
 }
 
 /** 

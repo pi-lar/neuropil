@@ -695,9 +695,10 @@ void* __np_thread_status_wrapper(void* self)
     log_debug_msg(LOG_DEBUG, "thread %d type %d starting", thread->id, thread->thread_type);
     
     _np_threads_set_self(self);
-    enum np_status tmp_status;
+    enum np_status tmp_status = np_get_status(context);
 
-    while ((tmp_status=np_get_status(context)) != np_shutdown)
+    while ( tmp_status > np_uninitialized &&
+            tmp_status  < np_shutdown      )
     {
         if (tmp_status == np_running) 
         {
@@ -709,9 +710,15 @@ void* __np_thread_status_wrapper(void* self)
         }
         else 
         {
-            np_time_sleep(0.05);
+            log_debug_msg(LOG_DEBUG, "thread %p type %d sleeping ...", thread->thread_id, thread->thread_type);
+            np_time_sleep(NP_JOBQUEUE_MAX_SLEEPTIME_SEC);
         }
+        tmp_status = np_get_status(context);
     }
+
+    log_error(LOG_ERROR, "thread %p type %d stopping ...", thread->thread_id, thread->thread_type);
+    pthread_exit(NULL);
+
     return NULL;
 }
 
@@ -753,7 +760,8 @@ np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, n
     return new_thread;
 }
 
-void __np_createWorkerPool(NP_UNUSED np_state_t* context, uint8_t pool_size) {
+void __np_createWorkerPool(NP_UNUSED np_state_t* context, uint8_t pool_size) 
+{
     /* create the thread pool */
     for (uint8_t i = 0; i < pool_size; i++)
     {
@@ -787,11 +795,18 @@ void np_threads_shutdown_workers(np_state_t* context)
 {
     bool shutdown_complete;
     sll_iterator(np_thread_ptr) iter_threads;
-
-    iter_threads = sll_first(np_module(threads)->threads);
+    np_thread_t* self = _np_threads_get_self(context);
+    
+     iter_threads = sll_first(np_module(threads)->threads);
     while (iter_threads != NULL)
     {   // wake me up ...
         _np_jobqueue_check(context);
+
+        log_debug_msg(LOG_DEBUG, "thread %p type %d stopping ...", iter_threads->val->id, iter_threads->val->thread_type);
+        int res = pthread_cancel(iter_threads->val->thread_id);
+        if (res != 0)
+            log_debug_msg(LOG_DEBUG, "thread %p type %d not cancelled", iter_threads->val->id, iter_threads->val->thread_type);
+        np_time_sleep(0.0);
         sll_next(iter_threads);
     }
 
@@ -800,10 +815,8 @@ void np_threads_shutdown_workers(np_state_t* context)
     {   // ... before you go !
         np_thread_t* thread = iter_threads->val;
         // only the main thread cannot be shut down (np_threads_shutdown_workers needs to be invoked from here)
-        log_debug_msg(LOG_DEBUG, "thread %d type %d stopping ...", thread->id, thread->thread_type);
-        pthread_cancel(thread->thread_id);
         pthread_join(thread->thread_id, NULL);
-        log_debug_msg(LOG_DEBUG, "thread %d type %d stopped", thread->id, thread->thread_type);
+        log_debug_msg(LOG_DEBUG, "thread %p type %d stopped", thread->id, thread->thread_type);
         sll_next(iter_threads);
     }        
 }
