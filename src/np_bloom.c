@@ -398,7 +398,7 @@ float _np_decaying_bloom_get_heuristic(np_bloom_t* bloom, np_id id)
 
 // until somebody finds out that this is too small ...
 #define SCALE3D_X 3
-#define SCALE3D_Y 5
+#define SCALE3D_Y 2
 #define SCALE3D_Z 7
 
 np_bloom_t* _np_neuropil_bloom_create() 
@@ -423,7 +423,6 @@ void _np_neuropil_bloom_add(np_bloom_t* bloom, np_id id)
 
     uint8_t block_index = 1;
     uint16_t block_size = (bloom->_size*bloom->_d)/8;
-
     uint32_t _as_number = 0;
 
     for (uint8_t k = 0; k < 8; ++k)
@@ -478,5 +477,53 @@ bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_id id)
         if ((k+1)%2 == 0) block_index++;
     }
     fprintf(stdout, "\n");
+    return (ret);
+}
+
+void _np_neuropil_bloom_age_decrement(np_bloom_t* bloom) 
+{
+    uint8_t block_index = 1;
+    uint16_t block_size = (bloom->_size*bloom->_d/8);
+    uint32_t _as_number = 0;
+
+    for (uint16_t k = 0; k < block_size*4; k +=2 )
+    {
+        uint8_t* _current_age                 = &bloom->_bitset[k];
+        if (_current_age > 0) (*_current_age) = ((*_current_age) >> 1);
+    }
+}
+
+float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_id id)
+{
+    float ret = 0.0;
+    
+    uint8_t block_index = 1;
+    uint16_t block_size = (bloom->_size*bloom->_d/8);
+    uint32_t _as_number = 0;
+
+    for (uint8_t k = 0; k < 8; ++k)
+    {
+        memcpy (&_as_number, &id[k*4], 4);
+        uint32_t  _bit_array_pos = ((_as_number%SCALE3D_X)+1) * ((_as_number%SCALE3D_Y)+1) * ((_as_number%SCALE3D_Z)+1);
+        uint32_t  _local_pos     = (block_index-1)*block_size + (_bit_array_pos-1)*2;
+        uint8_t*  _current_age   = &bloom->_bitset[_local_pos  ];
+        uint8_t*  _current_count = &bloom->_bitset[_local_pos+1];
+        
+        if   ( 0 == (*_current_age) || 0 == _current_count) { ret = 0.0; break; }
+
+        uint8_t n = 1;
+        while ( (*_current_age>>n) > 0) n++;
+        ret = ret > ((float) n)/(bloom->_d/2) ? ret : ((float) n)/(bloom->_d/2);
+        
+#ifdef DEBUG
+        char test_string[65];
+        for (uint16_t i = (block_index-1)*block_size; i < block_index*block_size; i+=32 ) {
+          np_id_str(test_string, &bloom->_bitset[i]); 
+          fprintf(stdout, "%3d: check: %s --> pos=%3d (%02x%02x)\n", i, test_string, _local_pos, bloom->_bitset[_local_pos*2], bloom->_bitset[_local_pos*2+1]);
+        }
+#endif
+
+        if ((k+1)%2 == 0) block_index++;
+    }
     return (ret);
 }

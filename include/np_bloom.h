@@ -114,6 +114,9 @@ extern "C" {
     NP_API_INTERN
     bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_id id);
     NP_API_INTERN
+    void _np_neuropil_bloom_decay(np_bloom_t* bloom);
+    NP_API_INTERN
+    float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_id id);
 
 #ifdef __cplusplus
 }

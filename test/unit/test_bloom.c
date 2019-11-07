@@ -227,10 +227,10 @@ Test(np_bloom_t, _bloom_decaying, .description="test the functions of the decayi
         _np_decaying_bloom_decay(decaying_bloom);
  
         if (i < 4) {
-//            fprintf(stdout, "%f\n", _np_decaying_bloom_get(decaying_bloom, test1));
+//            fprintf(stdout, "%f\n", _np_decaying_bloom_get_heuristic(decaying_bloom, test1));
             cr_expect( 0.5 <= _np_decaying_bloom_get_heuristic(decaying_bloom, test1), "checking the probability that a np_id has been found");
         } else {
-//            fprintf(stdout, "%f\n", _np_decaying_bloom_get(decaying_bloom, test1));
+//            fprintf(stdout, "%f\n", _np_decaying_bloom_get_heuristic(decaying_bloom, test1));
             cr_expect( 0.5 > _np_decaying_bloom_get_heuristic(decaying_bloom, test1), "checking the probability that a np_id has been found");
         }
         
@@ -254,25 +254,23 @@ Test(np_bloom_t, _bloom_decaying, .description="test the functions of the decayi
 
 Test(np_bloom_t, _bloom_neuropil, .description="test the functions of the neuropil bloom filter")
 {
-    
     np_id test1, test2, test3, test4, test5;
-//    char test_string[65];
+//  char test_string[65];
     
     np_get_id(&test1, "test_1", 6);
-//    np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+//  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
     
     np_get_id(&test2, "test_2", 6);
-//    np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
     
     np_get_id(&test3, "test_3", 6);
-//    np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+//  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
     
     np_get_id(&test4, "test_4", 6);
-//    np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+//  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
     
     np_get_id(&test5, "test_5", 6);
-//    np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
-    
+//  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
     
     struct np_bloom_optable_s neuropil_operations = {
         .add_cb       = _np_neuropil_bloom_add,
@@ -283,47 +281,46 @@ Test(np_bloom_t, _bloom_neuropil, .description="test the functions of the neurop
     };
     
 //    fprintf(stdout, "###\n");
-//    fprintf(stdout, "### Testing decaying bloom filter now\n");
+//    fprintf(stdout, "### Testing neuropil bloom filter now\n");
 //    fprintf(stdout, "###\n");
     
-    np_bloom_t* decaying_bloom = _np_neuropil_bloom_create();
-    decaying_bloom->op = neuropil_operations;
+    np_bloom_t* neuropil_bloom = _np_neuropil_bloom_create();
+    neuropil_bloom->op = neuropil_operations;
     
-    decaying_bloom->op.add_cb(decaying_bloom, test1);
-    decaying_bloom->op.add_cb(decaying_bloom, test2);
-    decaying_bloom->op.add_cb(decaying_bloom, test3);
+    neuropil_bloom->op.add_cb(neuropil_bloom, test1);
+    neuropil_bloom->op.add_cb(neuropil_bloom, test2);
+    neuropil_bloom->op.add_cb(neuropil_bloom, test3);
     
-    cr_expect(true  == decaying_bloom->op.check_cb(decaying_bloom, test2), "expect that the id test2 is     found in bloom filter");
-    cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test4), "expect that the id test4 is not found in bloom filter");
-    cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test5), "expect that the id test5 is not found in bloom filter");
+    cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test4), "expect that the id test4 is not found in bloom filter");
+    cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test5), "expect that the id test5 is not found in bloom filter");
 
-/*    for (uint8_t i = 0; i < 10; i++) {
+    for (uint8_t i = 0; i < 10; i++) {
 
-        _np_decaying_bloom_decay(decaying_bloom);
+        // fprintf(stdout, "%f\n", _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1));
+        _np_neuropil_bloom_age_decrement(neuropil_bloom);
  
         if (i < 4) {
-//            fprintf(stdout, "%f\n", _np_decaying_bloom_get(decaying_bloom, test1));
-            cr_expect( 0.5 <= _np_decaying_bloom_get_heuristic(decaying_bloom, test1), "checking the probability that a np_id has been found");
+            cr_expect( 0.5 <= _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1), "checking the probability that a np_id has been found");
         } else {
-//            fprintf(stdout, "%f\n", _np_decaying_bloom_get(decaying_bloom, test1));
-            cr_expect( 0.5 > _np_decaying_bloom_get_heuristic(decaying_bloom, test1), "checking the probability that a np_id has been found");
+            cr_expect( 0.5 > _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1), "checking the probability that a np_id has been found");
         }
         
         if (i < 7) {
-            cr_expect(true  == decaying_bloom->op.check_cb(decaying_bloom, test2), "expect that the id test2 is     found in bloom filter");
-            cr_expect(true  == decaying_bloom->op.check_cb(decaying_bloom, test1), "expect that the id test1 is     found in bloom filter");
-            cr_expect(true  == decaying_bloom->op.check_cb(decaying_bloom, test3), "expect that the id test3 is     found in bloom filter");
-            cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test4), "expect that the id test4 is not found in bloom filter");
-            cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test5), "expect that the id test5 is not found in bloom filter");
+            cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test2), "expect that the id test2 is     found in bloom filter");
+            cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test1), "expect that the id test1 is     found in bloom filter");
+            cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test3), "expect that the id test3 is     found in bloom filter");
+            cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test4), "expect that the id test4 is not found in bloom filter");
+            cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test5), "expect that the id test5 is not found in bloom filter");
             
         } else {
-            cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test2), "expect that the id test2 is     found in bloom filter");
-            cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test1), "expect that the id test1 is     found in bloom filter");
-            cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test3), "expect that the id test3 is     found in bloom filter");
-            cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test4), "expect that the id test4 is not found in bloom filter");
-            cr_expect(false == decaying_bloom->op.check_cb(decaying_bloom, test5), "expect that the id test5 is not found in bloom filter");
+            cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test2), "expect that the id test2 is     found in bloom filter");
+            cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test1), "expect that the id test1 is     found in bloom filter");
+            cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test3), "expect that the id test3 is     found in bloom filter");
+            cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test4), "expect that the id test4 is not found in bloom filter");
+            cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test5), "expect that the id test5 is not found in bloom filter");
         }
     }
-*/
-    _np_bloom_free(decaying_bloom);
+
+    _np_bloom_free(neuropil_bloom);
 }
