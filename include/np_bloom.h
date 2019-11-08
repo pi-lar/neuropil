@@ -59,7 +59,7 @@ extern "C" {
         // runtime variables
         uint8_t* _bitset; // ponter to bitset
         uint8_t _num_blocks; // for scalable bloom filter
-        uint16_t _items; // item counter for bitste (initial value is max, decremented per insert)
+        uint16_t _free_items; // item counter for bitste (initial value is max, decremented per insert)
 
         struct  np_bloom_optable_s op; // list of operations availabe for bloom filter
     };
@@ -81,6 +81,10 @@ extern "C" {
     void _np_standard_bloom_add(np_bloom_t* bloom, np_id id);
     NP_API_INTERN
     bool _np_standard_bloom_check(np_bloom_t* bloom, np_id id);
+    NP_API_INTERN
+    bool _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
+    NP_API_INTERN
+    bool _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
     
     NP_API_INTERN
     np_bloom_t* _np_stable_bloom_create(size_t size, uint8_t d, uint8_t p);
@@ -117,6 +121,10 @@ extern "C" {
     void _np_neuropil_bloom_decay(np_bloom_t* bloom);
     NP_API_INTERN
     float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_id id);
+    NP_API_INTERN
+    bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
+    NP_API_INTERN
+    bool _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
 
 #ifdef __cplusplus
 }
