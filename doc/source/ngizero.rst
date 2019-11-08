@@ -1,34 +1,51 @@
 Zero discovery / privacy by design
 ====================================
 
-.. NOTE::
-   The work on this page will be part of the funding of NGI Zero.
-   We are very happy and pleased that we have been selected with our proposal
-
-
 How do the overlay network and token structures mentioned in the core concepts 
 relate to the "privacy by design" approach of neuropil?
+
+The DHT of the neuropil messaging layer introduces already a first important step to
+ensure privacy: Connections are build up based on hash distance. This is in contrast
+with the traditional internet, where first a lookup up a DNS name happens, and then
+connect to a specific server. Just tracing your DNS lookups can already be enough for
+conclusions to be drawn about your life. Using the hash distance builds up arbitrary 
+connections that do not carry any further meaning than heash dustance. The exchange of 
+the message intents can be seen as the DNS lookups of the neuropil messaging layer. 
+
+.. NOTE::
+   The following work on this page will be part of our funding granted by NGI Zero.
+   We are very happy and pleased that we have been selected with our proposal.
+
+.. image:: _static/ngizero.png
+   :align: left
+   :alt: NGI Zero discovery
+   :target: https://www.ngi.eu/about/ngi-zero/
 
 A quick recap of the token structure will show you: neuropil hides everything
 within a 256-bit address space. It doesn't matter whether for identities, message topics,
 realms or simple physical nodes: all are mapped and forced into the same addressing
-scheme.
+scheme. When looking especially at a 256-bit hash of a simple string, the real string is
+hidden and finding the reverse mapping is ... hm ... difficult. 
 
-When looking especially at a 256-bit hash of a simple string, the real string is hidden and
-it finding the reverse mapping is ... hm ... difficult. But there is still a one to one mapping
-between the two. Which reveals the true problem when talking about privacy: 
-communications could still be traced to a single entity. Even if the real 
-entities behind a 256-bit hash are unknown when looking only at neuropil, a 
-real entitiy could be revealed with added additional information from outside 
-(i.e. just trying the 256-bit hash of an mail address could be a good start).
+.. image:: _static/nlnet.gif
+   :width: 50%
+   :align: right
+   :alt: NLnet Stichting
+   :target: https://www.nlnet.nl
+
+But: there is still a one to one mapping between the two. Which reveals the true problem 
+when talking about privacy: communications could still be traced to a single entity. Even 
+if the real entities behind a 256-bit hash are unknown when looking only at neuropil, a 
+real entitiy could be revealed with added additional information from outside (i.e. just 
+trying the 256-bit hash of an mail address could be a good start).
 
 The question thus arises: which additional measures could we implement to prevent 
 this kind of discovery and attribution of messages to single entities? The 
-answer is pretty simple: we need pseudonymization. Discovery of identities, 
-message topics and realms must be done without a "one to one" mapping. 
-Pseudomization in general means: you are further obfuscating data in a 
-way that it cannot be traced back to a single entitiy, but rather to a group. 
-But what is a proper way to pseudonymize 256 bit hash values?
+answer is pretty simple: we need a form pseudonymization. Pseudomization in general
+means: you are further obfuscating data in a way that it cannot be traced back to a
+single entitiy, but rather to a group. 
+Discovery of identities, message topics and realms must be done without a "one to one"
+mapping. But what is a proper way to pseudonymize 256 bit hash values?
 
 
 Entering the Bloomiverse
