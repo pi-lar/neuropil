@@ -6,11 +6,19 @@ relate to the "privacy by design" approach of neuropil?
 
 The DHT of the neuropil messaging layer introduces already a first important step to
 ensure privacy: Connections are build up based on hash distance. This is in contrast
-with the traditional internet, where first a lookup up a DNS name happens, and then
+with the traditional internet, where first a lookup of DNS name happens, and then
 connect to a specific server. Just tracing your DNS lookups can already be enough for
 conclusions to be drawn about your life. Using the hash distance builds up arbitrary 
-connections that do not carry any further meaning than heash dustance. The exchange of 
-the message intents can be seen as the DNS lookups of the neuropil messaging layer. 
+connections that do not carry any further meaning than ... hash distance. 
+Second, we use stacked digital identies: the user or application identity is stacked 
+upon the node identity (with an automated cross-signing). Only the node identity should
+be visible to neighbour nodes, and, at least in theory, the node could change frequently
+its fingerprint. 
+The message intents are the place where both idenities play together, so the only thing
+of the application identity that remains visible is its public key or its fingerprint. 
+The exchange of the message intents can be seen as the "DNS lookups" of the neuropil 
+messaging layer, but we only try to discover named data channels (and yes, a name may 
+refer to an IP address).
 
 .. NOTE::
    The following work on this page will be part of our funding granted by NGI Zero.
@@ -22,10 +30,10 @@ the message intents can be seen as the DNS lookups of the neuropil messaging lay
    :target: https://www.ngi.eu/about/ngi-zero/
 
 A quick recap of the token structure will show you: neuropil hides everything
-within a 256-bit address space. It doesn't matter whether for identities, message topics,
-realms or simple physical nodes: all are mapped and forced into the same addressing
-scheme. When looking especially at a 256-bit hash of a simple string, the real string is
-hidden and finding the reverse mapping is ... hm ... difficult. 
+within a 256-bit address space or a fingerprint. It doesn't matter whether for identities,
+message topics, realms or simple physical nodes: all are mapped and forced into the same 
+addressing scheme. When looking especially at a 256-bit hash of a simple string, the real 
+string is hidden and finding the reverse mapping is ... hm ... difficult. 
 
 .. image:: _static/nlnet.gif
    :width: 50%
@@ -44,7 +52,7 @@ this kind of discovery and attribution of messages to single entities? The
 answer is pretty simple: we need a form pseudonymization. Pseudomization in general
 means: you are further obfuscating data in a way that it cannot be traced back to a
 single entitiy, but rather to a group. 
-Discovery of identities, message topics and realms must be done without a "one to one"
+Discovery of identities, message topics and realms should be done without a "one to one"
 mapping. But what is a proper way to pseudonymize 256 bit hash values?
 
 
