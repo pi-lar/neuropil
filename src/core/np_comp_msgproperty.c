@@ -1070,7 +1070,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
         np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
         discover_event.user_data = msg_out;
         _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
-        property->last_tx_update = now;
+        property->last_intent_update = now;
     }
     
     if (_np_dhkey_equal(&property_key->dhkey, &recv_dhkey) &&
@@ -1086,7 +1086,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
         np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
         discover_event.user_data = msg_out;
         _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
-        property->last_rx_update = now;
+        property->last_intent_update = now;
     }
     np_tree_free(intent_data);
 }
@@ -1179,6 +1179,7 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
     }
 
     if (ret) _np_increment_received_msgs_counter(property->msg_subject);
+    if (ret) property->last_rx_update = np_time_now();
 
     log_debug(LOG_DEBUG, "in: (subject: %s / msg: %s) handling complete", property->msg_subject, msg_in->uuid);    
     np_unref_obj(np_message_t, msg_in, ref_obj_creation);
@@ -1228,6 +1229,7 @@ void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np
         sll_next(iter);
     }
 
+    if (ret) property->last_tx_update = np_time_now();
     if (ret) _np_increment_send_msgs_counter(property->msg_subject);
 
     np_unref_obj(np_message_t, msg_out, ref_obj_creation);
