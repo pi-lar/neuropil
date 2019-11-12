@@ -1059,7 +1059,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
     double now = np_time_now();
 
     if (_np_dhkey_equal(&property_key->dhkey, &send_dhkey) &&
-        (now - property->last_tx_update) > MISC_RETRANSMIT_MSG_TOKENS_SEC)
+        (now - property->last_intent_update) > property->token_min_ttl)
     {
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_obj_creation);
@@ -1075,7 +1075,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
     
     if (_np_dhkey_equal(&property_key->dhkey, &recv_dhkey) &&
         sll_contains(np_evt_callback_t, property->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type) &&
-       (now - property->last_rx_update) > MISC_RETRANSMIT_MSG_TOKENS_SEC)
+       (now - property->last_intent_update) > property->token_min_ttl)
     {
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_obj_creation);
@@ -1165,7 +1165,9 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
         sll_next(iter);
     }
 
-    if (property->is_internal == false) {
+    if (property->is_internal == false &&
+        ret == true) 
+    {
         // call user callbacks
         sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(property->user_receive_clb);
         while (iter_usercallbacks != NULL && ret)
