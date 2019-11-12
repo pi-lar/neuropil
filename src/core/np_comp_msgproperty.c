@@ -928,7 +928,7 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
 	assert(context != NULL);
     assert(src != NULL);
     assert(dest != NULL);
-
+    
     dest->token_max_ttl = src->intent_ttl;
     dest->token_min_ttl = src->intent_update_after;
     dest->msg_ttl = src->message_ttl;
@@ -936,6 +936,8 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     // reset to trigger discovery messages
     dest->last_intent_rx_update = (dest->last_intent_rx_update - dest->token_min_ttl);
     dest->last_intent_tx_update = (dest->last_intent_tx_update - dest->token_min_ttl);
+
+    dest->max_threshold = src->max_parallel;
 
     if (src->reply_subject[0] != '\0' && (dest->rep_subject == NULL || strncmp(dest->rep_subject, src->reply_subject, 255) != 0))
     {
