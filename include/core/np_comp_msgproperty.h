@@ -272,9 +272,8 @@ struct np_msgproperty_s
 
     // timestamp for cleanup thread
     double          last_update;
-    double          last_tx_update;
-    double          last_rx_update;    
-    double          last_intent_update;
+    double          last_intent_tx_update;
+    double          last_intent_rx_update;    
 
     // dhkey of node(s)/identities/realms who are interested in message exchange
     np_dhkey_t partner_key;

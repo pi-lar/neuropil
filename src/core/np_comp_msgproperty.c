@@ -60,9 +60,8 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     double now = np_time_now();
     prop->is_internal = false;
     prop->last_update = now;
-    prop->last_intent_update = now;
-    prop->last_tx_update = now;
-    prop->last_rx_update = now;    
+    prop->last_intent_tx_update = now;
+    prop->last_intent_rx_update = now;    
 
     sll_init(np_evt_callback_t, prop->clb_inbound);
     sll_init(np_evt_callback_t, prop->clb_outbound);
@@ -855,7 +854,7 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
             pll_insert(np_aaatoken_ptr, token_list, msg_token_new, false, _np_aaatoken_cmp);
             ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", ref_aaatoken_local_mx_tokens);
         }
-        else if ( (iter->val->expires_at - now) <= fmin(property->token_min_ttl, MISC_RETRANSMIT_MSG_TOKENS_SEC) )
+        else if ( (iter->val->expires_at - now) <= property->token_max_ttl )
         {   // Create a new msg token
             log_debug_msg(LOG_DEBUG, "--- refresh mxtoken for subject: %25s --------", property->msg_subject);
             np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(property);
@@ -865,6 +864,12 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
 
             log_debug_msg(LOG_DEBUG, "--- done creation of mxtoken: %25s issuer: %s uuid %s", property->msg_subject, iter->val->issuer, iter->val->uuid);
         }
+        else if (iter != NULL)
+        {
+            np_tree_replace_str(iter->val->extensions, "max_threshold", np_treeval_new_ui(property->max_threshold));
+            np_tree_replace_str(iter->val->extensions, "msg_threshold", np_treeval_new_ui(property->msg_threshold));
+        }
+
         if (NULL != iter) pll_next(iter);
 
     } while (NULL != iter);
@@ -872,7 +877,6 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
 
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src)
 {
-
     dest->intent_ttl = src->token_max_ttl;
     dest->intent_update_after = src->token_min_ttl;
     dest->message_ttl = src->msg_ttl;
@@ -930,7 +934,8 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     dest->msg_ttl = src->message_ttl;
 
     // reset to trigger discovery messages
-    dest->last_intent_update = (dest->last_intent_update - src->intent_ttl);
+    dest->last_intent_rx_update = (dest->last_intent_rx_update - dest->token_min_ttl);
+    dest->last_intent_tx_update = (dest->last_intent_tx_update - dest->token_min_ttl);
 
     if (src->reply_subject[0] != '\0' && (dest->rep_subject == NULL || strncmp(dest->rep_subject, src->reply_subject, 255) != 0))
     {
@@ -1059,7 +1064,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
     double now = np_time_now();
 
     if (_np_dhkey_equal(&property_key->dhkey, &send_dhkey) &&
-        (now - property->last_intent_update) > property->token_min_ttl)
+        (now - property->last_intent_tx_update) > property->token_min_ttl)
     {
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_obj_creation);
@@ -1070,12 +1075,12 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
         np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_DISCOVER_RECEIVER);
         discover_event.user_data = msg_out;
         _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
-        property->last_intent_update = now;
+        property->last_intent_tx_update = now;
     }
     
     if (_np_dhkey_equal(&property_key->dhkey, &recv_dhkey) &&
         sll_contains(np_evt_callback_t, property->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type) &&
-       (now - property->last_intent_update) > property->token_min_ttl)
+       (now - property->last_intent_rx_update) > property->token_min_ttl)
     {
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_obj_creation);
@@ -1086,7 +1091,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
         np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_DISCOVER_SENDER);
         discover_event.user_data = msg_out;
         _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
-        property->last_intent_update = now;
+        property->last_intent_rx_update = now;
     }
     np_tree_free(intent_data);
 }
@@ -1179,7 +1184,6 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
     }
 
     if (ret) _np_increment_received_msgs_counter(property->msg_subject);
-    if (ret) property->last_rx_update = np_time_now();
 
     log_debug(LOG_DEBUG, "in: (subject: %s / msg: %s) handling complete", property->msg_subject, msg_in->uuid);    
     np_unref_obj(np_message_t, msg_in, ref_obj_creation);
@@ -1229,7 +1233,6 @@ void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np
         sll_next(iter);
     }
 
-    if (ret) property->last_tx_update = np_time_now();
     if (ret) _np_increment_send_msgs_counter(property->msg_subject);
 
     np_unref_obj(np_message_t, msg_out, ref_obj_creation);

@@ -69,6 +69,16 @@ extern "C" {
 #endif	
 
 /*
+ * msgproperty default vaue definitions 
+ */
+#ifndef MSGPROPERTY_DEFAULT_MAX_TTL
+    #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT*60)
+#endif
+#ifndef MSGPROPERTY_DEFAULT_MIN_TTL
+    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (NP_PI_INT* 6)
+#endif
+
+/*
  *	if the sysinfo subsystem in enabled and the node is a client
  *	this is the interval it may send his own data in a proactive
  *	attempt to share its data.
@@ -77,19 +87,12 @@ extern "C" {
     #define SYSINFO_PROACTIVE_SEND_IN_SEC (30)
 #endif
 #ifndef SYSINFO_MAX_TTL
-    #define SYSINFO_MAX_TTL (MAX(20, SYSINFO_PROACTIVE_SEND_IN_SEC*10))
+    #define SYSINFO_MAX_TTL (MAX(60, SYSINFO_PROACTIVE_SEND_IN_SEC*10))
 #endif
 #ifndef SYSINFO_MIN_TTL
-    #define SYSINFO_MIN_TTL (MAX(10, SYSINFO_MAX_TTL-SYSINFO_PROACTIVE_SEND_IN_SEC))
+    #define SYSINFO_MIN_TTL (MAX(MSGPROPERTY_DEFAULT_MIN_TTL, SYSINFO_PROACTIVE_SEND_IN_SEC) )
 #endif
 
-#ifndef MSGPROPERTY_DEFAULT_MAX_TTL
-    #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT*60)
-#endif
-
-#ifndef MSGPROPERTY_DEFAULT_MIN_TTL
-    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (MSGPROPERTY_DEFAULT_MAX_TTL_SEC-10)
-#endif
 /*
  * The maximum lifetime of a node before it is refreshed
  */
@@ -157,9 +160,6 @@ extern "C" {
 #endif
 #ifndef MISC_RENEW_NODE_SEC
     #define MISC_RENEW_NODE_SEC (NP_PI*1000)
-#endif
-#ifndef MISC_RETRANSMIT_MSG_TOKENS_SEC
-    #define MISC_RETRANSMIT_MSG_TOKENS_SEC (NP_PI*5)
 #endif
 #ifndef MISC_READ_EVENTS_SEC
     #define MISC_READ_EVENTS_SEC (NP_PI/1000)
