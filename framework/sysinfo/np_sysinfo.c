@@ -108,6 +108,7 @@ void np_sysinfo_enable_client(np_state_t* context)
         .ackmode = NP_MX_ACK_NONE,
         .cache_policy = NP_MX_FIFO_PURGE,
         .max_retry = 0, 
+        .max_parallel = 1,
         .intent_ttl = SYSINFO_MAX_TTL, 
         .intent_update_after = SYSINFO_MIN_TTL,
         .message_ttl = 20.0,

@@ -854,7 +854,7 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
             pll_insert(np_aaatoken_ptr, token_list, msg_token_new, false, _np_aaatoken_cmp);
             ref_replace_reason(np_aaatoken_t, msg_token_new, "_np_token_factory_new_message_intent_token", ref_aaatoken_local_mx_tokens);
         }
-        else if ( (iter->val->expires_at - now) <= property->token_max_ttl )
+        else if ( (iter->val->expires_at - now) <= property->token_max_ttl-fmin(property->token_min_ttl, MSGPROPERTY_DEFAULT_MIN_TTL_SEC) )
         {   // Create a new msg token
             log_debug_msg(LOG_DEBUG, "--- refresh mxtoken for subject: %25s --------", property->msg_subject);
             np_aaatoken_t* msg_token_new = _np_token_factory_new_message_intent_token(property);
@@ -866,7 +866,7 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
         }
         else if (iter != NULL)
         {
-            np_tree_replace_str(iter->val->extensions, "max_threshold", np_treeval_new_ui(property->max_threshold));
+            // np_tree_replace_str(iter->val->extensions, "max_threshold", np_treeval_new_ui(property->max_threshold));
             np_tree_replace_str(iter->val->extensions, "msg_threshold", np_treeval_new_ui(property->msg_threshold));
         }
 
@@ -877,9 +877,14 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np
 
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src)
 {
+    dest->message_ttl = src->msg_ttl;
+
     dest->intent_ttl = src->token_max_ttl;
     dest->intent_update_after = src->token_min_ttl;
-    dest->message_ttl = src->msg_ttl;
+
+    dest->max_parallel = src->max_threshold;
+    dest->max_retry = src->retry;
+
     if(src->rep_subject != NULL) {
         strncpy(dest->reply_subject, src->rep_subject, 255);
     }
@@ -928,16 +933,25 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
 	assert(context != NULL);
     assert(src != NULL);
     assert(dest != NULL);
+
+    if (src->intent_ttl > 0.0) {
+        dest->token_max_ttl = src->intent_ttl;
+    }
+
+    if (src->intent_update_after > 0.0) {
+        dest->token_min_ttl = src->intent_update_after;
+        // reset to trigger discovery messages
+        dest->last_intent_rx_update = (dest->last_intent_rx_update - dest->token_min_ttl);
+        dest->last_intent_tx_update = (dest->last_intent_tx_update - dest->token_min_ttl);
+    }
+
+    if (src->message_ttl > 0.0) {
+        dest->msg_ttl = src->message_ttl;
+    }
     
-    dest->token_max_ttl = src->intent_ttl;
-    dest->token_min_ttl = src->intent_update_after;
-    dest->msg_ttl = src->message_ttl;
-
-    // reset to trigger discovery messages
-    dest->last_intent_rx_update = (dest->last_intent_rx_update - dest->token_min_ttl);
-    dest->last_intent_tx_update = (dest->last_intent_tx_update - dest->token_min_ttl);
-
-    dest->max_threshold = src->max_parallel;
+    if (src->max_parallel > 0) {
+        dest->max_threshold = src->max_parallel;
+    }
 
     if (src->reply_subject[0] != '\0' && (dest->rep_subject == NULL || strncmp(dest->rep_subject, src->reply_subject, 255) != 0))
     {
