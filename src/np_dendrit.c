@@ -200,10 +200,11 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     
     np_aaatoken_t* sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
 
-    if (_np_messsage_threshold_breached(msg_prop) || NULL == sender_token )
+    if (_np_msgproperty_threshold_breached(msg_prop) || NULL == sender_token )
     {
         // cleanup of msgs in property receiver msg cache
         _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
+
         if (sender_token == NULL)
         {
             log_msg(LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
@@ -217,10 +218,8 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     } 
     else
     {
-        _np_msgproperty_threshold_increase(msg_prop);
-        log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
+        log_msg(LOG_INFO, "decrypting message(%s/%s) from sender %s", msg_prop->msg_subject, msg_in->uuid, sender_token->issuer);
         ret = _np_message_decrypt_payload(msg_in, sender_token);
-        _np_msgproperty_threshold_decrease(msg_prop);
         np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token"); // _np_aaatoken_get_sender_token
     }
 
@@ -523,7 +522,7 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
         np_dhkey_t available_msg_type = _np_msgproperty_dhkey(INBOUND, msg_token->subject);
         
         np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-        _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+        _np_keycache_handle_event(context, available_msg_type, authz_event, false);
         // done in __np_property_handle_intent
         // np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
@@ -571,10 +570,9 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
     msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
     if (msg_token)
     {
-        np_dhkey_t available_msg_type = _np_msgproperty_dhkey(OUTBOUND, msg_token->subject);    
+        np_dhkey_t available_msg_type = _np_msgproperty_dhkey(OUTBOUND, msg_token->subject);
         np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-        _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
-
+        _np_keycache_handle_event(context, available_msg_type, authz_event, false);
         // done in __np_property_handle_intent
         // np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
@@ -582,21 +580,24 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
 }
 
 bool _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
-{/*
+{   /*
     log_trace_msg(LOG_TRACE, "start: bool _np_in_authenticate(np_jobargs_t* args){");
     np_aaatoken_t* sender_token = NULL;
     np_aaatoken_t* authentication_token = NULL;
-    np_message_t *msg_in = args.msg;
 
-    _np_msgproperty_threshold_increase(args.properties);
+    NP_CAST(msg_event.user_data, np_message_t, msg_in);
+
+    np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(INBOUND, msg_subject);
+    np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
+    np_msgproperty_t* msg_prop = _np_msgproperty_get(context, INBOUND, msg_subject);
 
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
+
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
         _np_dhkey_str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -659,8 +660,8 @@ bool _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
     np_unref_obj(np_aaatoken_t, authentication_token, "np_token_factory_read_from_tree");
 
     // __np_return__:
-    _np_msgproperty_threshold_decrease(args.properties);
-    return;*/
+    return;
+    */
 }
 
 bool _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event)
@@ -763,7 +764,6 @@ bool _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
 
     np_message_t *msg_in = args.msg;
 
-    _np_msgproperty_threshold_increase(args.properties);
 
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
@@ -832,7 +832,6 @@ bool _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
     np_unref_obj(np_aaatoken_t, authorization_token, "np_token_factory_read_from_tree");
 
     // __np_return__:
-    _np_msgproperty_threshold_decrease(args.properties);
     return;*/
 }
 
@@ -929,8 +928,6 @@ bool _np_in_account(np_state_t* context, np_util_event_t msg_event)
     np_aaatoken_t* sender_token = NULL;
     np_aaatoken_t* accounting_token = NULL;
 
-    _np_msgproperty_threshold_increase(args.properties);
-
     CHECK_STR_FIELD(args.msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
     sender_token = _np_aaatoken_get_sender_token(context, (char*) _NP_MSG_ACCOUNTING_REQUEST,  &msg_from.value.dhkey);
@@ -959,7 +956,6 @@ bool _np_in_account(np_state_t* context, np_util_event_t msg_event)
     np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
 
     // __np_return__:
-    _np_msgproperty_threshold_decrease(args.properties);
     return;*/
 }
 

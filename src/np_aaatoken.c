@@ -457,20 +457,21 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
     np_tree_elem_t* max_threshold = np_tree_find_str(token->extensions_local, "max_threshold");
     np_tree_elem_t* msg_threshold = np_tree_find_str(token->extensions_local, "msg_threshold");
+    
     if ( max_threshold && msg_threshold)
     {
         log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
-        uint16_t token_max_threshold = max_threshold->val.value.ui;
-        uint16_t token_msg_threshold = msg_threshold->val.value.ui;
+        uint8_t token_max_threshold = max_threshold->val.value.ush;
+        uint8_t token_msg_threshold = msg_threshold->val.value.ush;
 
         if (0                   <= token_msg_threshold &&
             token_msg_threshold <= token_max_threshold)
         {
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token for subject \"%s\": %s can be used for %d msgs", token->subject, token->issuer, token_max_threshold-token_msg_threshold);
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token for subject \"%s\": %s can be used for %"PRIu8" msgs", token->subject, token->issuer, token_max_threshold-token_msg_threshold);
         }
         else
         {
-            log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu16"<%"PRIu16, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+            log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu8"<%"PRIu8, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
             log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
             token->state &= AAA_INVALID;
             return (false);

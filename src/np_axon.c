@@ -392,10 +392,25 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
     bool ret = false;
 
     np_message_intent_public_token_t* tmp_token = _np_intent_get_receiver(prop_key, event.target_dhkey);
-    if (NULL != tmp_token)
+
+    // TODO: refactor breach check as single callback
+    if (_np_msgproperty_threshold_breached(my_property) || NULL == tmp_token )
     {
-        _np_msgproperty_threshold_increase(my_property);
-        log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has valid token", message->uuid, my_property->msg_subject);
+        _np_msgproperty_add_msg_to_send_cache(my_property, message);
+        if (tmp_token == NULL)
+        {
+            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) for subject \"%s\" has NO valid token / %p", message->uuid, my_property->msg_subject, my_property);
+        }
+        else
+        {
+            log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" treshold breached!", message->uuid, my_property->msg_subject);
+            np_unref_obj(np_aaatoken_t, tmp_token,"_np_intent_get_receiver");
+        }
+        ret = false;
+    }
+    else 
+    {
+        log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) for subject \"%s\" has valid token", message->uuid, my_property->msg_subject);
 
         np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
 
@@ -411,21 +426,15 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
             if (np_tree_find_str(tmp_token->extensions_local, "msg_threshold"))
                 np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
 
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s %s...", message->uuid, tmp_token->uuid, tmp_token->issuer);
+            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s/%s) with receiver token %s %s...", my_property->msg_subject, message->uuid, tmp_token->uuid, tmp_token->issuer);
             // encrypt the relevant message part itself
             _np_message_encrypt_payload(message, tmp_token);
 
             np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
         }
         // decrease threshold counters
-        _np_msgproperty_threshold_decrease(my_property);
         np_unref_obj(np_aaatoken_t, tmp_token, "_np_intent_get_receiver");
         ret = true;
-    }
-    else
-    {
-        log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" has NO valid token / %p", message->uuid, my_property->msg_subject, my_property);
-        _np_msgproperty_add_msg_to_send_cache(my_property, message);
     }
     np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
 
@@ -593,7 +602,7 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
 
 bool _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
 {    
-    log_debug_msg(LOG_DEBUG, "start: bool _np_out_discovery_messages(np_state_t* context, np_util_event_t msg_event){");
+    log_debug_msg(LOG_DEBUG, "start: bool _np_out_discovery_messages(...){");
     np_message_intent_public_token_t* msg_token = NULL;
 
     NP_CAST(event.user_data, np_message_t, discover_msg);
@@ -641,9 +650,8 @@ bool _np_out_discovery_messages(np_state_t* context, np_util_event_t event)
 }
 
 bool _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event)
-{
- /*   
-    log_trace_msg(LOG_TRACE, "start: bool _np_out_authentication_request(np_state_t* context, np_util_event_t msg_event){");
+{   /*
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_authentication_request(...){");
 
     np_dhkey_t target_dhkey = { 0 };
 

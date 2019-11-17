@@ -201,9 +201,9 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     np_tree_replace_str( ret->extensions, "ack_mode",
         np_treeval_new_ush(msg_request->ack_mode));
     np_tree_replace_str( ret->extensions, "max_threshold",
-        np_treeval_new_ui(msg_request->max_threshold));
+        np_treeval_new_ush(msg_request->max_threshold));
     np_tree_replace_str( ret->extensions, "msg_threshold",
-        np_treeval_new_ui(0)); //TODO: correct ?
+        np_treeval_new_ush(0)); //TODO: correct ?
 
     // TODO: insert value based on msg properties / respect (sticky) reply
     np_aaatoken_set_partner_fp(ret, context->my_node_key->dhkey);

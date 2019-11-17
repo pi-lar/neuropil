@@ -108,6 +108,7 @@ void np_sysinfo_enable_client(np_state_t* context)
         .ackmode = NP_MX_ACK_NONE,
         .cache_policy = NP_MX_FIFO_PURGE,
         .max_retry = 0, 
+        .cache_size = 1,
         .max_parallel = 1,
         .intent_ttl = SYSINFO_MAX_TTL, 
         .intent_update_after = SYSINFO_MIN_TTL,
@@ -135,7 +136,8 @@ void np_sysinfo_enable_server(np_state_t* context)
         .reply_subject = {0},
         .ackmode = NP_MX_ACK_NONE,
         .cache_policy = NP_MX_FIFO_PURGE,
-        .max_parallel = 32 * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC),
+        .cache_size = 32 * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC),
+        .max_parallel = 8,
         .max_retry = 0, 
         .intent_ttl = SYSINFO_MAX_TTL, 
         .intent_update_after = SYSINFO_MIN_TTL,
@@ -143,7 +145,6 @@ void np_sysinfo_enable_server(np_state_t* context)
     };
 
     np_set_mx_properties(context, _NP_SYSINFO_DATA, sysinfo_properties);
-
     np_add_receive_cb(context, _NP_SYSINFO_DATA, _np_in_sysinfo);
 
     if(np_module_initiated(http)) 

@@ -217,7 +217,8 @@ extern "C" {
         enum np_mx_ackmode ackmode;
         //enum np_mx_pattern pattern;  will be added later on
         enum np_mx_cache_policy cache_policy;
-        uint32_t max_parallel, max_retry;
+        uint16_t cache_size;
+        uint8_t max_parallel, max_retry;
         double intent_ttl, intent_update_after;
         double message_ttl;
     } NP_PACKED(1);
@@ -540,12 +541,12 @@ Sending and receiving messages
    :c:data:`NP_MX_FIFO_REJECT` (i.e., messages are delivered first in, first
    out, and messages that would overflow the queue will be rejected.)
 
-.. c:member:: uint32_t max_parallel
+.. c:member:: uint8_t max_parallel
 
    The maximum number of outbound messages that may be in-flight at a given
    moment. The default is one.
 
-.. c:member:: uint32_t max_retry
+.. c:member:: uint8_t max_retry
 
    The maximum number of times a message will be resent after it has been
    rejected. The default is zero.
