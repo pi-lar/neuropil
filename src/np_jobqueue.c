@@ -105,9 +105,8 @@ bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job)
     {
         // do not add job items that would overflow internal queue size
         bool overflow = np_module(jobqueue)->job_list->count + np_module(jobqueue)->periodic_jobs + 1 > JOBQUEUE_MAX_SIZE;
-        if (overflow && false == new_job.is_periodic) {
+            if (overflow && false == new_job.is_periodic) {
             log_msg(LOG_WARN, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");            
-            log_debug(LOG_WARN, "Current Threads:\n%s",np_threads_print(context, false));
         } else {
             pheap_insert(np_job_t, np_module(jobqueue)->job_list, new_job);
             ret = true;
@@ -314,7 +313,7 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
 {
     double now = np_time_now();
     double end = now + duration;
-    double sleep;
+    double sleep = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
     np_thread_t * thread = _np_threads_get_self(context);
 
     enum np_status np_runtime_status = np_get_status(context);
@@ -331,9 +330,10 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
             {
                 if (now+sleep > end) sleep = end-now;
                 _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
-                np_runtime_status = np_get_status(context);
             }
         }
+        np_runtime_status = np_get_status(context);
+
     } while (end > now && np_runtime_status > np_uninitialized && np_runtime_status < np_shutdown);
 }
 
@@ -342,34 +342,20 @@ void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
  */
 void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
 {    
-    double sleep = 0.0;
-    enum np_status tmp_status;
-
-    _LOCK_MODULE(np_jobqueue_t)
-    {
-        np_module(jobqueue)->busy_workers++;
-    }
+    double sleep = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
 
     sleep = __np_jobqueue_run_jobs_once(context, my_thread);
-
-    if (sleep > 0.0) 
+    if (sleep > 0.0)
     {
-        np_threads_busyness(context, my_thread, false);
+        np_threads_busyness(context, my_thread,false);
         _LOCK_MODULE(np_jobqueue_t)
         {
-            uint16_t busy_count = np_module(jobqueue)->busy_workers--;
-            if (busy_count < 2)
+            if (my_thread == sll_first(np_module(jobqueue)->available_workers)->val )
                 _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
             else 
                 _np_threads_module_condition_wait(context, np_jobqueue_t_lock);
-            np_module(jobqueue)->busy_workers++;
         }
         np_threads_busyness(context, my_thread, true);
-    }
-
-    _LOCK_MODULE(np_jobqueue_t)
-    {
-        np_module(jobqueue)->busy_workers--;
     }
 }
 
@@ -378,18 +364,15 @@ void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
  */
 void __np_jobqueue_run_worker(np_state_t* context, np_thread_t* my_thread)
 {
-    log_debug_msg(LOG_JOBS | LOG_THREADS | LOG_DEBUG, "job queue thread starting");
-
     np_threads_busyness(context, my_thread, false);
-    _LOCK_ACCESS(&my_thread->job_lock)
-    {
-        log_debug_msg(LOG_DEBUG, "wait    worker thread (%p) last job (%s)", my_thread, my_thread->job.ident);            
-        _np_threads_mutex_condition_wait(context, &my_thread->job_lock);
-    }
+
+    log_debug_msg(LOG_DEBUG, "wait    worker thread (%p) last job (%s)", my_thread, my_thread->job.ident);            
+    _np_threads_mutex_condition_wait(context, &my_thread->job_lock);
+
     np_threads_busyness(context, my_thread, true);
 
     log_debug_msg(LOG_DEBUG, "exec    worker thread (%p) to   job (%s)", my_thread, my_thread->job.ident);
-    __np_jobqueue_run_once(context, my_thread->job);                
+    __np_jobqueue_run_once(context, my_thread->job);
 }
 
 void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
@@ -416,7 +399,8 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
 
         _TRYLOCK_ACCESS(&current_worker->job_lock)
         {
-            if (iter_workers->val != my_thread) 
+            if (iter_workers->val != my_thread &&
+                iter_workers->val->status == np_running)
             {
                 NP_PERFORMANCE_POINT_START(jobqueue_manager_distribute_job);
 

@@ -39,14 +39,14 @@ pthread_key_t  __pthread_thread_ptr_key;
 np_module_struct(threads)
 {
     bool        __np_threads_initiated;
+
     np_state_t* context;
     np_mutex_t  __mutexes[PREDEFINED_DUMMY_START];
 
     pthread_once_t __thread_init_once;    
-    pthread_attr_t __attributes;
-    
-    TSP(np_sll_type(np_thread_ptr), threads);
+    pthread_attr_t __attributes;    
 
+    TSP(np_sll_t(np_thread_ptr, ), threads);
 };
 
 bool _np_threads_init(np_state_t* context)
@@ -79,7 +79,6 @@ bool _np_threads_init(np_state_t* context)
         }
         _module->threads = sll_init_part(np_thread_ptr);
         TSP_INIT(_module->threads);
-
         _module->__np_threads_initiated = true;
     }
     return true;
@@ -109,7 +108,6 @@ void _np_threads_destroy(np_state_t* context)
             iterated_threads++;
         }
         sll_free(np_thread_ptr, _module->threads);                
-
         TSP_DESTROY(_module->threads);
 
         np_module_free(threads);		
@@ -533,7 +531,6 @@ np_thread_t*_np_threads_get_self(np_state_t* context)
     {
         size_t id_to_find = (size_t)pthread_self();
             
-        //TSP_SCOPE(np_module(threads)->threads) cannot be used due to recusion
         if( 0 == pthread_mutex_lock(&np_module(threads)->threads_mutex.lock))
         {
             sll_iterator(np_thread_ptr) iter_threads = sll_first(np_module(threads)->threads);
@@ -676,10 +673,15 @@ char* np_threads_print_locks(np_state_t* context, bool asOneLine, bool force) {
     if (asOneLine == true) {
         new_line = "    ";
     }
-    TSP_TRYSCOPE(np_module(threads)->threads) {
+
+    if (0 == pthread_mutex_trylock(&np_module(threads)->threads_mutex.lock))
+    {
         ret = __np_threads_print_locks(context, ret, new_line);
+        pthread_mutex_unlock(&np_module(threads)->threads_mutex.lock)
     }
-    if(force && ret == NULL){
+
+    if(force && ret == NULL)
+    {
         ret = __np_threads_print_locks(context, ret, new_line);
     }
 #endif
@@ -698,20 +700,23 @@ void* __np_thread_status_wrapper(void* self)
     enum np_status tmp_status = np_get_status(context);
 
     while ( tmp_status > np_uninitialized &&
-            tmp_status  < np_shutdown      )
+            tmp_status < np_shutdown      )
     {
         if (tmp_status == np_running) 
         {
-            thread->status = np_running;
             np_threads_busyness(context, thread, true);
-            thread->run_fn(context, thread);
+            _LOCK_ACCESS(&thread->job_lock) 
+            {    
+                thread->status = np_running;            
+                thread->run_fn(context, thread);
+                thread->status = np_stopped;
+            }
             np_threads_busyness(context, thread, false);
-            thread->status = np_stopped;
         }
         else 
         {
             log_debug_msg(LOG_DEBUG, "thread %p type %d sleeping ...", thread->thread_id, thread->thread_type);
-            np_time_sleep(NP_JOBQUEUE_MAX_SLEEPTIME_SEC);
+            np_time_sleep(0.0);
         }
         tmp_status = np_get_status(context);
     }
@@ -729,7 +734,7 @@ void _np_thread_run(np_thread_t * thread)
     thread->id = (size_t)thread->thread_id;    
 }
 
-np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, np_threads_worker_run fn, bool auto_run, enum np_thread_type_e type) 
+np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, np_threads_worker_run fn, bool auto_run, enum np_thread_type_e type)
 {
     np_thread_t * new_thread;
     np_new_obj(np_thread_t, new_thread);
@@ -740,7 +745,6 @@ np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, n
     new_thread->_busy = false;
     int r;
 
-    //TSP_SCOPE(np_module(threads)->threads) cannot be used due to recusion
     if (0 == (r = pthread_mutex_lock(&np_module(threads)->threads_mutex.lock)))
     {
         sll_append(np_thread_ptr, np_module(threads)->threads, new_thread);
@@ -797,7 +801,7 @@ void np_threads_shutdown_workers(np_state_t* context)
     sll_iterator(np_thread_ptr) iter_threads;
     np_thread_t* self = _np_threads_get_self(context);
     
-     iter_threads = sll_first(np_module(threads)->threads);
+    iter_threads = sll_first(np_module(threads)->threads);
     while (iter_threads != NULL)
     {   // wake me up ...
         _np_jobqueue_check(context);
@@ -905,18 +909,17 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
     if (pool_size > worker_threads) {
         // a bunch of threads plus a coordinator
         __np_createWorkerPool(context, pool_size-1);
-        if (pool_size > 0 ) pool_size--;
         special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_manager, true, np_thread_type_manager);
 #ifdef DEBUG
         strcpy(special_thread->job.ident, "__np_jobqueue_run_manager");
 #endif
 
-    } else {        
-
+    } else { 
         // just a bunch of threads trying to get the first element from a priority queue
         for (int8_t i=0; i < pool_size; i++)
         {
             special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_jobs, true, np_thread_type_worker);
+            _np_jobqueue_add_worker_thread(special_thread);
         }
     }
 
@@ -942,19 +945,20 @@ char* np_threads_print(np_state_t * context, bool asOneLine) {
         new_line
     );         
     
-    TSP_SCOPE(np_module(threads)->threads) {    
-        sll_iterator(np_thread_ptr) thread_iter = sll_first(np_module(threads)->threads) ;
+    if (0 == pthread_mutex_lock(&np_module(threads)->threads_mutex.lock) ) 
+    {
+        sll_iterator(np_thread_ptr) thread_iter = sll_first(np_module(threads)->threads);
         while (thread_iter != NULL) {
             np_thread_t * thread = thread_iter->val;      
-            assert(thread != NULL);          
-            _LOCK_ACCESS(&thread->job_lock) {
+            assert(thread != NULL);
+            _TRYLOCK_ACCESS(&thread->job_lock) {
                 double perc_0=0, perc_1=0,perc_2=0;
                 np_threads_busyness_statistics(context, thread, &perc_0, &perc_1, &perc_2);
 
                 void* a= NULL;
                 if(thread->_busy)
-                 if(thread->job.processorFuncs != NULL) 
-                  if(sll_size(thread->job.processorFuncs) > 0)
+                    if(thread->job.processorFuncs != NULL) 
+                    if(sll_size(thread->job.processorFuncs) > 0)
                     a = sll_first(thread->job.processorFuncs)->val;
                 
                 ret = np_str_concatAndFree(ret,
@@ -969,9 +973,10 @@ char* np_threads_print(np_state_t * context, bool asOneLine) {
             }
             sll_next(thread_iter);
         }
+        pthread_mutex_unlock(&np_module(threads)->threads_mutex.lock);
     }
 #else
-     ret = np_str_concatAndFree(ret, "Only available in DEBUG");
+    ret = np_str_concatAndFree(ret, "Only available in DEBUG");
 #endif
     return ret;
 }
