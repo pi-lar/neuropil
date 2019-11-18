@@ -677,7 +677,7 @@ char* np_threads_print_locks(np_state_t* context, bool asOneLine, bool force) {
     if (0 == pthread_mutex_trylock(&np_module(threads)->threads_mutex.lock))
     {
         ret = __np_threads_print_locks(context, ret, new_line);
-        pthread_mutex_unlock(&np_module(threads)->threads_mutex.lock)
+        pthread_mutex_unlock(&np_module(threads)->threads_mutex.lock);
     }
 
     if(force && ret == NULL)
