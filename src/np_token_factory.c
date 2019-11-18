@@ -183,14 +183,12 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     }
     // TODO: how to allow the possible transmit jitter ?
     ret->not_before = np_time_now();
-    int expire_sec = ((int)randombytes_uniform(msg_request->token_max_ttl - msg_request->token_min_ttl) + msg_request->token_min_ttl);
-    ret->expires_at = ret->not_before + expire_sec;
-
-    log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG, "setting msg token EXPIRY to: %f (now: %f diff: %f)", ret->expires_at, np_time_now(), ret->expires_at - np_time_now());
-
+    ret->expires_at = ret->not_before + msg_request->token_max_ttl;
     if (identity_token->expires_at < ret->expires_at) {
         ret->expires_at = identity_token->expires_at;
     }
+    log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG, "setting msg token EXPIRY to: %f (now: %f diff: %f)", ret->expires_at, np_time_now(), ret->expires_at - np_time_now());
+
     // add e2e encryption details for sender
     // memcpy((char*)ret->crypto.ed25519_public_key,
     //        (char*)identity_token->crypto.ed25519_public_key,
