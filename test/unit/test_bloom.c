@@ -324,3 +324,112 @@ Test(np_bloom_t, _bloom_neuropil, .description="test the functions of the neurop
 
     _np_bloom_free(neuropil_bloom);
 }
+
+Test(np_bloom_t, _bloom_union_intersection, .description="test the union/intersection functions of the neuropil bloom filter")
+{
+    np_id test1, test2, test3, test4, test5;
+//  char test_string[65];
+    
+    np_get_id(&test1, "test_1", 6);
+//  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+    np_get_id(&test2, "test_2", 6);
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+    np_get_id(&test3, "test_3", 6);
+//  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+    np_get_id(&test4, "test_4", 6);
+//  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+    np_get_id(&test5, "test_5", 6);
+//  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+    
+    struct np_bloom_optable_s neuropil_operations = {
+        .add_cb       = _np_neuropil_bloom_add,
+        .check_cb     = _np_neuropil_bloom_check,
+        .clear_cb     = NULL,
+        .union_cb     = _np_neuropil_bloom_union,
+        .intersect_cb = _np_neuropil_bloom_intersect,
+    };
+    
+//    fprintf(stdout, "###\n");
+//    fprintf(stdout, "### Testing neuropil bloom filter now\n");
+//    fprintf(stdout, "###\n");
+    
+    np_bloom_t* neuropil_bloom = _np_neuropil_bloom_create();
+    neuropil_bloom->op = neuropil_operations;
+
+    np_bloom_t* union_bloom = _np_neuropil_bloom_create();
+    union_bloom->op = neuropil_operations;
+
+    np_bloom_t* test2_bloom = _np_neuropil_bloom_create();
+    test2_bloom->op = neuropil_operations;
+    np_bloom_t* test4_bloom = _np_neuropil_bloom_create();
+    test4_bloom->op = neuropil_operations;
+    np_bloom_t* test5_bloom = _np_neuropil_bloom_create();
+    test5_bloom->op = neuropil_operations;
+
+    neuropil_bloom->op.add_cb(neuropil_bloom, test2);
+    neuropil_bloom->op.add_cb(neuropil_bloom, test4);
+    neuropil_bloom->op.add_cb(neuropil_bloom, test5);
+
+    test2_bloom->op.add_cb(test2_bloom, test2);
+    test4_bloom->op.add_cb(test4_bloom, test4);
+    test5_bloom->op.add_cb(test5_bloom, test5);
+    
+    cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test4), "expect that the id test4 is not found in bloom filter");
+    cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test5), "expect that the id test5 is not found in bloom filter");
+
+    cr_expect(true  == test2_bloom->op.check_cb(test2_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(true  == test4_bloom->op.check_cb(test4_bloom, test4), "expect that the id test4 is     found in bloom filter");
+    cr_expect(true  == test5_bloom->op.check_cb(test5_bloom, test5), "expect that the id test5 is     found in bloom filter");
+
+    cr_expect(32 == union_bloom->_free_items, "expect that the number of free_items is 32");
+
+    union_bloom->op.union_cb(union_bloom, test2_bloom);
+    cr_expect(31 == union_bloom->_free_items, "expect that the number of free_items is 31");
+    cr_expect(true  == union_bloom->op.check_cb(union_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(false == union_bloom->op.check_cb(union_bloom, test4), "expect that the id test4 is not found in bloom filter");
+    cr_expect(false == union_bloom->op.check_cb(union_bloom, test5), "expect that the id test5 is not found in bloom filter");
+    
+    union_bloom->op.union_cb(union_bloom, test4_bloom);
+    cr_expect(30 == union_bloom->_free_items, "expect that the number of free_items is 30");
+    cr_expect(true  == union_bloom->op.check_cb(union_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(true  == union_bloom->op.check_cb(union_bloom, test4), "expect that the id test4 is     found in bloom filter");
+    cr_expect(false == union_bloom->op.check_cb(union_bloom, test5), "expect that the id test5 is not found in bloom filter");
+
+    union_bloom->op.union_cb(union_bloom, test5_bloom);
+    cr_expect(29 == union_bloom->_free_items, "expect that the number of free_items is 29");
+    cr_expect(true  == union_bloom->op.check_cb(union_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(true  == union_bloom->op.check_cb(union_bloom, test4), "expect that the id test4 is     found in bloom filter");
+    cr_expect(true  == union_bloom->op.check_cb(union_bloom, test5), "expect that the id test5 is     found in bloom filter");
+
+    np_bloom_t* intersect_bloom = _np_neuropil_bloom_create();
+    intersect_bloom->op = neuropil_operations;
+    intersect_bloom->op.union_cb(intersect_bloom, union_bloom); // add a default set
+
+    intersect_bloom->op.intersect_cb(intersect_bloom, test2_bloom);
+    cr_expect(0 == intersect_bloom->_free_items, "expect that the number of free_items is 0");
+    cr_expect(true  == intersect_bloom->op.check_cb(intersect_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test4), "expect that the id test4 is not found in bloom filter");
+    cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test5), "expect that the id test5 is not found in bloom filter");
+
+    _np_neuropil_bloom_clear(intersect_bloom); // clear and ...
+    intersect_bloom->op.union_cb(intersect_bloom, union_bloom); // ... re-add a default set
+
+    np_bloom_t* test1_bloom = _np_neuropil_bloom_create();
+    test1_bloom->op = neuropil_operations;
+    neuropil_bloom->op.add_cb(neuropil_bloom, test1);
+
+    intersect_bloom->op.intersect_cb(intersect_bloom, test1_bloom);
+    cr_expect(0 == intersect_bloom->_free_items, "expect that the number of free_items is 0");
+    cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test4), "expect that the id test4 is     found in bloom filter");
+    cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test5), "expect that the id test5 is     found in bloom filter");
+
+    _np_bloom_free(union_bloom);
+    _np_bloom_free(neuropil_bloom);
+    _np_bloom_free(intersect_bloom);
+
+    _np_bloom_free(test2_bloom);
+    _np_bloom_free(test4_bloom);
+    _np_bloom_free(test5_bloom);
+}

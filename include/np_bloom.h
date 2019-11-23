@@ -27,8 +27,8 @@ extern "C" {
     typedef void        (*bloom_add           )  (np_bloom_t *bloom, np_id s);
     typedef bool        (*bloom_check         )  (np_bloom_t *bloom, np_id s);
 
-    typedef np_bloom_t* (*bloom_union         )  (np_bloom_t *bloom_l, np_bloom_t *bloom_r);
-    typedef np_bloom_t* (*bloom_intersect     )  (np_bloom_t *bloom_l, np_bloom_t *bloom_r);
+    typedef bool        (*bloom_union         )  (np_bloom_t *result, np_bloom_t *bloom_l);
+    typedef bool        (*bloom_intersect     )  (np_bloom_t *result, np_bloom_t *bloom_l);
     
     enum bloom_filter_type {
         standard_bf = 0,
@@ -82,9 +82,9 @@ extern "C" {
     NP_API_INTERN
     bool _np_standard_bloom_check(np_bloom_t* bloom, np_id id);
     NP_API_INTERN
-    bool _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
+    bool _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
     NP_API_INTERN
-    bool _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
+    bool _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first);
     
     NP_API_INTERN
     np_bloom_t* _np_stable_bloom_create(size_t size, uint8_t d, uint8_t p);
@@ -114,6 +114,8 @@ extern "C" {
     NP_API_INTERN
     np_bloom_t* _np_neuropil_bloom_create();
     NP_API_INTERN
+    void _np_neuropil_bloom_clear(np_bloom_t* res);
+    NP_API_INTERN
     void _np_neuropil_bloom_add(np_bloom_t* bloom, np_id id);
     NP_API_INTERN
     bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_id id);
@@ -122,9 +124,9 @@ extern "C" {
     NP_API_INTERN
     float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_id id);
     NP_API_INTERN
-    bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
+    bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
     NP_API_INTERN
-    bool _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* first, np_bloom_t* second);
+    bool _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* first);
 
 #ifdef __cplusplus
 }
