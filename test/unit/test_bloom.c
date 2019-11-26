@@ -16,25 +16,18 @@ TestSuite(np_bloom_t);
 Test(np_bloom_t, _bloom_standard, .description="test the functions of the standard bloom filter")
 {
     
-    np_id test1, test2, test3, test4, test5;
-//    char test_string[65];
-    
-    np_get_id(&test1, "test_1", 6);
-//    np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test2, "test_2", 6);
-//    np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test3, "test_3", 6);
-//    np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test4, "test_4", 6);
-//    np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test5, "test_5", 6);
-//    np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
-    
-    
+//  char test_string[65];    
+    np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+//  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+    np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+//  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+//  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+//  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+        
     struct np_bloom_optable_s std_operations = {
         .add_cb       = _np_standard_bloom_add,
         .check_cb     = _np_standard_bloom_check,
@@ -63,23 +56,17 @@ Test(np_bloom_t, _bloom_standard, .description="test the functions of the standa
 
 Test(np_bloom_t, _bloom_stable, .description="test the functions of the stable bloom filter") {
     
-    np_id test1, test2, test3, test4, test5;
-//    char test_string[65];
-    
-    np_get_id(&test1, "test_1", 6);
-//    np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test2, "test_2", 6);
-//    np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test3, "test_3", 6);
-//    np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test4, "test_4", 6);
-//    np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test5, "test_5", 6);
-//    np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+//  char test_string[65];    
+    np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+//  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+    np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+//  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+//  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+//  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
     
     struct np_bloom_optable_s stable_operations = {
         .add_cb       = _np_stable_bloom_add,
@@ -119,23 +106,17 @@ Test(np_bloom_t, _bloom_stable, .description="test the functions of the stable b
 
 Test(np_bloom_t, _bloom_scalable, .description="test the functions of the scalable bloom filter") {
     
-    np_id test1, test2, test3, test4, test5;
-//    char test_string[65];
-    
-    np_get_id(&test1, "test_1", 6);
-//    np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test2, "test_2", 6);
-//    np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test3, "test_3", 6);
-//    np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test4, "test_4", 6);
-//    np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test5, "test_5", 6);
-//    np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+//  char test_string[65];    
+    np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+//  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+    np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+//  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+//  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+//  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
     
     struct np_bloom_optable_s scale_operations = {
         .add_cb       = _np_scalable_bloom_add,
@@ -161,13 +142,11 @@ Test(np_bloom_t, _bloom_scalable, .description="test the functions of the scalab
     cr_expect(false == scale_bloom->op.check_cb(scale_bloom, test4), "expect that the id test4 is not found in bloom filter");
     cr_expect(false == scale_bloom->op.check_cb(scale_bloom, test5), "expect that the id test5 is not found in bloom filter");
     
-    np_id test;
+    np_dhkey_t test;
     
-    for (uint16_t i = 0; i < 100; i++) {
-        
-        if (i%3) np_get_id(&test3, np_uuid_create("test", i, NULL), 36), memcpy(test, test3, 32);
-        else if (i%5) np_get_id(&test4, np_uuid_create("test", i, NULL), 36), memcpy(test, test4, 32);
-        else if (i%7) np_get_id(&test5, np_uuid_create("test", i, NULL), 36), memcpy(test, test5, 32);
+    for (uint16_t i = 0; i < 100; i++) 
+    {     
+        if      (i%3 || i %5 || i%7) test = np_dhkey_create_from_hostport(np_uuid_create("test", i, NULL), "0");
         
 //        np_id_str(test_string, test); fprintf(stdout, "%s\n", test_string);
         cr_expect(false == scale_bloom->op.check_cb(scale_bloom, test), "expect that the new element is not found");
@@ -179,24 +158,17 @@ Test(np_bloom_t, _bloom_scalable, .description="test the functions of the scalab
 
 Test(np_bloom_t, _bloom_decaying, .description="test the functions of the decaying bloom filter")
 {
-    
-    np_id test1, test2, test3, test4, test5;
-//    char test_string[65];
-    
-    np_get_id(&test1, "test_1", 6);
-//    np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test2, "test_2", 6);
-//    np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test3, "test_3", 6);
-//    np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test4, "test_4", 6);
-//    np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test5, "test_5", 6);
-//    np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+//  char test_string[65];    
+    np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+//  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+    np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+//  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+//  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+//  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
     
     
     struct np_bloom_optable_s decay_operations = {
@@ -254,22 +226,16 @@ Test(np_bloom_t, _bloom_decaying, .description="test the functions of the decayi
 
 Test(np_bloom_t, _bloom_neuropil, .description="test the functions of the neuropil bloom filter")
 {
-    np_id test1, test2, test3, test4, test5;
-//  char test_string[65];
-    
-    np_get_id(&test1, "test_1", 6);
+//  char test_string[65];    
+    np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
 //  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test2, "test_2", 6);
-//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test3, "test_3", 6);
+    np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+    np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
 //  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test4, "test_4", 6);
+    np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
 //  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
-    
-    np_get_id(&test5, "test_5", 6);
+    np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
 //  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
     
     struct np_bloom_optable_s neuropil_operations = {
@@ -327,18 +293,16 @@ Test(np_bloom_t, _bloom_neuropil, .description="test the functions of the neurop
 
 Test(np_bloom_t, _bloom_union_intersection, .description="test the union/intersection functions of the neuropil bloom filter")
 {
-    np_id test1, test2, test3, test4, test5;
-//  char test_string[65];
-    
-    np_get_id(&test1, "test_1", 6);
+//  char test_string[65];    
+    np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
 //  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
-    np_get_id(&test2, "test_2", 6);
+    np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
 //  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
-    np_get_id(&test3, "test_3", 6);
+    np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
 //  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
-    np_get_id(&test4, "test_4", 6);
+    np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
 //  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
-    np_get_id(&test5, "test_5", 6);
+    np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
 //  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
     
     struct np_bloom_optable_s neuropil_operations = {
