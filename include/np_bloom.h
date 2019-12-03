@@ -85,7 +85,9 @@ extern "C" {
     void _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
     NP_API_INTERN
     void _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first);
-    
+    NP_API_INTERN
+    void _np_standard_bloom_clear(np_bloom_t* res);
+
     NP_API_INTERN
     np_bloom_t* _np_stable_bloom_create(size_t size, uint8_t d, uint8_t p);
     NP_API_INTERN
