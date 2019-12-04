@@ -20,15 +20,11 @@ rx = re.compile("#define NEUROPIL_RELEASE	[\"'](.*)[\"']")
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def sign_file(filepath, sign_file, pw):
-    data = {
-        'pw':pw,
-        'filepath':filepath
-    }
+def sign_file(filepath, sign_file, pw):   
     cmds = [
-            ["openssl","dgst","-sha256","-sign",sign_file,"-passin","pass:%(pw)s"% data,"-out","%(filepath)s.sig.raw"% data,"%(filepath)s"% data],
-            ["openssl","base64","-in","%(filepath)s.sig.raw"% data, "-out", "%(filepath)s.sha256.sig" % data],
-            ["rm","%(filepath)s.sig.raw"% data]
+            ["openssl","dgst","-sha256","-sign",sign_file,"-passin",f"pass:{pw}","-out",f"{filepath}.sha256",f"{filepath}"],
+            ["openssl","base64","-in",f"{filepath}.sha256", "-out", f"{filepath}.sha256.base64"],
+            ["rm",f"{filepath}.sha256"]
         ]
     for cmd in cmds:
         #print("Calling: \""+" ".join(cmd)+"\"")
@@ -37,8 +33,8 @@ def sign_file(filepath, sign_file, pw):
 def sign_folder(sign_file,folder,pw):    
     for root, dirs, files in os.walk(os.path.join(dir_path, folder)):
         for file in files:
-            if not file.endswith(".sig"):
-                sign_file(sign_file, "%s/%s%s"%(dir_path,folder,file ), pw)
+            if not file.endswith(".base64"):
+                sign_file("%s/%s%s"%(dir_path,folder,file ), sign_file, pw)
 
 
 def get_version():
@@ -61,11 +57,11 @@ def get_build_name():
 targets = [
     {
         'key':"freebsd",
-        'tarfile_name': "{target}_{version_tag}.tar.gz",
+        'tarfile_name': "{version_tag}_{target}.tar.gz",
     },
     {
         'key':"linux",
-        'tarfile_name': "{target}_{version_tag}.tar.gz",
+        'tarfile_name': "{version_tag}_{target}.tar.gz",
     },
 ]
 if __name__ == "__main__":
@@ -80,13 +76,15 @@ if __name__ == "__main__":
     version = get_version()
     version_tag = get_version_tag()
         
+    root_path = os.path.join("build","package")
+
     if args.version:
         print(version)
     elif args.versiontag:
         print(version_tag)
     elif args.package or args.gitlab_release:
-        doc_tarfile_name = "doc_{version_tag}.tar.gz".format(**locals())
-        doc_tarfilepath = os.path.join("build","package",doc_tarfile_name)
+        doc_tarfile_name = "{version_tag}_documentation.tar.gz".format(**locals())
+        doc_tarfilepath = os.path.join(root_path, doc_tarfile_name)
 
         if args.package:
             if not args.pw:
@@ -100,13 +98,14 @@ if __name__ == "__main__":
             if not args.pw:
                 args.pw = getpass.getpass("Please insert key password: ")            
                 
-            pathlib.Path(os.path.join("build","package")).mkdir(parents=True, exist_ok=True)
+            pathlib.Path(root_path).mkdir(parents=True, exist_ok=True)
 
             if not os.path.isfile(args.sign_file):    
                 print("Creating DEV sign key. DO NOT USE FOR TEST OR PRODUCTION!")            
-                subprocess.check_call(("openssl genpkey -algorithm RSA -out "+args.sign_file+" -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
+                #subprocess.check_call(("openssl genpkey -algorithm RSA -out "+args.sign_file+" -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
+                subprocess.check_call(["openssl", "genrsa", "-aes128", "-passout", f"pass:{args.pw}", "-out", f"{args.sign_file}", "4096"])
+                subprocess.check_call(["openssl", "rsa", "-in", f"{args.sign_file}", "-passin", f"pass:{args.pw}", "-pubout", "-out", f"{args.sign_file}_public.pem"])
             
-
             
             with tarfile.open(doc_tarfilepath, "w:gz") as tar:                
                 tar.add(os.path.join("build","doc","html"),         arcname=os.path.join(version_tag, "doc"))
@@ -116,7 +115,7 @@ if __name__ == "__main__":
             for target_conf in targets:
                 target = target_conf['key']
                 tarfile_name = target_conf['tarfile_name'].format(**locals())
-                tarfilepath = os.path.join("build","package",tarfile_name)
+                tarfilepath = os.path.join(root_path, tarfile_name)
                 
                 with tarfile.open(tarfilepath, "w:gz") as tar:                
                     tar.add(os.path.join("build",target,"lib"),         arcname=os.path.join(version_tag, "lib"))
@@ -164,10 +163,10 @@ if __name__ == "__main__":
                 })         
 
             for target_conf in targets:
-                for ext in ["",".sha256.sig"]:
+                for ext in ["",".sha256.base64"]:
                     target = target_conf['key']
                     tarfile_name = target_conf['tarfile_name'].format(**locals())
-                    tarfilepath = os.path.join("build","package",tarfile_name+ext)
+                    tarfilepath = os.path.join(root_path, tarfile_name+ext)
                     url = 'https://gitlab.com/api/v4/projects/14096230/uploads'
                     files = {'file': open(tarfilepath,"rb") }
                     r = requests.post(url, files=files, headers=headers)                
