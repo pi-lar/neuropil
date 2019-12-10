@@ -42,7 +42,9 @@ build:documentation:
 
 package:
   stage: package
-  script: ./do package
+  script: 
+    - ./do package
+    - ./do deploy test
   artifacts:
     name: neuropil-release
     paths:
@@ -52,28 +54,18 @@ package:
     #- build:freebsd
     - build:linux
 
-qa:deployment:
-  stage: qa
-  script: 
-      - ./do deploy test
-      # auto saltstack deploy
-  dependencies:
-    - package
-
 qa:smoke_test:
   stage: qa
   script: 
       - ./do smoke
   dependencies:
-    - qa:deployment
+    - package
 
 qa:approval:
   stage: qa
   script: 
       - ./do deploy production
   when: manual
-  dependencies:
-    - qa:smoke_test
 
 release:
   stage: release
