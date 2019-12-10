@@ -6,8 +6,8 @@ stages:
   - test
   - build
   - package
-  - smoke_tests
-  - deploy
+  - qa
+  - release
 
 test:
   stage: test
@@ -24,13 +24,13 @@ build:linux:
     paths:
       - build/linux
     
-build:freebsd:
-  stage: build
-  script: ./do build freebsd
-  artifacts:
-    name: neuropil-freebsd
-    paths:
-      - build/freebsd
+#build:freebsd:
+#  stage: build
+#  script: ./do build freebsd
+#  artifacts:
+#    name: neuropil-freebsd
+#    paths:
+#      - build/freebsd
 
 build:documentation:
   stage: build
@@ -46,35 +46,43 @@ package:
   artifacts:
     name: neuropil-release
     paths:
-      - build/package/*.tar.gz*
+      - build/package/*
   dependencies:
     - build:documentation
-    - build:freebsd
+    #- build:freebsd
     - build:linux
 
-smoke_tests:
-  stage: smoke_tests
-  script: ./do smoke
+qa:deployment:
+  stage: qa
+  script: 
+      - ./do deploy test
+      # auto saltstack deploy
   dependencies:
     - package
 
-deploy:production:
-  stage: deploy
+qa:smoke_test:
+  stage: qa
+  script: 
+      - ./do smoke
+  dependencies:
+    - qa:deployment
+
+qa:approval:
+  stage: qa
+  script: 
+      - ./do deploy production
+  when: manual
+  dependencies:
+    - qa:smoke_test
+
+release:
+  stage: release
   before_script: 
     - ./do prepare_ci
   script: 
     - ./do release
-    - ./do deploy
-  when: manual
+    # auto saltstack deploy
   dependencies:
     - package
-    - build:documentation    
-
-deploy:test:
-  stage: deploy
-  before_script: 
-    - ./do prepare_ci
-  script: true || to define
-  dependencies:
-    - package
-    - build:documentation
+    - build:documentation   
+    - qa:approval 

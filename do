@@ -3,6 +3,10 @@
 set -eu
 
 
+log(){  
+  echo  "$(date '+%H:%M:%S') $1"
+}
+
 ensure_venv() {
   if [ ! -d venv ]; then
     virtualenv -p $(which python3) venv
@@ -65,6 +69,7 @@ task_build_debug() {
 task_clean() {
   ensure_venv
 
+  rm -rf build
   scons -c
 }
 
@@ -87,12 +92,21 @@ task_release() {
 }
 
 task_deploy() {
+  folder="neuropil/deployment"
+  enviroment="$1"
 
-  ssh -o StrictHostKeyChecking=no demo_deploy /usr/local/bin/supervisorctl stop all
-  ssh -o StrictHostKeyChecking=no demo_deploy rm neuropil/*neuropil*
-  scp -r bin/. demo_deploy:/home/neuropil_deploy/neuropil
-  scp -r build/lib/. demo_deploy:/home/neuropil_deploy/neuropil
-  ssh -o StrictHostKeyChecking=no demo_deploy /usr/local/bin/supervisorctl start all
+  case "$enviroment" in
+    test) 
+      folder="$folder/testing";;
+    production)
+      folder="$folder/base";;
+    *) 
+      log "No such enviroment '$enviroment' known. (known: test|production)"; exit 1;;
+  esac
+
+  rsync -e ssh -hrv --exclude=".git/" --exclude="venv/" ./build/package/* "gitlab-runner@neuro0.in.pi-lar.net:$folder"
+
+  log "Deployment ready for salt interaction"
 }
 
 task_test() {
@@ -121,8 +135,17 @@ task_smoke() {
   )
 }
 
+task_test_deployment() {
+  #task_test
+  task_build linux
+  task_build freebsd
+  task_doc
+  task_package
+  #task_smoke
+  task_deploy test
+}
 usage() {
-  echo "$0  build | build_debug | test | clean | package | release | deploy | smoke"
+  echo "$0  build | build_debug | test | clean | package | release | deploy | smoke | doc | prepare_ci | deploy"
   exit 1
 }
 
@@ -132,12 +155,13 @@ case "$cmd" in
   build) task_build "$1";;
   test) task_test "$@";;
   build_debug) task_build_debug "$@";;
-  package) task_package "$@";;
+  package) task_package "$@";;  
   release) task_release ;;
-  deploy) task_deploy ;;
+  deploy) task_deploy "$1";;
   smoke) task_smoke ;;
   doc) task_doc ;;
   prepare_ci) task_prepare_ci ;;
   clean) task_clean ;;
+  #test_deployment) task_test_deployment ;;
   *) usage ;;
 esac
