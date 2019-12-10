@@ -9,7 +9,7 @@ log(){
 
 ensure_venv() {
   if [ ! -d venv ]; then
-    virtualenv -p $(which python3) venv
+    virtualenv -p $(which python3.6) venv
     ./venv/bin/pip3 install -r requirements.txt
   fi
 
