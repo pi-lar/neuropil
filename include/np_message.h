@@ -156,12 +156,10 @@ static const char* NP_HS_SIGNATURE = "_np.signature";
 static const char* NP_HS_PRIO = "_np.hs.priority";
 
 // body constants
-static const char* NP_MSG_BODY_JTREE = "_np.jtree";
 static const char* NP_MSG_BODY_TEXT = "_np.text";
 static const char* NP_MSG_BODY_XML = "_np.xml";
 
 // msg footer constants
-static const char* NP_MSG_FOOTER_ALIAS_KEY = "_np.alias_key";
 static const char* NP_MSG_FOOTER_GARBAGE = "_np.garbage";
 
 #ifdef __cplusplus

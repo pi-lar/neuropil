@@ -41,8 +41,7 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_key_t);
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
-NP_PLL_GENERATE_IMPLEMENTATION(np_key_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
 
 int8_t _np_key_cmp(np_key_t* const k1, np_key_t* const k2)
 {
@@ -277,35 +276,6 @@ char* _np_key_as_str(np_key_t* key)
     return (key->dhkey_str);
 }
 
-void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
-{
-    np_state_t* context = NULL; 
-    sll_iterator(np_key_ptr) iter = sll_first(sll_list);	
-    while (NULL != iter)
-    {
-        if (context == NULL && iter->val != NULL) {
-            context = np_ctx_by_memory(iter->val);
-        }
-        np_ref_obj(np_key_t, (iter->val), reason, reason_desc);
-        sll_next(iter);
-    }
-}
-
-void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
-{
-    np_state_t* context = NULL;
-    sll_iterator(np_key_ptr) iter = sll_first(sll_list);
-    while (NULL != iter)
-    {
-        
-        if (context == NULL && iter->val != NULL) {
-            context = np_ctx_by_memory(iter->val);
-        }
-        np_unref_obj(np_key_t, (iter->val), reason);
-        sll_next(iter);
-    }
-}
-
 /**
  * Destroys a key with all resources
  */
@@ -373,53 +343,20 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     }
 }
 
-/**
-* Gets a np_key_t or a NULL pointer for the given hash value.
-* Generates warnings and aborts the process if a misschief configuration is found.
-* @param targetDhkey hash value of a node
-* @return
-*/
-np_key_t* _np_key_get_by_key_hash(np_state_t* context, char* targetDhkey)
-{
-    log_trace_msg(LOG_TRACE, "start: np_key_t* _np_key_get_by_key_hash(char* targetDhkey){");
-    np_key_t* target = NULL;
-
-    if (NULL != targetDhkey) {
-
-        target = _np_keycache_find_by_details(context, targetDhkey, false, np_status_Connected, true, false, false, true);
-
-        if (NULL == target) {
-            log_msg(LOG_WARN,
-                "could not find the specific target %s for message. broadcasting msg", targetDhkey);
-        }
-        else {
-            log_debug_msg(LOG_DEBUG, "could find the specific target %s for message.", targetDhkey);
-        }
-
-        if (NULL != target && strcmp(_np_key_as_str(target), targetDhkey) != 0) {
-            log_msg(LOG_ERROR,
-                "Found target key (%s) does not match requested target key (%s)! Aborting",
-                _np_key_as_str(target), targetDhkey);
-            abort();
-        }
-    }
-    return target;
-}
-
 void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
 {
     assert (key!=NULL);
     np_ctx_memory(key);
 
     // TODO: add per obj event queue
-    // log_debug_msg(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
+    log_debug_msg(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
     // if (force) 
     // {
-        _LOCK_ACCESS(&key->key_lock) 
+        _LOCK_ACCESS(&key->key_lock)
         {   // push down all event from queue and execute this event
             np_util_statemachine_invoke_auto_transition(&key->sm, event);
         }
-/*    }
+    /*}
     else
     {
         if (0 == _np_threads_mutex_trylock(context, &key->key_lock, FUNC))

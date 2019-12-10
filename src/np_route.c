@@ -332,24 +332,22 @@ sll_return(np_key_ptr) _np_route_get_table (np_state_t* context)
 /** _np_route_row_lookup:key
  ** return the row in the routing table that matches the longest prefix with #key#
  **/
-sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
+sll_return(np_key_ptr) _np_route_row_lookup (np_state_t* context, np_dhkey_t dhkey)
 {
-    np_ctx_memory(key);
-
     np_sll_t(np_key_ptr, sll_of_keys);
     sll_init(np_key_ptr, sll_of_keys);
 
     _LOCK_MODULE(np_routeglobal_t)
     {
         uint16_t i, j, k;
-        i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &key->dhkey);
+        i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &dhkey);
         for (j = 0; j < __MAX_COL; j++)
         {
             int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
             for (k = 0; k < __MAX_ENTRY; k++)
             {
                 if (np_module(route)->table[index + k] != NULL &&
-                    !_np_dhkey_equal(&np_module(route)->table[index + k]->dhkey, &key->dhkey) )
+                    !_np_dhkey_equal(&np_module(route)->table[index + k]->dhkey, &dhkey) )
                 {
                     sll_append(np_key_ptr, sll_of_keys, np_module(route)->table[index + k]);
                 }

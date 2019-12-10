@@ -23,7 +23,6 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -63,8 +62,8 @@ struct np_key_s
 	bool   is_in_keycache;
 
 	enum np_key_type type;
-	np_key_t* parent_key; // reference to parent/partner key
 
+	np_key_t* parent_key; // reference to parent/partner key
 	np_sll_t(void_ptr, entities); // link to components attached to this key id
 
     np_mutex_t key_lock;
@@ -72,8 +71,6 @@ struct np_key_s
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);
-
-NP_PLL_GENERATE_PROTOTYPES(np_key_ptr);
 
 
 NP_API_INTERN
@@ -86,18 +83,6 @@ void _np_key_destroy(np_key_t* to_destroy) ;
 
 NP_API_INTERN
 char* _np_key_as_str(np_key_t * key);
-
-NP_API_EXPORT
-void np_key_renew_token();
-
-NP_API_INTERN
-void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
-
-NP_API_INTERN
-void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
-
-NP_API_INTERN
-np_key_t* _np_key_get_by_key_hash(np_state_t* context,	char* targetDhkey);
 
 NP_API_INTERN
 void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force);

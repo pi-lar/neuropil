@@ -7,6 +7,8 @@
 // this file conatins the state machine conditions, transitions and states that an identity can
 // have. It is included form np_key.c, therefore there are no extra #include directives.
 
+#include <inttypes.h>
+
 #include "core/np_comp_intent.h"
 
 #include "neuropil.h"
@@ -131,10 +133,11 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
     property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
     property->last_update = np_time_now();
 
-    uint16_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ui;
+    uint8_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ush;
 
     if (max_threshold > 0)
     {
+        log_debug_msg(LOG_DEBUG, "adding sender token %p threshold %"PRIu8, token, max_threshold);
         np_msg_mep_type sender_mep_type = property->mep_type & SENDER_MASK;
 
         np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_intent_cmp;
@@ -157,11 +160,8 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
         else
         {
             token->state = ret->state;
-            // np_ref_obj(np_aaatoken_t, ret, FUNC);
-            // np_unref_obj(np_aaatoken_t, ret,"send_tokens");
         }
-        log_debug_msg(LOG_DEBUG, "added new single sender token for message hash %s",
-                _np_key_as_str(subject_key) );
+        log_debug_msg(LOG_DEBUG, "added new single sender token for message hash %s", _np_key_as_str(subject_key) );
     }
 
     return ret;
@@ -254,12 +254,11 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
     property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & RECEIVER_MASK);
     property->last_update = np_time_now();
 
-    uint16_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ui;
-
-    log_debug_msg(LOG_DEBUG, "adding receiver token %p threshold %d", token, max_threshold );
-
+    uint8_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ush;
     if (max_threshold > 0)
     {	// only add if there are messages to receive
+        log_debug_msg(LOG_DEBUG, "adding receiver token %p threshold %"PRIu8, token, max_threshold);
+
         np_msg_mep_type receiver_mep_type = (property->mep_type & RECEIVER_MASK);
         
         np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_intent_cmp;
@@ -688,7 +687,7 @@ bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_authz);
-    if ( ret) ret &= (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_token) );
+    if ( ret) ret &= (FLAG_CMP(event.type, evt_external) && FLAG_CMP(event.type, evt_token) );
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     if ( ret) {
         NP_CAST(event.user_data, np_aaatoken_t, token);

@@ -99,7 +99,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
     o_piggy_list = _np_node_decode_multiple_from_jrb(context, msg->body);
 
-    log_info(LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
+    log_debug_msg(LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
 
     while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
@@ -110,21 +110,42 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
         np_key_t* piggy_key = _np_keycache_find(context, search_key);
         if (piggy_key == NULL)
-        {   // unkown key, just send a join request 
-            char* connect_str = np_build_connection_string(NULL, 
-                                                        _np_network_get_protocol_string(context, node_entry->protocol), 
-                                                        node_entry->dns_name, 
-                                                        node_entry->port, 
-                                                        false);
-            np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
-            piggy_key = _np_keycache_find_or_create(context, search_key);
-            
-            np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
-            _np_key_handle_event(piggy_key, new_node_evt, false);
+        {
+            bool send_join = false;
+            np_sll_t(np_key_ptr, sll_of_keys) = NULL;
+            sll_of_keys = _np_route_row_lookup(context, search_key);
 
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
-            np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
-            free(connect_str);
+            // send join if ...
+            if (sll_size(sll_of_keys) < NP_ROUTES_MAX_ENTRIES)  
+            {   // our routing table is not full
+                send_join = true;
+            }
+            else 
+            {   // our routing table is full, but the new dhkey is closer to us
+                _np_keycache_sort_keys_kd(sll_of_keys, &context->my_node_key->dhkey);
+                send_join = _np_dhkey_between(&piggy_key, &sll_first(sll_of_keys)->val->dhkey, &sll_last(sll_of_keys)->val->dhkey, true);
+                // log_msg(LOG_INFO, "xxxxxxx  node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
+            }
+
+            if (send_join) 
+            {
+                char* connect_str = np_build_connection_string(NULL, 
+                                        _np_network_get_protocol_string(context, node_entry->protocol), 
+                                        node_entry->dns_name, 
+                                        node_entry->port, 
+                                        false);
+                np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
+                piggy_key = _np_keycache_find_or_create(context, search_key);
+                
+                np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
+                _np_key_handle_event(piggy_key, new_node_evt, false);
+
+                log_msg(LOG_INFO, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
+                np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
+                free(connect_str);
+            }
+            np_key_unref_list(sll_of_keys, "_np_route_row_lookup");
+            sll_free(np_key_ptr, sll_of_keys);
         }
         else if (_np_key_get_node(piggy_key)->joined_network                                           &&
                  _np_key_get_node(piggy_key)->success_avg > BAD_LINK                                   &&
@@ -134,8 +155,9 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             // TODO: realize this via an event, otherwiese locking of the piggy key is not in place
             __np_node_add_to_leafset(&piggy_key->sm, msg_event);
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
-
-        } else {
+        } 
+        else 
+        {
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a further piggy actions. (%s)",
                                                    _np_key_as_str(piggy_key), 
                                                    _np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
@@ -178,10 +200,11 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     
     np_aaatoken_t* sender_token = _np_intent_get_sender_token(prop_key, msg_from.value.dhkey);
 
-    if (_np_messsage_threshold_breached(msg_prop) || NULL == sender_token )
+    if (_np_msgproperty_threshold_breached(msg_prop) || NULL == sender_token )
     {
         // cleanup of msgs in property receiver msg cache
         _np_msgproperty_add_msg_to_recv_cache(msg_prop, msg_in);
+
         if (sender_token == NULL)
         {
             log_msg(LOG_INFO,"no token to decrypt msg (%s). Retrying later", msg_in->uuid);
@@ -195,10 +218,8 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     } 
     else
     {
-        _np_msgproperty_threshold_increase(msg_prop);
-        log_debug_msg(LOG_DEBUG, "decrypting message(%s) from sender %s", msg_in->uuid, sender_token->issuer);
+        log_msg(LOG_INFO, "decrypting message(%s/%s) from sender %s", msg_prop->msg_subject, msg_in->uuid, sender_token->issuer);
         ret = _np_message_decrypt_payload(msg_in, sender_token);
-        _np_msgproperty_threshold_decrease(msg_prop);
         np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token"); // _np_aaatoken_get_sender_token
     }
 
@@ -501,7 +522,7 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
         np_dhkey_t available_msg_type = _np_msgproperty_dhkey(INBOUND, msg_token->subject);
         
         np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-        _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
+        _np_keycache_handle_event(context, available_msg_type, authz_event, false);
         // done in __np_property_handle_intent
         // np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
@@ -549,10 +570,9 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
     msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
     if (msg_token)
     {
-        np_dhkey_t available_msg_type = _np_msgproperty_dhkey(OUTBOUND, msg_token->subject);    
+        np_dhkey_t available_msg_type = _np_msgproperty_dhkey(OUTBOUND, msg_token->subject);
         np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-        _np_keycache_handle_event(context, context->my_identity->dhkey, authz_event, false);
-
+        _np_keycache_handle_event(context, available_msg_type, authz_event, false);
         // done in __np_property_handle_intent
         // np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
@@ -560,21 +580,24 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
 }
 
 bool _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
-{/*
+{   /*
     log_trace_msg(LOG_TRACE, "start: bool _np_in_authenticate(np_jobargs_t* args){");
     np_aaatoken_t* sender_token = NULL;
     np_aaatoken_t* authentication_token = NULL;
-    np_message_t *msg_in = args.msg;
 
-    _np_msgproperty_threshold_increase(args.properties);
+    NP_CAST(msg_event.user_data, np_message_t, msg_in);
+
+    np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(INBOUND, msg_subject);
+    np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
+    np_msgproperty_t* msg_prop = _np_msgproperty_get(context, INBOUND, msg_subject);
 
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
+
 #ifdef DEBUG
         char reply_to_dhkey_as_str[65];
         _np_dhkey_str(&reply_to_key, reply_to_dhkey_as_str);
 #endif
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
     log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
 
@@ -637,8 +660,8 @@ bool _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
     np_unref_obj(np_aaatoken_t, authentication_token, "np_token_factory_read_from_tree");
 
     // __np_return__:
-    _np_msgproperty_threshold_decrease(args.properties);
-    return;*/
+    return;
+    */
 }
 
 bool _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event)
@@ -741,7 +764,6 @@ bool _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
 
     np_message_t *msg_in = args.msg;
 
-    _np_msgproperty_threshold_increase(args.properties);
 
     CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
     np_dhkey_t reply_to_key = msg_from.value.dhkey;
@@ -810,7 +832,6 @@ bool _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
     np_unref_obj(np_aaatoken_t, authorization_token, "np_token_factory_read_from_tree");
 
     // __np_return__:
-    _np_msgproperty_threshold_decrease(args.properties);
     return;*/
 }
 
@@ -907,8 +928,6 @@ bool _np_in_account(np_state_t* context, np_util_event_t msg_event)
     np_aaatoken_t* sender_token = NULL;
     np_aaatoken_t* accounting_token = NULL;
 
-    _np_msgproperty_threshold_increase(args.properties);
-
     CHECK_STR_FIELD(args.msg->header, _NP_MSG_HEADER_FROM, msg_from);
 
     sender_token = _np_aaatoken_get_sender_token(context, (char*) _NP_MSG_ACCOUNTING_REQUEST,  &msg_from.value.dhkey);
@@ -937,7 +956,6 @@ bool _np_in_account(np_state_t* context, np_util_event_t msg_event)
     np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
 
     // __np_return__:
-    _np_msgproperty_threshold_decrease(args.properties);
     return;*/
 }
 

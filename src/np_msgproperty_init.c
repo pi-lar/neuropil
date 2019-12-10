@@ -23,15 +23,16 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_msgproperty_ptr, ret, __default_properties);
 
     __default_properties->msg_subject = strdup(_DEFAULT);
+    __default_properties->msg_ttl = 20.0;
     __default_properties->rep_subject = NULL;
     __default_properties->mode_type = INBOUND | OUTBOUND;
     __default_properties->mep_type = DEFAULT_TYPE;
-    __default_properties->priority = 0;
     __default_properties->ack_mode = ACK_NONE;
+    __default_properties->priority = 0;
     __default_properties->retry = 0;
     sll_append(np_evt_callback_t, __default_properties->clb_outbound , _np_out_default);    
-    __default_properties->msg_ttl = 20.0;
-    __default_properties->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __default_properties->token_max_ttl = 30;
     __default_properties->token_min_ttl = 20;
 
@@ -48,7 +49,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __forward_properties->retry = 0;
     sll_append(np_evt_callback_t, __forward_properties->clb_outbound , _np_out_forward);    
     __forward_properties->msg_ttl = 20.0;
-    __forward_properties->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __forward_properties->token_max_ttl = 30;
     __forward_properties->token_min_ttl = 20;
 
@@ -67,7 +69,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __handshake_properties->clb_inbound , _np_in_handshake );
     sll_append(np_evt_callback_t, __handshake_properties->clb_outbound, _np_out_handshake);
     __handshake_properties->msg_ttl = 20.0;
-    __handshake_properties->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __handshake_properties->token_max_ttl = 30;
     __handshake_properties->token_min_ttl = 20;
 
@@ -87,7 +90,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __ack_properties->clb_inbound, _np_in_ack);
     sll_append(np_evt_callback_t, __ack_properties->clb_outbound, _np_out_ack);
     __ack_properties->msg_ttl = 5.0;
-    __ack_properties->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __ack_properties->token_max_ttl = 30;
     __ack_properties->token_min_ttl = 20;
 
@@ -107,7 +111,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __join_req->clb_inbound,  _np_in_join );
     sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out_join);
     __join_req->msg_ttl = 30.0;
-    __join_req->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __join_req->token_max_ttl = 30;
     __join_req->token_min_ttl = 20;
 
@@ -125,7 +130,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __leave_properties->ack_mode = ACK_NONE;
     __leave_properties->retry = 5;
     __leave_properties->msg_ttl = 3.0;
-    __leave_properties->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __leave_properties->token_max_ttl = 30;
     __leave_properties->token_min_ttl = 20;
     sll_append(np_evt_callback_t, __leave_properties->clb_inbound,  _np_in_leave );
@@ -144,7 +150,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __ping->ack_mode = ACK_DESTINATION;
     __ping->retry = 0;
     __ping->msg_ttl = 5.0;
-    __ping->max_threshold = 1;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __ping->token_max_ttl = 30;
     __ping->token_min_ttl = 20;
     sll_append(np_evt_callback_t, __ping->clb_inbound , _np_in_ping);
@@ -162,7 +169,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __piggy->ack_mode = ACK_NONE;
     __piggy->retry = 0;
     __piggy->msg_ttl = 20.0;
-    __piggy->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __piggy->token_max_ttl = 30;
     __piggy->token_min_ttl = 20;
     sll_append(np_evt_callback_t, __piggy->clb_inbound, _np_in_piggy);
@@ -183,7 +191,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __update->clb_inbound, _np_in_update);
     sll_append(np_evt_callback_t, __update->clb_outbound, _np_out_update);
     __update->msg_ttl = 20.0;
-    __update->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __update->token_max_ttl = 30;
     __update->token_min_ttl = 20;
 
@@ -202,7 +211,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __discover_receiver->clb_inbound, _np_in_discover_receiver);
     sll_append(np_evt_callback_t, __discover_receiver->clb_outbound, _np_out_discovery_messages);
     __discover_receiver->msg_ttl = 20.0;
-    __discover_receiver->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __discover_receiver->token_max_ttl = 30;
     __discover_receiver->token_min_ttl = 20;
 
@@ -221,7 +231,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __discover_sender->clb_inbound, _np_in_discover_sender);
     sll_append(np_evt_callback_t, __discover_sender->clb_outbound, _np_out_discovery_messages);
     __discover_sender->msg_ttl = 20.0;
-    __discover_sender->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __discover_sender->token_max_ttl = 30;
     __discover_sender->token_min_ttl = 20;
 
@@ -238,10 +249,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __available_receiver->ack_mode = ACK_NONE;
     __available_receiver->retry = 0;
     sll_append(np_evt_callback_t, __available_receiver->clb_inbound, _np_in_available_receiver);
-    sll_append(np_evt_callback_t, __available_receiver->clb_outbound, _np_out_available_messages);
-    
+    sll_append(np_evt_callback_t, __available_receiver->clb_outbound, _np_out_available_messages);    
     __available_receiver->msg_ttl = 20.0;
-    __available_receiver->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __available_receiver->token_max_ttl = 30;
     __available_receiver->token_min_ttl = 20;
 
@@ -260,7 +271,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __available_sender->clb_inbound, _np_in_available_sender);
     sll_append(np_evt_callback_t, __available_sender->clb_outbound, _np_out_available_messages);
     __available_sender->msg_ttl = 20.0;
-    __available_sender->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __available_sender->token_max_ttl = 30;
     __available_sender->token_min_ttl = 20;
 
@@ -279,7 +291,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __authenticate->clb_inbound, _np_in_authenticate);
     __authenticate->cache_policy = FIFO | OVERFLOW_PURGE;
     __authenticate->msg_ttl = 20.0;
-    __authenticate->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __authenticate->token_max_ttl = 30;
     __authenticate->token_min_ttl = 20;
 
@@ -297,7 +310,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authenticate_reply->retry = 5;
     sll_append(np_evt_callback_t, __authenticate_reply->clb_inbound, _np_in_authenticate_reply);
     __authenticate_reply->msg_ttl = 20.0;
-    __authenticate_reply->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __authenticate_reply->token_max_ttl = 30;
     __authenticate_reply->token_min_ttl = 20;
 
@@ -316,7 +330,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __authorize->clb_inbound, _np_in_authorize);
     __authorize->cache_policy = FIFO | OVERFLOW_PURGE;
     __authorize->msg_ttl = 20.0;
-    __authorize->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __authorize->token_max_ttl = 30;
     __authorize->token_min_ttl = 20;
 
@@ -334,7 +349,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __authorize_reply->retry = 5;
     sll_append(np_evt_callback_t, __authorize_reply->clb_inbound, _np_in_authorize_reply);
     __authorize_reply->msg_ttl = 20.0;
-    __authorize_reply->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __authorize_reply->token_max_ttl = 30;
     __authorize_reply->token_min_ttl = 20;
 
@@ -353,7 +369,8 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     sll_append(np_evt_callback_t, __account->clb_inbound,	_np_in_account);
     __account->cache_policy = FIFO | OVERFLOW_PURGE;
     __account->msg_ttl = 20.0;
-    __account->max_threshold = UINT16_MAX;
+    __default_properties->cache_size = 8;
+    __default_properties->max_threshold = 2;
     __account->token_max_ttl = 30;
     __account->token_min_ttl = 20;
 

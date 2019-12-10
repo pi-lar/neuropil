@@ -108,6 +108,8 @@ void np_sysinfo_enable_client(np_state_t* context)
         .ackmode = NP_MX_ACK_NONE,
         .cache_policy = NP_MX_FIFO_PURGE,
         .max_retry = 0, 
+        .cache_size = 1,
+        .max_parallel = 1,
         .intent_ttl = SYSINFO_MAX_TTL, 
         .intent_update_after = SYSINFO_MIN_TTL,
         .message_ttl = 20.0,
@@ -134,7 +136,8 @@ void np_sysinfo_enable_server(np_state_t* context)
         .reply_subject = {0},
         .ackmode = NP_MX_ACK_NONE,
         .cache_policy = NP_MX_FIFO_PURGE,
-        .max_parallel = 32 * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC),
+        .cache_size = 32 * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC),
+        .max_parallel = 8,
         .max_retry = 0, 
         .intent_ttl = SYSINFO_MAX_TTL, 
         .intent_update_after = SYSINFO_MIN_TTL,
@@ -142,14 +145,15 @@ void np_sysinfo_enable_server(np_state_t* context)
     };
 
     np_set_mx_properties(context, _NP_SYSINFO_DATA, sysinfo_properties);
-
     np_add_receive_cb(context, _NP_SYSINFO_DATA, _np_in_sysinfo);
 
-    if(np_module_initiated(http)) {
+    if(np_module_initiated(http)) 
+    {
+        _np_add_http_callback(context, "/sysinfo", htp_method_GET, context, _np_http_handle_sysinfo_all);
+
         char my_sysinfo[9+64+1];
         snprintf(my_sysinfo, 9+64+1, "/sysinfo/%s", _np_key_as_str(context->my_node_key));
-        _np_add_http_callback(context, "/sysinfo", htp_method_GET, context, _np_http_handle_sysinfo_all);
-        _np_add_http_callback(context, my_sysinfo, htp_method_GET, context, _np_http_handle_sysinfo_all);
+        _np_add_http_callback(context, my_sysinfo, htp_method_GET, context, _np_http_handle_sysinfo_hash);
     }
 }
 
@@ -237,7 +241,6 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context)
 {
     log_trace_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_my_info() {");
     np_tree_t* ret = np_tree_create();	
-    ret->attr.disable_special_str = true;
 
     np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_TIMESTAMP, np_treeval_new_d(np_time_now()));
     np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE_STARTUP_AT, np_treeval_new_d(np_module(sysinfo)->startup_at));
@@ -346,7 +349,8 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context)
     return ret;
 }
 
-JSON_Value* _np_generate_error_json(const char* error,const char* details) {
+JSON_Value* _np_generate_error_json(const char* error,const char* details) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: JSON_Value* _np_generate_error_json(const char* error,const char* details) {");
     JSON_Value* ret = json_value_init_object();
 
@@ -361,7 +365,6 @@ int _np_http_handle_sysinfo_hash(ht_request_t* request, ht_response_t* ret, void
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
 
     char target_hash[65];
-
     int http_status = HTTP_CODE_BAD_REQUEST; // HTTP_CODE_OK
     char* response;
     JSON_Value* json_obj;
@@ -373,11 +376,13 @@ int _np_http_handle_sysinfo_hash(ht_request_t* request, ht_response_t* ret, void
     {
         log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
 
-        char *path = NULL, *to_parse = NULL;
-        path = to_parse = strndup(request->ht_path, 8+64+1);
-        
-        char* tmp_target_hash = strsep(&to_parse, "/"); // /sysinfo
-        tmp_target_hash = strsep(&to_parse, "/");
+        char *to_parse = NULL, *ht_path_dup = NULL;
+        ht_path_dup = to_parse = strndup(request->ht_path, 9+64+1);        
+        char *path            = strsep(&to_parse, "/"); // strip leading "/""
+              path            = strsep(&to_parse, "/"); // sysinfo
+        char *tmp_target_hash = strsep(&to_parse, "/"); // target_hash
+
+        log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "parse path arguments of %s / %s", path, tmp_target_hash);
 
         if (NULL != tmp_target_hash) {
             if (strlen(tmp_target_hash) == 64) {
@@ -388,11 +393,11 @@ int _np_http_handle_sysinfo_hash(ht_request_t* request, ht_response_t* ret, void
                 json_obj = _np_generate_error_json(
                     "provided key invalid.",
                     "length is not 64 characters");
-                free(path);
+                free(ht_path_dup);
                 goto __json_return__;
             }
         }
-        free(path);
+        free(ht_path_dup);
     }
     else 
     {
@@ -439,7 +444,7 @@ __json_return__:
     ret->ht_status = http_status;
     ret->ht_body = response;
 
-    return ret;
+    return http_status;
 }
 
 int _np_http_handle_sysinfo_all(ht_request_t* request, ht_response_t* ret, void* context)
@@ -456,7 +461,7 @@ int _np_http_handle_sysinfo_all(ht_request_t* request, ht_response_t* ret, void*
     /**
      * Default behavior if no argument is given: display own node informations
      */
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "parse arguments of %s", request->ht_path);
+    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "parse path arguments of %s", request->ht_path);
 
     np_tree_t* sysinfo = NULL;
 
@@ -514,5 +519,5 @@ __json_return__:
     ret->ht_status = http_status;
     ret->ht_body = response;
 
-    return ret;
+    return http_status;
 }

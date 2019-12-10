@@ -605,19 +605,24 @@ enum np_return np_run(np_context* ac, double duration) {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
     np_thread_t * thread = _np_threads_get_self(context);
-    if (!__np_is_already_listening(context)) {
+    
+    if (!__np_is_already_listening(context)) 
+    {
         ret = np_listen(ac, _np_network_get_protocol_string(context, PASSIVE | IPv4), "localhost", 31415);
     }
 
-    if(ret == np_ok) {
+    if(ret == np_ok) 
+    {
         TSP_SET(context->status, np_running);
-
-        if (duration <= 0) {        
+    
+        if (duration <= 0) 
+        {
             np_threads_busyness(context, thread, true);
             __np_jobqueue_run_jobs_once(context, thread);
             np_threads_busyness(context, thread, false);
         }
-        else {
+        else 
+        {
             np_jobqueue_run_jobs_for(context, duration);
         }
     }
@@ -662,7 +667,6 @@ void np_destroy(np_context* ac, bool gracefully)
     {
         np_shutdown_add_callback(context, _np_shutdown_notify_others);
     }
-
     _np_shutdown_run_callbacks(context);
 
     np_util_event_t shutdown_event = { .type=(evt_shutdown|evt_internal), .context=ac, .user_data=NULL};
@@ -671,24 +675,26 @@ void np_destroy(np_context* ac, bool gracefully)
         shutdown_event.target_dhkey = context->my_node_key->dhkey;
         _np_keycache_handle_event(context, context->my_node_key->dhkey, shutdown_event, true);
     }
-
     if (context->my_identity != NULL && 
         context->my_identity != context->my_node_key) 
     {
         shutdown_event.target_dhkey=context->my_identity->dhkey;
         _np_keycache_handle_event(context, context->my_identity->dhkey, shutdown_event, true);
-    }    
-    
+    }
     _np_log_fflush(context, true);
-    
-    TSP_SET(context->status, np_shutdown);
 
     // verify all other threads are stopped
-    np_threads_shutdown_workers(context);
+    TSP_SET(context->status, np_stopped);
+
     // destroy modules
     // _np_sysinfo_destroy_cache(context);
     _np_shutdown_destroy(context);    
     _np_bootstrap_destroy(context);
+
+    np_threads_shutdown_workers(context);
+
+    TSP_SET(context->status, np_shutdown);
+
     _np_jobqueue_destroy(context);
     _np_time_destroy(context);
      

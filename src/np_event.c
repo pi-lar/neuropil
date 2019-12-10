@@ -110,14 +110,8 @@ void l_invoke_file (EV_P);
     {                                                                                                                    \
         enum np_status tmp_status;                                                                                       \
         ev_set_invoke_pending_cb (np_module(events)->__loop_##LOOPNAME, l_invoke_##LOOPNAME);                            \
-        while ((tmp_status=np_get_status(context)) != np_shutdown && tmp_status != np_error) {                           \
-            if (tmp_status == np_running) {                                                                              \
-                EV_P = _np_event_get_loop_##LOOPNAME(context);                                                           \
-                ev_run( EV_A_(0) );                                                                                      \
-            } else {                                                                                                     \
-                np_time_sleep(0.0);                                                                                      \
-            }                                                                                                            \
-        }                                                                                                                \
+        EV_P = _np_event_get_loop_##LOOPNAME(context);                                                                   \
+        ev_run( EV_A_(0) );                                                                                              \
     }                                                                                                                    \
     void _np_event_suspend_loop_##LOOPNAME(np_state_t* context)                                                          \
     {                                                                                                                    \

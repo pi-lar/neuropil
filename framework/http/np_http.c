@@ -13,6 +13,7 @@
 
 #include "sys/socket.h"
 
+#include "neuropil.h"
 #include "np_dhkey.h"
 #include "np_event.h"
 #include "np_glia.h"
@@ -41,16 +42,11 @@
 #include "../examples/example_helper.h"
 
 
-// generate new and del method for np_node_t
-// _NP_GENERATE_MEMORY_PROTOTYPES(np_http_t);
-
-// static pthread_mutex_t __http_mutex = PTHREAD_MUTEX_INITIALIZER;
-// static char* HTML_DEFAULT_PAGE    = "<html><head><title>neuropil</title></head><body></body></html>";
-
 static char* HTML_NOT_IMPLEMENTED =
         "<html><head><title>neuropil</title></head><body>not implemented</body></html>";
-#define MODULE_NOT_READY(MODULE) "<html><head><title>neuropil</title></head><body>module "TO_STRING(MODULE)" not ready. Please initiate module first</body></html>"
 
+#define MODULE_NOT_READY(MODULE) "<html><head><title>neuropil</title></head><body>module "TO_STRING(MODULE)" not ready. Please initiate module first</body></html>"
+#define CHECK_PATH(prefix) (strncmp("/"prefix,client->ht_request.ht_path, strlen(prefix)) == 0)
 #define HTTP_CRLF "\r\n"
 
 typedef enum np_http_status_e {
@@ -83,10 +79,9 @@ NP_SLL_GENERATE_PROTOTYPES(np_http_client_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_http_client_ptr);
 #pragma clang diagnostic pop
 
-struct np_http_s {
-    // memory management
-    
-
+np_module_struct(http) 
+{
+    np_context* context;
     // network io handling
     np_network_t* network;
 
@@ -96,11 +91,11 @@ struct np_http_s {
     np_tree_t* user_hooks;	
 };
 
-
 typedef struct http_return_t {
     const char* text;
     int http_code;
 } http_return_t;
+
 http_return_t http_return_codes[] = {
         { "HTTP_NO_RESPONSE", 					  0 },
         { "HTTP_CODE_CONTINUE", 				100 },
@@ -131,29 +126,31 @@ typedef struct _np_http_callback_s {
     void* user_arg;
 } _np_http_callback_t;
 
-
 ht_response_t _np_http_handle_sysinfo(np_state_t* context, np_http_client_t* client);
 
-void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args,
-        _np_http_callback_func_t func) {
+void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args, _np_http_callback_func_t func) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
+    if (np_module_initiated(http)) 
+    {
+        if (NULL == np_module(http)->user_hooks)
+            np_module(http)->user_hooks = np_tree_create();
 
-    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
-    if (NULL == __local_http->user_hooks)
-        __local_http->user_hooks = np_tree_create();
+        char key[32];
+        snprintf(key, 31, "%d:%s", method, path);
+        log_msg(LOG_DEBUG, "register of http callback for key %s", key);
 
-    char key[32];
-    snprintf(key, 31, "%d:%s", method, path);
+        _np_http_callback_t* callback_data = malloc(sizeof(_np_http_callback_t));
+        CHECK_MALLOC(callback_data);
 
-    _np_http_callback_t* callback_data = malloc(sizeof(_np_http_callback_t));
-    CHECK_MALLOC(callback_data);
-
-    callback_data->user_arg = user_args;
-    callback_data->callback = func;
-    np_tree_insert_str( __local_http->user_hooks, key, np_treeval_new_v(callback_data));
+        callback_data->user_arg = user_args;
+        callback_data->callback = func;
+        np_tree_insert_str(np_module(http)->user_hooks, key, np_treeval_new_v(callback_data));
+    }
 }
 
-int _np_http_on_msg_begin(htparser* parser) {
+int _np_http_on_msg_begin(htparser* parser) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {");
     // pthread_mutex_lock(__http_mutex);
     np_http_client_t* client = (np_http_client_t*) parser->userdata;
@@ -162,8 +159,8 @@ int _np_http_on_msg_begin(htparser* parser) {
     return 0;
 }
 
-int _np_http_query_args(htparser * parser, const char * data,
-        size_t in_len) {
+int _np_http_query_args(htparser * parser, const char * data, size_t in_len)
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_query_args(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
     char* key = NULL;
     char* val = NULL;
@@ -196,7 +193,8 @@ int _np_http_query_args(htparser * parser, const char * data,
     return 0;
 }
 
-int _np_http_on_hdrs_begin(htparser* parser) {
+int _np_http_on_hdrs_begin(htparser* parser) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {");
     np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
@@ -207,8 +205,8 @@ int _np_http_on_hdrs_begin(htparser* parser) {
     return 0;
 }
 
-int _np_http_hdr_key(htparser * parser, const char * data,
-        size_t in_len) {
+int _np_http_hdr_key(htparser * parser, const char * data, size_t in_len) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_hdr_key(NP_UNUSED htparser * parser, const char * data,		size_t in_len) {");
     np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
@@ -218,8 +216,8 @@ int _np_http_hdr_key(htparser * parser, const char * data,
     return 0;
 }
 
-int _np_http_hdr_value(htparser * parser, const char * data,
-NP_UNUSED size_t in_len) {
+int _np_http_hdr_value(htparser * parser, const char * data, NP_UNUSED size_t in_len) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_hdr_value(NP_UNUSED htparser * parser, const char * data,NP_UNUSED size_t in_len) {");
     np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
@@ -232,7 +230,8 @@ NP_UNUSED size_t in_len) {
     return 0;
 }
 
-int _np_http_path( htparser * parser, const char * data, size_t in_len) {
+int _np_http_path( htparser * parser, const char * data, size_t in_len) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_path(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
     np_http_client_t* client = (np_http_client_t*) parser->userdata;
     if (NULL != client->ht_request.ht_path)
@@ -243,7 +242,8 @@ int _np_http_path( htparser * parser, const char * data, size_t in_len) {
     return 0;
 }
 
-int _np_http_body(htparser * parser, const char * data, size_t in_len) {
+int _np_http_body(htparser * parser, const char * data, size_t in_len)
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_body(NP_UNUSED htparser * parser, const char * data, size_t in_len) {");
     np_http_client_t* client = (np_http_client_t*) parser->userdata;
 
@@ -254,7 +254,8 @@ int _np_http_body(htparser * parser, const char * data, size_t in_len) {
     return 0;
 }
 
-int _np_http_on_msg_complete(htparser* parser) {
+int _np_http_on_msg_complete(htparser* parser)
+{
 
     np_http_client_t* client = (np_http_client_t*) parser->userdata;
     client->ht_request.ht_method = htparser_get_method(parser);
@@ -265,34 +266,35 @@ int _np_http_on_msg_complete(htparser* parser) {
     return 0;
 }
 
-void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
+void _np_http_dispatch(np_state_t* context, np_http_client_t* client) 
+{
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(...) {");
 
     assert(PROCESSING == client->status);
-    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
-    if (NULL == __local_http->user_hooks)
-        __local_http->user_hooks = np_tree_create();
+    if (NULL == np_module(http)->user_hooks)
+        np_module(http)->user_hooks = np_tree_create();
 
     char key[32];
     snprintf(key, 31, "%d:%s", client->ht_request.ht_method,
             client->ht_request.ht_path);
 
-    np_tree_elem_t* user_callback = np_tree_find_str(__local_http->user_hooks,
-            key);
+    log_msg(LOG_DEBUG, "lookup   of http callback for key %s", key);
 
-    if (NULL != user_callback) {
+    np_tree_elem_t* user_callback = np_tree_find_str(np_module(http)->user_hooks, key);
+    if (NULL != user_callback)
+    {
         _np_http_callback_t* callback_data =
                 (_np_http_callback_t*) user_callback->val.value.v;
         client->ht_response.ht_status = callback_data->callback(
                 &client->ht_request, &client->ht_response,
                 callback_data->user_arg);
+        client->ht_response.ht_header = np_tree_create();
         client->ht_response.cleanup_body = true;
         client->status = RESPONSE;
     } else {
         switch (client->ht_request.ht_method) {
         case (htp_method_GET): {                    
             client->ht_response.ht_header = np_tree_create();
-            #define CHECK_PATH(prefix) strncmp("/"prefix,client->ht_request.ht_path,strlen(prefix)) == 0
             if(CHECK_PATH("metrics"))
             {
                 if(np_module_initiated(statistics))
@@ -337,11 +339,15 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client) {
     }
 }
 
-void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) {
+void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) 
+{   
     np_state_t* context = ev_userdata(loop);
     np_http_client_t* client = (np_http_client_t*) ev->data;
 
-    if (((event_type & EV_WRITE) == EV_WRITE && (event_type &  EV_ERROR) != EV_ERROR) && RESPONSE == client->status) {
+    if ( ( FLAG_CMP(event_type, EV_WRITE) && 
+          !FLAG_CMP(event_type, EV_ERROR)  ) && 
+        RESPONSE == client->status) 
+    {
         log_debug_msg(LOG_HTTP | LOG_DEBUG, "start writing response");
         // create http reply
         char data[2048];
@@ -352,7 +358,6 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
                 snprintf(data, 2048, "%s %d %s" HTTP_CRLF, "HTTP/1.1",
                         http_return_codes[client->ht_response.ht_status].http_code,
                         http_return_codes[client->ht_response.ht_status].text);
-
         // add content length header
         uint32_t s_contentlength = strlen(ht_body);
         char body_length[255];
@@ -375,7 +380,7 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
                     snprintf(NULL, 0, "%s: %s" HTTP_CRLF,  np_treeval_to_str(iter->key, NULL),
                              np_treeval_to_str(iter->val, NULL)) + 1, "%s: %s" HTTP_CRLF,
                      np_treeval_to_str(iter->key, NULL),  np_treeval_to_str(iter->val, NULL));
-            iter = RB_NEXT(np_tree_s, __local_http->ht_response.ht_header,
+            iter = RB_NEXT(np_tree_s, np_module(http)->ht_response.ht_header,
                     iter);
         }
         pos += snprintf(data + pos, snprintf(NULL, 0, "" HTTP_CRLF) + 1,
@@ -448,8 +453,8 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
     }
 }
 
-void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
-        int event_type) {
+void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) 
+{
     np_state_t* context = ev_userdata(loop);
     np_http_client_t* client = (np_http_client_t*) ev->data;
 
@@ -476,8 +481,7 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
         }
 
         log_debug_msg(LOG_HTTP | LOG_DEBUG, "parsing http request");
-        np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
-        htparser_run(client->parser, __local_http->hooks, data,
+        htparser_run(client->parser, np_module(http)->hooks, data,
                 in_msg_len);
         if (htparser_get_error(client->parser) != htparse_error_none) {
             log_msg(LOG_ERROR, "error parsing http request");
@@ -491,13 +495,13 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev,
 
     } else {
         // log_debug_msg(LOG_DEBUG, "local http status now %d, but should be %d or %d",
-        // __local_http->status, CONNECTED, REQUEST);
+        // np_module(http)->status, CONNECTED, REQUEST);
     }
 }
 
-void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int event_type) {
+void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int event_type) 
+{
     np_state_t* context = ev_userdata(loop);
-    np_http_t* __local_http = ((example_user_context*)np_get_userdata(context))->local_http;
     struct sockaddr_storage from;
     socklen_t fromlen = sizeof(from);
 
@@ -514,20 +518,20 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
     new_client->context = context;
     
     /*
-    if (UNUSED < __local_http->status) {	// check if connection expired
+    if (UNUSED < np_module(http)->status) {	// check if connection expired
         if (new_client->last_update < (ev_time() - __np_http_timeout)) {
             close(new_client);
             // _np_suspend_event_loop();
             ev_io_stop(EV_A_&new_client->client_watcher_in);
             ev_io_stop(EV_A_&new_client->client_watcher_out);
             // _np_resume_event_loop();
-            __local_http->status = UNUSED;
+            np_module(http)->status = UNUSED;
         }
     }
      */
 
     if (UNUSED == new_client->status) {
-        new_client->client_fd = accept(__local_http->network->socket,
+        new_client->client_fd = accept(np_module(http)->network->socket,
                 (struct sockaddr*) &from, &fromlen);
 
         if (new_client->client_fd < 0) {
@@ -536,7 +540,7 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
             log_msg(LOG_HTTP | LOG_WARN, "Could not accept http connection. %s", strerror(errno));
         }
         else {
-            sll_append(np_http_client_ptr, __local_http->clients, new_client);
+            sll_append(np_http_client_ptr, np_module(http)->clients, new_client);
 
             htparser_init(new_client->parser, htp_type_request);
             htparser_set_userdata(new_client->parser, new_client);
@@ -586,118 +590,115 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
     }
 } 
 
-bool _np_http_init(np_state_t* context, char* domain, char* port) {
- 
+bool _np_http_init(np_state_t* context, char* domain, char* port)
+{ 
     if (domain == NULL) {
         domain = strdup("localhost");
     }
     
     if(port == NULL) port = TO_STRING(HTTP_PORT);
 
-    np_http_t* __local_http = (np_http_t*) malloc(sizeof(np_http_t));
-    CHECK_MALLOC(__local_http);
-    
-    sll_init(np_http_client_ptr, __local_http->clients);
+    if (!np_module_initiated(http)) 
+    {
+        np_module_malloc(http);
 
-    np_new_obj(np_network_t, __local_http->network);
-    _np_network_init(__local_http->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
-    np_ref_obj(np_network_t, __local_http->network, ref_obj_creation);
+        CHECK_MALLOC(_module);
+        
+        sll_init(np_http_client_ptr, _module->clients);
 
-    // _np_network_enable(__local_http->network);
+        np_new_obj(np_network_t, _module->network);
+        _np_network_init(_module->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
+        np_ref_obj(np_network_t, _module->network, ref_obj_creation);
 
-    if (NULL == __local_http->network || false == __local_http->network->initialized )
-        return false;
+        // _np_network_enable(_module->network);
 
-    __local_http->hooks = (htparse_hooks*) malloc(sizeof(htparse_hooks));
-    CHECK_MALLOC(__local_http->hooks);
+        if (NULL == _module->network || false == _module->network->initialized )
+            return false;
 
-    if (NULL == __local_http->hooks)
-        return false;
+        _module->hooks = (htparse_hooks*) malloc(sizeof(htparse_hooks));
+        CHECK_MALLOC(_module->hooks);
 
-    // define callbacks
-    __local_http->hooks->on_msg_begin = _np_http_on_msg_begin;
-    __local_http->hooks->method = NULL;
-    __local_http->hooks->scheme = NULL; /* called if scheme is found */
-    __local_http->hooks->hostname = NULL;
-    __local_http->hooks->host = NULL; /* called if a host was in the request scheme */
-    __local_http->hooks->port = NULL; /* called if a port was in the request scheme */
-    __local_http->hooks->path = _np_http_path; /* only the path of the uri */
-    __local_http->hooks->args = _np_http_query_args; /* only the arguments of the uri */
-    __local_http->hooks->uri = NULL; /* the entire uri including path/args */
-    __local_http->hooks->on_hdrs_begin = _np_http_on_hdrs_begin;
-    __local_http->hooks->hdr_key = _np_http_hdr_key;
-    __local_http->hooks->hdr_val = _np_http_hdr_value;
-    __local_http->hooks->on_hdrs_complete = NULL;
-    __local_http->hooks->on_new_chunk = NULL; /* called after parsed chunk octet */
-    __local_http->hooks->on_chunk_complete = NULL; /* called after single parsed chunk */
-    __local_http->hooks->on_chunks_complete = NULL; /* called after all parsed chunks processed */
-    __local_http->hooks->body = _np_http_body;
-    __local_http->hooks->on_msg_complete = _np_http_on_msg_complete;
-    
-    _np_event_suspend_loop_http(context);
-    EV_P = _np_event_get_loop_http(context);
-    ev_io_stop(EV_A_&__local_http->network->watcher);
-    ev_io_init(&__local_http->network->watcher, _np_http_accept, __local_http->network->socket, EV_READ);
-    __local_http->network->watcher.data = __local_http;
-    ev_io_start(EV_A_&__local_http->network->watcher);
-    _np_event_resume_loop_http(context);
-    __local_http->user_hooks = NULL;
-    
-    ((example_user_context*)np_get_userdata(context))->local_http = __local_http;
+        if (NULL == _module->hooks)
+            return false;
+
+        // define callbacks
+        _module->hooks->on_msg_begin = _np_http_on_msg_begin;
+        _module->hooks->method = NULL;
+        _module->hooks->scheme = NULL; /* called if scheme is found */
+        _module->hooks->hostname = NULL;
+        _module->hooks->host = NULL; /* called if a host was in the request scheme */
+        _module->hooks->port = NULL; /* called if a port was in the request scheme */
+        _module->hooks->path = _np_http_path; /* only the path of the uri */
+        _module->hooks->args = _np_http_query_args; /* only the arguments of the uri */
+        _module->hooks->uri = NULL; /* the entire uri including path/args */
+        _module->hooks->on_hdrs_begin = _np_http_on_hdrs_begin;
+        _module->hooks->hdr_key = _np_http_hdr_key;
+        _module->hooks->hdr_val = _np_http_hdr_value;
+        _module->hooks->on_hdrs_complete = NULL;
+        _module->hooks->on_new_chunk = NULL; /* called after parsed chunk octet */
+        _module->hooks->on_chunk_complete = NULL; /* called after single parsed chunk */
+        _module->hooks->on_chunks_complete = NULL; /* called after all parsed chunks processed */
+        _module->hooks->body = _np_http_body;
+        _module->hooks->on_msg_complete = _np_http_on_msg_complete;
+        
+        _np_event_suspend_loop_http(context);
+        EV_P = _np_event_get_loop_http(context);
+        ev_io_stop(EV_A_&_module->network->watcher);
+        ev_io_init(&_module->network->watcher, _np_http_accept, _module->network->socket, EV_READ);
+        _module->network->watcher.data = _module;
+        ev_io_start(EV_A_&_module->network->watcher);
+        _np_event_resume_loop_http(context);
+        _module->user_hooks = NULL;
+    }
     return true;
 }
 
-void _np_http_destroy(np_state_t* context) {	
-    example_user_context* ud = (example_user_context*)np_get_userdata(context);
-    if(ud){
-        np_http_t* __local_http = ud->local_http;
+void _np_http_destroy(np_state_t* context) 
+{	
+    if (np_module_initiated(http)) 
+    {
+        EV_P = _np_event_get_loop_http(context);
+        _np_event_suspend_loop_http(context);
+        ev_io_stop(EV_A_&np_module(http)->network->watcher);
 
-        if(__local_http != NULL) {
-            ((example_user_context*) np_get_userdata(context))->local_http = NULL;
+        sll_iterator(np_http_client_ptr) iter = sll_first(np_module(http)->clients);
+        while(iter != NULL)
+        {
+            np_http_client_t* client = iter->val;
+            client->status = SHUTDOWN;
 
-            EV_P = _np_event_get_loop_http(context);
-            _np_event_suspend_loop_http(context);
-            ev_io_stop(EV_A_&__local_http->network->watcher);
+            ev_io_stop(EV_A_&client->client_watcher_in);
+            ev_io_stop(EV_A_&client->client_watcher_out);
+            close(iter->val->client_fd);
 
-            sll_iterator(np_http_client_ptr) iter = sll_first(__local_http->clients);
-            while(iter != NULL){
-                np_http_client_t* client = iter->val;
-                client->status = SHUTDOWN;
+            if (client->ht_request.ht_body)
+                free(client->ht_request.ht_body);
+            if (client->ht_request.ht_path)
+                free(client->ht_request.ht_path);
+            if (client->ht_request.current_key)
+                free(client->ht_request.current_key);
+            if (client->ht_request.ht_header)
+                np_tree_free( client->ht_request.ht_header);
+            if (client->ht_request.ht_query_args)
+                np_tree_free( client->ht_request.ht_query_args);
 
-                ev_io_stop(EV_A_&client->client_watcher_in);
-                ev_io_stop(EV_A_&client->client_watcher_out);
-                close(iter->val->client_fd);
-
-                if (client->ht_request.ht_body)
-                    free(client->ht_request.ht_body);
-                if (client->ht_request.ht_path)
-                    free(client->ht_request.ht_path);
-                if (client->ht_request.current_key)
-                    free(client->ht_request.current_key);
-                if (client->ht_request.ht_header)
-                    np_tree_free( client->ht_request.ht_header);
-                if (client->ht_request.ht_query_args)
-                    np_tree_free( client->ht_request.ht_query_args);
-
-                free(client->parser);
-                free(client);
-                sll_next(iter);
-            }
-            sll_free(np_http_client_ptr, __local_http->clients);
-
-            _np_event_resume_loop_http(context);
-
-            if (__local_http->user_hooks)
-                np_tree_free( __local_http->user_hooks);
-
-            free(__local_http->hooks);
-
-            __local_http->network->watcher.data = NULL;
-            // _np_network_disable(__local_http->network);
-            np_unref_obj(np_network_t, __local_http->network, ref_obj_creation);
-
-            free(__local_http);
-            __local_http = NULL;
+            free(client->parser);
+            free(client);
+            sll_next(iter);
         }
+        sll_free(np_http_client_ptr, np_module(http)->clients);
+
+        _np_event_resume_loop_http(context);
+
+        if (np_module(http)->user_hooks)
+            np_tree_free( np_module(http)->user_hooks);
+
+        free(np_module(http)->hooks);
+
+        np_module(http)->network->watcher.data = NULL;
+        // _np_network_disable(np_module(http)->network);
+        np_unref_obj(np_network_t, np_module(http)->network, ref_obj_creation);
+
+        np_module_free(http);
     }
 }
