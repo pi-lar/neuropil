@@ -30,3 +30,9 @@ bindings/luajit/neuropil_ffi.lua
 report.xml
 tmp/*
 smoke_test/*
+bindings/python_cffi/_neuropil.abi3.so
+bindings/python_cffi/neuropil.egg-info/dependency_links.txt
+bindings/python_cffi/neuropil.egg-info/PKG-INFO
+bindings/python_cffi/neuropil.egg-info/requires.txt
+bindings/python_cffi/neuropil.egg-info/SOURCES.txt
+bindings/python_cffi/neuropil.egg-info/top_level.txt

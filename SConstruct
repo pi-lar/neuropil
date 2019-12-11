@@ -11,6 +11,7 @@ import glob
 import io
 import os
 import SCons.Util
+import build_info
 
 def exec_call(target):        
     ret = subprocess.check_call(target)
@@ -314,7 +315,7 @@ if build_bindings_lua:
 
 if build_bindings_python:
   bindings_py_env = default_env.Clone()    
-  bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build.sh']))
+  bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build.sh', build_info.get_semver_str()]))
   Depends(bindings_python_build, np_dylib)
 
 
@@ -406,4 +407,6 @@ print ("strict                   =  %r" % strict)
 print ("build_program            =  %r" % build_program)
 print ("build_x64                =  %r" % build_x64)
 print ("enable_test_coverage     =  %r" % build_tests_enable_test_coverage)
-
+print ("build_bindings           =  %r" % build_bindings)
+print ("build_bindings_lua       =  %r" % build_bindings_lua)
+print ("build_bindings_python    =  %r" % build_bindings_python)

@@ -40,6 +40,11 @@ ensure_criterion() {
   )
 }
 
+get_local_target(){
+  # TOOD: select local system
+  echo "linux"
+}
+
 task_prepare_ci(){
   eval $(ssh-agent -s)
 
@@ -56,14 +61,26 @@ task_build() {
   ensure_venv
   ensure_submodules
 
-  scons release=1 target="$1"
+  target=${1:-"defaultvalue"}
+  if [ "$target" == "defaultvalue" ]; then
+    target=$(get_local_target)
+  else
+    shift;
+  fi
+  
+  type=${1:-"defaultvalue"}
+  if [ "$type" == "defaultvalue" ]; then
+    type="release=1"
+  else
+    type="debug=1"
+    shift;
+  fi
+  
+  scons "$type" "target=$target" "$@"
 }
 
-task_build_debug() {
-  ensure_venv
-  ensure_submodules
-
-  scons debug=1 "$@"
+task_build_local() {
+  task_build $(get_local_target) "$@"
 }
 
 task_clean() {
@@ -76,7 +93,7 @@ task_clean() {
 task_doc() {
   ensure_venv
 
-  scons doc=1 target=doc
+  task_build doc debug doc=1
 }
 
 task_package() {
@@ -109,59 +126,68 @@ task_deploy() {
   log "Deployment ready for salt interaction"
 }
 
+task_install_python() {
+  ensure_venv
+  
+  task_build_local release python_binding=1
+}
+
 task_test() {
   ensure_venv
   ensure_submodules
   ensure_criterion  
 
-  scons debug=1 test=1 target=test
+  task_build "test" debug test=1
   export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
   ./build/test/bin/neuropil_test_suite -j1 --xml=report.xml "$@"
 }
 
 task_smoke() {
+  ensure_venv
+  task_install_python
+
   rm -rf smoke_test
   mkdir -p smoke_test/logs
+  pwd=$(pwd)
   (
-  cd smoke_test
-
-  tar xf ../build/package/linux*.tar.gz
-  cd neuropil*
-  export LD_LIBRARY_PATH=./lib
-
-  ./bin/neuropil_node -d 3 -l ../logs -b 10000 -s 2 -w localhost -u localhost -e 10001 -y 0 -o 2 -p udp4 & 
-  ./bin/neuropil_node -d 3 -l ../logs -b 10010 -s 2 -w localhost -u localhost -e 10011 -y 0 -o 3 -p udp4  -j "*:udp4:localhost:10000" & 
-  sleep 1
+    cd smoke_test
+    loc="$(get_local_target)"    
+    export "LD_LIBRARY_PATH=$pwd/build/$loc/lib"
+    ./../venv/bin/python3 ../test/smoke/smoke_test.py
   )
 }
 
 task_test_deployment() {
-  #task_test
+  task_test
   task_build linux
-  task_build freebsd
+  #task_build freebsd
   task_doc
   task_package
-  #task_smoke
-  task_deploy test
+  task_install_python
+  task_smoke
+  #task_deploy test
 }
 usage() {
-  echo "$0  build | build_debug | test | clean | package | release | deploy | smoke | doc | prepare_ci | deploy"
+  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci | deploy"
   exit 1
 }
 
 cmd="${1:-}"
 shift || true
 case "$cmd" in
-  build) task_build "$1";;
-  test) task_test "$@";;
-  build_debug) task_build_debug "$@";;
-  package) task_package "$@";;  
-  release) task_release ;;
-  deploy) task_deploy "$1";;
-  smoke) task_smoke ;;
-  doc) task_doc ;;
-  prepare_ci) task_prepare_ci ;;
   clean) task_clean ;;
-  #test_deployment) task_test_deployment ;;
+  lbuild) task_build_local "$@";;
+  build) task_build "$@";;
+  doc) task_doc ;;
+  test) task_test "$@";;
+  package) task_package "$@";;  
+  install_python) task_install_python ;;
+  smoke) task_smoke ;;
+  release) task_release ;;
+
+  prepare_ci) task_prepare_ci ;;
+  deploy) task_deploy "$1";;
+
+  test_deployment) task_test_deployment ;;
   *) usage ;;
 esac

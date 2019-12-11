@@ -16,7 +16,7 @@ try:
 except:
     from urllib import quote_plus
 
-rx = re.compile("#define NEUROPIL_RELEASE	[\"'](.*)[\"']")
+rx = re.compile(r'#define NEUROPIL_RELEASE	"(.*(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+).*)"')
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -36,7 +36,23 @@ def sign_folder(sign_file,folder,pw):
             if not file.endswith(".base64"):
                 sign_file("%s/%s%s"%(dir_path,folder,file ), sign_file, pw)
 
-
+def get_semver():
+    version = "could_not_detect_version"
+    with open(os.path.join(dir_path,"include","neuropil.h"),'rb') as f:
+        for line in f:
+            ver = rx.search(line.decode('UTF-8'))
+            if(ver):
+                version = {
+                    "major": ver.group("major"),
+                    "minor": ver.group("minor"),
+                    "patch": ver.group("patch"),
+                }
+                break
+    return version
+def get_semver_str():
+    semver = get_semver()
+    return f"{semver['major']}.{semver['minor']}.{semver['patch']}"
+    
 def get_version():
     version = "could_not_detect_version"
     with open(os.path.join(dir_path,"include","neuropil.h"),'rb') as f:
