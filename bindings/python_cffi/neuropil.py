@@ -65,7 +65,7 @@ class np_message(object):
 
 class NeuropilCluster(object):    
     
-    def __init__(self, count, port_range = 3000, host = b'localhost', proto= b'udp4', auto_run=True, **settings):   
+    def __init__(self, count, port_range = 3000, host = b'localhost', proto= b'udp4', auto_run=True, log_file_prefix="", **settings):   
         self.nodes = []
 
         if count <= 0:
@@ -77,7 +77,9 @@ class NeuropilCluster(object):
             proto = [proto]*count
 
         for c in range(0,count):
-            node = NeuropilNode(port=port_range[c],host=host,proto=proto[c],auto_run=auto_run,**settings)
+            port=port_range[c]
+            log_file = f"{log_file_prefix}{host}_{port}.log"
+            node = NeuropilNode(port=port,host=host,proto=proto[c],auto_run=auto_run,log_file=log_file,**settings)
             self.nodes.append(node)        
 
     def __getattr__ (self, name):
