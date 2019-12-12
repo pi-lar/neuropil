@@ -63,8 +63,7 @@ qa:smoke_test:
 
 qa:approval:
   stage: qa
-  script: 
-      - true
+  script: "true"
   when: manual
 
 release:
