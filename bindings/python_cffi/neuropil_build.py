@@ -2,10 +2,14 @@
 import os, sys
 from cffi import FFI
 
-ffibuilder = FFI()
+def get_local_target():
+	return "linux"
 
+
+ffibuilder = FFI()
 PATH = os.path.dirname(__file__)
-#np_lib_path = os.path.join(PATH, "../../build/lib")
+
+np_lib_path = os.path.join(PATH, f"../../build/{get_local_target()}/lib")
 np_include_path = os.path.join(PATH, "../../include")
 
 # This describes the extension module "_neuropil" to produce.
@@ -17,7 +21,7 @@ ffibuilder.set_source(
 
     libraries=['neuropil', 'sodium'],   # library name, for the linker
     # extra_objects=[np_lib_path],
-    #library_dirs=[np_lib_path],
+    library_dirs=[np_lib_path],
     include_dirs=[np_include_path]
 	)
 	
