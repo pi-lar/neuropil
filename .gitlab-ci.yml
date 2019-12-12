@@ -64,7 +64,7 @@ qa:smoke_test:
 qa:approval:
   stage: qa
   script: 
-      - ./do deploy production
+      - true
   when: manual
 
 release:
@@ -73,6 +73,7 @@ release:
     - ./do prepare_ci
   script: 
     - ./do release
+    - ./do deploy production
     # auto saltstack deploy
   dependencies:
     - package
