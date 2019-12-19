@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <float.h>
 #include <math.h>
+#include <inttypes.h>
 
 #include "np_threads.h"
 
@@ -308,6 +309,7 @@ int _np_threads_mutex_lock(NP_UNUSED  np_state_t* context, np_mutex_t* mutex, co
 
     if (self_thread != NULL)
     {
+        assert(self_thread->want_lock != NULL);
         asprintf(&tmp_mutex_id, "%s@%s", mutex->desc, where);
         //_LOCK_ACCESS(&(self_thread->locklists_lock)) cannot be used due to recusion
         pthread_mutex_lock(&self_thread->locklists_lock.lock);
@@ -721,7 +723,7 @@ void* __np_thread_status_wrapper(void* self)
         tmp_status = np_get_status(context);
     }
 
-    log_error(LOG_ERROR, "thread %p type %d stopping ...", thread->thread_id, thread->thread_type);
+    log_error("thread %p type %d stopping ...", thread->thread_id, thread->thread_type);
     pthread_exit(NULL);
 
     return NULL;
@@ -806,23 +808,30 @@ void np_threads_shutdown_workers(np_state_t* context)
     {   // wake me up ...
         _np_jobqueue_check(context);
 
-        log_debug_msg(LOG_DEBUG, "thread %p type %d stopping ...", iter_threads->val->id, iter_threads->val->thread_type);
-        int res = pthread_cancel(iter_threads->val->thread_id);
-        if (res != 0)
-            log_debug_msg(LOG_DEBUG, "thread %p type %d not cancelled", iter_threads->val->id, iter_threads->val->thread_type);
-        np_time_sleep(0.0);
+        if(iter_threads->val->thread_type != np_thread_type_main){
+            log_debug_msg(LOG_DEBUG, "thread %p type %d stopping ...", iter_threads->val->id, iter_threads->val->thread_type);
+            int res = pthread_cancel(iter_threads->val->thread_id);
+            if (res != 0)
+                log_debug_msg(LOG_DEBUG, "thread %p type %d not cancelled", iter_threads->val->id, iter_threads->val->thread_type);
+            np_time_sleep(0.0);
+        }
         sll_next(iter_threads);
     }
-
     iter_threads = sll_first(np_module(threads)->threads);
+        
     while (iter_threads != NULL)
-    {   // ... before you go !
+    {   // ... before you go !        
         np_thread_t* thread = iter_threads->val;
-        // only the main thread cannot be shut down (np_threads_shutdown_workers needs to be invoked from here)
-        pthread_join(thread->thread_id, NULL);
-        log_debug_msg(LOG_DEBUG, "thread %p type %d stopped", thread->id, thread->thread_type);
+        if(thread->thread_type != np_thread_type_main){
+            
+            // only the main thread cannot be shut down (np_threads_shutdown_workers needs to be invoked from here)
+            int join_res = pthread_join(thread->thread_id, NULL);
+
+            log_debug_msg(LOG_DEBUG, "thread %p type %d stopped", thread->id, thread->thread_type);
+        }
         sll_next(iter_threads);
-    }        
+    }
+    
 }
 
 void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
@@ -842,7 +851,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         return;
     }
 
-    if (pthread_attr_setdetachstate(&np_module(threads)->__attributes, PTHREAD_CREATE_DETACHED) != 0)
+    if (pthread_attr_setdetachstate(&np_module(threads)->__attributes, PTHREAD_CREATE_JOINABLE) != 0)
     {
         log_msg(LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror(errno));
         return;

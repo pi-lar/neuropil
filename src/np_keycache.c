@@ -78,7 +78,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
 {
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_or_create(...){" );
 
-    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create start");
+    // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create start");
     np_key_t* key = NULL;
     np_key_t search_key = { .dhkey = search_dhkey };
 
@@ -95,7 +95,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
         }
         key->last_update = np_time_now();
     }
-    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create end");
+    // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create end");
     return (key);
 }
 
@@ -220,17 +220,17 @@ bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t arg
             if ( (_np_dhkey_equal(&iter->dhkey, &current_iterator) || true == process_state_check) && 
                  i < _NP_KEYCACHE_ITERATION_STEPS)
             {
-                log_msg(LOG_DEBUG, "iteration on key %s", _np_key_as_str(iter));
+                log_debug(LOG_KEYCACHE, "iteration on key %s", _np_key_as_str(iter));
                 process_state_check = true;
                 // log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
                 np_util_statemachine_invoke_auto_transitions(&iter->sm);
-                log_debug_msg(LOG_DEBUG, "sm %p %d %s", iter, iter->type, iter->sm._state_table[iter->sm._current_state]->_state_name);
+                log_debug(LOG_KEYCACHE, "sm %p %d %s", iter, iter->type, iter->sm._state_table[iter->sm._current_state]->_state_name);
                 i++;
             }
             // iteration steps interval reached, store dhkey for next iteration
             if (i >= _NP_KEYCACHE_ITERATION_STEPS) 
             {
-                log_msg(LOG_DEBUG, "stopping iteration at key %s", _np_key_as_str(iter));
+                log_debug(LOG_KEYCACHE, "stopping iteration at key %s", _np_key_as_str(iter));
                 current_iterator = iter->dhkey;
                 break;
             }

@@ -149,7 +149,7 @@ void _np_message_calculate_chunking(np_message_t* msg)
     uint32_t chunks =
             ((uint32_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
 
-    log_debug_msg(LOG_DEBUG | LOG_SERIALIZATION, "Message has payload of %"PRIu32"(%"PRIu32"/%"PRIu32") and %"PRIu32"(%"PRIu32"/%"PRIu32") header data, so we send %"PRIu32" chunks for %"PRIu32" bytes"
+    log_debug(LOG_SERIALIZATION, "Message has payload of %"PRIu32"(%"PRIu32"/%"PRIu32") and %"PRIu32"(%"PRIu32"/%"PRIu32") header data, so we send %"PRIu32" chunks for %"PRIu32" bytes"
         , payload_size, body_size, footer_size, 
         fixed_size, header_size, instructions_size, 
         chunks, 
@@ -199,7 +199,7 @@ bool _np_message_is_expired(const np_message_t* const self)
     double remaining_ttl = _np_message_get_expiery(self) - now;
     ret = remaining_ttl <= 0;
 
-    log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f", self->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
+    log_debug(LOG_MESSAGE, "(msg: %s) now: %f, msg_ttl: %f, msg_ts: %f, remaining_ttl: %f", self->uuid, now, msg_ttl.value.d, tstamp, remaining_ttl);
 
 #ifdef DEBUG
     __np_cleanup__: {}

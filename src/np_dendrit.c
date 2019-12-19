@@ -158,7 +158,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
         } 
         else 
         {
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "node %s is not qualified for a further piggy actions. (%s)",
+            log_debug(LOG_ROUTING, "node %s is not qualified for a further piggy actions. (%s)",
                                                    _np_key_as_str(piggy_key), 
                                                    _np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
@@ -237,7 +237,7 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
  **/
 bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: bool _np_in_leave(...){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_leave(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
         
@@ -265,7 +265,7 @@ bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
  **/
 bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: bool _np_in_join(...){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_join(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
@@ -282,14 +282,14 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     if (node_token_ele == NULL) 
     {
         // silently exit join protocol for invalid msg syntax
-        log_debug_msg(LOG_TRACE, "JOIN request: bad msg syntax");
+        log_trace_msg(LOG_TRACE, "JOIN request: bad msg syntax");
         goto __np_cleanup__;
     }
 
     join_node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
     if (join_node_token == NULL ) {
         // silently exit join protocol for unknown node tokens
-        log_debug_msg(LOG_TRACE, "JOIN request: missing node token");
+        log_trace_msg(LOG_TRACE, "JOIN request: missing node token");
         goto __np_cleanup__;
     }
 
@@ -299,7 +299,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         goto __np_cleanup__;
     }
 
-    log_debug_msg(LOG_AAATOKEN | LOG_ROUTING , "node token is valid");
+    log_debug(LOG_AAATOKEN | LOG_ROUTING , "node token is valid");
     // build a hash to find a place in the dhkey table, not for signing !
     join_node_dhkey = np_aaatoken_get_fingerprint(join_node_token, false);
 
@@ -312,10 +312,10 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
             false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) 
         {
             // silently exit join protocol for invalid identity token
-            log_debug_msg(LOG_TRACE, "JOIN request: invalid identity token");
+            log_debug(LOG_TRACE, "JOIN request: invalid identity token");
             goto __np_cleanup__;
         }
-        log_debug_msg(LOG_AAATOKEN | LOG_ROUTING, "join token is valid");
+        log_debug(LOG_AAATOKEN | LOG_ROUTING, "join token is valid");
         // build a hash to find a place in the dhkey table, not for signing !
         join_ident_dhkey = np_aaatoken_get_fingerprint(join_ident_token, false);
 
@@ -397,7 +397,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
 
 bool _np_in_ack(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: bool __np_in_ack(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __np_in_ack(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
@@ -480,7 +480,7 @@ bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
 
 bool _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: bool _np_in_discover_sender(...){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_discover_sender(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, discover_msg_in);
     np_aaatoken_t* msg_token = NULL;
@@ -531,7 +531,7 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
 
 bool _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_TRACE, "start: bool _np_in_discover_receiver(...){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_discover_receiver(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, discover_msg_in);
     np_aaatoken_t* msg_token = NULL;
@@ -963,7 +963,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
 {
     log_trace_msg(LOG_TRACE, "start: bool _np_msgin_handshake(np_message_t* msg) {");
 
-    log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint handshake 2");
+    log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint handshake 2");
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
     np_handshake_token_t* handshake_token = NULL;
@@ -1014,7 +1014,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     hs_event.type = (evt_internal | evt_token);
     _np_keycache_handle_event(context, hs_alias_key->dhkey, hs_event, false);
 
-    log_debug_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
+    log_trace_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
     np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
 
     // finally delete possible wildcard key
@@ -1031,7 +1031,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
         _np_keycache_handle_event(context, hs_wildcard_key->dhkey, hs_event, false);
         np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
 
-        log_debug_msg(LOG_TRACE, "Update wildcard key done!");
+        log_trace_msg(LOG_TRACE, "Update wildcard key done!");
     } 
     free(tmp_connection_str);
 

@@ -82,7 +82,7 @@ static int8_t _np_intent_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr secon
 void _np_intent_create_token_ledger(np_key_t* my_intent_key, const np_util_event_t event)
 {
     np_ctx_memory(my_intent_key);
-    log_debug_msg(LOG_TRACE, "start: void _np_intent_create_token_ledger(...) {");
+    log_trace_msg(LOG_TRACE, "start: void _np_intent_create_token_ledger(...) {");
 
     NP_CAST(event.user_data, np_aaatoken_t, token);
 
@@ -588,7 +588,7 @@ void _np_intent_propagate_sender(np_key_t* intent_key, np_message_intent_public_
 bool __is_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_intent_token(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __is_intent_token(...){");
 
     bool ret = false;
     
@@ -607,7 +607,7 @@ void __np_set_intent(np_util_statemachine_t* statemachine, const np_util_event_t
     np_ctx_memory(statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t,  my_intent_key);    
-    log_debug_msg(LOG_TRACE, "start: void __np_set_intent(...) { %p", my_intent_key);
+    log_trace_msg(LOG_TRACE, "start: void __np_set_intent(...) { %p", my_intent_key);
 
     _np_intent_create_token_ledger(my_intent_key, event);
 
@@ -619,7 +619,7 @@ void __np_set_intent(np_util_statemachine_t* statemachine, const np_util_event_t
 bool __is_receiver_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_receiver_intent_token(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __is_receiver_intent_token(...){");
 
     bool ret = __is_intent_token(statemachine, event);
 
@@ -632,7 +632,7 @@ bool __is_receiver_intent_token(np_util_statemachine_t* statemachine, const np_u
 bool __is_sender_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_sender_intent_token(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __is_sender_intent_token(...){");
 
     bool ret = __is_intent_token(statemachine, event);
 
@@ -646,7 +646,7 @@ bool __is_sender_intent_token(np_util_statemachine_t* statemachine, const np_uti
 void __np_intent_receiver_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_intent_receiver_update(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __np_intent_receiver_update(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, intent_key);
     NP_CAST(event.user_data, np_aaatoken_t, intent_token);
@@ -663,7 +663,7 @@ void __np_intent_receiver_update(np_util_statemachine_t* statemachine, const np_
 void __np_intent_sender_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_intent_sender_update(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __np_intent_sender_update(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, intent_key);
     NP_CAST(event.user_data, np_aaatoken_t, intent_token);
@@ -681,7 +681,7 @@ bool __is_intent_authn(np_util_statemachine_t* statemachine, const np_util_event
 bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __is_intent_authz(...){");
+    log_trace_msg(LOG_TRACE, "start: void __is_intent_authz(...){");
 
     bool ret = false;
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);

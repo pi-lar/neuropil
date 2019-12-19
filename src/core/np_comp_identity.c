@@ -29,7 +29,7 @@
 bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
 
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __is_identity_aaatoken(...){");
+    log_trace_msg(LOG_TRACE, "start: void __is_identity_aaatoken(...){");
 
     bool ret = false;
 
@@ -50,7 +50,7 @@ bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_
 bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __is_identity_invalid(...){");
+    log_trace_msg(LOG_TRACE, "start: void __is_identity_invalid(...){");
 
     bool ret = false;
     
@@ -79,7 +79,7 @@ void __np_identity_update(np_util_statemachine_t* statemachine, const np_util_ev
 void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {    
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_identity_destroy(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_identity_destroy(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
@@ -105,7 +105,7 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {    
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void _np_set_identity(...){");
+    log_trace_msg(LOG_TRACE, "start: void _np_set_identity(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     NP_CAST(event.user_data, np_aaatoken_t, identity);
@@ -171,7 +171,7 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
 void __np_create_identity_network(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_create_identity_network(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_create_identity_network(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     NP_CAST(event.user_data, np_aaatoken_t, identity);
@@ -203,7 +203,7 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
 bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_unencrypted_np_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_unencrypted_np_message(...) {");
     
     bool ret = false;
 
@@ -219,7 +219,7 @@ bool __is_unencrypted_np_message(np_util_statemachine_t* statemachine, const np_
 void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_extract_handshake(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_extract_handshake(...){");
 
     NP_CAST(event.user_data, void_ptr, raw_message);
 
@@ -275,7 +275,7 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_identity_shutdown(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_identity_shutdown(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
@@ -296,7 +296,7 @@ void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_
 bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __is_authn_request(...){");
+    log_trace_msg(LOG_TRACE, "start: void __is_authn_request(...){");
 
     bool ret = false;
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
@@ -316,7 +316,7 @@ bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_even
 bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __is_authz_request(...){");
+    log_trace_msg(LOG_TRACE, "start: void __is_authz_request(...){");
 
     bool ret = false;
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
@@ -338,7 +338,7 @@ bool __is_authz_request(np_util_statemachine_t* statemachine, const np_util_even
 void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_identity_handle_authn(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_identity_handle_authn(...){");
 
     NP_CAST(event.user_data, np_aaatoken_t, authn_token);
 
@@ -383,7 +383,7 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
 void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_identity_handle_authz(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_identity_handle_authz(...){");
 
     NP_CAST(event.user_data, np_aaatoken_t, authz_token);
 

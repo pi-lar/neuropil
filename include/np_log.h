@@ -60,6 +60,7 @@ enum np_log_e
     LOG_EVENT			= 0x00800000U, /* debugging the undefined					*/
     LOG_MISC            = 0x01000000U, /* debugging the undefined					*/
     LOG_HANDSHAKE       = 0x02000000U, /* debugging the undefined					*/
+    LOG_KEYCACHE        = 0x04000000U, /* debugging the undefined					*/
                                     
     LOG_GLOBAL     		= 0x80000000U, /* debugging the global system				*/
                                     

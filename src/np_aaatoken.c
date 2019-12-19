@@ -307,12 +307,12 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
     np_state_t* context = np_ctx_by_memory(token);
 
-    log_debug_msg(LOG_DEBUG, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
+    log_debug(LOG_AAATOKEN, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
 
 
     if (FLAG_CMP(token->type, expected_type) == false)
     {
-        log_msg(LOG_AAATOKEN | LOG_WARN, "token (%s) for subject \"%s\": is not from correct type (%"PRIu32" != (expected:=)%"PRIu32"). verification failed",
+        log_warn(LOG_AAATOKEN, "token (%s) for subject \"%s\": is not from correct type (%"PRIu32" != (expected:=)%"PRIu32"). verification failed",
             token->uuid, token->subject, token->type, expected_type);
 #ifdef DEBUG
         ASSERT(false, "token (%s) for subject \"%s\": is not from correct type (%"PRIu32" != (expected:=)%"PRIu32"). verification failed",
@@ -320,12 +320,12 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 #endif // DEBUG
 
         token->state &= AAA_INVALID;
-        log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+        log_trace(LOG_AAATOKEN, ".end  .token_is_valid");
         return (false);
     }
     else 
     {
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has expected type");
+        log_debug(LOG_AAATOKEN, "token has expected type");
     }
 
 

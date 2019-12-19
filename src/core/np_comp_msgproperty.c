@@ -575,9 +575,9 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop)
 {
     np_ctx_memory(msg_prop);
 
-    log_debug_msg(LOG_DEBUG,
-            "this node is a receiver of messages, checking msgcache (%p / %u) ...",
-            msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
+    log_debug(LOG_ROUTING,
+            "this node is a receiver of messages, checking msgcache (%s: %p / %u) ...",
+            msg_prop->msg_subject, msg_prop->msg_cache_in, sll_size(msg_prop->msg_cache_in));
 
     sll_iterator(np_message_ptr) iter_prop_msg_cache_in = sll_first(msg_prop->msg_cache_in);
     while (iter_prop_msg_cache_in != NULL)
@@ -599,9 +599,9 @@ void _np_msgproperty_cleanup_sender_cache(np_msgproperty_t* msg_prop)
 {
     np_ctx_memory(msg_prop);
 
-    log_debug_msg(LOG_DEBUG,
-            "this node is a sender of messages, checking msgcache (%p / %u) ...",
-            msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
+    log_debug(LOG_ROUTING,
+            "this node is a sender of messages, checking msgcache (%s: %p / %u) ...",
+            msg_prop->msg_subject, msg_prop->msg_cache_out, sll_size(msg_prop->msg_cache_out));
 
     sll_iterator(np_message_ptr) iter_prop_msg_cache_out = sll_first(msg_prop->msg_cache_out);
     while (iter_prop_msg_cache_out != NULL)
@@ -743,7 +743,7 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 void _np_msgproperty_create_token_ledger(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_check(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_property_check(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);    
     NP_CAST(event.user_data, np_aaatoken_t, token);
@@ -997,7 +997,7 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
 bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_msgproperty(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __is_msgproperty(...){");
     // np_ctx_memory(statemachine->_user_data);
     bool ret = false;
     
@@ -1010,7 +1010,7 @@ bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_
 void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void _np_set_property(...) {");
+    log_trace_msg(LOG_TRACE, "start: void _np_set_property(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t,         my_property_key);
     NP_CAST(event.user_data,          np_msgproperty_t, property);
@@ -1039,7 +1039,7 @@ void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event
 void __np_property_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_update(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_property_update(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t,   my_property_key);
 
@@ -1110,12 +1110,12 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
 void __np_property_check(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_check(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_property_check(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t,  my_property_key);    
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
 
-    log_debug_msg(LOG_TRACE, "start: void __np_property_check(...) { %s", _np_key_as_str(my_property_key));
+    log_trace_msg(LOG_TRACE, "start: void __np_property_check(...) { %s", _np_key_as_str(my_property_key));
 
     if (property->response_handler)
     {
@@ -1148,7 +1148,7 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
 bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_external_message(...){");
+    log_trace_msg(LOG_TRACE, "start: bool __is_external_message(...){");
 
     bool ret = false;
     
@@ -1162,7 +1162,7 @@ bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_e
 void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_in_msg(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_property_handle_in_msg(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
@@ -1206,7 +1206,7 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
 bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_internal_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_internal_message(...) {");
 
     bool ret = false;
     
@@ -1220,7 +1220,7 @@ bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_e
 void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_out_msg(...) { %p", statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: void __np_property_handle_out_msg(...) { %p", statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);    
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
@@ -1260,7 +1260,7 @@ void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np
 void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_response_handler_set(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_response_handler_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
@@ -1272,7 +1272,7 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
 bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_response_event(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_response_event(...) {");
 
     bool ret = false;
     
@@ -1285,7 +1285,7 @@ bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_eve
 void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_util_event_t event)
 { 
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_property_handle_intent(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_property_handle_intent(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
     NP_CAST(event.user_data, np_aaatoken_t, intent_token);

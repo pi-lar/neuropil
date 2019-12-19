@@ -155,7 +155,7 @@ void _np_alias_cleanup_msgpart_cache(np_state_t* context)
 bool __is_alias_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_alias_handshake_token(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_alias_handshake_token(...) {");
     
     bool ret = false;
     
@@ -172,7 +172,7 @@ bool __is_alias_handshake_token(np_util_statemachine_t* statemachine, const np_u
 void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {   // handle internal received handsjake token
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_alias_set(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_alias_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     NP_CAST(event.user_data, np_aaatoken_t, handshake_token);
@@ -219,7 +219,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
 void __np_create_session(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {   // create crypto session and "steal" node sructure
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_create_session(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_create_session(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
 
@@ -271,7 +271,7 @@ void __np_create_session(np_util_statemachine_t* statemachine, const np_util_eve
 bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_crypted_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_crypted_message(...) {");
 
     bool ret = false;
 
@@ -288,7 +288,7 @@ bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_ev
 void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 { // decrypt transport encryption
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_alias_decrypt(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_alias_decrypt(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
 
@@ -349,7 +349,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
 bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_join_in_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_join_in_message(...) {");
 
     bool ret = false;
 
@@ -373,7 +373,7 @@ bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_ev
 bool __is_forward_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_forward_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_forward_message(...) {");
 
     bool ret = false;
 
@@ -396,7 +396,7 @@ bool __is_forward_message(np_util_statemachine_t* statemachine, const np_util_ev
 bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_discovery_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_discovery_message(...) {");
 
     bool ret = __is_forward_message(statemachine, event);
     if  (ret) {
@@ -440,7 +440,7 @@ bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_
 bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_dht_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_dht_message(...) {");
 
     bool ret = false;
 
@@ -474,7 +474,7 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
 bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_usr_in_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_usr_in_message(...) {");
 
     bool ret = false;
 
@@ -509,7 +509,7 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
 void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   // handle ght messages (ping, piggy, ...)
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
 
     NP_CAST(event.user_data, np_message_t, message);
 
@@ -532,7 +532,7 @@ void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_
 void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   // handle other messages
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_forward(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_handle_np_forward(...) {");
 
     NP_CAST(event.user_data, np_message_t, message_in);
 
@@ -556,7 +556,7 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
 bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_usr_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_usr_message(...) {");
 
     bool ret = false;
 
@@ -569,7 +569,7 @@ bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_
 void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_handle_usr_msg(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_handle_usr_msg(...) {");
 
     NP_CAST(event.user_data, np_message_t, message);
 
@@ -595,7 +595,7 @@ void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_eve
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_alias_invalid(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_alias_invalid(...) {");
 
     bool ret = false;
 
@@ -618,7 +618,7 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_even
 void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_alias_destroy(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_alias_destroy(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
 
@@ -643,7 +643,7 @@ void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_even
 void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_alias_update(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_alias_update(...) {");
 
     NP_CAST(event.user_data, np_message_t, message);
 

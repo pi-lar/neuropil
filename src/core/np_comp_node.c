@@ -28,7 +28,7 @@
 bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_node_handshake_token(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_node_handshake_token(...) {");
     
     bool ret = false;
     
@@ -45,7 +45,7 @@ bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_ut
 bool __is_shutdown_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_shutdown_event(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_shutdown_event(...) {");
     
     bool ret = false;
     
@@ -57,7 +57,7 @@ bool __is_shutdown_event(np_util_statemachine_t* statemachine, const np_util_eve
 bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_node_token(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_node_token(...) {");
 
     bool ret = false;
     
@@ -81,7 +81,7 @@ bool __is_node_complete(np_util_statemachine_t* statemachine, const np_util_even
 bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_node_invalid(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_node_invalid(...) {");
 
     bool ret = false;
     
@@ -94,7 +94,7 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
     if ( (node_key->created_at + BAD_LINK_REMOVE_GRACETIME) < np_time_now() ) 
     {
         if (!ret) ret  = !node->is_in_leafset && !node->is_in_routing_table;
-        log_debug_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
+        log_trace_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
                         ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
 
@@ -102,7 +102,7 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
     np_aaatoken_t* node_token = _np_key_get_token(node_key);
     if (!ret) ret  = !_np_aaatoken_is_valid(node_token, node_token->type);
 
-    log_debug_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
+    log_trace_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
                     ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
 
     return ret;
@@ -111,7 +111,7 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
 bool __is_wildcard_key(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_wildcard_key(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_wildcard_key(...) {");
 
     bool ret = false;
     
@@ -129,7 +129,7 @@ bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t
 {
     // { .type=(evt_internal|evt_token), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_node_authn(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_node_authn(...) {");
 
     bool ret = false;
     
@@ -146,7 +146,7 @@ bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t
 void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_set(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_node_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     NP_CAST(event.user_data, np_aaatoken_t, node_token);
@@ -190,7 +190,7 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
 void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_wildcard_set(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_wildcard_set(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, wildcard_key);
     NP_CAST(event.user_data, np_node_t, node);
@@ -205,7 +205,7 @@ void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event
 void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_update(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_node_update(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     np_node_t* node = _np_key_get_node(node_key);
@@ -333,7 +333,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
 void __np_node_add_to_leafset(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_add_to_leafset(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_node_add_to_leafset(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -368,7 +368,7 @@ void __np_node_add_to_leafset(np_util_statemachine_t* statemachine, NP_UNUSED co
 void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_remove_from_routing(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_node_remove_from_routing(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -413,7 +413,7 @@ void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const n
 void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 { 
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_handle_completion(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_node_handle_completion(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -463,7 +463,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
 void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_upgrade(...) { %p", statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: void __np_node_upgrade(...) { %p", statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_or_node_key);
     NP_CAST(event.user_data, np_aaatoken_t, token);
@@ -548,7 +548,7 @@ void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event
 void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_shutdown(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_node_shutdown(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     
@@ -574,7 +574,7 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
 void __np_create_client_network (np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_create_client_network(...) { %p", statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: void __np_create_client_network(...) { %p", statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
@@ -651,7 +651,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
 bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_wildcard_invalid(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_wildcard_invalid(...) {");
 
     bool ret = false;
 
@@ -666,7 +666,7 @@ bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_e
 void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_wildcard_destroy(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_wildcard_destroy(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, wildcard_key); 
     
@@ -692,7 +692,7 @@ void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_e
 void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %p", statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %p", statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     NP_CAST(event.user_data, np_messagepart_t, hs_messagepart);
@@ -712,7 +712,7 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
             void_ptr,
             trinity.network->out_events,
             (void*)packet);
-        log_debug_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %d", sll_size(trinity.network->out_events));
+        log_trace_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %d", sll_size(trinity.network->out_events));
         _np_event_invoke_out(context); 
     }
 }
@@ -720,7 +720,7 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
 void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: void __np_node_send_encrypted(...) {");
+    log_trace_msg(LOG_TRACE, "start: void __np_node_send_encrypted(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     NP_CAST(event.user_data, np_messagepart_t, part);
@@ -798,7 +798,7 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
 bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_np_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_np_message(...) {");
 
     bool ret = false;
 
@@ -819,7 +819,7 @@ bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t
 bool __is_handshake_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_handshake_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_handshake_message(...) {");
 
     bool ret = false;
     
@@ -844,7 +844,7 @@ bool __is_handshake_message(np_util_statemachine_t* statemachine, const np_util_
 bool __is_join_out_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_join_out_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_join_out_message(...) {");
 
     bool ret = false;
 
@@ -869,7 +869,7 @@ bool __is_join_out_message(np_util_statemachine_t* statemachine, const np_util_e
 void __np_node_handle_response(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_node_handle_response(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_node_handle_response(...) {");
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     np_node_t* node = _np_key_get_node(node_key);

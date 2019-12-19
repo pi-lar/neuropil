@@ -119,24 +119,24 @@ bool _np_out(np_state_t* context, np_util_event_t msg_event)
     np_ref_obj(np_key_t, target, FUNC); // usage ref
 
 
-    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 2");
+    // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 2");
     // now we can try to send the msg
     np_waitref_obj(np_key_t, context->my_node_key, my_key,"np_waitref_key");
     {
-        // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 3");
+        // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 3");
         np_waitref_obj(np_network_t, my_key->network, my_network,"np_waitref_network");
         {
-            // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 4");
+            // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 4");
             uuid = msg_out->uuid;
 
             // check ack indicator if this is a resend of a message
             if (true == is_resend && prop->ack_mode != ACK_NONE)
             {
                 bool skip = false;
-                // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 5");
+                // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 5");
                 _LOCK_ACCESS(&my_network->waiting_lock)
                 {
-                    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 6");
+                    // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 6");
                     // first find the uuid
                     np_tree_elem_t* uuid_ele = np_tree_find_str(my_network->waiting, uuid);
                     if (NULL == uuid_ele)
@@ -229,10 +229,10 @@ bool _np_out(np_state_t* context, np_util_event_t msg_event)
             np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
             if (!is_resend)
             {
-                // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 7");
+                // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 7");
                 _LOCK_ACCESS(&my_network->access_lock)
                 {
-                    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 8");
+                    // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 8");
                     // get/set sequence number to keep increasing sequence numbers per node
                     seq = my_network->seqend;
                     np_tree_replace_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(seq));
@@ -312,10 +312,10 @@ bool _np_out(np_state_t* context, np_util_event_t msg_event)
                     __np_cleanup__:
                         {}
 #endif
-                    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 9");
+                    // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 9");
                     _LOCK_ACCESS(&my_network->waiting_lock)
                     {
-                        // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 10");
+                        // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 10");
                         np_tree_insert_str( my_network->waiting, uuid, np_treeval_new_v(responsecontainer));
                     }
                     // log_msg(LOG_ERROR, "ACK_HANDLING ack handling requested for msg uuid: %s/%s", uuid, args.properties->msg_subject);
@@ -374,14 +374,14 @@ bool _np_out(np_state_t* context, np_util_event_t msg_event)
         np_unref_obj(np_key_t, target, FUNC);
         np_unref_obj(np_key_t, my_key, "np_waitref_key");		
     }
-    // log_debug_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
+    // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_out 11");
     */
     return true;
 }
 
 bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event) 
 {
-    log_debug_msg(LOG_TRACE, "start: void __np_out_callback_wrapper(...){");
+    log_trace_msg(LOG_TRACE, "start: void __np_out_callback_wrapper(...){");
 
     NP_CAST(event.user_data, np_message_t, message);
 
@@ -974,6 +974,10 @@ bool _np_out_update(np_state_t* context, const np_util_event_t event)
         i++;
     } while (sll_size(tmp) == 0 && i < 5);
 
+    if(tmp == NULL){
+        log_msg(LOG_WARN, "--- request for update message out, but no connections left (2) ...");
+        return false;
+    }
     np_key_t* target = sll_first(tmp)->val;
 
     if (_np_dhkey_equal(&target->dhkey, &context->my_node_key->dhkey)) {
@@ -1071,7 +1075,7 @@ bool _np_out_join(np_state_t* context, const np_util_event_t event)
     while (NULL != iter) {
 #ifdef DEBUG
         np_key_t* target = _np_keycache_find(context, event.target_dhkey);
-        log_debug_msg(LOG_DEBUG, "submitting join request to target key %s / %p", _np_key_as_str(target), target);
+        log_debug(LOG_ROUTING, "submitting join request to target key %s / %p", _np_key_as_str(target), target);
         np_unref_obj(np_key_t, target, "_np_keycache_find");
 #endif // DEBUG
         memcpy(iter->val->uuid, join_msg->uuid, NP_UUID_BYTES);
@@ -1089,7 +1093,7 @@ bool _np_out_join(np_state_t* context, const np_util_event_t event)
 
 bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
 {
-    log_debug_msg(LOG_TRACE, "start: bool _np_out_handshake(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_out_handshake(...) {");
 
     NP_CAST(event.user_data, np_message_t, hs_message);
 
