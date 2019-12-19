@@ -26,7 +26,7 @@ class SmokeTests(unittest.TestCase):
 
     def test_connectivity(self):
         np_c = NeuropilCluster(    3, port_range=4000, auto_run=False, log_file_prefix="logs/smoke_test_connectivity_cl_")
-        np_1 = NeuropilNode(4444, log_file="logs/smoke_test_connectivity_nl1.log", auto_run=False, no_threads=5)
+        np_1 = NeuropilNode(4444, log_file="logs/smoke_test_connectivity_nl1.log", auto_run=False, no_threads=6)
         np_2 = NeuropilNode(5555, log_file="logs/smoke_test_connectivity_nl2.log",auto_run=False)
 
         np_c.set_authenticate_cb(self.authn_allow_all)
@@ -68,10 +68,10 @@ class SmokeTests(unittest.TestCase):
                     break
 
         finally:
-            #np_1.shutdown()
-            #np_2.shutdown()
-            #np_c.shutdown()
-            pass
+            np_1.shutdown()
+            np_2.shutdown()
+            np_c.shutdown()
+            
 
 
 
