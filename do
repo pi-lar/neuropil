@@ -152,8 +152,23 @@ task_smoke() {
   (
     cd smoke_test
     loc="$(get_local_target)"    
-    export "LD_LIBRARY_PATH=$pwd/build/$loc/lib"
+
+    echo "export LD_LIBRARY_PATH=$pwd/build/$loc/lib"
+    export LD_LIBRARY_PATH="$pwd/build/$loc/lib"
+    set +e    
     ./../venv/bin/python3 ../test/smoke/smoke_test.py
+    if [ $? != 0 ] && [ -t 0 ]; then      
+      read -r -p "${1:-Debug with gdb? [y/N]} " response
+      case "$response" in
+          [yY][eE][sS]|[yY])
+              gdb --silent -ex=r --args ./../venv/bin/python3 ../test/smoke/smoke_test.py
+              ;;
+          *)
+              ;;
+      esac
+    fi
+    set -e
+
   )
 }
 
