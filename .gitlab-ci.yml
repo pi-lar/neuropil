@@ -70,8 +70,6 @@ approval:
 
 release:
   stage: release
-  before_script: 
-    - ./do prepare_ci
   script: 
     - ./do release
     - ./do deploy production
