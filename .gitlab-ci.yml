@@ -77,4 +77,4 @@ release:
   dependencies:
     - package
     - build:documentation   
-    - qa:approval 
+    - approval 
