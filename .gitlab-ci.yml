@@ -8,6 +8,7 @@ stages:
   - build
   - package
   - qa
+  - approval
   - release
 
 test:
@@ -62,8 +63,8 @@ qa:smoke_test:
   dependencies:
     - package
 
-qa:approval:
-  stage: qa
+approval:
+  stage: approval
   script: "true"
   when: manual
 
