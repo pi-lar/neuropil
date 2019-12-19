@@ -8,7 +8,6 @@ stages:
   - build
   - package
   - qa
-  - approval
   - release
 
 test:
@@ -63,18 +62,13 @@ qa:smoke_test:
   dependencies:
     - package
 
-approval:
-  stage: approval
-  script: "true"
-  when: manual
-
 release:
   stage: release
   script: 
     - ./do release
     - ./do deploy production
     # auto saltstack deploy
+  when: manual
   dependencies:
     - package
     - build:documentation   
-    - approval 
