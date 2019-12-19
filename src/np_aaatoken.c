@@ -320,7 +320,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 #endif // DEBUG
 
         token->state &= AAA_INVALID;
-        log_trace(LOG_AAATOKEN, ".end  .token_is_valid");
+        log_trace_msg(LOG_AAATOKEN, ".end  .token_is_valid");
         return (false);
     }
     else 
