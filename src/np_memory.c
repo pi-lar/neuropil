@@ -224,13 +224,13 @@ void _np_memory_destroy(np_state_t* context){
            
             while((item_config = sll_head(np_memory_itemconf_ptr, container->total_items)) != NULL)
             {
-                if (item_config->in_use) {                    
-                    #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
+                if (item_config->in_use) {
+                    #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
                         char * flat = _sll_char_make_flat(context, item_config->reasons);
-                        log_debug("Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[type], item_config->ref_count, item_config->id, flat);		
+                        log_debug_msg(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[type], item_config->ref_count, item_config->id, flat);		
                         free(flat);
                     #else
-                        log_debug("Still has a object of type %s in cache", np_memory_types_str[type]);
+                        log_debug_msg(LOG_MEMORY, "Still has a object of type %s in cache", np_memory_types_str[type]);
                     #endif
 
                     /*
