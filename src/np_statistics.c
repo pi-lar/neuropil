@@ -125,14 +125,14 @@ bool _np_statistics_init(np_state_t* context) {
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out_per_sec] = prometheus_register_sub_metric_time(_module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out],1);
         
         prometheus_label label;
-        strcpy(label.name,"version");
-        strcpy(label.value,NEUROPIL_RELEASE);
+        strncpy(label.name, "version",255);
+        strncpy(label.value, NEUROPIL_RELEASE,255);
         prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
-        strcpy(label.name,"application");
-        strcpy(label.value,"neuropil_exporter");
+        strncpy(label.name, "application",255);
+        strncpy(label.value, "neuropil_exporter",255);
         prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
-        strcpy(label.name,"description");
-        strcpy(label.value,"None");
+        strncpy(label.name, "description",255);
+        strncpy(label.value, "None",255);
         prometheus_metric_add_label(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
         prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], 0);
         _np_statistics_update_prometheus_labels(context, NULL);
@@ -140,10 +140,10 @@ bool _np_statistics_init(np_state_t* context) {
         sll_init(void_ptr, _module->__np_debug_statistics);
 #endif
 
-    np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,0.,
-                                 NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL,
-                                 __np_statistics_gather_data_clb,
-                                 "__np_statistics_gather_data_clb");
+        np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,0.,
+                                          NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL,
+                                          __np_statistics_gather_data_clb,
+                                          "__np_statistics_gather_data_clb");
 
     }
     return true;
@@ -162,7 +162,7 @@ np_statistics_per_subject_metrics* __np_statistics_get_subject_metrics(np_state_
 
     if(element == NULL){
         prometheus_label label;
-        strcpy(label.name,"subject");
+        strncpy(label.name, "subject",255);
         strncpy(label.value,subject,255);    
         ret = calloc(1,sizeof(np_statistics_per_subject_metrics));
         
@@ -197,7 +197,7 @@ np_statistics_per_dhkey_metrics* __np_statistics_get_dhkey_metrics(np_state_t* c
 
     if(element == NULL){
         prometheus_label label;
-        strcpy(label.name,"target");
+        strncpy(label.name,"target",255);
         _np_dhkey_str(&id, label.value);    
         ret = calloc(1,sizeof(np_statistics_per_dhkey_metrics));
 
@@ -224,14 +224,14 @@ void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metr
         prometheus_label node_label = {0};   
         prometheus_label ident_label = {0};      
         prometheus_label instance_label = {0};
-        strcpy(node_label.name,"node");
-        strcpy(instance_label.name,"instance");
-        strcpy(ident_label.name,"identity");
+        strncpy(node_label.name,"node",255);
+        strncpy(instance_label.name,"instance",255);
+        strncpy(ident_label.name,"identity",255);
         if(context->my_node_key) 
         {
             _np_dhkey_str(&context->my_node_key->dhkey, node_label.value);            
             if(_np_key_get_node(context->my_node_key))
-                sprintf(instance_label.value, "%s:%s", 
+                snprintf(instance_label.value, 254, "%s:%s", 
                         _np_key_get_node(context->my_node_key)->dns_name,
                         _np_key_get_node(context->my_node_key)->port);
         }
@@ -256,8 +256,8 @@ void np_statistics_set_node_description(np_context* ac, char description[255])
 {
     np_ctx_cast(ac);
     prometheus_label label;
-    strcpy(label.name,"description");
-    strcpy(label.value,description);
+    strncpy(label.name,"description",255);
+    strncpy(label.value,description,255);
     prometheus_metric_replace_label(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], label);
 }
 

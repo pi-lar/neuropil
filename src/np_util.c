@@ -576,7 +576,7 @@ char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char b
 
         double time = *((double*)data);
         
-        //sprintf(buffer, "%+"PRIu32" ms", ceil(time * 1000));
+        //snprintf(buffer, 254"%+"PRIu32" ms", ceil(time * 1000));
         snprintf(buffer, 254, "%+f ms", time);
     }
     else {

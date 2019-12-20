@@ -187,25 +187,29 @@ bool __np_is_already_listening(np_state_t* context)
 }
 
 
-enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port) {
+enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port)
+{
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
     TSP_GET(enum np_status, context->status, context_status);
 
-    if (__np_is_already_listening(context)) {
+    if (__np_is_already_listening(context)) 
+    {
         log_msg(LOG_ERROR, "node listens already and cannot get a second listener");
         ret = np_invalid_operation;
     }
-    else if (context_status != np_stopped) {
+    else if (context_status != np_stopped) 
+    {
         log_msg(LOG_ERROR, "node is not in stopped state and cannot start propertly");
         ret = np_invalid_operation;
     }
-    else {
+    else 
+    {
         char np_service[7];
         enum socket_type np_proto = UDP | IPv6;
 
-        sprintf(np_service, "%"PRIu16, port);
+        snprintf(np_service, 7, "%"PRIu16, port);
 
         if (NULL != protocol)
         {

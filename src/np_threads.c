@@ -875,7 +875,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         if (pool_size > 0 ) pool_size--;
         special_thread = __np_createThread(context, pool_size, _np_event_in_run, true, np_thread_type_other);
 #ifdef DEBUG
-        strcpy(special_thread->job.ident, "_np_event_in_run");
+        strncpy(special_thread->job.ident, "_np_event_in_run",255);
 #endif
     } else {
         np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_in, "_np_events_read_in");
@@ -885,7 +885,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         if (pool_size > 0 ) pool_size--;
         special_thread = __np_createThread(context, pool_size, _np_event_out_run, true, np_thread_type_other);
 #ifdef DEBUG
-        strcpy(special_thread->job.ident, "_np_event_out_run");
+        strncpy(special_thread->job.ident, "_np_event_out_run",255);
 #endif
     } else {
         np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_1, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_out, "_np_events_read_out");
@@ -895,7 +895,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         if (pool_size > 0 ) pool_size--;
         special_thread = __np_createThread(context, pool_size, _np_event_file_run, true, np_thread_type_other);
 #ifdef DEBUG
-        strcpy(special_thread->job.ident, "_np_event_file_run");
+        strncpy(special_thread->job.ident, "_np_event_file_run",255);
 #endif
     } else {
         np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_2, 0.0, MISC_LOG_FLUSH_INTERVAL_SEC, _np_events_read_file, "_np_events_read_file");
@@ -906,7 +906,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
             if (pool_size > 0 ) pool_size--;
             special_thread = __np_createThread(context, pool_size, _np_event_http_run, true, np_thread_type_other);
 #ifdef DEBUG
-            strcpy(special_thread->job.ident, "_np_event_http_run");
+            strncpy(special_thread->job.ident, "_np_event_http_run",255);
 #endif
         } else {
 */
@@ -920,7 +920,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         __np_createWorkerPool(context, pool_size-1);
         special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_manager, true, np_thread_type_manager);
 #ifdef DEBUG
-        strcpy(special_thread->job.ident, "__np_jobqueue_run_manager");
+        strncpy(special_thread->job.ident, "__np_jobqueue_run_manager",255);
 #endif
 
     } else { 

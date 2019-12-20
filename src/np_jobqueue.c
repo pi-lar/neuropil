@@ -528,7 +528,7 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
     {
 #ifdef DEBUG_CALLBACKS
         if (job_to_execute.ident[0] == 0) {
-            sprintf(job_to_execute.ident, "%p", (job_to_execute.processorFuncs));
+            snprintf(job_to_execute.ident, 254, "%p", (job_to_execute.processorFuncs));
         }
         double n1 = np_time_now();
         log_msg(LOG_JOBS | LOG_DEBUG, "start internal job callback function (@%f) %s", n1, job_to_execute.ident);
@@ -560,7 +560,7 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
 #ifdef DEBUG_CALLBACKS
         if (job_to_execute.ident[0] == 0) 
         {
-            sprintf(job_to_execute.ident, "%p", (job_to_execute.processorFuncs));
+            snprintf(job_to_execute.ident, 254, "%p", (job_to_execute.processorFuncs));
         }
         double n1 = np_time_now();
         log_msg(LOG_JOBS | LOG_DEBUG, "start keycache job callback function (@%f) %s", n1, job_to_execute.ident);

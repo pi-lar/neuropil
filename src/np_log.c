@@ -145,30 +145,30 @@ char * get_level_str(enum np_log_e level, char * buffer) {
     char ret[12] = { 0 };
 
     if (FLAG_CMP(level, LOG_ERROR)) {
-        sprintf(ret, "ERROR");
+        snprintf(ret, 12, "ERROR");
     }
     else if (FLAG_CMP(level, LOG_WARN)) {
-        sprintf(ret, "WARNING");
+        snprintf(ret, 12, "WARNING");
     }
     else if (FLAG_CMP(level, LOG_INFO)) {
-        sprintf(ret, "INFO");
+        snprintf(ret, 12, "INFO");
     }
     else if (FLAG_CMP(level, LOG_TRACE)) {
-        sprintf(ret, "TRACE");
+        snprintf(ret, 12, "TRACE");
     }
 
     // mark debug entry 
     if (FLAG_CMP(level, LOG_DEBUG)) {
         if (ret[0] == 0) {
-            sprintf(ret, "DEBUG");
+            snprintf(ret, 12, "DEBUG");
         }
         else {
-            sprintf(ret, "%s_D", ret);
+            snprintf(ret, 12, "%s_D", ret);
         }
     }
     // mark verbose entry
     /*if (FLAG_CMP(level, LOG_VERBOSE)) {		
-        sprintf(ret, "%s_V", ret);
+        snprintf(ret, "%s_V", ret);
     }
     */
     snprintf(buffer, 12, "%-11s", ret);
