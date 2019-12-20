@@ -123,7 +123,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             else 
             {   // our routing table is full, but the new dhkey is closer to us
                 _np_keycache_sort_keys_kd(sll_of_keys, &context->my_node_key->dhkey);
-                send_join = _np_dhkey_between(&piggy_key, &sll_first(sll_of_keys)->val->dhkey, &sll_last(sll_of_keys)->val->dhkey, true);
+                send_join = _np_dhkey_between(&piggy_key->dhkey, &sll_first(sll_of_keys)->val->dhkey, &sll_last(sll_of_keys)->val->dhkey, true);
                 // log_msg(LOG_INFO, "xxxxxxx  node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
             }
 
