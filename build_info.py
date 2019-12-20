@@ -65,7 +65,7 @@ def get_version():
     return version
 
 def get_version_tag():
-    return ("%s_alpha"% (get_version()))
+    return ("%s_beta"% (get_version()))
 
 def get_build_name():
     return quote_plus("%s__%s__%s__%s" % (get_version_tag(), p.system(), p.release(), p.machine()))
