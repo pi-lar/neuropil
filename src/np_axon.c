@@ -1133,7 +1133,7 @@ bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
                 hs_message->uuid, _np_key_as_str(target_key)/*, hs_node->dns_name, hs_node->port*/);
 
             pll_iterator(np_messagepart_ptr) iter = pll_first(hs_message->msg_chunks);
-
+            np_ref_obj(np_messagepart_t, iter->val, FUNC);
             np_util_event_t handshake_send_evt = { .type=(evt_internal|evt_message), .user_data=iter->val, .context=context, .target_dhkey=event.target_dhkey };
             _np_keycache_handle_event(context, event.target_dhkey, handshake_send_evt, false);
         }

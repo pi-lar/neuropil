@@ -715,6 +715,7 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
         log_trace_msg(LOG_TRACE, "start: void __np_node_send_direct(...) { %d", sll_size(trinity.network->out_events));
         _np_event_invoke_out(context); 
     }
+    np_unref_obj(np_messagepart_t, hs_messagepart, "_np_out_handshake");
 }
 
 void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event)
