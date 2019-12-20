@@ -1301,7 +1301,7 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
     }
 
     // check if some messages are left in the cache
-    np_dhkey_t target_inbound_dhkey = _np_msgproperty_dhkey(INBOUND, intent_token->subject);
+    np_dhkey_t target_inbound_dhkey  = _np_msgproperty_dhkey(INBOUND, intent_token->subject);
     np_dhkey_t target_outbound_dhkey = _np_msgproperty_dhkey(OUTBOUND, intent_token->subject);
 
     if (_np_dhkey_equal(&target_inbound_dhkey, &my_property_key->dhkey)) 
@@ -1310,8 +1310,8 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
         np_aaatoken_t* old_token = _np_intent_add_sender(my_property_key, intent_token);
         np_unref_obj(np_aaatoken_t, old_token, "send_tokens");
 
-        _np_msgproperty_check_receiver_msgcache(real_prop, _np_aaatoken_get_issuer(intent_token));
-
+        if (IS_AUTHORIZED(intent_token->state)) 
+            _np_msgproperty_check_receiver_msgcache(real_prop, _np_aaatoken_get_issuer(intent_token));
     }
 
     if (_np_dhkey_equal(&target_outbound_dhkey, &my_property_key->dhkey)) 
@@ -1320,7 +1320,16 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
         np_aaatoken_t* old_token = _np_intent_add_receiver(my_property_key, intent_token);
         np_unref_obj(np_aaatoken_t, old_token, "recv_tokens");
 
-        _np_msgproperty_check_sender_msgcache(real_prop);
+        if (IS_AUTHORIZED(intent_token->state)) 
+        {
+            np_tree_elem_t* max_threshold = np_tree_find_str(intent_token->extensions_local, "max_threshold");
+            if (max_threshold) {
+                // as a sender use threshold var of opposite party when sending data
+                real_prop->max_threshold = 
+                    (real_prop->max_threshold > max_threshold->val.value.ush) ? max_threshold->val.value.ush : real_prop->max_threshold;
+            }
+            _np_msgproperty_check_sender_msgcache(real_prop);
+        }
     }
 
     if (IS_NOT_AUTHORIZED(intent_token->state)) 
@@ -1328,9 +1337,11 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
         log_msg(LOG_INFO, "authorizing intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
         np_dhkey_t authz_target = context->my_identity->dhkey;
         // if (real_prop->realm) authz_target = real_prop->realm->dhkey;
-        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=intent_token, .target_dhkey=authz_target };
+        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=intent_token, .target_dhkey=event.target_dhkey };
         _np_keycache_handle_event(context, authz_target, authz_event, false);
+    } 
+    else 
+    {
+        np_unref_obj(np_aaatoken_t, intent_token, "np_token_factory_read_from_tree");
     }
-
-    np_unref_obj(np_aaatoken_t, intent_token, "np_token_factory_read_from_tree");
 }

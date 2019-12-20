@@ -399,6 +399,9 @@ void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_u
             if (true == access_allowed && context->enable_realm_client == false)
             {
                 authz_token->state |= AAA_AUTHORIZED;
+                // report back authorization to trigger immediate message cache checking
+                np_util_event_t authz_event = { .type=(evt_external|evt_token|evt_authz), .context=context, .user_data=authz_token, .target_dhkey=event.target_dhkey };
+                _np_keycache_handle_event(context, event.target_dhkey, authz_event, true);
             }
             // else if (true == access_allowed && context->enable_authz_realm == true) {
             // np_util_event_t authz_event = { .type=(evt_internal|evt_token|evt_authz), .context=context, .user_data=authz_token, .target_dhkey=event.target_dhkey };
