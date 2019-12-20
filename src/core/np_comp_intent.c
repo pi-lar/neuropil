@@ -676,7 +676,9 @@ void __np_intent_sender_update(np_util_statemachine_t* statemachine, const np_ut
     _np_intent_propagate_receiver(intent_key, intent_token);
 }
 
-bool __is_intent_authn(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+bool __is_intent_authn(np_util_statemachine_t* statemachine, const np_util_event_t event) {
+    return false;
+}
 
 bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
@@ -700,7 +702,9 @@ bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event
 
 void __np_intent_update(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // add authorization for intent token
 
-bool __is_intent_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {}
+bool __is_intent_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {
+    return false;
+}
 void __np_intent_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // no updates received for xxx minutes?
 
 void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event_t event) 

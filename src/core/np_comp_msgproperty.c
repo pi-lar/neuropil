@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_intent.h"
