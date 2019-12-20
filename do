@@ -72,9 +72,14 @@ task_build() {
   if [ "$type" == "defaultvalue" ]; then
     type="release=1"
   else
-    type="debug=1"
     shift;
+    if [ "$type" == "release" ]; then
+      type="release=1"
+    else
+      type="debug=1"
+    fi    
   fi
+  
   
   scons "$type" "target=$target" "$@"
 }
