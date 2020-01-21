@@ -194,17 +194,15 @@ struct np_aaatoken_s
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
 	bool private_key_is_set;
+	
 	np_aaatoken_t* issuer_token;
 
 	bool is_signature_verified;
 	bool is_signature_extensions_verified;
 
-
 } NP_API_EXPORT;
 
-#ifndef SWIG
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
-#endif
 
 // serialization of the np_aaatoken_t structure
 NP_API_INTERN
@@ -231,14 +229,10 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* token, bool include_extens
 // neuropil internal aaatoken storage and exchange functions
 
 NP_API_INTERN
-np_aaatoken_t * _np_aaatoken_add_sender(char* subject, np_aaatoken_t *token);
-NP_API_INTERN
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_sender(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
 np_aaatoken_t* _np_aaatoken_get_sender_token(np_state_t* context, const char* const subject, const np_dhkey_t* const sender_dhkey);
 
-NP_API_INTERN
-np_aaatoken_t * _np_aaatoken_add_receiver(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 sll_return(np_aaatoken_ptr) _np_aaatoken_get_all_receiver(np_state_t* context, const char* const subject, const char* const audience);
 NP_API_INTERN
@@ -251,8 +245,6 @@ void _np_aaatoken_add_local_mx(char* subject, np_aaatoken_t *token);
 NP_API_INTERN
 unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* msg_token);
 NP_API_INTERN
-void _np_aaatoken_upgrade_handshake_token(np_key_t* key_with_core_token, np_node_public_token_t* full_token);
-NP_API_INTERN
 int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, unsigned char* private_key, unsigned char* save_to);
 NP_API_INTERN
 void _np_aaatoken_update_scope(np_aaatoken_t* self);
@@ -263,7 +255,7 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self);
 NP_API_INTERN
 void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
 NP_API_INTERN
-void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
+void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self);
 NP_API_INTERN
 unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self);
 NP_API_INTERN

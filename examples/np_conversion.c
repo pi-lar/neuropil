@@ -13,8 +13,12 @@ struct np_text_exchange_s {
 	np_sll_t(char_ptr, texts);
 };
 typedef struct np_text_exchange_s* np_text_exchange_ptr;
+
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
 NP_SLL_GENERATE_PROTOTYPES(np_text_exchange_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_text_exchange_ptr);
+#pragma clang diagnostic pop
+
 np_sll_t(np_text_exchange_ptr, __np_text_exchange) = NULL;
 
 int8_t __np_cmp_np_text_exchange_ptr(np_text_exchange_ptr const te, np_text_exchange_ptr const te_id) {
@@ -40,7 +44,7 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 		sll_init(np_text_exchange_ptr, __np_text_exchange);
 	}
 	np_id subject_dhkey = { 0 };
-	np_get_id((np_id_ptr)&subject_dhkey, subject, 0);
+	np_get_id(&subject_dhkey, subject, 0);
 
 	struct np_text_exchange_s te_s = { 0 };
 	memcpy(&te_s.id, &subject_dhkey, sizeof(te_s));
@@ -57,7 +61,7 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 	}
 	char* txt = NULL;
 	while ((txt = sll_head(char_ptr, cache->texts)) == NULL) {
-		np_time_sleep(0);
+		np_time_sleep(0.0);
 	}
 
 	if (*buffer == NULL)
@@ -69,9 +73,4 @@ uint32_t np_receive_text(np_context* ac, char* subject, char** buffer) {
 	}
 
 	return cache->received++;
-}
-
-DEPRECATED
-void np_send_text(np_context* ac, char* subject, char* buffer, NP_UNUSED uint32_t seq, np_id_ptr target) {
-	np_send_to(ac, subject, (uint8_t*)buffer, strlen(buffer)+1, target); // ignoring encoding etc for now
 }

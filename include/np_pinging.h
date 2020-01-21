@@ -16,8 +16,8 @@ extern "C" {
 #endif
 
 
-NP_API_INTERN
-void _np_in_ping(np_state_t* context, np_jobargs_t args);
+// NP_API_INTERN
+// void _np_in_ping(np_state_t* context, np_jobargs_t args);
 
 #ifdef __cplusplus
 }

@@ -22,14 +22,15 @@
 #include "np_log.h"
 #include "np_legacy.h"
 #include "np_tree.h"
-#include "np_keycache.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
 #include "np_threads.h"
 #include "np_node.h"
-#include "np_sysinfo.h"
 #include "np_statistics.h"
 #include "np_settings.h"
+
+
+#include "../framework/sysinfo/np_sysinfo.h"
+#include "../framework/http/np_http.h"
 
 #include "gpio/bcm2835.h"
 
@@ -53,7 +54,7 @@ void handle_ping_pong_receive(np_context* context, char * response, int first_lo
 	char* text = (char*)msg->data;
 	
 	char tmp_from[65];
-	np_id2str(msg->from, tmp_from);
+	np_id_str(tmp_from, msg->from);
 	np_example_print(context, stdout, "Received %d/%s from %s. Sending %s\n",msg->data_length, text, tmp_from, response);
 
 	if (is_gpio_enabled == true)
@@ -242,7 +243,7 @@ int main(int argc, char **argv)
 	np_set_userdata(context, user_context);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		np_example_print(context, stderr, "ERROR: Node could not listen");
+		np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 		exit(EXIT_FAILURE);
 	}
 
@@ -262,7 +263,7 @@ int main(int argc, char **argv)
 			http_domain = NULL;
 		}
 		
-		if(false == np_http_init(context, http_domain))
+		if(false == _np_http_init(context, http_domain, NULL))
 		{
 			np_example_print(context, stderr,   "Node could not start HTTP interface\n");
 			log_msg(LOG_WARN, "Node could not start HTTP interface");

@@ -92,6 +92,12 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer);
 NP_API_INTERN
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));
 
+NP_API_INTERN
+void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc);
+
+NP_API_INTERN
+void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason);
+
 /**
 .. c:function:: void np_tree2json()
 
@@ -154,6 +160,11 @@ NP_API_EXPORT
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]);
 NP_API_EXPORT
 char* np_util_string_trim_left(char* target);
+
+NP_API_EXPORT
+void np_tree2buffer(np_state_t* context, np_tree_t* tree, void* buffer);
+NP_API_EXPORT
+void np_buffer2tree(np_state_t* context, void* buffer, np_tree_t* tree);
 
 
 

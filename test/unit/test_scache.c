@@ -32,16 +32,16 @@ Test(np_scache_t, np_simple_cache_insert, .description = "test the addition/retr
 
 		for (uint16_t j = 0; j < max_entries; j++) {
 			char *key = malloc(sizeof(char) * 32);
-			snprintf(key, 32, "%d", j);
+			snprintf(key, 32, "%031d", j);
 			np_simple_cache_insert(context, cache_table, key, key);
 			log_msg(LOG_DEBUG, "added new cache entry #%d: %s", j, key);
 
+			num_entries = 0;
 			for (uint32_t i = 0; i < cache_size; i++) {
 				num_entries += sll_size(cache_table->buckets[i]);
 			}
-			// log_msg(LOG_DEBUG, "cache entries have %d <-> %d should", num_entries, j+1);
+			log_msg(LOG_DEBUG, "cache entries have %d <-> %d should", num_entries, j+1);
 			cr_expect(num_entries == (j + 1), "expect the number of entries to be the same as we inserted");
-			num_entries = 0;
 		}
 
 		// check distribution of hash manually
@@ -51,11 +51,11 @@ Test(np_scache_t, np_simple_cache_insert, .description = "test the addition/retr
 
 		for (uint16_t j = 0; j < max_entries; j++) {
 			char *key = malloc(sizeof(char) * 32);
-			snprintf(key, 32, "%d", j);
+			snprintf(key, 32, "%031d", j);
 
 			np_cache_item_t* item = np_simple_cache_get(context, cache_table, key);
-			cr_expect(0 == strcmp(item->key, key), "test whether the retrieved key matches the requested key");
-			cr_expect(0 == strcmp((char*)item->value, key), "test whether the retrieved value matches the expected value");
+			cr_expect(0 == strncmp(item->key, key, 31), "test whether the retrieved key matches the requested key");
+			cr_expect(0 == strncmp((char*)item->value, key, 31), "test whether the retrieved value matches the expected value");
 		}
 	}
 }
@@ -86,7 +86,7 @@ Test(np_scache_t, np_simple_cache_performance, .description = "test the performa
 			MEASURE_TIME(retrieve_arr, j, item = np_simple_cache_get(context, cache_table, key));
 		}
 
-		cr_log_warn("###########\n");
+		cr_log_info("###########\n");
 		CALC_AND_PRINT_STATISTICS("scache insert  : ", insert_arr, max_entries);
 		CALC_AND_PRINT_STATISTICS("scache retrieve: ", retrieve_arr, max_entries);
 	}

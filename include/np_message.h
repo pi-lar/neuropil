@@ -23,10 +23,9 @@ enum np_message_submit_type {
     np_message_submit_type_DIRECT,
     np_message_submit_type_ROUTE
 };
+
 struct np_message_s
 {
-     // link to memory pool
-
     char* uuid;	
 
     np_tree_t* header;
@@ -43,13 +42,6 @@ struct np_message_s
     np_msgproperty_ptr msg_property;
     double send_at;	
 
-    TSP(bool, is_acked);
-    np_sll_t(np_responsecontainer_on_t, on_ack);
-    TSP(bool, is_in_timeout);
-    np_sll_t(np_responsecontainer_on_t, on_timeout);
-    TSP(bool, has_reply);
-    np_sll_t(np_message_on_reply_t, on_reply);
-
     void* bin_body;
     void* bin_footer;
     np_messagepart_t* bin_static;
@@ -57,9 +49,9 @@ struct np_message_s
     enum np_message_submit_type submit_type;
 } NP_API_INTERN;
 
-#ifndef SWIG
+
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
-#endif
+
 
 /** message_create / free:
  ** creates the message to the destination #dest# the message format would be like:
@@ -77,10 +69,9 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
 NP_API_INTERN
 void _np_message_calculate_chunking(np_message_t* msg);
+
 NP_API_INTERN
-np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check);
-NP_API_INTERN
-bool _np_message_serialize_header_and_instructions(np_state_t* context, np_jobargs_t args);
+bool _np_message_serialize_header_and_instructions(np_state_t* context, np_message_t* msg);
 NP_API_INTERN
 bool _np_message_serialize_chunked(np_message_t * msg);
 
@@ -130,20 +121,10 @@ void _np_message_mark_as_incomming(np_message_t* msg);
 NP_API_INTERN
 np_dhkey_t* _np_message_get_sender(const np_message_t* const self);
 
-NP_API_EXPORT
-void np_message_add_on_reply(np_message_t* self, np_message_on_reply_t on_reply);
-NP_API_EXPORT
-void np_message_remove_on_reply(np_message_t* self, np_message_on_reply_t on_reply_to_remove);
-
-NP_API_EXPORT
-void np_message_add_on_timeout(np_message_t* self, np_responsecontainer_on_t on_timeout);
-NP_API_EXPORT
-void np_message_remove_on_timeout(np_message_t* self, np_responsecontainer_on_t on_timeout);
-
-NP_API_EXPORT
-void np_message_add_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack);
-NP_API_EXPORT
-void np_message_remove_on_ack(np_message_t* self, np_responsecontainer_on_t on_ack);
+NP_API_INTERN
+void _np_message_add_key_response_handler(const np_message_t* self);
+NP_API_INTERN
+void _np_message_add_msg_response_handler(const np_message_t* self);
 
 NP_API_INTERN
 void _np_message_trace_info(char* desc, np_message_t * msg_in);
@@ -175,12 +156,10 @@ static const char* NP_HS_SIGNATURE = "_np.signature";
 static const char* NP_HS_PRIO = "_np.hs.priority";
 
 // body constants
-static const char* NP_MSG_BODY_JTREE = "_np.jtree";
 static const char* NP_MSG_BODY_TEXT = "_np.text";
 static const char* NP_MSG_BODY_XML = "_np.xml";
 
 // msg footer constants
-static const char* NP_MSG_FOOTER_ALIAS_KEY = "_np.alias_key";
 static const char* NP_MSG_FOOTER_GARBAGE = "_np.garbage";
 
 #ifdef __cplusplus

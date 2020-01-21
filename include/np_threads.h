@@ -38,55 +38,46 @@ return_type wrapped_##func_name(arg_1, arg_2);
 _NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
 typedef struct np_thread_stats_s np_thread_stats_t;
 
-
 typedef enum np_module_lock_e np_module_lock_type;
 
 enum np_module_lock_e {
     /*00*/np_memory_t_lock = 0,
-    /*01*/np_aaatoken_t_lock,
-    /*02*/np_event_t_lock,
-    /*03*/np_keycache_t_lock,
-    /*04*/np_message_part_cache_t_lock,
-    /*05*/np_msgproperty_t_lock,
-    /*06*/np_network_t_lock,
+    /*01*/np_event_in_t_lock,
+    /*02*/np_event_out_t_lock,
+    /*03*/np_event_http_t_lock,
+    /*04*/np_event_file_t_lock,
+    /*05*/np_keycache_t_lock,
+    /*06*/np_message_part_cache_t_lock,
     /*07*/np_routeglobal_t_lock,
-    /*08*/np_sysinfo_t_lock,
-    /*09*/np_logsys_t_lock,
+    /*08*/np_logsys_t_lock,
+    /*09*/np_sysinfo_t_lock,
     /*10*/np_jobqueue_t_lock,
     /*11*/np_node_renewal_t_lock,
     /*12*/np_statistics_t_lock,
-    /*13*/np_handshake_t_lock,
     /*14*/np_threads_t_lock,
     /*15*/np_utilstatistics_t_lock,
-    /*16*/np_state_message_tokens_t_lock,
+    /*16*/np_aaatoken_t_lock,
+    /*17*/np_state_message_tokens_t_lock,
     PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
-    PREDEFINED_DUMMY_1,
-    PREDEFINED_DUMMY_2,
-    PREDEFINED_DUMMY_3,
-    PREDEFINED_DUMMY_4,
-    PREDEFINED_DUMMY_5,
-    PREDEFINED_DUMMY_6,
-    PREDEFINED_DUMMY_7,
-    PREDEFINED_DUMMY_8,
 } NP_ENUM NP_API_INTERN;
 
 static char* np_module_lock_str[PREDEFINED_DUMMY_START] = {
     "np_memory_t_lock",
-    "np_aaatoken_t_lock",
-    "np_event_t_lock",
+    "np_event_in_t_lock",
+    "np_event_out_t_lock",
+    "np_event_http_t_lock",
+    "np_event_file_t_lock",
     "np_keycache_t_lock",
     "np_message_part_cache_t_lock",
-    "np_msgproperty_t_lock",
-    "np_network_t_lock",
     "np_routeglobal_t_lock",
-    "np_sysinfo_t_lock",
     "np_logsys_t_lock",
+    "np_sysinfo_t_lock",
     "np_jobqueue_t_lock",
     "np_node_renewal_t_lock",
     "np_statistics_t_lock",
-    "np_handshake_t_lock",
     "np_threads_t_lock",
     "np_utilstatistics_t_lock",
+    "np_aaatoken_t_lock",
     "np_state_message_tokens_t_lock"
 };
 
@@ -100,7 +91,7 @@ typedef struct np_cond_s np_cond_t;
 
 /** mutex                                                        **/
 struct np_mutex_s {
-    char* desc;
+    char desc[64];
     pthread_mutex_t lock;
     pthread_mutexattr_t lock_attr;
     np_cond_t  condition;
@@ -119,7 +110,7 @@ static const char* np_thread_type_str[] =  {
     "other",
     "main",
     "worker",
-    "manager",
+    "coord",
     "managed",
 };
 
@@ -173,16 +164,16 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
 NP_API_INTERN
 int _np_threads_unlock_module(np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_unlock_modules(np_state_t* context, np_module_lock_type module_id_a,np_module_lock_type module_id_b);
+int _np_threads_unlock_modules(np_state_t* context, np_module_lock_type module_id_a, np_module_lock_type module_id_b);
+
 NP_API_INTERN
 int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
 int _np_threads_module_condition_signal(NP_UNUSED np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id, double sec);
+int _np_threads_module_condition_timedwait(NP_UNUSED np_state_t* context, np_module_lock_type module_id, double sec);
 NP_API_INTERN
-int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_module_lock_type module_id);
-
+int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_module_lock_type module_id);
 
 NP_API_EXPORT
 int _np_threads_mutex_init(np_state_t*context, np_mutex_t* mutex, const char* desc);
@@ -200,6 +191,8 @@ NP_API_INTERN
 int _np_threads_mutex_condition_wait(NP_UNUSED np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
 int _np_threads_mutex_timedlock(NP_UNUSED np_state_t*context, np_mutex_t * mutex, const double delay);
+NP_API_INTERN
+int _np_threads_mutex_condition_signal(NP_UNUSED np_state_t* context, np_mutex_t* mutex);
 
 NP_API_INTERN
 void _np_threads_condition_init(NP_UNUSED np_state_t* context, np_cond_t* condition);
@@ -207,20 +200,21 @@ NP_API_INTERN
 void _np_threads_condition_init_shared(NP_UNUSED np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
 int _np_threads_condition_wait(NP_UNUSED np_state_t* context, np_cond_t* condition, np_mutex_t* mutex);
-
 NP_API_INTERN
 int _np_threads_condition_signal(NP_UNUSED np_state_t* context, np_cond_t* condition);
+NP_API_INTERN
+int _np_threads_condition_broadcast(NP_UNUSED np_state_t* context, np_cond_t* condition);
 NP_API_INTERN
 void _np_threads_condition_destroy(NP_UNUSED np_state_t* context, np_cond_t* condition);
 
 NP_API_INTERN
-int _np_threads_condition_broadcast(NP_UNUSED np_state_t* context, np_cond_t* condition);
-NP_API_INTERN
 np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number,np_threads_worker_run fn, bool auto_run, enum np_thread_type_e type);
+
 NP_API_INTERN
 np_thread_t*_np_threads_get_self(NP_UNUSED np_state_t* context);
 NP_API_INTERN
 void _np_threads_set_self(np_thread_t * myThread);
+
 NP_API_INTERN
 void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size);
 
@@ -272,7 +266,7 @@ _LOCK_MODULE(np_keycache_t)
 // print the complete object list and statistics
 
 NP_API_PROTEC
-char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine);
+char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine, bool force);
 
 /*
     TSP = ThreadSafeProperty

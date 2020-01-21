@@ -25,26 +25,27 @@
 #include "msgpack/cmp.h"
 #include "tree/tree.h"
 
-#include "np_util.h"
 
-
-#include "np_log.h"
-#include "np_legacy.h"
+#include "neuropil.h"
 
 #include "np_dhkey.h"
 #include "np_keycache.h"
-#include "np_treeval.h"
+#include "np_legacy.h"
+#include "np_list.h"
+#include "np_log.h"
 #include "np_message.h"
-#include "np_tree.h"
 #include "np_node.h"
 #include "np_route.h"
-#include "np_types.h"
-#include "np_list.h"
+#include "np_serialization.h"
 #include "np_threads.h"
-#include "neuropil.h"
+#include "np_tree.h"
+#include "np_treeval.h"
+#include "np_types.h"
+#include "np_util.h"
+
 
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION(void_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 {	
@@ -79,9 +80,39 @@ char* np_uuid_create(const char* str, const uint16_t num, char** buffer)
 // write_type_arr[np_treeval_type_npval_count] = &write_short_type;
 // write_type_arr[np_treeval_type_npval_count] = NULL;
 
+void np_key_ref_list(np_sll_t(np_key_ptr, sll_list), const char* reason, const char* reason_desc)
+{
+    np_state_t* context = NULL; 
+    sll_iterator(np_key_ptr) iter = sll_first(sll_list);	
+    while (NULL != iter)
+    {
+        if (context == NULL && iter->val != NULL) {
+            context = np_ctx_by_memory(iter->val);
+        }
+        np_ref_obj(np_key_t, (iter->val), reason, reason_desc);
+        sll_next(iter);
+    }
+}
+
+void np_key_unref_list(np_sll_t(np_key_ptr, sll_list) , const char* reason)
+{
+    np_state_t* context = NULL;
+    sll_iterator(np_key_ptr) iter = sll_first(sll_list);
+    while (NULL != iter)
+    {
+        
+        if (context == NULL && iter->val != NULL) {
+            context = np_ctx_by_memory(iter->val);
+        }
+        np_unref_obj(np_key_t, (iter->val), reason);
+        sll_next(iter);
+    }
+}
 
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
 {
+    if (sll_size(list_of_keys) <= 1) return; // no double entries to remove
+
     sll_iterator(np_key_ptr) iter1 = sll_first(list_of_keys);
     sll_iterator(np_key_ptr) tmp = NULL;
 
@@ -94,11 +125,10 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys))
         do
         {
             if (0 == _np_dhkey_cmp(&iter1->val->dhkey,
-                                 &iter2->val->dhkey))
+                                   &iter2->val->dhkey))
             {
                 tmp = iter2;
             }
-
             sll_next(iter2);
 
             if (NULL != tmp)
@@ -187,6 +217,21 @@ JSON_Value* np_treeval2json(np_state_t* context, np_treeval_t val) {
     return ret;
 }
 
+void np_tree2buffer(np_state_t* context, np_tree_t* tree, void* buffer)
+{
+    cmp_ctx_t cmp_write;
+    cmp_init(&cmp_write, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+    np_tree_serialize(context, tree, &cmp_write);
+}
+
+void np_buffer2tree(np_state_t* context, void* buffer, np_tree_t* tree)
+{
+    // Beginn reading section
+    cmp_ctx_t cmp_read;
+    cmp_init(&cmp_read, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+    np_tree_deserialize(context, tree, &cmp_read);
+}
+
 char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {
     log_trace_msg(LOG_TRACE, "start: char* np_dump_tree2char(context, np_tree_t* tree) {");
     JSON_Value * tmp = np_tree2json(context, tree);
@@ -194,6 +239,7 @@ char* np_dump_tree2char(np_state_t* context, np_tree_t* tree) {
     free(tmp);
     return tmp2;
 }
+
 JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
     log_trace_msg(LOG_TRACE, "start: JSON_Value* np_tree2json(context, np_tree_t* tree) {");
     JSON_Value* ret = json_value_init_object();
@@ -239,10 +285,6 @@ JSON_Value* np_tree2json(np_state_t* context, np_tree_t* tree) {
                 else if (np_treeval_type_char_ptr == tmp->key.type)
                 {
                     name = strndup( np_treeval_to_str(tmp->key,NULL), strlen( np_treeval_to_str(tmp->key, NULL)));
-                }
-                else if (np_treeval_type_special_char_ptr == tmp->key.type)
-                {
-                    name = strdup(_np_tree_get_special_str( tmp->key.value.ush));
                 }
                 else
                 {
@@ -413,6 +455,7 @@ bool np_get_local_ip(np_state_t* context, char* buffer,int buffer_size){
     }
     return ret;
 }
+
 uint8_t np_util_char_ptr_cmp(char_ptr const a, char_ptr const b) {
     return (uint8_t) strcmp(a,b);
 } 
@@ -450,6 +493,7 @@ char* _sll_char_make_flat(np_state_t* context, np_sll_t(char_ptr, target)) {
     }
 #ifdef DEBUG
     if (sll_size(target) != i) {
+        log_msg(LOG_ERROR, "%s", ret);
         log_msg(LOG_ERROR, "Size of original list (%"PRIu32") does not equal the size of the flattend string (items flattend: %"PRIu32").", sll_size(target),i);
         abort();
     }
@@ -504,55 +548,35 @@ char* np_util_string_trim_left(char* target) {
 
     return ret;
 }
+
 char* np_util_stringify_pretty(enum np_util_stringify_e type, void* data, char buffer[255]) {
-    
-    if (type == np_util_stringify_bytes_per_sec)
+
+    const char* byte_options[] = {"b","kB","MB","GB","TB","PB","?"};
+
+    if (type == np_util_stringify_bytes_per_sec || type == np_util_stringify_bytes)
     {
-        double bytes = *((double*)data);
-        double to_format;
-        double divisor = 1;
-        char* f = "b/s";
-        if (bytes < (100 * (divisor = 1024))) {
-            f = "kB/s";
+        float bytes = *((float*)data);
+        double to_format = bytes;
+        int i;
+        for(i=0;i<6;i++){                        
+            to_format = to_format / 1024;
+            if(to_format < 1024){
+                i++;
+                break;
+            }
         }
-        else if (bytes < (100 * (divisor = 1024 * 1024))) {
-            f = "MB/s";
+        if (type == np_util_stringify_bytes_per_sec){
+            snprintf(buffer, 255, "%5.2f %s/s", to_format, byte_options[i]);
+        }else{
+            snprintf(buffer, 255, "%5.2f %s", to_format, byte_options[i]);
         }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
-            f = "GB/s";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
-            f = "TB/s";
-        }
-        to_format = bytes / divisor;
-        snprintf(buffer, 254, "%5.2f %s", to_format, f);
-    }
-    else if (type == np_util_stringify_bytes)
-    {
-        uint32_t bytes = *((uint32_t*)data);
-        double to_format;
-        double divisor = 1;
-        char* f = "b";
-        if (bytes < (100 * (divisor = 1024))) {
-            f = "kB";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024))) {
-            f = "MB";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024))) {
-            f = "GB";
-        }
-        else if (bytes < (100 * (divisor = 1024 * 1024 * 1024 * 1024))) {
-            f = "TB";
-        }
-        to_format = bytes / divisor;
-        snprintf(buffer, 254, "%5.2f %s", to_format, f);
+        //fprintf(stderr, "%f / %f / %s\n", bytes, to_format, buffer);
     }
     else if (type == np_util_stringify_time_ms) {
 
         double time = *((double*)data);
         
-        //sprintf(buffer, "%+"PRIu32" ms", ceil(time * 1000));
+        //snprintf(buffer, 254"%+"PRIu32" ms", ceil(time * 1000));
         snprintf(buffer, 254, "%+f ms", time);
     }
     else {

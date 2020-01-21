@@ -28,6 +28,8 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+#include "core/np_comp_node.h"
+
 np_module_struct(route)
 {
     np_state_t* context;
@@ -69,11 +71,15 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
         sll_init(np_key_ptr, _module->left_leafset);
         sll_init(np_key_ptr, _module->right_leafset);
 
+        _np_dhkey_assign(&np_module(route)->Rrange, &np_module(route)->my_key->dhkey);
+        _np_dhkey_assign(&np_module(route)->Lrange, &np_module(route)->my_key->dhkey);
+
         // _np_route_clear();
     }
 
     return (true);
 }
+
 void _np_route_destroy(np_state_t* context){
     if (np_module_initiated(route)) {        
         np_module_var(route);
@@ -99,7 +105,7 @@ void _np_route_destroy(np_state_t* context){
         while(iter_leaf != NULL) {
             if(iter_leaf->val != NULL) {
                 char tmp[255]={0};
-                _np_dhkey2str(&iter_leaf->val->dhkey, tmp);
+                _np_dhkey_str(&iter_leaf->val->dhkey, tmp);
                 log_debug(LOG_ROUTING, "unreffing idx: %d %s",i++, tmp);
                 //_np_route_leafset_update (iter_leaf->val, false, NULL, NULL);
                 np_unref_obj(np_key_t,iter_leaf->val, ref_route_inleafset);
@@ -112,7 +118,7 @@ void _np_route_destroy(np_state_t* context){
         while(iter_leaf != NULL) {
             if(iter_leaf->val != NULL) {
                 char tmp[255]={0};
-                _np_dhkey2str(&iter_leaf->val->dhkey, tmp);
+                _np_dhkey_str(&iter_leaf->val->dhkey, tmp);
                 log_debug(LOG_ROUTING, "unreffing idx: %d %s",i++, tmp);
                 //_np_route_leafset_update (iter_leaf->val, false, NULL, NULL);
                 np_unref_obj(np_key_t,iter_leaf->val, ref_route_inleafset);
@@ -125,6 +131,7 @@ void _np_route_destroy(np_state_t* context){
         np_module_free(route);
     }    
 }
+
 /**
  ** _np_route_leafset_update:
  ** this function is called whenever a _np_route_update is called the joined
@@ -135,7 +142,10 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_update");
     np_ctx_memory(node_key);
 
-    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (node_key->in_destroy == true && joined))
+    if (!np_module_initiated(route) || np_module(route)->my_key == NULL)
+        return;
+
+    if (_np_key_cmp(node_key, np_module(route)->my_key) == 0)
         return;
 
     if(added != NULL) *added = NULL;
@@ -145,95 +155,90 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
 
     _LOCK_MODULE(np_routeglobal_t)
     {
-        if (_np_key_cmp(node_key, np_module(route)->my_key) != 0)
-        {
-            np_key_ptr find_right = sll_find(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp, NULL);
-            np_key_ptr find_left  = sll_find(np_key_ptr, np_module(route)->left_leafset,  node_key, _np_key_cmp, NULL);
+        np_key_ptr find_right = sll_find(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp, NULL);
+        np_key_ptr find_left  = sll_find(np_key_ptr, np_module(route)->left_leafset,  node_key, _np_key_cmp, NULL);
 
-            if (false == joined) {
-                if (NULL != find_right) {
-                    deleted_from = (np_key_t*)node_key;
-                    sll_remove(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp_inv);
-
-                }
-                else if (NULL != find_left) {
-                    deleted_from = (np_key_t*)node_key;
-                    sll_remove(np_key_ptr, np_module(route)->left_leafset, node_key, _np_key_cmp);
-                }
-                else {
-                    log_debug(LOG_ROUTING, "leafset did not change as key was not found");
-                }
+        if (false == joined) {
+            if (NULL != find_right) {
+                deleted_from = (np_key_t*)node_key;
+                sll_remove(np_key_ptr, np_module(route)->right_leafset, node_key, _np_key_cmp_inv);
+            }
+            else if (NULL != find_left) {
+                deleted_from = (np_key_t*)node_key;
+                sll_remove(np_key_ptr, np_module(route)->left_leafset, node_key, _np_key_cmp);
             }
             else {
+                log_debug(LOG_ROUTING, "leafset did not change as key was not found");
+            }
+        }
+        else 
+        {
+            if (NULL != find_right || NULL != find_left) {
+                log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was already in leafset");
+            }
+            else
+            {   /**
+                    * The key is not in our current leafset. So we need to check if we want to add it to our leafset
+                    * Cases:
+                    * 1. Leafset right or left is not fully filled
+                    *    => Add to leafset
+                    * 2. Leafsets are fully filled and our new key is between our outer bounds
+                    *    => We need to insert the key at the appropiate point in the list (another key is removed from our leafset)
+                    * 3. Leafsets are fully filled and our new key is further away then our outer bounds
+                    *    => No action required
+                    */
+                np_dhkey_t my_inverse_dhkey = { 0 };
+                np_dhkey_t dhkey_half_o = np_dhkey_half(context);
+                _np_dhkey_add(&my_inverse_dhkey, &np_module(route)->my_key->dhkey, &dhkey_half_o);
 
-                if (NULL != find_right || NULL != find_left) {
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "leafset did not change as key was already in leafset");
+                if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, true))
+                {
+                    if (
+                        sll_size(np_module(route)->right_leafset) < NP_ROUTE_LEAFSET_SIZE ||
+                        _np_dhkey_between(
+                            &node_key->dhkey,
+                            &np_module(route)->my_key->dhkey,
+                            &np_module(route)->Rrange,
+                            false
+                            )
+                        )
+                    {
+                        add_to = node_key;
+                        sll_prepend(np_key_ptr, np_module(route)->right_leafset, node_key);
+                        _np_keycache_sort_keys_kd(np_module(route)->right_leafset, &np_module(route)->my_key->dhkey);
+                    }
+
+                    // Cleanup of leafset / resize leafsets to max size if necessary
+                    if (sll_size(np_module(route)->right_leafset) > NP_ROUTE_LEAFSET_SIZE) {
+                        deleted_from = sll_tail(np_key_ptr, np_module(route)->right_leafset);
+                    }
                 }
-                else {
-                    /**
-                     * The key is not in our current leafset. So we need to check if we want to add it to our leafset
-                     * Cases:
-                     * 1. Leafset right or left is not fully filled
-                     *    => Add to leafset
-                     * 2. Leafsets are fully filled and our new key is between our outer bounds
-                     *    => We need to insert the key at the appropiate point in the list (another key is removed from our leafset)
-                     * 3. Leafsets are fully filled and our new key is further away then our outer bounds
-                     *    => No action required
-                     */
-
-                    np_dhkey_t my_inverse_dhkey = { 0 };
-                    np_dhkey_t dhkey_half_o = np_dhkey_half(context);
-                    _np_dhkey_add(&my_inverse_dhkey, &np_module(route)->my_key->dhkey, &dhkey_half_o);
-
-                    if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, true))
-                    {
-                        if (
-                            sll_size(np_module(route)->right_leafset) < NP_ROUTE_LEAFSET_SIZE ||
-                            _np_dhkey_between(
-                                &node_key->dhkey,
-                                &np_module(route)->my_key->dhkey,
-                                &np_module(route)->Rrange,
-                                false
-                                )
+                else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &np_module(route)->my_key->dhkey, true))
+                {
+                    if (
+                        sll_size(np_module(route)->left_leafset) < NP_ROUTE_LEAFSET_SIZE ||
+                        _np_dhkey_between(
+                            &node_key->dhkey,
+                            &np_module(route)->Lrange,
+                            &np_module(route)->my_key->dhkey,
+                            false
                             )
-                        {
-                            add_to = node_key;
-                            sll_prepend(np_key_ptr, np_module(route)->right_leafset, node_key);
-                            _np_keycache_sort_keys_kd(np_module(route)->right_leafset, &np_module(route)->my_key->dhkey);
-                        }
-
-                        // Cleanup of leafset / resize leafsets to max size if necessary
-                        if (sll_size(np_module(route)->right_leafset) > NP_ROUTE_LEAFSET_SIZE) {
-                            deleted_from = sll_tail(np_key_ptr, np_module(route)->right_leafset);
-                        }
-                    }
-                    else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &np_module(route)->my_key->dhkey, true))
+                        )
                     {
-                        if (
-                            sll_size(np_module(route)->left_leafset) < NP_ROUTE_LEAFSET_SIZE ||
-                            _np_dhkey_between(
-                                &node_key->dhkey,
-                                &np_module(route)->Lrange,
-                                &np_module(route)->my_key->dhkey,
-                                false
-                                )
-                            )
-                        {
-                            add_to = node_key;
-                            sll_prepend(np_key_ptr, np_module(route)->left_leafset, node_key);
-                            _np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
-                        }
-                        // Cleanup of leafset / resize leafsets to max size if necessary
-                        if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
-                            deleted_from = sll_head(np_key_ptr, np_module(route)->left_leafset);
-                        }
+                        add_to = node_key;
+                        sll_prepend(np_key_ptr, np_module(route)->left_leafset, node_key);
+                        _np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
                     }
+                    // Cleanup of leafset / resize leafsets to max size if necessary
+                    if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
+                        deleted_from = sll_tail(np_key_ptr, np_module(route)->left_leafset);
+                    }
+                }
 
-                    if (deleted_from != NULL && _np_key_cmp(deleted_from, add_to) == 0) {
-                        // we added and deleted in one. so nothing changed
-                        deleted_from = NULL;
-                        add_to = NULL;
-                    }
+                if (deleted_from != NULL && _np_key_cmp(deleted_from, add_to) == 0) {
+                    // we added and deleted in one. so nothing changed
+                    deleted_from = NULL;
+                    add_to = NULL;
                 }
             }
         }
@@ -286,12 +291,9 @@ void _np_route_set_key (np_key_t* new_node_key)
         if(np_module_initiated(route)){
             np_ref_switch(np_key_t, np_module(route)->my_key, ref_route_routingtable_mykey, new_node_key);
 
-            np_dhkey_t half = np_dhkey_half(context);
-            _np_dhkey_add(&np_module(route)->Rrange, &np_module(route)->my_key->dhkey, &half);
-            _np_dhkey_sub(&np_module(route)->Lrange, &np_module(route)->my_key->dhkey, &half);
-
-            // TODO: re-order table entries and leafset table maybe ?
-            // for now: hope that the routing table does it on its own as new keys arrive ...
+            // np_dhkey_t half = np_dhkey_half(context);
+            // _np_dhkey_add(&np_module(route)->Rrange, &np_module(route)->my_key->dhkey, &half);
+            // _np_dhkey_sub(&np_module(route)->Lrange, &np_module(route)->my_key->dhkey, &half);
         }
     }
 }
@@ -330,31 +332,29 @@ sll_return(np_key_ptr) _np_route_get_table (np_state_t* context)
 /** _np_route_row_lookup:key
  ** return the row in the routing table that matches the longest prefix with #key#
  **/
-sll_return(np_key_ptr) _np_route_row_lookup (np_key_t* key)
+sll_return(np_key_ptr) _np_route_row_lookup (np_state_t* context, np_dhkey_t dhkey)
 {
-    np_ctx_memory(key);
-
     np_sll_t(np_key_ptr, sll_of_keys);
     sll_init(np_key_ptr, sll_of_keys);
 
     _LOCK_MODULE(np_routeglobal_t)
     {
         uint16_t i, j, k;
-        i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &key->dhkey);
+        i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &dhkey);
         for (j = 0; j < __MAX_COL; j++)
         {
             int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
             for (k = 0; k < __MAX_ENTRY; k++)
             {
                 if (np_module(route)->table[index + k] != NULL &&
-                    !_np_dhkey_equal(&np_module(route)->table[index + k]->dhkey, &key->dhkey) )
+                    !_np_dhkey_equal(&np_module(route)->table[index + k]->dhkey, &dhkey) )
                 {
                     sll_append(np_key_ptr, sll_of_keys, np_module(route)->table[index + k]);
                 }
             }
         }
 
-        sll_append(np_key_ptr, sll_of_keys, np_module(route)->my_key);
+        // sll_append(np_key_ptr, sll_of_keys, np_module(route)->my_key);
         np_key_ref_list(sll_of_keys, FUNC, NULL);
     }
 
@@ -374,6 +374,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_sll_t* leafset, np_sll_t(np_key_
         sll_next(iter);
     }
 }
+
 /** _np_route_lookup:
  ** returns an array of #count# keys that are acceptable next hops for a
  ** message being routed to #key#.
@@ -400,7 +401,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
 #ifdef DEBUG
         char key_as_str[65] = { 0 };
-        _np_dhkey2str(&key, key_as_str);
+        _np_dhkey_str(&key, key_as_str);
         log_debug_msg(LOG_ROUTING | LOG_DEBUG, "TARGET: %s", key_as_str);
 #endif
         /*calculate the leafset and table size */
@@ -409,23 +410,20 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
         /* if the key is in the leafset range route through leafset */
         /* the additional 2 neuropil nodes pointed by the #hosts# are to consider the node itself and NULL at the end */
-        if (count == 1 &&
+        if (count >= 1 &&
             _np_dhkey_between (&key, &np_module(route)->Lrange, &np_module(route)->Rrange, true))
         {
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
-            sll_append(np_key_ptr, key_list, np_module(route)->my_key);
 
-            _np_route_append_leafset_to_sll(np_module(route)->left_leafset, key_list);
             _np_route_append_leafset_to_sll(np_module(route)->right_leafset, key_list);
+            _np_route_append_leafset_to_sll(np_module(route)->left_leafset, key_list);
 
             min = _np_keycache_find_closest_key_to (context, key_list, &key);
-            if(NULL != min) {				
-                ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", FUNC); 
-                sll_append(np_key_ptr, return_list, min);				
- 
+            if(NULL != min) {
+                np_ref_obj(np_key_t, min);
+                sll_append(np_key_ptr, return_list, min);				 
                 log_debug_msg(LOG_ROUTING | LOG_DEBUG, "++NEXT_HOP = %s", _np_key_as_str (min));
-            }			
-
+            }
             sll_free (np_key_ptr, key_list);
             _np_threads_unlock_module(context, np_routeglobal_t_lock);
             log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_lookup");
@@ -442,7 +440,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
             if (np_module(route)->table[index + k] != NULL)
             {
                 tmp_1 = np_module(route)->table[index + k];
-                if (tmp_1->node->success_avg > BAD_LINK)
+                if (_np_key_get_node(tmp_1)->success_avg > BAD_LINK)
                 {
                     next_hop = true;
                     break;
@@ -450,7 +448,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
             }
         }
 
-        if (true == next_hop && 1 == count)
+        if (true == next_hop && 1 <= count)
         {
             int index = __MAX_ENTRY * (match_col + (__MAX_COL* (i)));
             // int index = (i * __MAX_ROW + match_col) * __MAX_COL;
@@ -460,9 +458,12 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                      !_np_dhkey_equal(&np_module(route)->table[index + k]->dhkey, &tmp_1->dhkey) )
                 {
                     tmp_2 = np_module(route)->table[index + k];
-                    // TODO: make it more algorithmic ...
-                    if ( tmp_2->node->success_avg >= tmp_1->node->success_avg &&
-                         tmp_2->node->latency      < tmp_1->node->latency )
+                    np_node_t* tmp_2_node = _np_key_get_node(tmp_2);
+                    np_node_t* tmp_1_node = _np_key_get_node(tmp_1);
+                    // normalize values
+                    double metric_1 = 1.0 - tmp_1_node->success_avg + tmp_1_node->latency;
+                    double metric_2 = 1.0 - tmp_2_node->success_avg + tmp_2_node->latency;
+                    if (metric_1 > metric_2) // node 2 more stable and/or faster than node 1
                     {
                         tmp_1 = np_module(route)->table[index + k];
                     }
@@ -472,7 +473,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
             np_ref_obj(np_key_t, tmp_1 );
             sll_append(np_key_ptr, return_list, tmp_1);
 
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "Routing through Table(%s), NEXT_HOP=%s",
+            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through table(%s), NEXT_HOP=%s",
                    _np_key_as_str (np_module(route)->my_key),
                    _np_key_as_str (tmp_1) );
 
@@ -488,8 +489,8 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
         // log_msg (LOG_ROUTING, "Routing to next closest key I know of:");
         /* look left */
 
-        _np_route_append_leafset_to_sll(np_module(route)->left_leafset, key_list);
         _np_route_append_leafset_to_sll(np_module(route)->right_leafset, key_list);
+        _np_route_append_leafset_to_sll(np_module(route)->left_leafset, key_list);
 
         if (count == 0) {
             // consider that this node could be the target as well
@@ -508,15 +509,13 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                 if (np_module(route)->table[index + k] != NULL)
                 {
                     tmp_1 = np_module(route)->table[index + k];
-                    if (NULL != tmp_1->node && tmp_1->node->success_avg > BAD_LINK)
+                    if (_np_key_get_node(tmp_1)->success_avg > BAD_LINK)
                     {
-                        sll_append(np_key_ptr, key_list, tmp_1);
-                        
-                        //log_debug_msg(
+                        sll_append(np_key_ptr, key_list, tmp_1);                        
+                        //  log_debug_msg(
                         //	LOG_ROUTING | LOG_DEBUG, "+Table[%ul][%ul][%ul]: (%s)", 
                         //	i, j, k, /* leaf->dns_name, leaf->port, */ _np_key_as_str (tmp_1)
-                        //);
-                        
+                        //  );                        
                     }
                 }
             }
@@ -525,54 +524,56 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
         if (count == 1)
         {
             // printf ("route.c (%d): _np_route_lookup bounce count==1 ...\n", getpid());
-            // printTable(state);
             min = _np_keycache_find_closest_key_to (context, key_list, &key);
             
             if (NULL != min) {
-                ref_replace_reason(np_key_t, min, "_np_keycache_find_closest_key_to", FUNC);
+                np_ref_obj(np_key_t, min);
                 sll_append(np_key_ptr, return_list, min);
             }
+            sll_free (np_key_ptr, key_list);
+            _np_threads_unlock_module(context, np_routeglobal_t_lock);
+            log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_lookup");
+            return return_list;
         }
-        else
-        {
-            if (2 <= key_list->size)
-            {
-                _np_keycache_sort_keys_cpm (key_list, &key);
-                /* find the best #count# entries that we looked at ... could be much better */
-                
-                /* removing duplicates from the list */				
-                sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
-                sll_iterator(np_key_ptr) iter2 = NULL;
-                bool iters_equal = false;
-                uint8_t requested_list_size = 0;
-                while (iter1 != NULL)
-                {
-                    iters_equal = false;
-                    iter2 = sll_first(return_list);
-                    while (iter2 != NULL)
-                    {
-                        if (_np_dhkey_equal(&iter2->val->dhkey, &iter1->val->dhkey)==true) {
-                            iters_equal = true;
-                            break;
-                        }
-                        sll_next(iter2);
-                    }
-                    if (iters_equal == false) {
-                        np_ref_obj(np_key_t, iter1->val);
-                        sll_append(np_key_ptr, return_list, iter1->val);
-                        requested_list_size++;
-                    }
-                    if (requested_list_size >= count)
-                    		break;
 
-                    sll_next(iter1);
+        if (2 <= sll_size(key_list) )
+        {
+            _np_keycache_sort_keys_cpm (key_list, &key);
+            /* find the best #count# entries that we looked at ... could be much better */
+            
+            /* removing duplicates from the list */				
+            sll_iterator(np_key_ptr) iter1 = sll_first(key_list);
+            sll_iterator(np_key_ptr) iter2 = NULL;
+            bool iters_equal = false;
+            uint8_t requested_list_size = 0;
+            while (iter1 != NULL)
+            {
+                iters_equal = false;
+                iter2 = sll_first(return_list);
+                while (iter2 != NULL)
+                {
+                    if (_np_dhkey_equal(&iter2->val->dhkey, &iter1->val->dhkey)==true) {
+                        iters_equal = true;
+                        break;
+                    }
+                    sll_next(iter2);
                 }
+                
+                if (iters_equal == false || iter2 == NULL) 
+                {
+                    np_ref_obj(np_key_t, iter1->val);
+                    sll_append(np_key_ptr, return_list, iter1->val);
+                    requested_list_size++;
+                }
+                if (requested_list_size >= count)
+                        break;
+
+                sll_next(iter1);
             }
-        }
-        
+        }        
 
         /*  to prevent bouncing */
-        if (count == 1 && sll_size(return_list) > 0)
+        if (count >= 1 && sll_size(return_list) > 0)
         {
     //	    log_debug_msg(LOG_DEBUG, "_np_route_lookup bounce detection ...");
     //	    log_debug_msg(LOG_DEBUG, "search key: %s", _np_key_as_str(key) );
@@ -581,8 +582,6 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
             _np_dhkey_distance (&dif1, &key, &sll_first(return_list)->val->dhkey);
             _np_dhkey_distance (&dif2, &key, &np_module(route)->my_key->dhkey);
-
-            // printTable(rg);
 
             // if (key_equal (dif1, dif2)) ret[0] = rg->me;
             // changed on 03.06.2014 STSW choose the closest neighbour
@@ -593,7 +592,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                 np_ref_obj(np_key_t, first->val);
             }
 
-            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "route  key: %s", _np_key_as_str(sll_first(return_list)->val));
+            log_debug_msg(LOG_DEBUG, "route  key: %s", _np_key_as_str(sll_first(return_list)->val));
 
             // if (!key_comp(&dif1, &dif2) == 0) ret[0] = rg->me;
             // if (key_comp(&dif1, &dif2)  < 0) ret[0] = NULL;
@@ -605,6 +604,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
         
         sll_free(np_key_ptr, key_list);
     }	
+
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_lookup");
     return (return_list);
 }
@@ -618,15 +618,15 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 void _np_route_leafset_range_update (np_state_t* context)
 {
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".start.leafset_range_update");
+    
     sll_iterator(np_key_ptr) item = sll_last(np_module(route)->right_leafset);
-
     if(item != NULL) {
         _np_dhkey_assign (&np_module(route)->Rrange, &item->val->dhkey);
     } else {
         _np_dhkey_assign (&np_module(route)->Rrange, &np_module(route)->my_key->dhkey);
     }
 
-    item = sll_first(np_module(route)->left_leafset);
+    item = sll_last(np_module(route)->left_leafset);
     if(item != NULL) {
         _np_dhkey_assign (&np_module(route)->Lrange, &item->val->dhkey);
     } else {
@@ -689,6 +689,7 @@ void _np_route_clear (np_state_t* context)
         _np_route_leafset_clear(context);
     }
 }
+
 void _np_route_leafset_clear (np_state_t* context)
 {
     _LOCK_MODULE(np_routeglobal_t)
@@ -725,7 +726,7 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
 {
     np_ctx_memory(key);
 
-    if (!np_module_initiated(route) || np_module(route)->my_key == NULL || (key->in_destroy == true && joined))
+    if (!np_module_initiated(route) || np_module(route)->my_key == NULL)
         return;
 
     _LOCK_MODULE(np_routeglobal_t)
@@ -785,35 +786,42 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
             {
                 pick = 0;
                 np_key_t *k_node;
-                np_key_t *pick_node;
+                np_key_t *pick_node = NULL;
+                // slowest node selection
                 for (k = 1; k < __MAX_ENTRY; k++)
-                {					
+                {
                     pick_node = np_module(route)->table[index + pick];
-                    if (pick_node == NULL || pick_node->node == NULL)
+                    if (pick_node == NULL)
                         break;
+                    
                     k_node  = np_module(route)->table[index + k];
-
-                    if (k_node == NULL || k_node->node == NULL) {
+                    if (k_node == NULL) 
+                    {
                         pick = k;
                         pick_node = np_module(route)->table[index + pick];
                         break;
                     }
-                    else {
-                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d: t..%f > p..%f ?",
-                            index, k_node->node->latency, pick_node->node->latency);
 
-                        if (k_node->node->latency > pick_node->node->latency)
-                        {							
-                            pick = k;
-                        }
+                    double latency_diff = _np_key_get_node(k_node)->latency - _np_key_get_node(pick_node)->latency;
+                    if (latency_diff > 0) // pick_node is slower than new node and
+                    {							
+                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d.%d: k.%f < p.%f",
+                                                                index, pick, _np_key_get_node(k_node)->latency, _np_key_get_node(pick_node)->latency);
+                        pick = k;
+                        pick_node = np_module(route)->table[index + pick];
                     }
                 }
-                
-                if(pick_node == NULL) {
-                    deleted_from = pick_node;
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);
-                    np_module(route)->table[index + pick] = key;
-                    add_to = key;
+
+                if (pick_node != NULL)       // we have a pick node
+                {
+                    double latency_diff = _np_key_get_node(pick_node)->latency - _np_key_get_node(key)->latency;
+                    if (latency_diff > NP_PI/1000) // pick_node has reasonably lower latency than new node
+                    {
+                        deleted_from = pick_node;
+                        np_module(route)->table[index + pick] = key;
+                        add_to = key;
+                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);
+                    }
                 }
             }
         }
@@ -834,11 +842,13 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
             }
         }
 
-        if(add_to != NULL) {
+        if(add_to != NULL) 
+        {
             log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   routing table.", _np_key_as_str(add_to));
             np_ref_obj(np_key_t, add_to, ref_route_inroute);
             if (added != NULL) *added = add_to;
-            TSP_SCOPE(np_module(route)->route_count) {
+            TSP_SCOPE(np_module(route)->route_count) 
+            {
                 np_module(route)->route_count += 1;
             }
         }
@@ -867,13 +877,14 @@ uint32_t __np_route_my_key_count_routes(np_state_t* context, NP_UNUSED bool brea
 }
 
 bool _np_route_my_key_has_connection(np_state_t* context) {
-    return (__np_route_my_key_count_routes(context, true) + _np_route_my_key_count_neighbours(context, NULL, NULL)) > 0 ? true: false;
+    return (__np_route_my_key_count_routes(context, true) + _np_route_my_key_count_neighbors(context, NULL, NULL)) > 0 ? true: false;
 }
 
 uint32_t _np_route_my_key_count_routes(np_state_t* context) {
     return __np_route_my_key_count_routes(context, false);
 }
-uint32_t _np_route_my_key_count_neighbours(np_state_t* context, uint32_t* left, uint32_t* right) {
+
+uint32_t _np_route_my_key_count_neighbors(np_state_t* context, uint32_t* left, uint32_t* right) {
     TSP_GET(uint32_t, np_module(route)->leafset_left_count, l);
     TSP_GET(uint32_t, np_module(route)->leafset_right_count, r);
 

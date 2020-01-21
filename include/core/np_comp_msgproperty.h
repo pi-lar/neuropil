@@ -9,8 +9,8 @@
  A developer should be familiar with the main settings
 */
 
-#ifndef _NP_MSGPROPERTY_H_
-#define _NP_MSGPROPERTY_H_
+#ifndef _NP_COMP_MSGPROPERTY_H_
+#define _NP_COMP_MSGPROPERTY_H_
 
 #include <stdarg.h>
 #include "np_types.h"
@@ -19,11 +19,38 @@
 
 #include "np_util.h"
 #include "np_list.h"
-#include "np_threads.h"
+
+#include "util/np_event.h"
+#include "util/np_statemachine.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define _NP_URN_PREFIX						"urn:np:"
+#define _NP_URN_MSG_PREFIX					"" // TODO: _NP_URN_PREFIX"msg:"
+#define _NP_URN_NODE_PREFIX					_NP_URN_PREFIX"node:"
+#define _NP_URN_IDENTITY_PREFIX				_NP_URN_PREFIX"id:"
+
+#define _DEFAULT							"_NP.DEFAULT"
+#define _FORWARD							"_NP.FORWARD"
+
+static const char* _NP_MSG_ACK                    = "_NP.ACK";
+static const char* _NP_MSG_HANDSHAKE              = "_NP.HANDSHAKE";
+static const char* _NP_MSG_JOIN_REQUEST           = "_NP.JOIN.REQUEST";
+static const char* _NP_MSG_LEAVE_REQUEST          = "_NP.LEAVE.REQUEST";
+static const char* _NP_MSG_PING_REQUEST           = "_NP.PING.REQUEST";
+static const char* _NP_MSG_PIGGY_REQUEST          = "_NP.NODES.PIGGY";
+static const char* _NP_MSG_UPDATE_REQUEST         = "_NP.NODES.UPDATE";
+static const char* _NP_MSG_DISCOVER_RECEIVER      = "_NP.MESSAGE.DISCOVER.RECEIVER";
+static const char* _NP_MSG_DISCOVER_SENDER        = "_NP.MESSAGE.DISCOVER.SENDER";
+static const char* _NP_MSG_AVAILABLE_RECEIVER     =	"_NP.MESSAGE.RECEIVER.LIST";
+static const char* _NP_MSG_AVAILABLE_SENDER	      = "_NP.MESSAGE.SENDER.LIST";
+static const char* _NP_MSG_AUTHENTICATION_REQUEST =	"_NP.MESSAGE.AUTHENTICATE";
+static const char* _NP_MSG_AUTHENTICATION_REPLY   = "_NP.MESSAGE.AUTHENICATION.REPLY";
+static const char* _NP_MSG_AUTHORIZATION_REQUEST  = "_NP.MESSAGE.AUTHORIZE";
+static const char* _NP_MSG_AUTHORIZATION_REPLY    = "_NP.MESSAGE.AUTHORIZATION.REPLY";
+static const char* _NP_MSG_ACCOUNTING_REQUEST     = "_NP.MESSAGE.ACCOUNT";
 
 /**
 .. c:type:: np_msg_mode_type
@@ -36,11 +63,9 @@ extern "C" {
 
 */
 typedef enum np_msg_mode_enum {
-    DEFAULT_MODE = 0x00,
     INBOUND      = 0x01,
     OUTBOUND     = 0x02,
-    ROUTE        = 0x04,
-    TRANSFORM    = 0x08
+    DEFAULT_MODE = 0x03
 } NP_API_EXPORT np_msg_mode_type;
 
 /**
@@ -199,9 +224,8 @@ typedef enum np_msgcache_policy_enum {
 */
 typedef enum np_msg_ack_enum {
     ACK_NONE		= 0x00, // 0000 0000  - don't ack at all
-    ACK_EACHHOP		= 0x01, // 0000 0001 - each hop has to send a ack to the previous hop
-    ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message sender across multiple nodes
-    ACK_CLIENT		= 0x04, // 0000 0100 - message to sender ack after/during processing the message on receiver side
+    ACK_DESTINATION = 0x01, // 0000 0010 - message destination ack to message sender across multiple nodes
+    ACK_CLIENT		= 0x02, // 0000 0100 - message to sender ack after/during processing the message on receiver side
 } NP_API_EXPORT np_msg_ack_type;
 
 /**
@@ -218,18 +242,10 @@ typedef enum np_msg_ack_enum {
 
    use the string "max_threshold" to alter the amount of messages that a nodes is willing to receive and
    the cache size of a message using :c:func:`np_set_mx_properties`
-
 */
+
 struct np_msgproperty_s
 {
-    // link to memory management
-    
-
-    RB_ENTRY(np_msgproperty_s) link; // link for cache management
-
-    // link to node(s) which is/are interested in message exchange
-    np_dhkey_t partner_key;
-
     /*
     should not become longer than 242 characters
         255 - 13 (urn:np:...)
@@ -244,71 +260,71 @@ struct np_msgproperty_s
     uint8_t          priority;
     uint8_t          retry; // the # of retries when sending a message
 
-    TSP(uint16_t,    msg_threshold); // current cache size
-    uint16_t         max_threshold; // local cache size
-    bool is_internal;
-
-    // timestamp for cleanup thread
-    double          last_update;
-
-    // cache which will hold up to max_threshold messages
-    np_msgcache_policy_type cache_policy;
-    np_sll_t(np_message_ptr, msg_cache_in);
-    np_sll_t(np_message_ptr, msg_cache_out);
-
-    // only send/receive after opposite partner has been found
-    np_mutex_t lock;
-    np_mutex_t send_discovery_msgs_lock;
-    np_cond_t  msg_received;
-
-    // pthread_cond_t     msg_received;
-    // pthread_condattr_t cond_attr;
-
-    // callback function(s) to invoke when a message is received
-    np_sll_t(np_callback_t, clb_inbound);			// internal neuropil supplied
-    np_sll_t(np_callback_t, clb_outbound);			// internal neuropil supplied
-    np_sll_t(np_callback_t, clb_route);				// internal neuropil supplied
-    np_sll_t(np_callback_t, clb_transform);			// internal neuropil supplied
-
-    np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
-    np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
-
     // The token created for this msgproperty will guaranteed invalidate after token_max_ttl seconds
     uint32_t token_max_ttl;
     // The token created for this msgproperty will guaranteed live for token_min_ttl seconds
     uint32_t token_min_ttl;
 
+    uint16_t  cache_size;
+    uint8_t  msg_threshold; // current cache size
+    uint8_t  max_threshold; // local cache size
+    bool is_internal;
+
+    // timestamp for cleanup thread
+    double          last_update;
+    double          last_intent_tx_update;
+    double          last_intent_rx_update;    
+
+    // dhkey of node(s)/identities/realms who are interested in message exchange
+    np_dhkey_t partner_key;
+
+    // cache which will hold up to max_threshold messages
+    np_msgcache_policy_type cache_policy;
+
+    np_tree_t* response_handler;
+
+    np_sll_t(np_message_ptr, msg_cache_in);
+    np_sll_t(np_message_ptr, msg_cache_out);
+
+    // callback function(s) to invoke when a message is received
+    np_sll_t(np_evt_callback_t, clb_inbound);			// internal neuropil supplied
+    np_sll_t(np_evt_callback_t, clb_outbound);			// internal neuropil supplied
+
+    np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
+    np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
+
+    TSP(bool, is_acked);
+    np_sll_t(np_responsecontainer_on_t, on_ack);
+    TSP(bool, is_in_timeout);
+    np_sll_t(np_responsecontainer_on_t, on_timeout);
+    TSP(bool, is_sent);
+    np_sll_t(np_responsecontainer_on_t, on_send);
+
+    TSP(bool, has_reply);
+    np_sll_t(np_msgproperty_on_reply_t, on_reply);
+
     bool unique_uuids_check;
     uint32_t unique_uuids_max;
-    np_mutex_t unique_uuids_lock;
-    np_tree_t* unique_uuids;
 
-    // weak link (no reffing)
-    np_key_t* send_key;
-    // weak link (no reffing)
-    np_key_t* recv_key;
+    np_tree_t* unique_uuids;
 
     np_message_intent_public_token_t* current_sender_token;
     np_message_intent_public_token_t* current_receive_token;
 
 } NP_API_EXPORT;
 
-#ifndef SWIG
+
 _NP_GENERATE_MEMORY_PROTOTYPES(np_msgproperty_t);
-#endif
 
-// create setter methods
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mode_type, np_msg_mode_type);
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, mep_type, np_msg_mep_type);
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, ack_mode, np_msg_ack_type);
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, msg_ttl, double);
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, retry, uint8_t);
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, max_threshold, uint16_t);
-
-_NP_GENERATE_PROPERTY_SETVALUE(np_msgproperty_t, partner_key, np_dhkey_t);
-
-_NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, msg_audience);
-
+/**
+ ** msgproperty_init|_destroy
+ ** Initialize msgproperty subsystem and register default message types
+ ** contains global state of message subsystem.
+ **/
+NP_API_INTERN
+bool _np_msgproperty_init (np_state_t* context);
+NP_API_INTERN
+void _np_msgproperty_destroy (np_state_t* context);
 
 /**
 .. c:function:: void np_msgproperty_register(np_state_t *state, np_msgproperty_t* msgprops)
@@ -321,107 +337,50 @@ _NP_GENERATE_PROPERTY_SETSTR(np_msgproperty_t, msg_audience);
 
    :param state: the global neuropil :c:type:`np_state_t` structure
    :param msgprops: the np_msgproperty_t structure which should be registered
-
 */
 NP_API_EXPORT
 void np_msgproperty_register(np_msgproperty_t* msgprops);
 
-
-NP_API_INTERN
-void _np_msgproperty_update_disovery(np_state_t * context, np_msgproperty_t* msgprop);
-
 /**
-.. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
+    .. c:function:: np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_state_t *state, np_msg_mode_type msg_mode, const char* subject)
 
-users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
-automatically create and set the values specified.
+    users of neuropil should simply use the :c:func:`np_set_mx_property` functions which will
+    automatically create and set the values specified.
 
-return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
+    return the np_msgproperty structure for a subject and :c:type:`np_msg_mode_type`
 
-:param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
-:param subject: the subject of the messages that are send
-:returns: np_msgproperty_t structure of NULL if none found
-
+    :param mode_type: either INBOUND or OUTBOUND (see :c:type:`np_msg_mode_type`)
+    :param subject: the subject of the messages that are send
+    :returns: np_msgproperty_t structure of NULL if none found
 */
 NP_API_INTERN
-np_msgproperty_t* np_msgproperty_get(np_state_t* context, np_msg_mode_type msg_mode, const char* subject);
-
+np_msgproperty_t* _np_msgproperty_get(np_state_t* context, np_msg_mode_type msg_mode, const char* subject);
 NP_API_INTERN
-np_msgproperty_t* np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_type mode_type, const char* subject);
-
-
-
+np_msgproperty_t* _np_msgproperty_get_or_create(np_state_t* context, np_msg_mode_type mode_type, const char* subject);
 
 /**
-.. c:function:: void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self)
-.. c:function:: void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids)
+    .. c:function:: void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self)
+    .. c:function:: void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self, uint32_t remembered_uuids)
 
-enables or disables the functionality of the msg property to only receive unique msgs.
+    enables or disables the functionality of the msg property to only receive unique msgs.
 
-:param self: the msgproperty to modify
-:param remembered_uuids: the maximum count of uuids remembered
-
+    :param self: the msgproperty to modify
+    :param remembered_uuids: the maximum count of uuids remembered
 */
-NP_API_EXPORT
-void np_msgproperty_disable_check_for_unique_uuids(np_msgproperty_t* self);
-NP_API_EXPORT
-void np_msgproperty_enable_check_for_unique_uuids(np_msgproperty_t* self);
 NP_API_INTERN
-void _np_msgproperty_job_msg_uniquety(np_state_t* context, np_jobargs_t args);
+void _np_msgproperty_job_msg_uniquety(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
 NP_API_INTERN
 bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
 
-#define _NP_URN_PREFIX						"urn:np:"
-#define _NP_URN_MSG_PREFIX					""
-#define _NP_URN_NODE_PREFIX					_NP_URN_PREFIX"node:"
-#define _NP_URN_IDENTITY_PREFIX				_NP_URN_PREFIX"id:"
-#define _DEFAULT							"_NP.DEFAULT"
-
-#define _NP_MSG_ACK							"_NP.ACK"
-#define _NP_MSG_HANDSHAKE					"_NP.HANDSHAKE"
-#define _NP_MSG_PING_REQUEST				"_NP.PING.REQUEST"
-#define _NP_MSG_LEAVE_REQUEST				"_NP.LEAVE.REQUEST"
-#define _NP_MSG_JOIN						"_NP.JOIN."
-#define _NP_MSG_JOIN_REQUEST				"_NP.JOIN.REQUEST"
-#define _NP_MSG_JOIN_ACK					"_NP.JOIN.ACK"
-#define _NP_MSG_JOIN_NACK					"_NP.JOIN.NACK"
-#define _NP_MSG_PIGGY_REQUEST				"_NP.NODES.PIGGY"
-#define _NP_MSG_UPDATE_REQUEST				"_NP.NODES.UPDATE"
-#define _NP_MSG_DISCOVER_RECEIVER			"_NP.MESSAGE.DISCOVER.RECEIVER"
-#define _NP_MSG_DISCOVER_SENDER				"_NP.MESSAGE.DISCOVER.SENDER"
-#define _NP_MSG_AVAILABLE_RECEIVER			"_NP.MESSAGE.RECEIVER.LIST"
-#define _NP_MSG_AVAILABLE_SENDER			"_NP.MESSAGE.SENDER.LIST"
-#define _NP_MSG_AUTHENTICATION_REQUEST		"_NP.MESSAGE.AUTHENTICATE"
-#define _NP_MSG_AUTHENTICATION_REPLY		"_NP.MESSAGE.AUTHENICATION.REPLY"
-#define _NP_MSG_AUTHORIZATION_REQUEST		"_NP.MESSAGE.AUTHORIZE"
-#define _NP_MSG_AUTHORIZATION_REPLY			"_NP.MESSAGE.AUTHORIZATION.REPLY"
-#define _NP_MSG_ACCOUNTING_REQUEST			"_NP.MESSAGE.ACCOUNT"
-
 /**
- ** message_init
- ** Initialize messaging subsystem on port and returns the MessageGlobal * which
- ** contains global state of message subsystem.
- **
+ ** add|check|cleanup sender|receiver msgcache
  **/
-NP_API_INTERN
-bool _np_msgproperty_init (np_state_t* context);
-NP_API_INTERN
-void _np_msgproperty_destroy (np_state_t* context);
-
-/**
- ** compare two msg properties for rb cache management
- **
- **/
-NP_API_INTERN
-int16_t _np_msgproperty_comp(const np_msgproperty_t* const prop1, const np_msgproperty_t* const prop2);
-
 NP_API_INTERN
 void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop);
 NP_API_INTERN
 void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhkey_t from);
-
 NP_API_INTERN
 void _np_msgproperty_add_msg_to_send_cache(np_msgproperty_t* msg_prop, np_message_t* msg_in);
 NP_API_INTERN
@@ -429,22 +388,94 @@ void _np_msgproperty_add_msg_to_recv_cache(np_msgproperty_t* msg_prop, np_messag
 NP_API_INTERN
 void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop);
 NP_API_INTERN
+void _np_msgproperty_cleanup_sender_cache(np_msgproperty_t* msg_prop);
+
+/**
+ ** handle treshold breaches
+ **/
+NP_API_INTERN
 void _np_msgproperty_threshold_increase(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
 NP_API_INTERN
-bool _np_messsage_threshold_breached(np_msgproperty_t* self);
-NP_API_INTERN
-np_message_intent_public_token_t* _np_msgproperty_upsert_token(np_msgproperty_t* prop);
+bool _np_msgproperty_threshold_breached(np_msgproperty_t* self);
 
+
+/**
+ ** convert to|from user struct mx_property
+ **/
 NP_API_INTERN
 void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src);
 NP_API_INTERN
 void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struct np_mx_properties* src);
+
+NP_API_INTERN
+np_dhkey_t _np_msgproperty_dhkey(np_msg_mode_type mode_type, const char* subject);
+
+/**
+ ** state machine functions and definitions
+ */
+NP_API_INTERN
+bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+NP_API_INTERN
+bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+
+NP_API_INTERN
+void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+NP_API_INTERN
+void __np_property_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_check(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+bool __is_payload_encrypted(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_property_out_usermsg(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+/**
+ ** create a new message intent token if neccessary
+ **/
+NP_API_INTERN
+void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+void np_msgproperty_add_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply);
+NP_API_INTERN
+void np_msgproperty_remove_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply_to_remove);
+
+NP_API_INTERN
+void np_msgproperty_add_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
+NP_API_INTERN
+void np_msgproperty_remove_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
+NP_API_INTERN
+void np_msgproperty_add_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
+NP_API_INTERN
+void np_msgproperty_remove_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
+NP_API_INTERN
+void np_msgproperty_add_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
+NP_API_INTERN
+void np_msgproperty_remove_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
+
 
 #ifdef __cplusplus
 }
 #endif
 
 
-#endif /* _NP_MSGPROPERTY_H_ */
+#endif /* _NP_COMP_MSGPROPERTY_H_ */

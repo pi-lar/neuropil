@@ -16,6 +16,9 @@
 /*
  *  simple types / typedefs
  */
+
+typedef struct np_util_event_s np_util_event_t;
+
 typedef struct np_responsecontainer_s np_responsecontainer_t;
 
 typedef struct np_aaatoken_s np_aaatoken_t;
@@ -32,7 +35,6 @@ typedef enum np_aaatoken_type np_aaatoken_type_e;
 typedef struct np_dhkey_s np_dhkey_t;
 
 typedef struct np_job_s np_job_t;
-typedef struct np_jobargs_s np_jobargs_t;
 
 typedef struct np_key_s np_key_t;
 typedef np_key_t* np_key_ptr;
@@ -72,15 +74,15 @@ typedef struct np_crypto_session_s np_crypto_session_t;
 /*
  *  user callback functions
  */
-
-typedef void(*np_destroycallback_t) (np_context* ac);
-typedef bool(*np_usercallbackfunction_t) (np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata);
-typedef void(*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
-typedef void(*np_message_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
-typedef void(*np_threads_worker_run) (np_state_t* context, np_thread_t* thread);
+typedef void (*np_destroycallback_t)      (np_context* ac);
+typedef bool (*np_usercallbackfunction_t) (np_context* ac, const np_message_t* const msg, np_tree_t* body, void* localdata);
+typedef void (*np_responsecontainer_on_t) (const np_responsecontainer_t* const entry);
+typedef void (*np_msgproperty_on_reply_t) (const np_responsecontainer_t* const entry, const np_message_t* const reply_msg);
+typedef void (*np_threads_worker_run)     (np_state_t* context, np_thread_t* thread);
 
 // internal callback functions
-typedef void (*np_callback_t) (np_state_t* context, np_jobargs_t);
+typedef void (*np_callback_t) (np_state_t* context, np_util_event_t event);
+typedef bool (*np_evt_callback_t) (np_state_t* context, np_util_event_t event);
 typedef int(*_np_cmp_t)(void* a, void* b);
 
 typedef struct np_usercallback_s {
@@ -88,11 +90,13 @@ typedef struct np_usercallback_s {
     np_usercallbackfunction_t fn;
 } np_usercallback_t;
 
-typedef np_usercallback_t * np_usercallback_ptr;
+typedef np_usercallback_t* np_usercallback_ptr;
 
 /*
 * list types and typedefs
 */
+#pragma clang diagnostic push ignored "-Wstrict-prototypes"
+
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 
 NP_SLL_GENERATE_PROTOTYPES(void_ptr);
@@ -105,11 +109,13 @@ NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_callback_t);
+NP_SLL_GENERATE_PROTOTYPES(np_evt_callback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_destroycallback_t);
 NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
-NP_SLL_GENERATE_PROTOTYPES(np_message_on_reply_t);
+NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_on_reply_t);
 
 NP_DLL_GENERATE_PROTOTYPES(np_thread_ptr);
 
+#pragma clang diagnostic pop
 
 #endif /* _INCLUDE_H_ */

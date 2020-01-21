@@ -19,7 +19,6 @@
 #include "np_tree.h"
 
 
-
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     log_trace_msg(LOG_TRACE, "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
     np_treeval_t to;
@@ -217,9 +216,6 @@ char* np_treeval_to_str(np_treeval_t val, bool* freeable) {
         case np_treeval_type_char_ptr:
             return val.value.s;
             break;
-        case np_treeval_type_special_char_ptr:
-            return (char*) _np_tree_get_special_str( val.value.ush);
-            break;
         case np_treeval_type_char:
         case np_treeval_type_unsigned_char:
             return &val.value.c;
@@ -309,7 +305,7 @@ char* np_treeval_to_str(np_treeval_t val, bool* freeable) {
             result = malloc(65);
             CHECK_MALLOC(result);
             if (freeable != NULL) *freeable = true;
-            _np_dhkey2str(&val.value.dhkey, result);
+            _np_dhkey_str(&val.value.dhkey, result);
             break;
         default:
             return "--> unknown";
@@ -374,27 +370,9 @@ np_treeval_t np_treeval_new_v (void *v)
 np_treeval_t np_treeval_new_s(char *s)
 {
     np_treeval_t j;
-    uint8_t idx = 0;
-    if (_np_tree_is_special_str( s, &idx)) {
-        np_treeval_t k = np_treeval_new_ss(idx);
-        memcpy(&j, &k, sizeof(np_treeval_t));
-    }
-    else {
-        j.size = strlen(s);
-        j.value.s = s; // strndup(s, j.size);
-        j.type = np_treeval_type_char_ptr;
-    }
-    return j;
-}
-
-np_treeval_t np_treeval_new_ss(uint8_t idx)
-{
-    np_treeval_t j;	
-    
-    j.size = sizeof(uint8_t);
-    j.value.ush = idx;
-    j.type = np_treeval_type_special_char_ptr;
-
+    j.size = strlen(s);
+    j.value.s = s; // strndup(s, j.size);
+    j.type = np_treeval_type_char_ptr;
     return j;
 }
 
@@ -687,7 +665,6 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele)
         case np_treeval_type_hash: 						byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size; break;
         case np_treeval_type_jrb_tree:					byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + ele.value.tree->byte_size; break;
         case np_treeval_type_dhkey:						byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of dhkey*/8 * (sizeof(uint8_t) /*uint32 marker*/+ sizeof(uint32_t)/*uint32 value*/)); break;
-        case np_treeval_type_special_char_ptr:			byte_size += sizeof(uint8_t)/*ext32 marker*/ + sizeof(uint32_t)/*size of ext32*/ + sizeof(uint8_t) /*type of ext32*/ + (/*size of special string (1:1 replacement on target)*/ sizeof(uint8_t)/*uint8 marker*/ + sizeof(uint8_t)/*uint8 value*/); break; 
         //default:                  log_msg(LOG_ERROR, "unsupported length calculation for value / type %"PRIu8"", ele.type ); break;
     }
 

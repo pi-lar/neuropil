@@ -24,7 +24,10 @@ np_simple_cache_table_t* np_cache_init(np_state_t* context) {
 		(np_simple_cache_table_t*)malloc(
 		sizeof(np_simple_cache_table_t));
 	CHECK_MALLOC(ret);
-	_np_threads_mutex_init(context, &ret->lock,"simple cache");
+
+    char mutex_str[64];
+    snprintf(mutex_str, 63, "%s:%p", "urn:np:cache:access", ret);
+	_np_threads_mutex_init(context, &ret->lock, mutex_str);
 
 	for (uint32_t i = 0; i < SIMPLE_CACHE_NR_BUCKETS; i++) { 
 		sll_init(np_cache_item_ptr, ret->buckets[i]);
@@ -94,7 +97,7 @@ int np_simple_cache_insert(np_state_t* context, np_simple_cache_table_t *table, 
 		sll_iterator(np_cache_item_ptr) iter = sll_first(bucket_list);
 		do
 		{
-			if(NULL != iter && NULL != iter->val && strcmp(iter->val->key, key) == 0){
+			if(NULL != iter && NULL != iter->val && strncmp(iter->val->key, key, strlen(iter->val->key) ) == 0){
 				break;
 			}
 		} while (NULL != (sll_next(iter)) );
@@ -104,7 +107,7 @@ int np_simple_cache_insert(np_state_t* context, np_simple_cache_table_t *table, 
 		if(NULL == iter) {
 			item = (np_cache_item_t*) malloc(sizeof (np_cache_item_t));
 			CHECK_MALLOC(item);			
-			item->key = strdup(key);
+			item->key = strndup(key, strlen(key));
 			sll_append(np_cache_item_ptr, bucket_list, item);
 		}else{
 			item = iter->val;

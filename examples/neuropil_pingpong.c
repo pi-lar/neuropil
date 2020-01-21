@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 	np_set_userdata(context, user_context);
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		fprintf(stdout, "ERROR: Node could not listen");
+		np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 		exit(EXIT_FAILURE);
 	}
 
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 
 	   \code
 	*/
-	port =  ((np_state_t*)context)->my_node_key->node->port;
+	// port =  ((np_state_t*)context)->my_node_key->node->port;
 	/**
 	   \endcode
 	*/
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 	} else {
 		fprintf(stdout, "Node waits for connections.\n");
 		fprintf(stdout, "Please start another node with the following arguments:\n");
-		fprintf(stdout, "\n\t-b %d -j %s\n", atoi(port) + 1, np_get_connection_string(context));
+		fprintf(stdout, "\n\t-j %s\n", np_get_connection_string(context));
 	}
 
 	fprintf(stdout, "Wait for node to connect.\n");

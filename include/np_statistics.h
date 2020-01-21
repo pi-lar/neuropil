@@ -21,12 +21,33 @@
     #include "np_list.h"
     #include "np_scache.h"
     #include "np_threads.h"
+    
+    #include "prometheus/prometheus.h"
 
 
 
     #ifdef __cplusplus
     extern "C" {
     #endif 
+    
+enum np_prometheus_exposed_metrics {
+    np_prometheus_exposed_metrics_uptime,
+    np_prometheus_exposed_metrics_forwarded_msgs,
+    np_prometheus_exposed_metrics_received_msgs,
+    np_prometheus_exposed_metrics_send_msgs,
+    np_prometheus_exposed_metrics_job_count,
+    np_prometheus_exposed_metrics_routing_neighbor_count,
+    np_prometheus_exposed_metrics_routing_route_count,
+    np_prometheus_exposed_metrics_network_in,
+    np_prometheus_exposed_metrics_network_in_per_sec,
+    np_prometheus_exposed_metrics_network_out,
+    np_prometheus_exposed_metrics_network_out_per_sec,
+    np_prometheus_exposed_metrics_END
+};
+
+
+char* np_statistics_prometheus_export(np_context*ac);
+
         #ifdef NP_BENCHMARKING
             typedef struct np_statistics_performance_point_s np_statistics_performance_point_t;
             enum np_statistics_performance_point_e {
@@ -47,10 +68,12 @@
                 np_statistics_performance_point_event_resume_in,
                 np_statistics_performance_point_event_resume_out,
                 np_statistics_performance_point_event_resume_http,
+                np_statistics_performance_point_event_resume_file,
                 np_statistics_performance_point_event_suspend_io,
                 np_statistics_performance_point_event_suspend_in,
                 np_statistics_performance_point_event_suspend_out,
                 np_statistics_performance_point_event_suspend_http,
+                np_statistics_performance_point_event_suspend_file,
 
                 np_statistics_performance_point_handshake_out,
                 np_statistics_performance_point_handshake_out_lock,
@@ -64,7 +87,6 @@
 
                 np_statistics_performance_point_message_decrypt,		
 
-
                 np_statistics_performance_point_END
             };
         #endif
@@ -73,20 +95,11 @@
             np_state_t* context;
             np_simple_cache_table_t* __cache;
             np_sll_t(char_ptr, __watched_subjects);
-
-            TSP(double, __forwarding_counter);
-
-            TSP(uint32_t, __network_send_bytes);
-
-            double __network_send_bytes_per_sec_r;
-            double __network_send_bytes_per_sec_last;
-            uint32_t __network_send_bytes_per_sec_remember;
-
-            TSP(uint32_t, __network_received_bytes);
-
-            double __network_received_bytes_per_sec_r;
-            double __network_received_bytes_per_sec_last;
-            uint32_t __network_received_bytes_per_sec_remember;
+            prometheus_context* _prometheus_context;
+            prometheus_metric* _prometheus_metrics[np_prometheus_exposed_metrics_END];
+            double startup_time;
+            np_tree_t* _per_subject_metrics;
+            np_tree_t* _per_dhkey_metrics;
 
     #ifdef DEBUG_CALLBACKS
             np_sll_t(void_ptr, __np_debug_statistics);
@@ -102,9 +115,11 @@
             bool _np_statistics_init(np_state_t* context);
         NP_API_INTERN
             void _np_statistics_destroy(np_state_t* context);
+        NP_API_INTERN
+            void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metric* metric);
 
         NP_API_EXPORT
-            void np_statistics_add_watch(np_state_t* context, char* subject);
+            void np_statistics_add_watch(np_state_t* context, const char* subject);
 
         NP_API_EXPORT
             char * np_statistics_print(np_state_t* context, bool asOneLine);
@@ -114,17 +129,33 @@
 
     #ifdef NP_STATISTICS_COUNTER
         NP_API_INTERN
-            void __np_increment_forwarding_counter(np_state_t* context);
+            void __np_increment_forwarding_counter(np_state_t* context, char * subject);
+        NP_API_INTERN
+            void __np_increment_received_msgs_counter(np_state_t* context, char * subject);
+            NP_API_INTERN
+            void __np_increment_send_msgs_counter(np_state_t* context, char * subject);
         NP_API_INTERN
             void __np_statistics_add_send_bytes(np_state_t* context, uint32_t add);
         NP_API_INTERN
             void __np_statistics_add_received_bytes(np_state_t* context, uint32_t add);
+        NP_API_INTERN
+            void __np_statistics_set_latency(np_state_t* context, np_dhkey_t id, float value);
+        NP_API_INTERN
+            void __np_statistics_set_success_avg(np_state_t* context, np_dhkey_t id, float value);
 
-        #define _np_increment_forwarding_counter() __np_increment_forwarding_counter(context)
+        #define _np_set_latency(id, value) __np_statistics_set_latency(context, id, value) 
+        #define _np_set_success_avg(id, value) __np_statistics_set_success_avg(context, id, value)
+        #define _np_increment_forwarding_counter(subject) __np_increment_forwarding_counter(context, subject)
+        #define _np_increment_received_msgs_counter(subject) __np_increment_received_msgs_counter(context, subject)
+        #define _np_increment_send_msgs_counter(subject) __np_increment_send_msgs_counter(context, subject)
         #define _np_statistics_add_send_bytes(add) __np_statistics_add_send_bytes(context, add)
         #define _np_statistics_add_received_bytes(add) __np_statistics_add_received_bytes(context, add)
     #else
-        #define _np_increment_forwarding_counter() 
+        #define _np_set_latency(id, value) 
+        #define _np_set_success_avg(id, value) 
+        #define _np_increment_forwarding_counter(subject) 
+        #define _np_increment_received_msgs_counter(subject)
+        #define _np_increment_send_msgs_counter(subject) 
         #define _np_statistics_add_send_bytes(add) 
         #define _np_statistics_add_received_bytes(add) 
     #endif // DEBUG
@@ -164,7 +195,9 @@
                 container->durations_idx = 0;																\
                 container->durations_count = 0;																\
                 container->hit_count = 0;																	\
-                _np_threads_mutex_init(context, &container->access, "performance point "#NAME" access");	\
+                char mutex_str[64];                                                                         \
+                snprintf(mutex_str, 63, "urn:np:statistics:%s:%s", "perfpoint", #NAME);                     \
+                _np_threads_mutex_init(context, &container->access, mutex_str);	                            \
             }																														
 
     #define NP_PERFORMANCE_POINT_DESTROY()											                        \
@@ -177,7 +210,7 @@
         }
     #define NP_PERFORMANCE_POINT_START(NAME) 																						\
         double t1_##NAME;																											\
-        {																															\
+        if (np_module_initiated(statistics)) {																						\
             np_statistics_performance_point_t* container = np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];			\
             __NP_PERFORMANCE_POINT_INIT_CONTAINER(container, NAME)																	\
             np_module(statistics)->performance_points[np_statistics_performance_point_##NAME] = container;												\
@@ -188,11 +221,13 @@
         }
     #define NP_PERFORMANCE_POINT_END(NAME) {																						\
             double t2 = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/																				\
-            np_statistics_performance_point_t* container = np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];			\
-            _LOCK_ACCESS(&container->access) {																						\
-                container->durations[container->durations_idx] = t2 - t1_##NAME;													\
-                container->durations_idx = (container->durations_idx + 1)  % NP_BENCHMARKING;										\
-                container->durations_count++;																						\
+            if (np_module_initiated(statistics)) {																						\
+                np_statistics_performance_point_t* container = np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];			\
+                _LOCK_ACCESS(&container->access) {																						\
+                    container->durations[container->durations_idx] = t2 - t1_##NAME;													\
+                    container->durations_idx = (container->durations_idx + 1)  % NP_BENCHMARKING;										\
+                    container->durations_count++;																						\
+                }																														\
             }																														\
         }
     #define __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container) 																\
@@ -264,6 +299,9 @@ void _np_statistics_debug_ele_destroy(np_state_t* context, void* item) ;
 	#define _np_statistics_debug_destroy(context) ;
 	#define _np_statistics_debug_ele_destroy(context, item) ;
 #endif
+NP_API_EXPORT
+void np_statistics_set_node_description(np_context* ac, char description[255]);
+
     #ifdef __cplusplus
     }
     #endif

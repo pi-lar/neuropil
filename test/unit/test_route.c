@@ -97,8 +97,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 		uint64_t i = 0;
 		uint64_t unique_keys = 0;
 
-		for(; i < 40000//00
-			; i++)
+		for(; i < 4000 /*000*/; i++)
 		{
 			char tmp_1[33];
 			sprintf(tmp_1, "%d", i);
@@ -111,21 +110,26 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 			np_dhkey_t my_dhkey = np_dhkey_create_from_hostport( tmp_2, tmp_1);
 
 			np_key_t * insert_key = _np_keycache_find(context, my_dhkey);
-			if(insert_key == NULL) {
+			if(insert_key == NULL)
+			{
 				unique_keys++;
 				insert_key = _np_keycache_create(context, my_dhkey);
 				ref_replace_reason(np_key_t, insert_key, "_np_keycache_create", "_np_keycache_find_or_create");
-				np_new_obj(np_node_t, insert_key->node);
-				sll_append(np_key_ptr, my_keys, insert_key);				
+				np_node_t* new_node = NULL;
+				np_new_obj(np_node_t, new_node);
+				sll_append(void_ptr, insert_key->entities, new_node);
+				sll_append(np_key_ptr, my_keys, insert_key);
 			}
-			else {
+			else 
+			{
 				ref_replace_reason(np_key_t, insert_key, "_np_keycache_find", "_np_keycache_find_or_create");
 			}
 
-			insert_key->node->latency = ((double)rand()) / 1000;
+			NP_CAST(sll_first(insert_key->entities)->val, np_node_t, node);
+			node->latency = ((double)rand()) / 1000;
 
 			np_key_t *added = NULL, *deleted = NULL;
-			_np_route_update(insert_key, true, &deleted, &added);
+			_np_route_update(insert_key, true, &deleted, &added);			
 
 			if (NULL != added)
 			{
@@ -138,16 +142,23 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 				cr_expect(0 != _np_dhkey_cmp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
 				current_size--;
 			}	
+
+			if ((i % 1000) == 0)
+			{
+				cr_log_info(
+					"routing table has %"PRIu64" of %"PRIu64" (%.0f%%) keys filled by %"PRIu64" inserted keys ",
+					current_size, NP_ROUTES_TABLE_SIZE, ((float)current_size / (float) NP_ROUTES_TABLE_SIZE)*100, i);
+			}
 		}
 		
-		cr_log_warn(
+		cr_log_info(
 			"routing table has %"PRIu64" of %"PRIu64" (%.0f%%) keys filled by %"PRIu64" inserted keys ",
 			current_size, NP_ROUTES_TABLE_SIZE, ((float)current_size / (float) NP_ROUTES_TABLE_SIZE)*100, i);
 
 		sll_iterator(np_key_ptr) iter = sll_first(my_keys);
 		while (NULL != iter)
 		{			
-			np_unref_obj(np_node_t, iter->val->node, ref_obj_creation);
+			// np_unref_obj(np_node_t, iter->val->node, ref_obj_creation);
 			np_unref_obj(np_key_t, iter->val, "_np_keycache_find_or_create");
 			sll_next(iter);
 		}			

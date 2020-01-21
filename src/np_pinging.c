@@ -12,7 +12,7 @@
 #include "np_legacy.h"
 #include "np_dhkey.h"
 #include "np_types.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_message.h"
 #include "np_memory.h"
 
@@ -30,11 +30,11 @@
 void _np_ping_send(np_state_t *context, np_key_t* key)
 {  
     np_message_t* out_msg = NULL;
-    np_new_obj(np_message_t, out_msg);
+    np_new_obj(np_message_t, out_msg, ref_obj_creation);
 
     _np_message_create(out_msg, key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
-    np_msgproperty_t* prop = np_msgproperty_get(context, OUTBOUND, _NP_MSG_PING_REQUEST);
+    np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_PING_REQUEST);
     _np_job_submit_msgout_event(context, NP_PI/500, prop, key, out_msg);
 
     log_debug_msg(LOG_INFO, "sending ping message (%s) to  %s:%s / %s", out_msg->uuid, key->node->dns_name, key->node->port, _np_key_as_str(key) );

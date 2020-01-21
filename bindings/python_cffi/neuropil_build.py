@@ -2,10 +2,14 @@
 import os, sys
 from cffi import FFI
 
-ffibuilder = FFI()
+def get_local_target():
+	return "linux"
 
+
+ffibuilder = FFI()
 PATH = os.path.dirname(__file__)
-np_lib_path = os.path.join(PATH, "../../build/lib")
+
+np_lib_path = os.path.join(PATH, f"../../build/{get_local_target()}/lib")
 np_include_path = os.path.join(PATH, "../../include")
 
 # This describes the extension module "_neuropil" to produce.
@@ -33,8 +37,8 @@ if os.getenv("CC"):
     cc = os.getenv("CC")
 h_file = subprocess.run([
 	cc,"-E",h_file_path,#"-Ipycparser/utils/fake_libc_include",
-	"-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-D__CLANG_MAX_ALIGN_T_DEFINED",
-	"-DNP_ENUM="
+	"-D__CLANG_MAX_ALIGN_T_DEFINED",
+	"-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-DNP_ENUM="
 	], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
 #print("START Neuropil.h")

@@ -137,6 +137,16 @@ html_theme_options = {
     'logo': 'neuropil_Lo_RGB.png',
     'logo_name': 'neuropil',
     'github_button': 'false',
+    'page_width': '1024px',
+    'sidebar_width': '300px'
+}
+
+html_context = {
+    "display_gitlab": True, # Integrate Gitlab
+    "gitlab_user": "pi-lar", # Username
+    "gitlab_repo": "neuropil", # Repo name
+    "gitlab_version": "master", # Version
+    "conf_py_path": "/doc/source/", # Path in the checkout to the docs root
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

@@ -22,7 +22,7 @@
 #include "np_list.h"
 #include "np_route.h"
 #include "np_tree.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_jobqueue.h"
 #include "np_util.h"
 #include "np_message.h"
@@ -32,6 +32,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
 
 #define __NP_SHUTDOWN_SIGNAL SIGINT
+
 np_module_struct(shutdown) {
     np_state_t* context;
     TSP(sll_return(np_destroycallback_t), on_destroy);
@@ -51,21 +52,25 @@ static void __np_shutdown_signal_handler(int sig) {
 void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
     np_ctx_cast(ac);
 
+    if (np_module_not_initiated(shutdown)) return;
+
     TSP_SCOPE(np_module(shutdown)->on_destroy) {
         sll_append(np_destroycallback_t, np_module(shutdown)->on_destroy, clb);
     }
 }
 
-void np_shutdown_check(np_state_t* context, NP_UNUSED np_jobargs_t args) {    
+bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event)
+{
     if (np_module(shutdown)->invoke) {     
         log_warn(LOG_MISC, "Received terminating process signal. Shutdown in progress.");
         np_destroy(context, false);   
     }
+    return true;
 }
 
 void _np_shutdown_init(np_state_t* context) {
 
-    if (!np_module_initiated(shutdown)) {
+    if (np_module_not_initiated(shutdown)) {
         np_module_malloc(shutdown);
         TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));
         _module->invoke = false;
@@ -77,7 +82,7 @@ void _np_shutdown_init(np_state_t* context) {
         int res = sigaction(__NP_SHUTDOWN_SIGNAL, &_module->sigact, NULL);
         log_debug(LOG_MISC, "Init signal %d", res);
 
-        np_job_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.01, 0.01, np_shutdown_check, "np_shutdown_check");
+        np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.05, 0.05, np_shutdown_check, "np_shutdown_check");
     }
 }
 void _np_shutdown_destroy(np_state_t* context) {
@@ -92,11 +97,15 @@ void _np_shutdown_destroy(np_state_t* context) {
     }    
 }
 
-void _np_shutdown_run_callbacks(np_context*ac) {
+void _np_shutdown_run_callbacks(np_context*ac) 
+{
     np_ctx_cast(ac);
 
-    np_destroycallback_t clb;
-    TSP_SCOPE(np_module(shutdown)->on_destroy) {
+    if (np_module_not_initiated(shutdown)) return;
+
+    TSP_SCOPE(np_module(shutdown)->on_destroy) 
+    {
+        np_destroycallback_t clb;
         while ((clb = sll_head(np_destroycallback_t, np_module(shutdown)->on_destroy)) != NULL)
         {
             clb(context);
@@ -104,42 +113,24 @@ void _np_shutdown_run_callbacks(np_context*ac) {
     }
 }
 
-void np_shutdown_notify_others(np_state_t* context) {
+void _np_shutdown_notify_others(np_context* ctx) 
+{
+    NP_CAST(ctx, np_state_t, context);
+
     np_sll_t(np_key_ptr, routing_table)  = _np_route_get_table(context);
     np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors(context);
     np_sll_t(np_key_ptr, merge_table) = sll_merge(np_key_ptr, routing_table, neighbours_table, _np_key_cmp);
 
-    sll_init_full(np_message_ptr, msgs);
-
     sll_iterator(np_key_ptr) iter_keys = sll_first(merge_table);
     while (iter_keys != NULL)
     {
-        sll_append(np_message_ptr, msgs, _np_send_simple_invoke_request_msg(iter_keys->val, _NP_MSG_LEAVE_REQUEST));
-
+        np_dhkey_t leave_dhkey = iter_keys->val->dhkey;
+        np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .context=context, .user_data=NULL, .target_dhkey=leave_dhkey };
+        _np_keycache_handle_event(context, leave_dhkey, shutdown_evt, true);
         sll_next(iter_keys);
     }
+    // TODO: wait for node components to switch state to IN_DESTROY
 
-    // wait for msgs to be acked
-    sll_iterator(np_message_ptr) iter_msgs = sll_first(msgs);
-    while (iter_msgs != NULL)
-    {		
-        bool msgs_is_out = false;
-        while (!msgs_is_out) {
-            TSP_GET(bool, iter_msgs->val->is_acked, is_acked);
-            TSP_GET(bool, iter_msgs->val->is_in_timeout, is_in_timeout);
-            if (is_acked || is_in_timeout) {				
-                np_unref_obj(np_message_t, iter_msgs->val, "_np_send_simple_invoke_request_msg"); 
-                msgs_is_out = true;
-            }
-            else {
-                np_run(context, NP_PI/300);
-            }
-        }
-
-        sll_next(iter_msgs);
-    }
-
-    sll_free(np_message_ptr, msgs);
     sll_free(np_key_ptr, merge_table);
     np_key_unref_list(routing_table, "_np_route_get_table");
     sll_free(np_key_ptr, routing_table);

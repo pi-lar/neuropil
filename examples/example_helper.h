@@ -6,7 +6,8 @@
 
 #include "np_threads.h"
 
-#include "web/np_http.h"
+#include "../framework/http/np_http.h"
+#include "../framework/sysinfo/np_sysinfo.h"
 
 #ifndef _NP_EXAMPLE_HELPER_H_
 #define _NP_EXAMPLE_HELPER_H_
@@ -98,6 +99,8 @@ typedef struct example_user_context {
     char identity_filename[255] ;
     char identity_passphrase[255] ;
 
+    char node_description[255];
+
     unsigned char salt[crypto_pwhash_SALTBYTES] ;
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
@@ -105,6 +108,7 @@ typedef struct example_user_context {
 
 
     char* opt_http_domain;
+    char* opt_http_port;
     enum np_sysinfo_opt_e opt_sysinfo_mode;
 
     bool __shutdown;

@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
+
 #ifndef _NP_KEYCACHE_H_
 #define _NP_KEYCACHE_H_
 
@@ -21,19 +22,29 @@
 #include "np_node.h"
 #include "np_list.h"
 
+#include "util/np_event.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
 // organize keys in a splay tree
-SPLAY_HEAD(st_keycache_s, np_key_s);
-SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
+// SPLAY_HEAD(st_keycache_s, np_key_s);
+// SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
+RB_HEAD(st_keycache_s, np_key_s);
+RB_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
 
 NP_API_INTERN
 bool _np_keycache_init(np_state_t* context);
 NP_API_INTERN
 void _np_keycache_destroy(np_state_t* context);
+
+NP_API_INTERN
+bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t args);
+
+NP_API_INTERN
+void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_event_t event, bool force);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t key);
@@ -42,7 +53,7 @@ NP_API_INTERN
 np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey);
 
 NP_API_INTERN
-np_key_t* _np_keycache_add(np_key_t* subject_key);
+np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find(np_state_t* context, np_dhkey_t key);
@@ -71,7 +82,7 @@ NP_API_INTERN
 np_key_t* _np_keycache_find_by_details(
 	np_state_t* context,
 	char* details_container, bool search_myself, 
-	enum np_handshake_status search_handshake_status, bool require_handshake_status, 
+	enum np_node_status search_handshake_status, bool require_handshake_status, 
 	bool require_dns, bool require_port, bool require_hash );
 
 NP_API_INTERN

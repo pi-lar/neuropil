@@ -1,0 +1,74 @@
+cache:
+  key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
+  paths:
+    - venv
+
+stages:
+  - test
+  - build
+  - package
+  - qa
+  - release
+
+test:
+  stage: test
+  script: ./do test
+  artifacts:
+    reports:
+      junit: report.xml
+
+build:linux:
+  stage: build
+  script: ./do build linux
+  artifacts:
+    name: neuropil-linux
+    paths:
+      - build/linux
+    
+#build:freebsd:
+#  stage: build
+#  script: ./do build freebsd
+#  artifacts:
+#    name: neuropil-freebsd
+#    paths:
+#      - build/freebsd
+
+build:documentation:
+  stage: build
+  script: ./do doc
+  artifacts:
+    name: neuropil-documentation
+    paths:
+      - build/doc/html
+
+package:
+  stage: package
+  script: 
+    - ./do package
+    - ./do deploy test
+  artifacts:
+    name: neuropil-release
+    paths:
+      - build/package/*
+  dependencies:
+    - build:documentation
+    #- build:freebsd
+    - build:linux
+
+qa:smoke_test:
+  stage: qa
+  script: 
+      - ./do smoke
+  dependencies:
+    - package
+
+release:
+  stage: release
+  script: 
+    - ./do release
+    - ./do deploy production
+    # auto saltstack deploy
+  when: manual
+  dependencies:
+    - package
+    - build:documentation   

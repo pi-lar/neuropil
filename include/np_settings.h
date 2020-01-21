@@ -29,9 +29,9 @@ extern "C" {
 */
 #ifdef DEBUG
     #define DEBUG_CALLBACKS 1
-     #define NP_MEMORY_CHECK_MEMORY_REFFING 1
+    // #define NP_MEMORY_CHECK_MEMORY_REFFING 1
      #define NP_MEMORY_CHECK_MAGIC_NO
-    // #define NP_THREADS_CHECK_THREADING 1
+     //#define NP_THREADS_CHECK_THREADING 1
      #define NP_BENCHMARKING 4096
     #define NP_STATISTICS
 #endif // DEBUG
@@ -44,18 +44,39 @@ extern "C" {
 #define NP_PI 3.1415
 #define NP_PI_INT 3
 
+#ifndef NP_STATISTICS_PROMETHEUS_PREFIX
+     #define NP_STATISTICS_PROMETHEUS_PREFIX "neuropil_"
+#endif
+
+#ifndef NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL
+    #define NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL (NP_PI/10)
+#endif
 
 #ifndef NP_LOG_FLUSH_INTERVAL
     #define NP_LOG_FLUSH_INTERVAL (NP_PI/100)
 #endif
 
 #ifndef NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL
-#define NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL (NP_PI*10)
+    #define NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL (NP_PI*10)
 #endif
 
 #ifndef NP_KEYCACHE_DEPRECATION_INTERVAL
-#define NP_KEYCACHE_DEPRECATION_INTERVAL (31.415)
+    #define NP_KEYCACHE_DEPRECATION_INTERVAL (31.415)
 #endif	
+
+#ifndef _NP_KEYCACHE_ITERATION_STEPS
+    #define _NP_KEYCACHE_ITERATION_STEPS (11)
+#endif	
+
+/*
+ * msgproperty default vaue definitions 
+ */
+#ifndef MSGPROPERTY_DEFAULT_MAX_TTL_SEC
+    #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT*60)
+#endif
+#ifndef MSGPROPERTY_DEFAULT_MIN_TTL_SEC
+    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (NP_PI_INT* 6)
+#endif
 
 /*
  *	if the sysinfo subsystem in enabled and the node is a client
@@ -66,19 +87,12 @@ extern "C" {
     #define SYSINFO_PROACTIVE_SEND_IN_SEC (30)
 #endif
 #ifndef SYSINFO_MAX_TTL
-    #define SYSINFO_MAX_TTL (MAX(20, SYSINFO_PROACTIVE_SEND_IN_SEC*10))
+    #define SYSINFO_MAX_TTL (MAX(60, SYSINFO_PROACTIVE_SEND_IN_SEC*12))
 #endif
 #ifndef SYSINFO_MIN_TTL
-    #define SYSINFO_MIN_TTL (MAX(10, SYSINFO_MAX_TTL-SYSINFO_PROACTIVE_SEND_IN_SEC))
+    #define SYSINFO_MIN_TTL (MAX(MSGPROPERTY_DEFAULT_MIN_TTL_SEC, SYSINFO_PROACTIVE_SEND_IN_SEC) )
 #endif
 
-#ifndef MSGPROPERTY_DEFAULT_MAX_TTL
-    #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT*60)
-#endif
-
-#ifndef MSGPROPERTY_DEFAULT_MIN_TTL
-    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (MSGPROPERTY_DEFAULT_MAX_TTL_SEC-10)
-#endif
 /*
  * The maximum lifetime of a node before it is refreshed
  */
@@ -108,10 +122,13 @@ extern "C" {
 
 
 #ifndef MISC_LOG_FLUSH_INTERVAL_SEC
-    #define MISC_LOG_FLUSH_INTERVAL_SEC (1.0)
+    #define MISC_LOG_FLUSH_INTERVAL_SEC (NP_PI/30)
 #endif
 #ifndef MISC_LOG_FLUSH_MAX_ITEMS
     #define MISC_LOG_FLUSH_MAX_ITEMS (1000)
+#endif
+#ifndef MISC_LOG_FLUSH_AFTER_X_ITEMS
+    #define MISC_LOG_FLUSH_AFTER_X_ITEMS (20)
 #endif
 #ifndef MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC
     #define MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC (NP_PI)
@@ -119,8 +136,9 @@ extern "C" {
 #ifndef MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC
     #define MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC (NP_PI/10)
 #endif
+
 #ifndef MISC_KEYCACHE_CLEANUP_INTERVAL_SEC
-    #define MISC_KEYCACHE_CLEANUP_INTERVAL_SEC (NP_PI/10)
+    #define MISC_KEYCACHE_CLEANUP_INTERVAL_SEC (NP_PI/31)
 #endif
 
 #ifndef MISC_MEMORY_REFRESH_INTERVAL_SEC
@@ -144,14 +162,14 @@ extern "C" {
 #ifndef MISC_RENEW_NODE_SEC
     #define MISC_RENEW_NODE_SEC (NP_PI*1000)
 #endif
-#ifndef MISC_RETRANSMIT_MSG_TOKENS_SEC
-    #define MISC_RETRANSMIT_MSG_TOKENS_SEC (NP_PI*5)
-#endif
 #ifndef MISC_READ_EVENTS_SEC
     #define MISC_READ_EVENTS_SEC (NP_PI/1000)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
     #define MISC_SEND_PINGS_SEC (NP_PI*10)
+#endif
+#ifndef MISC_SEND_PINGS_MAX_EVERY_X_SEC
+    #define MISC_SEND_PINGS_MAX_EVERY_X_SEC (MISC_SEND_PINGS_SEC*2)
 #endif
 
 
@@ -166,7 +184,7 @@ extern "C" {
  * remove the link from the leafset/routing table
  */
 #ifndef BAD_LINK_REMOVE_GRACETIME
-    #define BAD_LINK_REMOVE_GRACETIME MISC_SEND_PINGS_SEC*3
+    #define BAD_LINK_REMOVE_GRACETIME (MISC_SEND_PINGS_SEC*3)
 #endif
 
 #ifndef PRIORITY_MOD_LOWEST
@@ -216,16 +234,6 @@ extern "C" {
     #define JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG (PRIORITY_MOD_LEVEL_4 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
 #endif
 
-#ifndef JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT
-    #define JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_OUT (PRIORITY_MOD_LEVEL_2 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
-#endif
-#ifndef JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_IN
-    #define JOBQUEUE_PRIORITY_MOD_RESUBMIT_MSG_IN (PRIORITY_MOD_LEVEL_2 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
-#endif
-#ifndef JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE
-    #define JOBQUEUE_PRIORITY_MOD_RESUBMIT_ROUTE (PRIORITY_MOD_LEVEL_1 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
-#endif
-
 #ifndef JOBQUEUE_MAX_SIZE
 #define JOBQUEUE_MAX_SIZE (512)
 #endif
@@ -264,14 +272,14 @@ extern "C" {
 
 
 #ifndef MUTEX_WAIT_SEC
-    #define MUTEX_WAIT_SEC  ((const ev_tstamp )1.0)
+    #define MUTEX_WAIT_SEC  ((const ev_tstamp )4.0)
 #endif
 
 #ifndef MUTEX_WAIT_MAX_SEC
     #define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC 
 #endif
 #ifndef NP_JOBQUEUE_MAX_SLEEPTIME_SEC
-    #define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (NP_PI/100)
+    #define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (NP_PI/10)
 #endif
 
 #ifndef NP_EVENT_IO_CHECK_PERIOD_SEC
@@ -293,18 +301,19 @@ extern "C" {
     #define NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK 1
 #endif
 
-
 #define NP_SLEEP_MIN (NP_PI/1000)
 
 
-#define __MAX_ROW    64 /* length of key*/
-#define __MAX_COL    16 /* 16 different characters*/
-#define __MAX_ENTRY   3 /* three alternatives for each key*/
+#define __MAX_ROW    64 /* length of key                   */
+#define __MAX_COL    16 /* 16 different characters         */
+#define __MAX_ENTRY   3 /* three alternatives for each key */
+
+#define NP_ROUTES_MAX_ENTRIES __MAX_ENTRY
 #define NP_ROUTES_TABLE_SIZE (__MAX_ROW * __MAX_COL * __MAX_ENTRY)
 
 // TODO: change size to match the possible log10(hash key max value)
 // TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
-#define NP_ROUTE_LEAFSET_SIZE  8 /* (must be even) excluding node itself */
+#define NP_ROUTE_LEAFSET_SIZE  12 /* (must be even) excluding node itself */
 
 
 #ifdef __cplusplus

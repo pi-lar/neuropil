@@ -21,7 +21,7 @@
 #include "np_list.h"
 #include "np_types.h"
 #include "np_message.h"
-#include "np_msgproperty.h"
+#include "core/np_comp_msgproperty.h"
 #include "np_key.h"
 #include "np_aaatoken.h"
 #include "np_threads.h"
@@ -31,7 +31,7 @@
 #include "np_messagepart.h"
 #include "np_crypto.h"
 #include "np_statistics.h"
-
+#include "np_memory.h"
 
 #include "np_constants.h"
 #include "np_settings.h"
@@ -133,7 +133,7 @@ void __np_memory_delete_item(np_state_t* context, np_memory_container_t* contain
 #if NP_MEMORY_CHECK_MEMORY_REFFING
     if(sll_size( item_config->reasons) > 0) {
         char * flat = _sll_char_make_flat(context, item_config->reasons);
-        log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
+        log_error("Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
         free(flat);
     }
     sll_free(char_ptr, item_config->reasons);
@@ -141,6 +141,7 @@ void __np_memory_delete_item(np_state_t* context, np_memory_container_t* contain
     _np_threads_mutex_destroy(context, &item_config->access_lock);
     free(item_config);
 }
+
 void _np_memory_container_destroy(np_state_t* context, np_memory_container_t* container ){
         
     sll_free(np_memory_itemconf_ptr, container->free_items);
@@ -177,6 +178,7 @@ bool _np_memory_remove_reason(sll_return(char_ptr) sll, const char* cmp_obj){
 #else 
 #define _np_memory_remove_reason(a,b)
 #endif
+
 void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, bool del_container){
     np_memory_itemconf_t* item_config = GET_CONF(item);
     np_memory_container_t* container = item_config->container;
@@ -190,13 +192,13 @@ void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, b
     __np_memory_delete_item(context, container, item_config);
     if(del_container) {
         if(sll_size(container->total_items) != 0){
-            log_error(LOG_MEMORY, "Still has %"PRIu32" object of type %s in cache", sll_size(container->total_items), np_memory_types_str[container->type]);
+            log_error("Still has %"PRIu32" object of type %s in cache", sll_size(container->total_items), np_memory_types_str[container->type]);
             #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
             sll_iterator(np_memory_itemconf_ptr) leftover_iter = sll_first(container->total_items);
             while(leftover_iter != NULL){                    
                 item_config = leftover_iter ->val;
                 char * flat = _sll_char_make_flat(context, item_config->reasons);
-                log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
+                log_error("Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[container->type], item_config->ref_count, item_config->id, flat);		
                 free(flat);
                 sll_next(leftover_iter);
             }
@@ -222,13 +224,13 @@ void _np_memory_destroy(np_state_t* context){
            
             while((item_config = sll_head(np_memory_itemconf_ptr, container->total_items)) != NULL)
             {
-                if (item_config->in_use) {                    
-                    #ifdef NP_MEMORY_CHECK_MEMORY_REFFING        
+                if (item_config->in_use) {
+                    #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
                         char * flat = _sll_char_make_flat(context, item_config->reasons);
-                        log_error(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[type], item_config->ref_count, item_config->id, flat);		
+                        log_debug_msg(LOG_MEMORY, "Still has a object of type %s in cache: Refs: %"PRIu32" id:%s reasons:(%s)",np_memory_types_str[type], item_config->ref_count, item_config->id, flat);		
                         free(flat);
                     #else
-                        log_error(LOG_MEMORY, "Still has a object of type %s in cache", np_memory_types_str[type]);
+                        log_debug_msg(LOG_MEMORY, "Still has a object of type %s in cache", np_memory_types_str[type]);
                     #endif
 
                     /*
@@ -247,37 +249,49 @@ void _np_memory_destroy(np_state_t* context){
     np_module_free(memory);
 }
 
-bool _np_memory_init(np_state_t* context) {
+bool _np_memory_init(np_state_t* context) 
+{
     np_module_malloc(memory);
 
-    for (int i = 0; i < np_memory_types_MAX_TYPE; i++) {
+    for (int i = 0; i < np_memory_types_MAX_TYPE; i++) 
+    {
         _module->__np_memory_container[i] = NULL;
     }
-#define register(type,items_per_block,min_items, new_fn, free_fn, clear_fn ) \
+
+#define np_register(type,items_per_block,min_items, new_fn, free_fn, clear_fn ) \
 np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type##_t), items_per_block, min_items, new_fn, free_fn, clear_fn)
-#define register_defaultobj(type, count_of_itens_in_block, min_count) register(type, count_of_itens_in_block, min_count, _np_##type##_t_new, _np_##type##_t_del, np_memory_clear_space);	
+#define np_register_defaultobj(type, count_of_itens_in_block, min_count) np_register(type, count_of_itens_in_block, min_count, _np_##type##_t_new, _np_##type##_t_del, np_memory_clear_space);	
 
-    register_defaultobj(message, 4, 10);
-    register_defaultobj(key, 4, 10);
-    register_defaultobj(msgproperty, 4, 10);
-    register_defaultobj(thread, 1, 1);
-    register_defaultobj(node, 4, 10);
-    register_defaultobj(network, 4, 10);
-    register_defaultobj(responsecontainer, 4, 10);
-    register_defaultobj(messagepart, 4, 150);
-    register_defaultobj(aaatoken, 4, 10);
-    register_defaultobj(crypto, 4, 10);
+    np_register_defaultobj(message, 4, 4);
+    np_register_defaultobj(key, 4, 4);
+    np_register_defaultobj(msgproperty, 4, 4);
+    np_register_defaultobj(thread, 1, 1);
+    np_register_defaultobj(node, 4, 4);
+    np_register_defaultobj(network, 4, 4);
+    np_register_defaultobj(responsecontainer, 4, 4);
+    np_register_defaultobj(messagepart, 4, 20);
+    np_register_defaultobj(aaatoken, 4, 4);
+    np_register_defaultobj(crypto, 4, 4);
 
-#undef register
-#undef register_defaultobj
+#undef np_register
+#undef np_register_defaultobj
 
     // np_memory_register_type(context, np_memory_types_np_job_t, sizeof(np_job_t), 4, JOBQUEUE_MAX_SIZE, NULL, NULL, np_memory_clear_space);
     // np_memory_register_type(context, np_memory_types_np_jobargs_t, sizeof(np_jobargs_t), 4, JOBQUEUE_MAX_SIZE/2, NULL, NULL, np_memory_clear_space);
 
-    np_memory_register_type(context, np_memory_types_BLOB_1024, MSG_CHUNK_SIZE_1024, 4, 150, NULL, NULL, np_memory_clear_space);
-    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40, 4, 50, NULL, NULL, np_memory_randomize_space);
+    np_memory_register_type(context, np_memory_types_BLOB_1024, MSG_CHUNK_SIZE_1024, 8, 20, NULL, NULL, np_memory_clear_space);
+    np_memory_register_type(context, np_memory_types_BLOB_984_RANDOMIZED, MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40, 4, 20, NULL, NULL, np_memory_randomize_space);
 
     return true;
+}
+
+bool _np_memory_rtti_check(void* item, enum np_memory_types_e type) 
+{
+    if (item) {
+        np_memory_itemconf_t* item_conf = GET_CONF(item);
+        return (item_conf->container->type == type);
+    }
+    return false;
 }
 
 void __np_memory_space_increase(np_memory_container_t* container, uint32_t block_size) {
@@ -305,7 +319,9 @@ void __np_memory_space_increase(np_memory_container_t* container, uint32_t block
 #ifdef NP_MEMORY_CHECK_MAGIC_NO
         conf->magic_no = NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO;
 #endif
-        if (_np_threads_mutex_init(context, &(conf->access_lock), "MemoryV2 conf_lock") != 0) {
+        char mutex_str[64];
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:config");
+        if (_np_threads_mutex_init(context, &(conf->access_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create memory item lock for container type %"PRIu8, container->type);
         }
         _LOCK_ACCESS(&container->free_items_lock) {
@@ -344,19 +360,26 @@ void np_memory_register_type(
         container->type = type;
 
         sll_init(np_memory_itemconf_ptr, container->free_items);
-        if (_np_threads_mutex_init(context, &(container->free_items_lock), "MemoryV2 container free_items_lock") != 0) {
+        char mutex_str[64];
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:free_items");
+        if (_np_threads_mutex_init(context, &(container->free_items_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create free_items_lock for container type %"PRIu8, container->type);
         }
+
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:refreshed_items");
         sll_init(np_memory_itemconf_ptr, container->refreshed_items);
-        if (_np_threads_mutex_init(context, &(container->refreshed_items_lock), "MemoryV2 container refreshed_items_lock") != 0) {
+        if (_np_threads_mutex_init(context, &(container->refreshed_items_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create refreshed_items for container type %"PRIu8, container->type);
         }
+
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:total_items");
         sll_init(np_memory_itemconf_ptr, container->total_items);
-        if (_np_threads_mutex_init(context, &(container->total_items_lock), "MemoryV2 container total_items_lock") != 0) {
+        if (_np_threads_mutex_init(context, &(container->total_items_lock), mutex_str) != 0) {
             log_msg(LOG_ERROR, "Could not create total_items for container type %"PRIu8, container->type);
         }
 
-        if (_np_threads_mutex_init(context, &(container->current_in_use_lock), "MemoryV2 container current_in_use_lock") == 0)
+        snprintf(mutex_str, 63, "%s", "urn:np:memory:in_use");
+        if (_np_threads_mutex_init(context, &(container->current_in_use_lock), mutex_str) == 0)
         {
             int i = 0;
             while ((container->count_of_items_per_block * i) < container->min_count_of_items)
@@ -374,9 +397,9 @@ void np_memory_register_type(
     }
 }
 
-bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
+void __np_memory_refresh_space(np_memory_itemconf_t* config) {
     assert(config != NULL);
-    bool refreshed = false;
+    // bool refreshed = false;
     np_memory_container_t* container = config->container;
     np_ctx_decl(container->module->context);
     void* data = GET_ITEM(config);
@@ -397,10 +420,10 @@ bool __np_memory_refresh_space(np_memory_itemconf_t* config) {
                 container->on_refresh_space(context, container->type, container->size_per_item, data);
             }
             config->needs_refresh = false;
-            refreshed = true;
+            // refreshed = true;
         }
     }
-    return refreshed;
+    // return refreshed;
 }
 
 void __np_memory_itemstats_update(np_memory_container_t* container) {
@@ -456,7 +479,7 @@ bool __np_memory_space_decrease_nessecary(np_memory_container_t* container) {
                     /*decrease only if we have more then the min threshhold (failsafe)*/
                     total_space_available >= (container->min_count_of_items + container->count_of_items_per_block) &&
                     (
-                        /*decrease if the growth of items is negative for the mesured period, the grows is min as great as a block, and the growth size is free*/
+                    /* decrease if the growth of items is negative for the mesured period, the grows is min as great as a block, and the growth size is free*/
                     (0 > growth &&
                         fabs(growth) > container->count_of_items_per_block &&
                         total_free_space > fabs(growth)
@@ -540,7 +563,8 @@ void __np_memory_space_decrease(np_memory_container_t* container) {
     }
 }
 
-void* np_memory_new(np_state_t* context, enum np_memory_types_e type) {
+void* np_memory_new(np_state_t* context, enum np_memory_types_e type)
+{
     NP_PERFORMANCE_POINT_START(memory_new);
     void* ret = NULL;
     np_memory_container_t* container = np_module(memory)->__np_memory_container[type];
@@ -570,7 +594,7 @@ void* np_memory_new(np_state_t* context, enum np_memory_types_e type) {
                             next_config = sll_head(np_memory_itemconf_ptr, container->free_items);
                         }
                     }
-                    // second bast as we need to refresh the item
+                    // second best as we need to refresh the item
                     __np_memory_refresh_space(next_config);
                 }
             }
@@ -615,7 +639,6 @@ np_state_t* np_memory_get_context(void* item) {
     return ret;
 }
 
-
 void np_memory_free(np_state_t*context, void* item) {	
     if (item != NULL) {
         np_check_magic_no(item);
@@ -636,9 +659,6 @@ void np_memory_free(np_state_t*context, void* item) {
 
                 if (container->on_refresh_space != NULL) {
                     config->needs_refresh = true;
-                }
-
-                if (config->needs_refresh) {
                     _LOCK_ACCESS(&container->free_items_lock) {
                         sll_append(np_memory_itemconf_ptr, container->free_items, config);
                     }
@@ -647,8 +667,10 @@ void np_memory_free(np_state_t*context, void* item) {
                     _LOCK_ACCESS(&container->refreshed_items_lock) {
                         sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
                     }
-                }            }
+                } 
+           }
         }
+
         if (rm) {
             _LOCK_ACCESS(&container->current_in_use_lock) {
                 container->current_in_use -= 1;
@@ -666,8 +688,8 @@ void np_memory_randomize_space(NP_UNUSED np_state_t* context, NP_UNUSED uint8_t 
     randombytes_buf(data, size);
 }
 
-void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED  np_jobargs_t args) {
-
+void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED np_util_event_t event) 
+{
     NP_PERFORMANCE_POINT_START(memory_management);
     for (uint8_t memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++) {
         np_memory_container_t* container = np_module(memory)->__np_memory_container[memory_type];
@@ -678,11 +700,13 @@ void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED  np_jobargs
                 //debugf("\t__np_memory_space_decrease\n");
                 __np_memory_space_decrease(container);
             }
+            /*
             else if (__np_memory_space_increase_nessecary(container))
             {
                 //debugf("__np_memory_space_increase\n");
                 __np_memory_space_increase(container, container->count_of_items_per_block);
             }
+            */
 
             uint32_t list_size = 0;
             _LOCK_ACCESS(&container->free_items_lock) {
@@ -717,7 +741,6 @@ void _np_memory_job_memory_management(np_state_t* context, NP_UNUSED  np_jobargs
     NP_PERFORMANCE_POINT_END(memory_management);
 }
 
-
 // increase ref count
 void np_mem_refobj(np_state_t*context, void * item, const char* reason)
 {
@@ -729,15 +752,14 @@ void np_mem_refobj(np_state_t*context, void * item, const char* reason)
         log_trace_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
         if (config->persistent == false) {
             config->ref_count++;
-        }
-        //log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
+            //log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
-        assert(reason != NULL);
-        sll_prepend(char_ptr, config->reasons, strdup(reason));
+            assert(reason != NULL);
+            sll_prepend(char_ptr, config->reasons, strdup(reason));
 #endif
+        }
     }
 }
-
 
 // decrease ref count
 void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
@@ -952,7 +974,8 @@ void np_memory_ref_replace_reason(void* item, const char* old_reason, const char
 }
 #endif
 
-void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
+void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc)
+{
     assert(item != NULL);
     np_check_magic_no(item);
     np_memory_itemconf_t* config = GET_CONF(item);
@@ -968,6 +991,7 @@ void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, cons
     }
 
 }
+
 void* np_memory_waitref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
     void* ret = NULL;
 
@@ -983,7 +1007,7 @@ void* np_memory_waitref_obj(np_state_t* context, void* item, const char* reason,
             }
         }
         else {
-            np_time_sleep(NP_SLEEP_MIN);
+            np_time_sleep(0.0);
         }
     }
 
@@ -1024,6 +1048,7 @@ uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason
     }
     return ret;
 }
+
 char* np_memory_get_id(void * item)
 {
     char* ret = "unknown";
@@ -1033,11 +1058,20 @@ char* np_memory_get_id(void * item)
     }
     return ret;
 }
+
 uint32_t np_memory_get_refcount(void * item) {
     uint32_t ret = 0;
     if (item != NULL) {
         np_memory_itemconf_t* config = GET_CONF(item);
         ret = config->ref_count;
+    }
+    return ret;
+}
+uint8_t np_memory_get_type(void * item) {
+    uint8_t ret = 0;
+    if (item != NULL) {
+        np_memory_itemconf_t* config = GET_CONF(item);
+        ret = config->container->type;
     }
     return ret;
 }

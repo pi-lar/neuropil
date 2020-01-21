@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <math.h>
+#include <inttypes.h>
 
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -32,7 +33,7 @@
             stddev += pow(array[j] - avg, 2);                                                \
         }                                                                                    \
         stddev = sqrt(stddev/(max_size-1));                                                  \
-        cr_log_warn("%s --> %.6f / %.6f / %.6f / %.6f \n", name, min, avg, max, stddev); \
+        cr_log_info("%s --> %.6f / %.6f / %.6f / %.6f \n", name, min, avg, max, stddev); \
 }
 
 np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port);
@@ -60,17 +61,17 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port) {
     struct np_settings* settings = np_default_settings(NULL);
 
     if(desc != NULL && strlen(desc) > 0)
-        snprintf(settings->log_file, 256, "neuropil_test_%s_%s.log", name, desc);
+        snprintf(settings->log_file, 256, "logs/neuropil_test_%s_%s.log", name, desc);
     else
-        snprintf(settings->log_file, 256, "neuropil_test_%s.log", name);
+        snprintf(settings->log_file, 256, "logs/neuropil_test_%s.log", name);
 
     settings->log_level |= LOG_GLOBAL;
     settings->n_threads = 1;
     ret = np_new_context(settings);
-    assert(ret != NULL);
-    assert(np_get_status(ret) == np_stopped);
-    assert(np_ok == np_listen(ret, porttype, "localhost", port));
-    assert(np_get_status(ret) == np_running);
+    cr_assert(ret != NULL);
+    cr_expect(np_stopped == np_get_status(ret), "np_get_status returned %"PRIu8, np_get_status(ret) );
+    cr_expect(np_ok      == np_listen(ret, porttype, "localhost", port));
+    cr_expect(np_running == np_get_status(ret), "np_get_status returned %"PRIi8, np_get_status(ret) );
 
     return ret;
 }

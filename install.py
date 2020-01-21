@@ -29,5 +29,5 @@ else:
     symlink_path = os.path.join(install_path,lib_name)
     if os.path.isfile(symlink_path):
         os.remove(symlink_path)
-    os.symlink(lib_destionation_path, symlink_path)
+    os.symlink(lib_destination_path, symlink_path)
 

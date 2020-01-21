@@ -31,7 +31,6 @@
 #include "np_key.h"
 #include "np_legacy.h"
 #include "np_list.h"
-#include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_log.h"
 #include "np_event.h"
@@ -39,12 +38,12 @@
 #include "np_messagepart.h"
 #include "np_statistics.h"
 #include "np_shutdown.h"
-#include "np_sysinfo.h"
 #include "np_threads.h"
 #include "np_types.h"
 #include "np_util.h"
 
-#include "web/np_http.h"
+#include "../framework/http/np_http.h"
+#include "../framework/sysinfo/np_sysinfo.h"
 
 
 const char* logo =
@@ -85,11 +84,13 @@ void example_helper_destroy(np_context* context){
         
         np_set_userdata(context, NULL);
         _np_threads_mutex_destroy(context, ud->__log_mutex);
+        free(ud->opt_http_domain);
         free(ud->__log_mutex);
         free(ud->__log_buffer);
         free(ud);
     }
 }
+
 example_user_context* example_new_usercontext() {
 
     example_user_context* user_context = calloc(1, sizeof(example_user_context));
@@ -149,7 +150,9 @@ example_user_context* example_new_usercontext() {
 
 
     user_context->opt_http_domain = NULL;
-    user_context->opt_sysinfo_mode = np_sysinfo_opt_auto;
+    user_context->opt_sysinfo_mode = np_sysinfo_opt_force_client;
+
+    memset(user_context->node_description,0,255);
 
     return user_context;
 }
@@ -202,8 +205,9 @@ void __np_switchwindow_draw(np_context* context) {
             werase(_current->win);
             int displayedRows = 0;
 
-            char * buffer = strdup(_current->buffer);
-            char * line   = strtok(buffer, "\n");
+            char * buffer = NULL, *to_parse = NULL;
+            buffer = to_parse = strdup(_current->buffer);
+            char * line   = strsep(&to_parse, "\n");
             int y = 0;
             if (line != NULL) {
                 do {
@@ -216,9 +220,8 @@ void __np_switchwindow_draw(np_context* context) {
                         displayedRows++;
                     }
                     y++;
-                } while ((line = strtok(NULL, "\n")) != NULL && displayedRows <= ud->term_height_bottom);
+                } while ((line = strsep(&to_parse, "\n")) != NULL && displayedRows <= ud->term_height_bottom);
             }
-
             wrefresh(_current->win);
             free(buffer);
         }
@@ -239,6 +242,7 @@ void __np_switchwindow_show(np_context* context, struct __np_switchwindow_scroll
         }
     }
 }
+
 void __np_switchwindow_scroll_check_bounds(np_context* context, struct __np_switchwindow_scrollable *target) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));	
 
@@ -337,7 +341,9 @@ struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context,
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     struct __np_switchwindow_scrollable * ret = calloc(1, sizeof(struct __np_switchwindow_scrollable));
 
-    _np_threads_mutex_init(context, &ret->access, "__np_switchwindow_scrollable->access");
+    char mutex_str[64];
+    snprintf(mutex_str, 63, "urn:np:example:%s", "display:switchwindow:scrollable");
+    _np_threads_mutex_init(context, &ret->access, mutex_str);
 
     int h = ud->term_height_bottom, w = width/*140*/, x = 0/*, y = 39*/;
     ret->win = newwin(h, w, y, x);
@@ -362,7 +368,8 @@ void __np_switchwindow_del(np_context* context, struct __np_switchwindow_scrolla
 
 void np_print_startup(np_context*context);
 
-void np_example_print(np_context * context, FILE * stream, const char * format_in, ...) {
+void np_example_print(np_context * context, FILE * stream, const char * format_in, ...)
+{
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     np_print_startup(context);
     va_list args;
@@ -384,7 +391,9 @@ void np_example_print(np_context * context, FILE * stream, const char * format_i
     if (to_add_size > 0) {
         if (ud->__log_mutex == NULL) {
             ud->__log_mutex = malloc(sizeof(np_mutex_t));
-            _np_threads_mutex_init(context, ud->__log_mutex, "Example logger mutex");
+            char mutex_str[64];
+            snprintf(mutex_str, 63, "%s", "urn:np:example:logger");
+            _np_threads_mutex_init(context, ud->__log_mutex, mutex_str);
         }
         _LOCK_ACCESS(ud->__log_mutex)
         {
@@ -456,6 +465,25 @@ void np_print_startup(np_context * context) {
     }
 }
 
+bool __np_example_helper_authz_everyone (np_context* ac, struct np_token* token)
+{
+    np_ctx_cast(ac);
+    log_error("using DANGEROUS handler (authorize all) to allow authorization for: %s", token->subject );
+    return (true);
+}
+
+bool __np_example_helper_acc_everyone (np_context* ac, struct np_token* token)
+{
+    np_ctx_cast(ac);
+    log_error("using DANGEROUS handler (account all) to allow authorization for: %s", token->subject );
+    return (true);
+}
+
+void np_example_helper_allow_everyone(np_context* ac) {
+
+    np_set_authorize_cb(ac, __np_example_helper_authz_everyone);
+    np_set_accounting_cb(ac, __np_example_helper_acc_everyone);
+}
 
 bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
@@ -508,12 +536,11 @@ bool np_example_save_identity(np_context* context, char* passphrase, char* filen
                 new_token.uuid,
                 filename
             );
-
         }
-
     }
     return ret;
 }
+
 enum np_example_load_identity_status  np_example_load_identity(np_context *context, char* passphrase, char* filename) {
     enum np_example_load_identity_status ret = np_example_load_identity_status_not_found;
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
@@ -616,11 +643,11 @@ example_user_context* parse_program_args(
     bool ret = true;
     char* usage;
     asprintf(&usage,
-        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s statistics 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-o sysinfo 0=none,1=auto,2=server,3=client] %s",
+        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s display 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-e http port] [-o sysinfo 0=none,2=server,3=client(default)] [-h description of node] %s",
         program, additional_fields_desc == NULL ? "" : additional_fields_desc
     );
     char* optstr;
-    asprintf(&optstr, "j:p:b:t:u:l:d:s:y:i:a:w:o:%s", additional_fields_optstr);
+    asprintf(&optstr, "j:p:b:t:u:l:d:s:y:i:a:w:e:o:h:%s", additional_fields_optstr);
 
     char* additional_fields[32] = { 0 }; // max additional fields
     va_list args;
@@ -659,6 +686,9 @@ example_user_context* parse_program_args(
         case 'w':
             user_context->opt_http_domain = strdup(optarg);
             break;
+        case 'e':
+            user_context->opt_http_port  = strdup(optarg);
+            break;
         case 'o':
             user_context->opt_sysinfo_mode = atoi(optarg);
             break;
@@ -680,6 +710,9 @@ example_user_context* parse_program_args(
             break;
         case 'a':
             strncpy(user_context->identity_passphrase, optarg, strnlen(optarg, 254));
+            break;
+        case 'h':
+            strncpy(user_context->node_description, optarg, 255);
             break;
         case 'l':
             if (optarg != NULL) {
@@ -719,19 +752,19 @@ example_user_context* parse_program_args(
             // | LOG_VERBOSE
             // | LOG_TRACE
             // | LOG_MUTEX
-            | LOG_ROUTING
+             | LOG_ROUTING
             // | LOG_HTTP
             // | LOG_KEY
-            // | LOG_NETWORK
+             | LOG_NETWORK
             // | LOG_HANDSHAKE
-            | LOG_AAATOKEN
+            // | LOG_AAATOKEN
             // | LOG_SYSINFO
             // | LOG_MESSAGE
             // | LOG_SERIALIZATION
             // | LOG_MEMORY
             // | LOG_MISC
             // | LOG_EVENT
-            // | LOG_THREADS
+             | LOG_THREADS
             // | LOG_JOBS
             // | LOG_GLOBAL
             ;
@@ -765,6 +798,7 @@ example_user_context* parse_program_args(
                 port_pid += 1024;
             }
             asprintf(port, "%d", port_pid);
+            user_context->opt_http_port = *port;
         }
         /** \endcode */
     }
@@ -826,6 +860,7 @@ void __np_example_print_help(example_user_context* ud) {
     wrefresh(ud->__np_bottom_win_help);
 
 }
+
 void __np_example_inti_ncurse(np_context* context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     if (false == ud->__np_ncurse_initiated) {
@@ -935,9 +970,33 @@ void __np_example_reset_ncurse(np_context*context) {
     __np_example_deinti_ncurse(context);
     __np_example_inti_ncurse(context);
 }
+
 void resizeHandler(NP_UNUSED int sig)
 {
     __np_terminal_resize_flag = true;
+}
+
+bool example_sysinfo_init(np_context* context,np_sysinfo_opt_e opt_sysinfo_mode) {
+    bool ret = false;
+
+    if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
+        if (opt_sysinfo_mode == np_sysinfo_opt_force_server)
+        {            
+            np_example_print(context, stdout, "Enable sysinfo server option\n");
+            np_sysinfo_enable_server(context);
+        }
+        else {
+            np_example_print(context, stdout, "Enable sysinfo client option\n");
+            np_sysinfo_enable_client(context);
+        }
+        
+        np_example_print(context, stdout, "Watch sysinfo subjects \n");
+        // If you want to you can enable the statistics modulte to view the nodes statistics (or use the prometheus interface)
+        np_statistics_add_watch(context, _NP_SYSINFO_DATA);
+        ret = true;
+    }
+
+    return ret;
 }
 
 void _np_interactive_http_mode(np_context* context, char* buffer) {
@@ -953,7 +1012,7 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
         }
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
+        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain,ud->opt_http_port);
     }
     else {
         np_example_print(context, stdout, "Setting http domain to \"%s\" and (re)starting HTTP server.", buffer);
@@ -962,7 +1021,7 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
         }
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
+        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
 
     }
 }
@@ -988,6 +1047,7 @@ void _np_interactive_join(np_context* context, char* buffer) {
     np_example_print(context, stdout, "Try to join network at \"%s\".", buffer);
     np_join(context, buffer);
 }
+
 void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     /*
@@ -999,12 +1059,7 @@ void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
         */
     if (strncmp(buffer, "0", 2) == 0 || strncmp(buffer, "1", 2) == 0 || strncmp(buffer, "2", 2) == 0 || strncmp(buffer, "3", 2) == 0) {
         ud->opt_sysinfo_mode = atoi(buffer);
-        if (ud->_np_httpserver_active) {
-            np_example_print(context, stdout, "Restarting HTTP server.");
-            example_http_server_destroy(context);
-            ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);        
-
-        }        
+        example_sysinfo_init(context,ud->opt_sysinfo_mode);
     }
     else {
         np_example_print(context, stderr, "Sysinfo mode \"%s\" not supported.", buffer);
@@ -1021,7 +1076,7 @@ void __np_example_helper_loop(np_state_t* context) {
     // Runs only once
     if (ud->started_at == 0) {
         ud->started_at = np_time_now();
-
+        np_example_helper_allow_everyone(context);
         np_shutdown_add_callback(context, example_helper_destroy);
 
         if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
@@ -1031,7 +1086,9 @@ void __np_example_helper_loop(np_state_t* context) {
 
         np_print_startup(context);
         // starting the example http server to support the http://view.neuropil.io application
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_sysinfo_mode);
+        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
+        example_sysinfo_init(context,ud->opt_sysinfo_mode);
+        np_statistics_set_node_description(context, ud->node_description);
         
         np_example_print(context, stdout, "Watch internal subjects\n");
         np_statistics_add_watch_internals(context);
@@ -1179,7 +1236,7 @@ void __np_example_helper_loop(np_state_t* context) {
 #ifdef DEBUG
         if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) {
             if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console)) {
-                memory_str = np_threads_print_locks(context, false);
+                memory_str = np_threads_print_locks(context, false, false);
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)){
                         mvwprintw(ud->__np_top_right_win, 0, 0, "%s", memory_str);
@@ -1191,7 +1248,7 @@ void __np_example_helper_loop(np_state_t* context) {
                 free(memory_str);
             }
             if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
-                memory_str = np_threads_print_locks(context, true);
+                memory_str = np_threads_print_locks(context, true, false);
                 if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
                 free(memory_str);
             }
@@ -1376,4 +1433,37 @@ void __np_example_helper_run_info_loop(np_context*context) {
     }
 }
 
-#include "web/np_http.c"
+void example_http_server_destroy(np_context* context) {
+    _np_http_destroy(context);
+}
+
+bool example_http_server_init(np_context* context, char* http_domain, char* http_port) {
+    bool ret = false;
+    bool free_http_domain=false;
+    if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
+        if (http_domain == NULL) {
+            http_domain = calloc(1, sizeof(char) * 255);
+            CHECK_MALLOC(http_domain);
+            if (np_get_local_ip(context, http_domain, 255) == false) {
+                free(http_domain);
+                http_domain = NULL;
+            } else {
+                free_http_domain=true;
+            }
+        }
+        if(http_port==NULL){
+            if(http_port == NULL) http_port = TO_STRING(HTTP_PORT);
+        }
+        ret = _np_http_init(context, http_domain, http_port);
+        if (ret == false) {
+            log_msg(LOG_WARN, "Node could not start HTTP interface");
+            np_example_print(context, stdout, "Node could not start HTTP interface\n");
+        }else{
+            log_msg(LOG_INFO, "HTTP interface set to %s:%s", http_domain,http_port);
+            np_example_print(context, stdout, "HTTP interface set to %s:%s\n", http_domain, http_port);
+        }
+    }
+    if(free_http_domain) free(http_domain);
+
+    return ret;
+}

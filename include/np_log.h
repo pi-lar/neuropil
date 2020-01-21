@@ -60,6 +60,7 @@ enum np_log_e
     LOG_EVENT			= 0x00800000U, /* debugging the undefined					*/
     LOG_MISC            = 0x01000000U, /* debugging the undefined					*/
     LOG_HANDSHAKE       = 0x02000000U, /* debugging the undefined					*/
+    LOG_KEYCACHE        = 0x04000000U, /* debugging the undefined					*/
                                     
     LOG_GLOBAL     		= 0x80000000U, /* debugging the global system				*/
                                     
@@ -70,7 +71,7 @@ enum np_log_e
 
 
 NP_API_EXPORT
-void _np_log_init (np_state_t* context, const char* filename, uint32_t level);
+bool _np_log_init (np_state_t* context, const char* filename, uint32_t level);
 
 NP_API_EXPORT
 void _np_log_destroy(np_state_t* context);
@@ -84,14 +85,12 @@ void np_log_setlevel(np_state_t* context, uint32_t level);
 NP_API_INTERN
 void _np_log_fflush(np_state_t* context, bool force);
 
-#ifndef SWIG
 NP_API_EXPORT
 void np_log_message(np_state_t* context, enum np_log_e level,
                     const char* srcFile, const char* funcName,
                     uint16_t lineno, const char* msg, ...)
      //TODO: add context? __attribute__((__format__ (__printf__, 5,6) ))
-    ;
-#endif
+;
 
 #ifndef log_msg
     #define log_msg(level, msg, ...) \
@@ -107,8 +106,8 @@ void np_log_message(np_state_t* context, enum np_log_e level,
                  np_log_message(context, level | LOG_WARN, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
 #endif
 #ifndef log_error
-        #define log_error(level, msg, ...) \
-                 np_log_message(context, level | LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+        #define log_error(msg, ...) \
+                 np_log_message(context, LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
 #endif
 
 #ifndef log_debug_msg

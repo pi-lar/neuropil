@@ -22,6 +22,7 @@ Contents:
 
    intro
    core_concepts
+   ngizero
    compared_to
    tutorial
    api

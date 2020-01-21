@@ -21,6 +21,7 @@
 
 #undef NP_BENCHMARKING
 
+
 #include "np_legacy.h"
 #include "np_log.h"
 #include "np_message.h"
@@ -231,15 +232,15 @@ TestSuite(np_memory_t );
              if (0 == (i % 99))
              {
                  log_debug_msg(LOG_DEBUG | LOG_MEMORY, "Cleanup of memory block requested");
-                 np_jobargs_t null_args = { 0 };
-                 MEASURE_TIME(clean_time, clean_index, _np_memory_job_memory_management(context, null_args));
+                 np_util_event_t null_evt = { 0 };
+                 MEASURE_TIME(clean_time, clean_index, _np_memory_job_memory_management(context, null_evt));
 
                  clean_index++;
              }
          }
 
-         cr_log_warn("###########\n");
-         cr_log_warn("deleted %.0f items, created %.0f items\n", del, add);
+         cr_log_info("###########\n");
+         cr_log_info("deleted %.0f items, created %.0f items\n", del, add);
 
          CALC_AND_PRINT_STATISTICS("memory new_time  :", new_time, max_count);
          CALC_AND_PRINT_STATISTICS("memory free_time :", free_time, max_count);

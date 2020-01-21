@@ -17,7 +17,6 @@
 #include "np_keycache.h"
 #include "np_tree.h"
 #include "np_types.h"
-#include "np_sysinfo.h"
 
 #include "example_helper.c"
 
@@ -49,8 +48,8 @@ int main(int argc, char **argv)
 		&publish_domain,
 		&level,
 		&logpath,
-		"[-r realmname] [-c code]",
-		"r:c:",
+		"[-r realmname]",
+		"r:",
 		&realm,
 		&code
 	)) == NULL) {
@@ -76,16 +75,10 @@ int main(int argc, char **argv)
 	{
 		np_set_realm_name(context, realm);
 		np_enable_realm_client(context);
-		if (NULL != code)
-		{
-			np_tree_insert_str(context->my_node_key->aaa_token->extensions,
-				"passcode",
-				np_treeval_new_hash(code));
-		}
 	}
 
 	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-		np_example_print(context, stderr, "ERROR: Node could not listen");
+		np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 	}
 	else {
 		__np_example_helper_loop(context); // for the fancy ncurse display

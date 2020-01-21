@@ -33,19 +33,21 @@ typedef struct np_log_s
     char filename_ext[16];
     char original_filename[256];
     char filename[256];
+
     int fp;
 
     // FILE *fp;
     uint32_t level;
     np_sll_t(char_ptr, logentries_l);
-        uint32_t log_size;
+    uint32_t log_size;
     uint32_t log_count;
     bool log_rotate;
+
+    ev_io watcher;
 
 } np_log_t;
 
 typedef struct log_str_t { const char* text; int log_code; } log_str_t;
-
 
 np_module_struct(log) {
     np_state_t* context;
@@ -54,9 +56,9 @@ np_module_struct(log) {
     pthread_mutexattr_t __log_mutex_attr;
 };
 
-void _np_log_evflush(struct ev_loop* loop, NP_UNUSED ev_periodic* ev, int event_type) {
+void _np_log_evflush(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) {
     if ( FLAG_CMP(event_type, EV_WRITE) ) {
-            _np_log_fflush((np_context*) ev_userdata(loop), false);
+        _np_log_fflush((np_context*) ev_userdata(loop), false);
     }
 }
 
@@ -66,51 +68,62 @@ void __np_log_close_file(np_log_t* logger){
         fflush(NULL);
     }
 }
+
 void log_rotation(np_state_t* context)
 {
     pthread_mutex_lock(&np_module(log)->__log_mutex);
 
-    np_module(log)->__logger->log_size = 0;
-    np_module(log)->__logger->log_count += 1;
+    np_log_t* logger = np_module(log)->__logger;
+    logger->log_size = 0;
+    logger->log_count += 1;
 
-    int log_id = (np_module(log)->__logger->log_count % LOG_ROTATE_COUNT) ;
+    int log_id = (logger->log_count % LOG_ROTATE_COUNT) ;
     if(log_id == 0) {
         log_id = LOG_ROTATE_COUNT;
     }
 
-    char* old_filename = strdup(np_module(log)->__logger->filename);
+    char* old_filename = strdup(logger->filename);
 
     // create new filename
-    if(np_module(log)->__logger->log_rotate){
-         snprintf (np_module(log)->__logger->filename, 255, "%s_%d%s", np_module(log)->__logger->original_filename, log_id, np_module(log)->__logger->filename_ext );
+    if(logger->log_rotate){
+         snprintf (logger->filename, 255, "%s_%d%s", logger->original_filename, log_id, logger->filename_ext );
     } else {
-         snprintf (np_module(log)->__logger->filename, 255, "%s%s", np_module(log)->__logger->original_filename, np_module(log)->__logger->filename_ext );
+         snprintf (logger->filename, 255, "%s%s", logger->original_filename, logger->filename_ext );
     }
 
     // Closing old file
-    if(np_module(log)->__logger->log_count > 1) {      
-        log_msg(LOG_INFO, "Continuing log in file %s now.", np_module(log)->__logger->filename);        
+    if(logger->log_count > 1) {      
+        log_msg(LOG_INFO, "Continuing log in file %s now.", logger->filename);        
         _np_log_fflush(context, true);
-        __np_log_close_file(np_module(log)->__logger);
+        __np_log_close_file(logger);
     }
 
     // setting up new file
-    if(np_module(log)->__logger->log_rotate){
-        unlink(np_module(log)->__logger->filename);
+    if(logger->log_rotate)
+    {
+        unlink(logger->filename);
     }
-    np_module(log)->__logger->fp = open(np_module(log)->__logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
+    logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
 
-    if(np_module(log)->__logger->fp < 0) {
-        fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)", np_module(log)->__logger->filename, strerror(errno), errno);
+    if(logger->fp < 0) {
+        fprintf(stderr,"Could not create logfile at %s. Error: %s (%d)", logger->filename, strerror(errno), errno);
         fprintf(stderr, "Log will no longer continue");
         fflush(NULL);
         // discontinue new log msgs
-        free(np_module(log)->__logger);
-        np_module(log)->__logger = NULL;
+        free(logger);
+        logger = NULL;
+    } else {
+        EV_P = _np_event_get_loop_file(context);
+        _np_event_suspend_loop_file(context);
+		ev_io_stop(EV_A_ &logger->watcher);
+        ev_io_init(&logger->watcher, _np_log_evflush, logger->fp, EV_WRITE);
+        ev_io_start(EV_A_ &logger->watcher);
+        _np_event_resume_loop_file(context);
+        _np_event_reconfigure_loop_file(context);
     }
 
-    if (np_module(log)->__logger->log_count > LOG_ROTATE_COUNT) {
-        log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, np_module(log)->__logger->log_count / LOG_ROTATE_COUNT);
+    if (logger->log_count > LOG_ROTATE_COUNT) {
+        log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
     }
 
     _np_log_fflush(context, true);
@@ -132,30 +145,30 @@ char * get_level_str(enum np_log_e level, char * buffer) {
     char ret[12] = { 0 };
 
     if (FLAG_CMP(level, LOG_ERROR)) {
-        sprintf(ret, "ERROR");
+        snprintf(ret, 12, "ERROR");
     }
     else if (FLAG_CMP(level, LOG_WARN)) {
-        sprintf(ret, "WARNING");
+        snprintf(ret, 12, "WARNING");
     }
     else if (FLAG_CMP(level, LOG_INFO)) {
-        sprintf(ret, "INFO");
+        snprintf(ret, 12, "INFO");
     }
     else if (FLAG_CMP(level, LOG_TRACE)) {
-        sprintf(ret, "TRACE");
+        snprintf(ret, 12, "TRACE");
     }
 
     // mark debug entry 
     if (FLAG_CMP(level, LOG_DEBUG)) {
         if (ret[0] == 0) {
-            sprintf(ret, "DEBUG");
+            snprintf(ret, 12, "DEBUG");
         }
         else {
-            sprintf(ret, "%s_D", ret);
+            snprintf(ret, 12, "%s_D", ret);
         }
     }
     // mark verbose entry
     /*if (FLAG_CMP(level, LOG_VERBOSE)) {		
-        sprintf(ret, "%s_V", ret);
+        snprintf(ret, "%s_V", ret);
     }
     */
     snprintf(buffer, 12, "%-11s", ret);
@@ -208,7 +221,6 @@ void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFil
         free(prefix);
         free(log_msg);
 
-
 #if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
         fprintf(stdout, new_log_entry);
         fprintf(stdout, "/n");
@@ -228,8 +240,11 @@ void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFil
         else {
             _np_log_fflush(context, true);
         }
+#else // DEBUG
+        else if (sll_size(np_module(log)->__logger->logentries_l) > MISC_LOG_FLUSH_AFTER_X_ITEMS) {
+            _np_event_invoke_file(context);        
+        }
 #endif // DEBUG
-        
     }
 }
 
@@ -241,7 +256,6 @@ void _np_log_fflush(np_state_t* context, bool force)
     if (np_module(log)->__logger == NULL) {
         return;
     }
-
     /*
         -1 = evaluate the status on first lock
          0 = log till no entries are available anymore
@@ -261,7 +275,7 @@ void _np_log_fflush(np_state_t* context, bool force)
         if (0 == lock_result) {
             if (flush_status < 1 ) {
                 if (flush_status < 0) {
-                    flush_status = (force == true || sll_size(np_module(log)->__logger->logentries_l) > 100) ? 0 : 1;
+                    flush_status = (force == true || sll_size(np_module(log)->__logger->logentries_l) > MISC_LOG_FLUSH_AFTER_X_ITEMS) ? 0 : 1;
                 }
                 if(flush_status == 0) {
                     entry = sll_head(char_ptr, np_module(log)->__logger->logentries_l);
@@ -314,8 +328,7 @@ void np_log_setlevel(np_state_t* context, uint32_t level)
     np_module(log)->__logger->level = level;
 }
 
-
-void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
+bool _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 {
     if (!np_module_initiated(log)) {        
         np_module_malloc(log);		 
@@ -361,9 +374,12 @@ void _np_log_init(np_state_t* context, const char* filename, uint32_t level)
         log_rotation(context);
         log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
     }
+    return true;
 }
-void _np_log_destroy(np_state_t* context){
-      if (np_module_initiated(log)) {        
+
+void _np_log_destroy(np_state_t* context)
+{
+    if (np_module_initiated(log)) {
         np_module_var(log);		 
 
         _np_log_fflush(context, true);

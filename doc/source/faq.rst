@@ -69,5 +69,5 @@ resolve to 127.0.0.1)
 This is all great, can I use it in production ?
 -----------------------------------------------
 
-please don't (for now). This is (still) an alpha release ! We are not yet using memory protection routines from sodium 
+please don't (for now). This is (still) an beta release ! We are not yet using memory protection routines from sodium 
 and there will be improvements to the protocol as well. But we think it is stable enough to play with it and the concepts.

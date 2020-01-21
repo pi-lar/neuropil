@@ -15,7 +15,7 @@ if PATH:
     os.chdir(PATH)
 
 setup (name = 'neuropil',
-       version = '0.8.0',
+       version = '0.9.5',
        author      = "pi-lar GmbH",
        description = """neuropil python bindings""",
        setup_requires=["cffi>=1.0.0"],
@@ -23,7 +23,7 @@ setup (name = 'neuropil',
        install_requires=["cffi>=1.0.0"],
        py_modules = ["neuropil"],
        classifiers=[
-           'Development Status :: 3 - Alpha',
+           'Development Status :: 4 - Beta',
            'Environment :: Console',
            'Intended Audience :: Developers',
            'License :: OSI Approved :: Open Software Licence 3.0 (OSL-3)',

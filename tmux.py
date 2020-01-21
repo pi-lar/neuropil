@@ -25,8 +25,8 @@ parser.add_argument('-k', action='store_true', help='Kill all only')
 parser.add_argument('-t', nargs='?', type=int, default=9, help='Count of threads to start for each node')
 parser.add_argument('-tr', action='store_true', default=False, help='(Add) Random sleep timer during client startup')
 parser.add_argument('-ts', nargs='?', type=int, default=-1, help='Sleep Timer (in ms) during client statup')
-parser.add_argument('-oh', nargs='?', type=int, default=1, help='Host sysinfo config')
-parser.add_argument('-oc', nargs='?', type=int, default=1, help='Clients sysinfo config')
+parser.add_argument('-oh', nargs='?', type=int, default=2, help='Host sysinfo config')
+parser.add_argument('-oc', nargs='?', type=int, default=3, help='Clients sysinfo config')
 parser.add_argument('-p', nargs='?', default=False, help='port type')
 parser.add_argument('-ps', nargs='?', default=False, help='port type server')
 parser.add_argument('-pc', nargs='?', default=False, help='port type clients')
@@ -35,6 +35,8 @@ parser.add_argument('-b', nargs='?', default=3000, help='Port to start from')
 parser.add_argument('-j', nargs='?', default="", help='Join to ')
 parser.add_argument('--path', nargs='?', default="./", help='Path to bin folder (ex.: "./bin/")')
 parser.add_argument('-hd', '--httpdomain', nargs='?', default="", help='Http domain specifier for client nodes')
+parser.add_argument('--sd_prometheus', nargs='?', default="", help='Exports prometheus scrape data to')
+
 
 args = parser.parse_args()
 
@@ -86,8 +88,7 @@ else:
         prefix_bootstrap = ('valgrind --leak-check=full ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
         if args.perf:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
-        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.path + 'neuropil_node -b {} -t {} -p {}  -d {} -u {} -o {} {} -s {} {} 2> error.log'.format(
-            port, threads, port_type_server, loglevel, publish_domain, sysinfo,httpdomain, statistics, autoclose))
+        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.path + f'neuropil_node -b {port} -t {threads} -p {port_type_server}  -d {loglevel} -u {publish_domain} -o {sysinfo} {httpdomain} -s {statistics} {autoclose} ')
         if args.v or args.vs:
             time.sleep(4)
         else:
@@ -103,8 +104,22 @@ else:
                 rand = random.random() if args.tr else 0
                 time.sleep(rand+(args.ts/1000))
             nn = session.new_window(attach=False, window_name=windowName )
-            nn.attached_pane.send_keys("  " + ('valgrind ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path + 'neuropil_node -b {} -u {} -t {} -p {} -o {} -d {} {} {} -s {} {}'.format(
-            port+i+start_bootstrapper,publish_domain, threads, port_type_client, sysinfo_client, loglevel, join_client, httpdomain, statistics, autoclose))
+            node_port = port+i+start_bootstrapper
+            node_http_port = port+i+start_bootstrapper+count
+            nn.attached_pane.send_keys("  " + ('valgrind --leak-check=full ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path +
+            f'neuropil_node -b {node_port} -u {publish_domain} -t {threads} -p {port_type_client} -o {sysinfo_client} -d {loglevel} {join_client} {httpdomain} -e {node_http_port} -s {statistics} {autoclose}')
 
-    if not args.k:
+    if not args.k:        
+        if args.sd_prometheus:            
+            with open(args.sd_prometheus,"w+") as file:
+                file.write(f'[{{"targets": ["{args.httpdomain}:31415"')
+
+                for i in range(count):
+                    httpport = port+i+start_bootstrapper+count
+                    file.write(f',"{args.httpdomain}:{httpport}"')
+
+                file.write(']}]')
+
         os.system('tmux attach -t np')
+
+

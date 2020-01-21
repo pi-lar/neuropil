@@ -63,7 +63,6 @@ int main(int argc, char **argv)
 	char* opt_kill_node = NULL;
 	uint16_t kill_node = 300;
 
-	int opt;
 	example_user_context* user_context;
 	if ((user_context = parse_program_args(
 		__FILE__,
@@ -144,7 +143,7 @@ int main(int argc, char **argv)
 			np_context * context = np_new_context(settings);
 			np_set_userdata(context, user_context);
 			if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-				printf("ERROR: Node could not listen");
+				np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 				exit(EXIT_FAILURE);
 			}
 
@@ -165,7 +164,8 @@ int main(int argc, char **argv)
 
 			*/
 			printf("HttpServer init ok\n");
-			__np_example_helper_loop(context);
+			np_sysinfo_enable_server(context);
+			// __np_example_helper_loop(context);
 
 			/**
 			And wait for incoming connections
@@ -231,9 +231,9 @@ int main(int argc, char **argv)
 	   \code
 	*/
 	char bootstrap_port[10];
-	int bootstrap_port_i = atoi(port);
 	memcpy(bootstrap_port, port, strnlen(port,10));
-	double last_process_kill_at = _np_time_now(NULL);
+
+	uint32_t instances = create_bootstrap;
 	while (true) {
 		// (re-) start child processes
 		if (sll_size(list_of_childs) < required_nodes) {
@@ -250,8 +250,11 @@ int main(int argc, char **argv)
 
 			   \code
 			*/
-			snprintf(port, 7, "%d", atoi(port) + 1);
-			int port_i = atoi(port);
+			
+			snprintf(port, 7, "%d", atoi(port) + instances);
+			// asprintf(user_context->opt_http_port, 7, "%d", atoi(user_context->opt_http_port) + instances);
+			instances++;
+			
 			current_pid = fork();
 
 			if (0 == current_pid) {
@@ -283,7 +286,7 @@ int main(int argc, char **argv)
 				np_set_userdata(context, user_context);
 
 				if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-					printf("ERROR: Node could not listen");
+					np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 					exit(EXIT_FAILURE);
 				}
 
@@ -300,6 +303,7 @@ int main(int argc, char **argv)
 				   \code
 				*/
 				np_sysinfo_enable_client(context);
+				// __np_example_helper_loop(context);
 				/**
 				   \endcode
 				*/
@@ -307,8 +311,7 @@ int main(int argc, char **argv)
 				// We enable the statistics watchers for debugging purposes
 				if(has_a_node_started == false){ // <=> we are the first node started
 					np_statistics_add_watch_internals(context);
-					np_statistics_add_watch(context, _NP_SYSINFO_REQUEST);
-					np_statistics_add_watch(context, _NP_SYSINFO_REPLY);
+					np_statistics_add_watch(context, _NP_SYSINFO_DATA);
 					__np_example_inti_ncurse(context);
 					__np_example_helper_run_loop(context);
 				}
@@ -326,9 +329,6 @@ int main(int argc, char **argv)
 
 				bool firstConnectionTry = true;
 				do {
-					if (!firstConnectionTry) {
-						// np_example_print(context, stdout, "%s (%d/%"PRIu32") tries to join bootstrap node\n", port, port_i-bootstrap_port_i, required_nodes);
-					}
 					np_send_join(context, j_key);
 					firstConnectionTry = false;
 					int timeout = 100;
@@ -336,17 +336,14 @@ int main(int argc, char **argv)
 							// wait for join acceptance
 							timeout--;
 					}
-					if(false == np_has_joined(context) ) {
-						// np_example_print(context, stdout, "%s (%d/%"PRIu32") could not join network\n", port, port_i - bootstrap_port_i, required_nodes);
-					}
 				} while (false == np_has_joined(context));
 				char time[50] = { 0 };
 				reltime_to_str(time, np_time_now() - started_at);
-				// np_example_print(context, stdout, "%s (%d/%"PRIu32") joined network after %s!\n", port, port_i - bootstrap_port_i, required_nodes, time);
 				/**
 				   \endcode
 				*/
 				np_run(context, kill_node);
+
 
 				// LEAVE TEST
 				np_destroy(context, true);

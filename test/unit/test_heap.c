@@ -11,12 +11,13 @@
 #include "../test_macros.c"
 
 
-bool int_compare(int new_ele, int j) {
-
+bool int_compare(int new_ele, int j) 
+{
     return new_ele < j;
 } 
 
-uint16_t int_binheap_get_priority(int ele) {	
+uint16_t int_binheap_get_priority(int ele) 
+{
     return ele;
 }
 
@@ -69,7 +70,7 @@ Test(np_heap, _np_heap_order, .description = "test the heap order")
 		return ele.priority;
 	}
 	NP_BINHEAP_GENERATE_PROTOTYPES(np_job_t);
-	NP_BINHEAP_GENERATE_IMPLEMENTATION(np_job_t);
+	// NP_BINHEAP_GENERATE_IMPLEMENTATION(np_job_t);
 */
 
 Test(np_heap, _np_heap_job_t, .description = "test the heap of a np_job_t")

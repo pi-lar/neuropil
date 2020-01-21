@@ -16,7 +16,7 @@ extern "C" {
 	struct np_dhkey_s
 	{
 		uint32_t t[8];
-	} ;
+	} NP_PACKED;
 
 /* key_comp: k1, k2
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2
@@ -63,6 +63,9 @@ void _np_dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
 NP_API_INTERN
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
+NP_API_INTERN
+void _np_dhkey_hamming_distance(uint16_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y);
+
 /* key_between: test, left, right
  * check to see if the value in #test# falls in the range from #left# clockwise
  * around the ring to #right#.
@@ -95,9 +98,9 @@ void _np_dhkey_assign (np_dhkey_t* k1, const np_dhkey_t* const k2);
 NP_API_INTERN
 void _np_dhkey_encode(np_state_t* context, np_tree_t* jrb, np_dhkey_t* key);
 NP_API_INTERN
-void _np_dhkey2str(const np_dhkey_t* k, char* key_string);
+void _np_dhkey_str(const np_dhkey_t* k, char* key_string);
 NP_API_INTERN
-void _np_str2dhkey(const char* key_string, np_dhkey_t* k);
+void _np_str_dhkey(const char* key_string, np_dhkey_t* k);
 
 #ifdef __cplusplus
 }
