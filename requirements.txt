@@ -21,3 +21,4 @@ sphinxcontrib-cmtinc>=0.2
 sphinxcontrib-websupport==1.0.1
 urllib3==1.22
 cffi==1.11.5
+nose2==0.9.1

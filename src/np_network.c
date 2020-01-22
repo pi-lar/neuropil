@@ -302,8 +302,14 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
                 sll_prepend(void_ptr, network->out_events, data_to_send);
             }
 
+            #ifdef DEBUG
+                char msg_hex[2*written_per_data+1];
+                sodium_bin2hex(msg_hex, 2*written_per_data+1, data_to_send, written_per_data);
+                log_debug(LOG_NETWORK, "Did send    data (%"PRIi16" bytes) via fd: %d hex: %.5s...%s", written_per_data, network->socket, msg_hex, msg_hex + strlen(msg_hex) - 5);
+            #endif
+
             if (written_per_data != MSG_CHUNK_SIZE_1024) {
-                log_msg(LOG_DEBUG,
+                log_debug(LOG_NETWORK,
                     "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
                     data_to_send,
                     written_per_data, MSG_CHUNK_SIZE_1024,
@@ -311,7 +317,7 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
             }
             else {
                 network->last_send_date = np_time_now();
-                log_debug_msg(LOG_DEBUG | LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
+                log_debug(LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
             }
             np_memory_free(context, data_to_send);
         }
@@ -471,22 +477,24 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
     /* receive the new data */
     int last_recv_result = 0;
-    int msgs_received = 0;
+    uint16_t msgs_received = 0;
 
     // catch multiple msgs waiting in this pipe
-    // double timeout_start = np_time_now();
+    double timeout_start = np_time_now();
+    double network_receive_timeout;
+    int16_t in_msg_len;
+    bool stop = false;
 
-    // do {
+    //do {
         np_network_t* ng = _np_key_get_network(key);
 
         struct __np_network_data data_container = {0}; // calloc(1, sizeof(struct __np_network_data));
         data_container.key = key;
         data_container.data = np_memory_new(context, np_memory_types_BLOB_1024);
 
-        int16_t in_msg_len = 0;
-
+        in_msg_len = 0;
         // catch a msg even if it was chunked into smaller byte parts by the underlying network
-        // do {
+        //do {
             if (FLAG_CMP(ng->socket_type, TCP)) {
                 last_recv_result = recv(event->fd, ((char*)data_container.data)+in_msg_len, MSG_CHUNK_SIZE_1024 - in_msg_len, 0);
                 int err = -1;
@@ -501,63 +509,84 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             }
 
             if (last_recv_result < 0) {
+                log_debug(LOG_NETWORK,"Receive stopped. Reason: %s (%"PRId32"/"PRId32")", strerror(errno),errno, last_recv_result);
                 np_memory_free(context, data_container.data);
-        		return;
+                stop = true;
+        		//break;
             }
+            if(!stop){
 
-            __np_network_get_ip_and_port(&data_container);
+                __np_network_get_ip_and_port(&data_container);
 
-            in_msg_len += last_recv_result;
-            _np_statistics_add_received_bytes(last_recv_result);
-            // repeat if msg is not 1024 bytes in size and the timeout is not reached
-        // } while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
+                in_msg_len += last_recv_result;
+                _np_statistics_add_received_bytes(last_recv_result);
+                // repeat if msg is not 1024 bytes in size and the timeout is not reached
+                network_receive_timeout = (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC;
+            }             
+        //} while (in_msg_len > 0 && in_msg_len < MSG_CHUNK_SIZE_1024 && network_receive_timeout);
 
-        log_debug_msg(LOG_DEBUG | LOG_NETWORK, "in_msg_len %"PRIi16" bytes via (fd: %d) ", in_msg_len, event->fd);
+        if(!stop){
+            #ifdef DEBUG
+            	char msg_hex[2*in_msg_len+1];
+            	sodium_bin2hex(msg_hex, 2*in_msg_len+1, data_container.data, in_msg_len);
+                log_debug(LOG_NETWORK, "Did receive data (%"PRIi16" bytes) via fd: %d hex: %.5s...%s", in_msg_len, event->fd, msg_hex, msg_hex + strlen(msg_hex) - 5);
+            #endif
 
-        if (in_msg_len == MSG_CHUNK_SIZE_1024) 
-        {    
-            msgs_received++;
-            data_container.in_msg_len = in_msg_len;
-
-            // we registered this token info before in the first handshake message
-            np_dhkey_t search_key = np_dhkey_create_from_hostport(&data_container.ipstr[0], &data_container.port[0]);
-            np_key_t*  alias_key  = _np_keycache_find(context, search_key);
-
-            np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container.data, 
-                                         .context=context, .target_dhkey=search_key };
-
-            if (FLAG_CMP(ng->socket_type, TCP) || NULL == alias_key )
+            if (in_msg_len == MSG_CHUNK_SIZE_1024) 
             {
-                // TODO: always enqueue via jobqueue
-                // _np_keycache_handle_event(context, key->dhkey, in_event, false);
-                np_jobqueue_submit_event(context, 0.0, key->dhkey, in_event, FUNC);
+                msgs_received++;
+                data_container.in_msg_len = in_msg_len;
+
+                // we registered this token info before in the first handshake message
+                np_dhkey_t search_key = np_dhkey_create_from_hostport(&data_container.ipstr[0], &data_container.port[0]);
+                np_key_t*  alias_key  = _np_keycache_find(context, search_key);
+
+                np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container.data, 
+                                            .context=context, .target_dhkey=search_key };                
+
+                if (FLAG_CMP(ng->socket_type, TCP) || NULL == alias_key )
+                {
+                    // TODO: always enqueue via jobqueue
+                    // _np_keycache_handle_event(context, key->dhkey, in_event, false);
+                    if(!np_jobqueue_submit_event(context, 0.0, key->dhkey, in_event, "event: externe message in")){
+                        log_debug(LOG_NETWORK, "Dropping data package as jobqueue is rejecting it");    
+                    }
+                }
+                else if (NULL != alias_key )
+                {
+                    // TODO: always enqueue via jobqueue
+                    // _np_keycache_handle_event(context, alias_key->dhkey, in_event, false);
+                    if(!np_jobqueue_submit_event(context, 0.0, alias_key->dhkey, in_event, "event: externe message in")){
+                        log_debug(LOG_NETWORK, "Dropping data package as jobqueue is rejecting it");    
+                    }
+                }
+                else
+                {
+                    log_debug_msg(LOG_ERROR, "network in unknown state for key %s", _np_key_as_str(key) );
+                }            
+
+                if (NULL != alias_key) np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
+
+            } else {
+                if(!network_receive_timeout){
+                    log_info(LOG_NETWORK, "Network receive iteration stopped due to timeout (Received Data: %"PRIu16")", in_msg_len);
+                }
+
+                if (in_msg_len == 0) 
+                {
+                    log_info(LOG_NETWORK, "Stopping network due to zero size package (%"PRIu16")", in_msg_len);
+                    _np_network_stop(ng, true);
+                }
+                else 
+                {
+                    log_info(LOG_NETWORK, "Dropping data package due to invalid package size (%"PRIu16")", in_msg_len);
+                    np_memory_free(context, data_container.data);
+                }
             }
-            else if (NULL != alias_key )
-            {
-                // TODO: always enqueue via jobqueue
-                // _np_keycache_handle_event(context, alias_key->dhkey, in_event, false);
-                np_jobqueue_submit_event(context, 0.0, alias_key->dhkey, in_event, FUNC);
-            }
-            else
-            {
-                log_debug_msg(LOG_ERROR, "network in unknown state for key %s", _np_key_as_str(key) );
-            }            
-
-            if (NULL != alias_key) np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
-
-        }
-        else if (in_msg_len == 0) 
-        {
-            log_debug_msg(LOG_INFO | LOG_NETWORK, "Stopping network due to zero size package (%"PRIu16")", in_msg_len);
-            _np_network_stop(ng, true);
-        }
-        else 
-        {
-            log_debug_msg(LOG_INFO | LOG_NETWORK, "Dropping data package due to invalid package size (%"PRIu16")", in_msg_len);
-            np_memory_free(context, data_container.data);
         }
     // there may be more then one msg in our socket pipeline
-    // } while (msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && last_recv_result > 0 && (np_time_now() - timeout_start) < NETWORK_RECEIVING_TIMEOUT_SEC);
+    //} while (!stop && msgs_received < NP_NETWORK_MAX_MSGS_PER_SCAN_IN && in_msg_len > 0 && network_receive_timeout);
+    log_debug(LOG_NETWORK, "Received %"PRIu16" messages in one check", msgs_received);
 }
 
 void _np_network_stop(np_network_t* network, bool force) 

@@ -144,29 +144,26 @@ task_test() {
 
   task_build "test" debug test=1
   export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
-  ./build/test/bin/neuropil_test_suite -j1 --xml=report.xml "$@"
+  ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
 }
 
 task_smoke() {
   ensure_venv
   task_install_python
 
-  rm -rf smoke_test
-  mkdir -p smoke_test/logs
   pwd=$(pwd)
   (
-    cd smoke_test
     loc="$(get_local_target)"    
 
     echo "export LD_LIBRARY_PATH=$pwd/build/$loc/lib"
     export LD_LIBRARY_PATH="$pwd/build/$loc/lib"
-    set +e    
-    ./../venv/bin/python3 ../test/smoke/smoke_test.py
-    if [ $? != 0 ] && [ -t 0 ]; then      
+    set +e         
+    nose2 -v
+    if [ $? == 139 ] && [ -t 0 ]; then      
       read -r -p "${1:-Debug with gdb? [y/N]} " response
       case "$response" in
           [yY][eE][sS]|[yY])
-              gdb --silent -ex=r --args ./../venv/bin/python3 ../test/smoke/smoke_test.py
+              gdb --silent -ex=r --args nose2 -v
               ;;
           *)
               ;;
@@ -194,20 +191,25 @@ usage() {
 
 cmd="${1:-}"
 shift || true
-case "$cmd" in
-  clean) task_clean ;;
-  lbuild) task_build_local "$@";;
-  build) task_build "$@";;
-  doc) task_doc ;;
-  test) task_test "$@";;
-  package) task_package "$@";;  
-  install_python) task_install_python ;;
-  smoke) task_smoke ;;
-  release) task_release ;;
 
-  prepare_ci) task_prepare_ci ;;
-  deploy) task_deploy "$1";;
+(
+  cd "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-  test_deployment) task_test_deployment ;;
-  *) usage ;;
-esac
+  case "$cmd" in
+    clean) task_clean ;;
+    lbuild) task_build_local "$@";;
+    build) task_build "$@";;
+    doc) task_doc ;;
+    test) task_test "$@";;
+    package) task_package "$@";;  
+    install_python) task_install_python ;;
+    smoke) task_smoke ;;
+    release) task_release ;;
+
+    prepare_ci) task_prepare_ci ;;
+    deploy) task_deploy "$1";;
+
+    test_deployment) task_test_deployment ;;
+    *) usage ;;
+  esac
+)

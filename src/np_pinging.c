@@ -30,7 +30,7 @@
 void _np_ping_send(np_state_t *context, np_key_t* key)
 {  
     np_message_t* out_msg = NULL;
-    np_new_obj(np_message_t, out_msg, ref_obj_creation);
+    np_new_obj(np_message_t, out_msg, FUNC);
 
     _np_message_create(out_msg, key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
@@ -39,7 +39,7 @@ void _np_ping_send(np_state_t *context, np_key_t* key)
 
     log_debug_msg(LOG_INFO, "sending ping message (%s) to  %s:%s / %s", out_msg->uuid, key->node->dns_name, key->node->port, _np_key_as_str(key) );
 
-    np_unref_obj(np_message_t, out_msg, ref_obj_creation);
+    np_unref_obj(np_message_t, out_msg, FUNC);
 }
 
 void _np_in_ping(np_state_t* context, np_jobargs_t args)

@@ -34,7 +34,10 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
     np_message_t* ret= NULL;
 
 #ifdef DEBUG
-    char* subject = np_treeval_to_str(np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT)->val, NULL);
+    np_tree_elem_t*  ele = np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_SUBJECT);
+    assert(ele!=NULL);
+    char subject[100]={0};
+    strncpy(subject, np_treeval_to_str(ele->val, NULL), 99);
 #endif
     // Detect from instructions if this msg was orginally chunked
     char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
@@ -50,7 +53,7 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
             {
                 // there exists a msg(part) in our msgcache for this msg uuid
                 // lets add our msgpart to this msg
-                np_message_t* msg_in_cache = msg_in_cache = tmp->val.value.v;
+                np_message_t* msg_in_cache = tmp->val.value.v;
 
                 np_messagepart_ptr to_add = NULL;
                 _LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
@@ -68,29 +71,29 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                         pll_head(np_messagepart_ptr, msg_to_check->msg_chunks);
                     }
                     // we saved the chunk, but the message capsule can go now
-                    np_unref_obj(np_message_t, msg_to_check, ref_obj_creation);
+                    np_unref_obj(np_message_t, msg_to_check, ref_message_in_send_system);
                     // now we check if all chunks are complete for this msg
                     current_count_of_chunks = pll_size(msg_in_cache->msg_chunks);
                 }
 
                 if (current_count_of_chunks < expected_msg_chunks)
                 {
-                    log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
+                    log_debug(LOG_MESSAGE,
                         "message %s (%s) not complete yet (%d of %d), waiting for missing parts",
                         subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
                     // nothing to return as we still wait for chunks
                 }
                 else
                 {
+                    log_debug(LOG_MESSAGE,
+                        "message %s (%s) is complete now  (%d of %d)",
+                        subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
+
                     ret = msg_in_cache;
                     // removing the message from the cache system
                     msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
                     np_tree_del_str(context->msg_part_cache, msg_uuid);
                     np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
-
-                    log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                        "message %s (%s) is complete now  (%d of %d)",
-                        subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
                 }
             }
             else
@@ -116,7 +119,6 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
     return ret;
 }
 
-// TODO: move to glia
 void _np_alias_cleanup_msgpart_cache(np_state_t* context)
 {
     np_sll_t(np_message_ptr, to_del);
@@ -300,6 +302,12 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
 
     memcpy(nonce, event.user_data, crypto_secretbox_NONCEBYTES);                
 
+    #ifdef DEBUG
+        char msg_hex[2*MSG_CHUNK_SIZE_1024+1];
+        sodium_bin2hex(msg_hex, 2*MSG_CHUNK_SIZE_1024+1, event.user_data, MSG_CHUNK_SIZE_1024);                
+        log_debug(LOG_MESSAGE, "Try to decrypt data. hex: %.5s...%s", msg_hex, msg_hex + strlen(msg_hex) - 5);
+    #endif
+
     int crypto_result = 
         crypto_secretbox_open_easy(
             dec_msg,
@@ -323,13 +331,15 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         memcpy(event.user_data, dec_msg, MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 
         np_message_t* msg_in = NULL;
-        np_new_obj(np_message_t, msg_in, ref_obj_creation);
+        np_new_obj(np_message_t, msg_in, ref_message_in_send_system);
         if (!_np_message_deserialize_header_and_instructions(msg_in, event.user_data) )
         {
+            log_debug_msg(LOG_DEBUG, "incorrect header deserialization of message send from %s", _np_key_as_str(alias_key));
             np_memory_free(context, event.user_data);
-            // np_unref_obj(msg_in, msg_in, ref_obj_creation);
+            np_unref_obj(np_message_t, msg_in, ref_message_in_send_system);
             return;
         }
+        log_debug_msg(LOG_SERIALIZATION, "(msg: %s) correct header deserialization of message", msg_in->uuid);
 
         np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
                                            .user_data=msg_in, .target_dhkey=alias_key->dhkey};
@@ -467,6 +477,7 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
             // messagepart is not addressed to our node --> forward
             ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
         }
+        log_debug(LOG_MESSAGE,"(msg:%s) is %s DHT msg.",dht_message->uuid, (ret?"a ":"no"));        
     }
     return ret;
 }
@@ -506,7 +517,7 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
     return ret;
 }
 
-void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_handle(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   // handle ght messages (ping, piggy, ...)
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
@@ -516,17 +527,31 @@ void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_
     // TODO: messag part cache should be a component on its own, but for now just use it
     np_message_t* msg_to_use = _np_alias_check_msgpart_cache(context, message);
 
-    if (msg_to_use != NULL && _np_message_deserialize_chunked(msg_to_use) )
+    if (msg_to_use != NULL )
     {
-        CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
+        if(_np_message_deserialize_chunked(msg_to_use) )
         {
-            np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
-            np_util_event_t msg_event = event;
-            msg_event.user_data = msg_to_use;
-            log_msg(LOG_INFO, "handling   message (%s) for subject: %s", msg_to_use->uuid, str_msg_subject->val.value.s);
-            _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
+            CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
+            {
+                np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
+                np_util_event_t msg_event = event;
+                msg_event.user_data = msg_to_use;
+                log_msg(LOG_INFO, "handling   message (%s) for subject: %s", msg_to_use->uuid, str_msg_subject->val.value.s);
+                _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
+            }
+        }else{
+            log_warn(LOG_MESSAGE, "message (%s) has invalid data structure.", msg_to_use->uuid);
         }
-    } 
+    }
+} 
+
+void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+       // handle ght messages (ping, piggy, ...)
+    np_ctx_memory(statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
+
+    __np_handle(statemachine, event);
 } 
 
 void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -570,26 +595,8 @@ void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_eve
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __np_handle_usr_msg(...) {");
-
-    NP_CAST(event.user_data, np_message_t, message);
-
-    // TODO: messag part cache should be a component on its own, but for now just use it
-    np_message_t* msg_to_use = _np_alias_check_msgpart_cache(context, message);
-
-    if (msg_to_use != NULL) 
-    {
-        if (_np_message_deserialize_chunked(msg_to_use) ) 
-        {
-            CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
-            {
-                np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
-                np_util_event_t msg_event = event;
-                msg_event.user_data = msg_to_use;
-                log_msg(LOG_INFO, "handling   message (%s) for subject: %s", msg_to_use->uuid, str_msg_subject->val.value.s);
-                _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
-            }
-        }
-    }
+    
+    __np_handle(statemachine, event);
 } 
 
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 

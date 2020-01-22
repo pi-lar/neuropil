@@ -7,6 +7,7 @@
 // this file conatins the state machine conditions, transitions and states that a node can
 // have. It is included form np_key.c, therefore there are no extra #include directives.
 
+#include <inttypes.h>
 #include "core/np_comp_node.h"
 
 #include "np_axon.h"
@@ -278,7 +279,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
     {
         // issue ping messages
         np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out, ref_obj_creation);
+        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
         np_dhkey_t ping_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PING_REQUEST);
@@ -315,7 +316,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
             _np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
 
             np_message_t* msg_out = NULL;
-            np_new_obj(np_message_t, msg_out, ref_obj_creation);
+            np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
             _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PIGGY_REQUEST, msg_body);
 
             np_dhkey_t piggy_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PIGGY_REQUEST);
@@ -435,7 +436,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
     if ( trinity.node->_handshake_status < np_status_Connected && 
          (trinity.node->handshake_send_at + hs_prop->msg_ttl) < now )
     {
-        np_new_obj(np_message_t, msg_out, ref_obj_creation);
+        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_HANDSHAKE, NULL);
 
         np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
@@ -449,7 +450,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
     else if (trinity.node->session_key_is_set == true &&  trinity.node->_joined_status < np_status_Connected && 
             (trinity.node->join_send_at + join_prop->msg_ttl) < now ) 
     {
-        np_new_obj(np_message_t, msg_out, ref_obj_creation);
+        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_JOIN_REQUEST, NULL);
 
         np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
@@ -507,7 +508,7 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
         np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_token));
 
         np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out, ref_obj_creation);
+        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_data);
 
         // send update messages to nodes near to this fingerprint        
@@ -559,7 +560,7 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
 
     // 1: create leave message
     np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out, ref_obj_creation);
+    np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
     _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_LEAVE_REQUEST, jrb_data);
 
     np_dhkey_t leave_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_LEAVE_REQUEST);
@@ -766,21 +767,24 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
     } 
     else
     {
-        unsigned char* enc_buffer = np_memory_new(context, np_memory_types_BLOB_1024);
-        
-        uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
-        memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
-        memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
 
         /* send data */
         if (NULL != trinity.network->out_events) 
-        {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "appending message (%s part: %p) %p (%d bytes) to queue for %s:%s", part->uuid, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port);
+        {   
+            unsigned char* enc_buffer = np_memory_new(context, np_memory_types_BLOB_1024);
+        
+            uint32_t enc_buffer_len = MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES;
+            memcpy(enc_buffer, nonce, crypto_secretbox_NONCEBYTES);
+            memcpy(enc_buffer + crypto_secretbox_NONCEBYTES, enc_msg, enc_buffer_len);
+
+                    
 #ifdef DEBUG
             char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                "(msg: %s) %s",
-                part->uuid, sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024));
+            sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024);
+            log_debug(LOG_MESSAGE,
+                "(msg: %s) appending to eventqueue (part: %"PRIu16"/%p) %p (%d bytes) to queue for %s:%s, hex: %.5s...%s",
+                part->uuid, part->part+1, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port,tmp_hex, tmp_hex + strlen(tmp_hex) -5
+            );
 #endif // DEBUG
             _LOCK_ACCESS(&trinity.network->out_events_lock) 
             {
@@ -790,8 +794,7 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
         }
         else 
         {
-            log_debug_msg(LOG_INFO, "Dropping data package for msg %s due to not initialized out_events", part->uuid);
-            np_memory_free(context, enc_buffer);
+            log_info(LOG_MESSAGE, "Dropping part of msg %s due to uninitialized network", part->uuid);
         }
     }
 }

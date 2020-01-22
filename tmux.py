@@ -33,13 +33,26 @@ parser.add_argument('-pc', nargs='?', default=False, help='port type clients')
 parser.add_argument('-s', nargs='?', default=1, help='Statistics View')
 parser.add_argument('-b', nargs='?', default=3000, help='Port to start from')
 parser.add_argument('-j', nargs='?', default="", help='Join to ')
-parser.add_argument('--path', nargs='?', default="./", help='Path to bin folder (ex.: "./bin/")')
+parser.add_argument('--path', nargs='?', default="", help='Path to build folder (shortcut for --bin_path and --lib_path)")')
+parser.add_argument('--bin_path', nargs='?', default="./", help='Path to bin folder (ex.: "./bin/")')
+parser.add_argument('--lib_path', nargs='?', default="", help='Path to lib folder (ex.: "./lib/")')
 parser.add_argument('-hd', '--httpdomain', nargs='?', default="", help='Http domain specifier for client nodes')
 parser.add_argument('--sd_prometheus', nargs='?', default="", help='Exports prometheus scrape data to')
 
-
 args = parser.parse_args()
 
+# propagate path config
+if args.path:
+    if not args.lib_path:
+        args.lib_path = f'{args.path}/lib/'
+    if args.bin_path == "./":
+        args.bin_path = f'{args.path}/bin/'
+
+# with valgrind attached only the console only view is practicable
+if args.v or args.vs or args.vc:
+    if args.s == 1:
+        args.s = 0
+        
 if args.r and args.n < 0:
     args.n = 0
 if args.n < 0:
@@ -88,7 +101,9 @@ else:
         prefix_bootstrap = ('valgrind --leak-check=full ' if args.v or args.vs else  ('gdb -ex run --args ' if args.g or args.gs else  ''))
         if args.perf:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
-        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.path + f'neuropil_node -b {port} -t {threads} -p {port_type_server}  -d {loglevel} -u {publish_domain} -o {sysinfo} {httpdomain} -s {statistics} {autoclose} ')
+        if args.lib_path:
+            nb.attached_pane.send_keys(f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{args.lib_path}')
+        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.bin_path + f'neuropil_node -b {port} -t {threads} -p {port_type_server}  -d {loglevel} -u {publish_domain} -o {sysinfo} {httpdomain} -s {statistics} {autoclose} ')
         if args.v or args.vs:
             time.sleep(4)
         else:
@@ -106,7 +121,9 @@ else:
             nn = session.new_window(attach=False, window_name=windowName )
             node_port = port+i+start_bootstrapper
             node_http_port = port+i+start_bootstrapper+count
-            nn.attached_pane.send_keys("  " + ('valgrind --leak-check=full ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.path +
+            if args.lib_path:
+                nn.attached_pane.send_keys(f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{args.lib_path}')
+            nn.attached_pane.send_keys("  " + ('valgrind --leak-check=full ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.bin_path +
             f'neuropil_node -b {node_port} -u {publish_domain} -t {threads} -p {port_type_client} -o {sysinfo_client} -d {loglevel} {join_client} {httpdomain} -e {node_http_port} -s {statistics} {autoclose}')
 
     if not args.k:        
