@@ -108,6 +108,7 @@ release:
 pages:
   stage: release
   script:
+    - mkdir -p public
     - rsync -r build/doc/html/ public/ 
   artifacts:
     paths:
