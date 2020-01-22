@@ -422,15 +422,19 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
         }
         else
         {
-            // TODO: instead of token threshold a local copy of the value should be increased
-            if (np_tree_find_str(tmp_token->extensions_local, "msg_threshold"))
-                np_tree_find_str(tmp_token->extensions_local, "msg_threshold")->val.value.ui++;
-
             log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s/%s) with receiver token %s %s...", my_property->msg_subject, message->uuid, tmp_token->uuid, tmp_token->issuer);
             // encrypt the relevant message part itself
+            np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
+
             _np_message_encrypt_payload(message, tmp_token);
 
-            np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
+            if (FLAG_CMP(my_property->ack_mode, ACK_DESTINATION))
+            {
+                np_dhkey_t redeliver_dhkey = _np_msgproperty_dhkey(OUTBOUND, my_property->msg_subject);
+                np_util_event_t redeliver_event = { .type=(evt_redeliver|evt_internal|evt_message), .context=context, .target_dhkey=redeliver_dhkey, .user_data=message };
+                _np_keycache_handle_event(context, redeliver_dhkey, redeliver_event, false);
+                _np_message_add_msg_response_handler(message);
+            }
         }
         // decrease threshold counters
         np_unref_obj(np_aaatoken_t, tmp_token, "_np_intent_get_receiver");

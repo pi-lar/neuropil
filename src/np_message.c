@@ -564,14 +564,14 @@ bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* bu
                             ref_replace_reason(np_messagepart_t, part, ref_obj_creation, ref_message_bin_static);
                             msg->bin_static = part;
 
-                            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "received message part (%d / %d)", chunk_id, msg->no_of_chunks);
-
                             CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
                             ASSERT(msg_uuid.type == np_treeval_type_char_ptr, " type is incorrectly set to: %"PRIu8, msg_uuid.type);
-                            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg:%s) reset uuid to %s", msg->uuid, np_treeval_to_str(msg_uuid, NULL));
+                            log_debug(LOG_MESSAGE, "(msg:%s) reset uuid to %s", msg->uuid, np_treeval_to_str(msg_uuid, NULL));
                             char* old = msg->uuid;
                             msg->uuid = strdup(np_treeval_to_str(msg_uuid, NULL));
                             free(old);
+
+                            log_debug(LOG_MESSAGE, "(msg:%s) received message part: %d / %d", msg->uuid, chunk_id, msg->no_of_chunks);
 
                             ret = true;
                             goto __np_wo_error;
@@ -760,6 +760,7 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     double now = np_time_now();
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(out_prop->msg_ttl));
+    msg->redelivery_at = msg->send_at = now;
 
     // insert msg acknowledgement indicator
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(out_prop->ack_mode));
@@ -982,7 +983,6 @@ void _np_message_add_key_response_handler(const np_message_t* self)
 	rh->expires_at = rh->send_at + 
                      np_tree_find_str(self->instructions, _NP_MSG_INST_TTL)->val.value.d;
 	rh->received_at = 0.0;
-    // rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
 
     np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
     np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
@@ -996,8 +996,7 @@ void _np_message_add_msg_response_handler(const np_message_t* self)
     np_responsecontainer_t* rh = NULL;
     np_new_obj(np_responsecontainer_t, rh);
 
-    memcpy(rh->uuid, self->uuid, 18);
-    // rh->dest_dhkey = np_tree_find_str(self->header, _NP_MSG_HEADER_TO)->val.value.dhkey;
+    memcpy(rh->uuid, self->uuid, NP_UUID_BYTES);
     rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
     rh->send_at    =  np_tree_find_str(self->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
 	rh->expires_at = rh->send_at + 

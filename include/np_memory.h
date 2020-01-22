@@ -192,8 +192,11 @@ bool ret = container != NULL
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
     if(np_memory_unref_obj(context, np_obj, reason) <= 0) np_obj = NULL
 
-
+#ifdef DEBUG
 #define np_ref_switch(...) VFUNC(np_ref_switch, __VA_ARGS__)
+#else
+#define np_ref_switch(...) ;
+#endif
 #define np_ref_switch4(TYPE, old_obj, old_reason, new_obj) np_ref_switch5(TYPE, old_obj, old_reason, new_obj, old_reason)
 #define np_ref_switch5(TYPE, old_obj, old_reason, new_obj, new_reason)																				\
 {																																					\

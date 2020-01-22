@@ -56,28 +56,40 @@
 #include "neuropil.h"
 
 
+bool _check_and_send_destination_ack(np_state_t* context, np_util_event_t msg_event)
+{
+    NP_CAST(msg_event.user_data, np_message_t, msg);
+
+    CHECK_STR_FIELD_BOOL(msg->instructions, _NP_MSG_INST_ACK, msg_ack, "NOT AN ACK MSG")
+    {
+        if (FLAG_CMP(msg_ack->val.value.ush, ACK_DESTINATION) )
+        {
+            np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
+            np_dhkey_t target    = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
+
+            np_tree_t* msg_body  = np_tree_create();
+            np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
+
+            np_message_t* msg_out;
+            np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
+            _np_message_create(msg_out, target, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
+
+            log_msg(LOG_INFO, "ack of message %s with %s", msg->uuid, msg_out->uuid);
+
+            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=msg_out };
+            _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
+        }
+    }
+    return true;
+}
+
 bool _np_in_ping(np_state_t* context, np_util_event_t msg_event)
 {
     log_trace_msg(LOG_TRACE, "start: bool _np_in_ping(...) {");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
     log_debug_msg(LOG_DEBUG, "_np_in_ping for message uuid %s", msg->uuid);
-
-    // initiate ack for ping messages
-    // TODO: do this in a np_evt_callback_t function
-    np_dhkey_t ack_dhkey   = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
-    np_dhkey_t target = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
-
-    np_tree_t* msg_body = np_tree_create();
-    np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
-
-    np_message_t* msg_out;
-    np_new_obj(np_message_t, msg_out, ref_obj_creation);
-    _np_message_create(msg_out, target, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
-
-    np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=msg_out };
-    _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
-    // nothing more to do. work is done only on the sending end (ack handling)
+    // for now: nothing more to do. work is done only on the sending end (ack handling)
 
     return true;
 }
@@ -463,7 +475,7 @@ bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
         update_event.type = (evt_message|evt_internal);
         update_event.user_data = msg;
         update_event.target_dhkey = update_prop_dhkey;
-        np_ref_obj(np_message_t, msg, ref_obj_creation);
+        np_ref_obj(np_message_t, msg, ref_message_in_send_system);
 
         _np_keycache_handle_event(context, update_prop_dhkey, update_event, false);
     }

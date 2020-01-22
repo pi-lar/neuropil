@@ -13,6 +13,7 @@
 extern "C" {
 #endif
 
+	#define ref_message_in_send_system				"ref_message_in_send_system"
 	#define ref_message_bin_static					"ref_message_bin_static"
 	#define ref_msgpartcache						"ref_msgpartcache"
 	#define ref_state_nodekey						"ref_state_nodekey"

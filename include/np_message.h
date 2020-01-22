@@ -41,6 +41,7 @@ struct np_message_s
 
     np_msgproperty_ptr msg_property;
     double send_at;	
+    double redelivery_at;	
 
     void* bin_body;
     void* bin_footer;

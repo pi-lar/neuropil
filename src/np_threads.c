@@ -705,15 +705,16 @@ void* __np_thread_status_wrapper(void* self)
             tmp_status < np_shutdown      )
     {
         if (tmp_status == np_running) 
-        {
-            np_threads_busyness(context, thread, true);
+        {            
             _LOCK_ACCESS(&thread->job_lock) 
             {    
+                np_threads_busyness(context, thread, true);
                 thread->status = np_running;            
                 thread->run_fn(context, thread);
                 thread->status = np_stopped;
+                np_threads_busyness(context, thread, false);
             }
-            np_threads_busyness(context, thread, false);
+            
         }
         else 
         {

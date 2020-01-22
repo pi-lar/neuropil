@@ -155,6 +155,7 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __ping->token_max_ttl = 30;
     __ping->token_min_ttl = 20;
     sll_append(np_evt_callback_t, __ping->clb_inbound , _np_in_ping);
+    sll_append(np_evt_callback_t, __ping->clb_inbound , _check_and_send_destination_ack);
     sll_append(np_evt_callback_t, __ping->clb_outbound, _np_out_ping);
     
     np_msgproperty_t* __piggy = NULL;

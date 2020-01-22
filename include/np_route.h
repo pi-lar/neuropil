@@ -22,9 +22,6 @@ bool _np_route_init (np_state_t* context, np_key_t* me);
 NP_API_INTERN
 void _np_route_destroy(np_state_t* context);
 
-NP_API_INTERN
-void _np_route_set_key (np_key_t* new_node_key);
-
 /** _np_route_update:
  ** updates the routing table in regard to host. If the host is joining
  ** the network (and joined == 1), then it is added to the routing table

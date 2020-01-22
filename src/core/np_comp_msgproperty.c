@@ -74,7 +74,8 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     // cache which will hold up to max_threshold messages
     prop->cache_policy = FIFO | OVERFLOW_PURGE;
 
-    prop->response_handler = np_tree_create();
+    prop->response_handler    = np_tree_create(); // only used for msghandler NP_ACK
+    prop->redelivery_messages = np_tree_create(); // only used for msghandler "is_internal=false"
 
     sll_init(np_message_ptr, prop->msg_cache_in);
     sll_init(np_message_ptr, prop->msg_cache_out);
@@ -96,39 +97,29 @@ void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
     assert(prop != NULL);
 
     if (prop->msg_subject != NULL) {
-        free(prop->msg_subject);
-        prop->msg_subject = NULL;
+        free(prop->msg_subject); prop->msg_subject = NULL;
+    }
+    if (prop->rep_subject != NULL) {
+        free(prop->rep_subject); prop->rep_subject = NULL;
     }
 
-    if (prop->rep_subject != NULL) {
-        free(prop->rep_subject);
-        prop->rep_subject = NULL;
-    }
+    np_tree_free(prop->unique_uuids);
+    np_tree_free(prop->response_handler); //
+    np_tree_free(prop->redelivery_messages); //
 
     if(prop->msg_cache_in != NULL ) {
         sll_free(np_message_ptr, prop->msg_cache_in);
     }
-
     if(prop->msg_cache_out != NULL ) {
         sll_free(np_message_ptr, prop->msg_cache_out);
     }
+
     if(prop->user_receive_clb != NULL) {
-        sll_iterator(np_usercallback_ptr)  iter_user_receive_clb = sll_first(prop->user_receive_clb);
-        while(iter_user_receive_clb != NULL){
-            free(iter_user_receive_clb->val);
-            sll_next(iter_user_receive_clb);
-        }
         sll_free(np_usercallback_ptr, prop->user_receive_clb);
     }
     if(prop->user_send_clb != NULL){
-        sll_iterator(np_usercallback_ptr)  iter_user_send_clb = sll_first(prop->user_send_clb);
-        while(iter_user_send_clb != NULL){
-            free(iter_user_send_clb->val);
-            sll_next(iter_user_send_clb);
-        }
         sll_free(np_usercallback_ptr, prop->user_send_clb);
     }
-    np_tree_free(prop->unique_uuids);
     
     np_unref_obj(np_aaatoken_t, prop->current_receive_token, ref_msgproperty_current_recieve_token);
     np_unref_obj(np_aaatoken_t, prop->current_sender_token, ref_msgproperty_current_sender_token);
@@ -405,23 +396,31 @@ void _np_msgproperty_cleanup_response_handler(np_msgproperty_t* self)
             sll_append(char_ptr, to_remove, iter_tree->key.value.s);
             handle_event = true;
         }
-
+        
+        np_dhkey_t _null = {0};
         if (handle_event) 
-        {
-/*          response_event.target_dhkey=current->msg_dhkey;
-            np_ref_obj(np_responsecontainer_t, response_event.user_data, "");
-            _np_keycache_handle_event(context, current->msg_dhkey, response_event, false); */
-
-            response_event.target_dhkey=current->dest_dhkey;
-            np_ref_obj(np_responsecontainer_t, response_event.user_data, "");
-            _np_keycache_handle_event(context, current->dest_dhkey, response_event, false);
-
-            np_unref_obj(np_responsecontainer_t, response_event.user_data, ref_obj_creation);
+        {   // clean up message redlivery
+            if (!_np_dhkey_equal(&current->msg_dhkey, &_null) ) 
+            {        
+                response_event.target_dhkey=current->msg_dhkey;
+                np_ref_obj(np_responsecontainer_t, response_event.user_data, "");
+                _np_keycache_handle_event(context, current->msg_dhkey, response_event, false); 
+                np_unref_obj(np_responsecontainer_t, response_event.user_data, ref_obj_creation);
+            }            
+            // clean up ping ack
+            if (!_np_dhkey_equal(&current->dest_dhkey, &_null) ) 
+            { 
+                response_event.target_dhkey=current->dest_dhkey;
+                np_ref_obj(np_responsecontainer_t, response_event.user_data, "");
+                _np_keycache_handle_event(context, current->dest_dhkey, response_event, false);
+                np_unref_obj(np_responsecontainer_t, response_event.user_data, ref_obj_creation);
+            }
         }
     }
 
     sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
-    if(iter_to_rm != NULL) {
+    if(iter_to_rm != NULL) 
+    {
         log_debug_msg(LOG_DEBUG | LOG_MSGPROPERTY ,"RESPONSE removing %"PRIu32" from %"PRIu16" items from response_handler", 
                                                     sll_size(to_remove), self->response_handler->size);
         while (iter_to_rm != NULL)
@@ -465,7 +464,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
             np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(OUTBOUND, send_prop->msg_subject);
             np_dhkey_t target_dhkey = {0};
 
-            np_ref_obj(np_message_t, msg_out, ref_obj_creation); // this ref reason has been removed on first try, re-add
+            np_ref_obj(np_message_t, msg_out, ref_message_in_send_system); // this ref reason has been removed on first try, re-add
             np_util_event_t send_event = { .type=(evt_userspace | evt_message), .context=context, .user_data=msg_out, .target_dhkey=target_dhkey };
             _np_keycache_handle_event(context, subject_dhkey, send_event, false);
 
@@ -513,7 +512,7 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhk
         // handle selected message
         if(NULL != msg_in) 
         {
-            np_ref_obj(np_message_t, msg_in, ref_obj_creation); // this ref reason has been removed on first try, re-add
+            np_ref_obj(np_message_t, msg_in, ref_message_in_send_system); // this ref reason has been removed on first try, re-add
             np_dhkey_t in_handler = _np_msgproperty_dhkey(INBOUND, recv_prop->msg_subject);
             np_util_event_t msg_in_event = { .type=(evt_external|evt_message), .context=context, .target_dhkey=in_handler, .user_data=msg_in };
             _np_keycache_handle_event(context, in_handler, msg_in_event, false);
@@ -681,6 +680,34 @@ void _np_msgproperty_threshold_decrease(np_msgproperty_t* self)
 {
     if(self->msg_threshold > 0) {
         self->msg_threshold--;
+    }
+}
+
+void __np_msgproperty_redeliver_messages(np_msgproperty_t* self) 
+{
+    np_ctx_memory(self);
+
+    // remove expired msg uuid from response uuids
+    double now = np_time_now();
+    double resend_interval = self->msg_ttl / (self->retry+1);
+
+    np_tree_elem_t* iter_tree = NULL;
+    np_message_t* current = NULL;
+
+    RB_FOREACH(iter_tree, np_tree_s, self->redelivery_messages)
+    {
+        bool handle_event = false;
+        current = (np_message_t *) iter_tree->val.value.v;
+        np_dhkey_t property_dhkey = _np_msgproperty_dhkey(OUTBOUND, self->msg_subject);
+
+        if (current->redelivery_at + resend_interval < now)
+        {   // send message redelivery attempt
+            current->redelivery_at = now;
+            np_ref_obj(np_message_t, current, ref_message_in_send_system);
+            np_util_event_t message_event = { .type=(evt_message|evt_internal), .context=context, .user_data=current, .target_dhkey=property_dhkey };
+            _np_keycache_handle_event(context, property_dhkey, message_event, false);
+            log_msg(LOG_INFO, "re-delivery of message %s / %s", iter_tree->key.value.s, self->msg_subject);
+        }
     }
 }
 
@@ -888,9 +915,6 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src)
     // ackmode conversion
     switch (src->ack_mode)
     {
-    case ACK_NONE:
-        dest->ackmode = NP_MX_ACK_NONE;
-        break;
     case ACK_DESTINATION:
         dest->ackmode = NP_MX_ACK_DESTINATION;
         break;
@@ -941,7 +965,10 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     if (src->message_ttl > 0.0) {
         dest->msg_ttl = src->message_ttl;
     }
-    
+    if (src->max_retry > 0) {
+        dest->retry = src->max_retry;
+    }    
+
     if (src->cache_size > 0) {
         dest->cache_size = src->cache_size;
     }
@@ -1079,7 +1106,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
         (now - property->last_intent_tx_update) > property->token_min_ttl)
     {
         np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out, ref_obj_creation);
+        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create( msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_DISCOVER_RECEIVER, np_tree_clone(intent_data));
 
         log_msg(LOG_INFO, "sending discovery message for %s as a sender: _NP_MSG_DISCOVER_RECEIVER {msg uuid: %s / intent uuid: %s)", property->msg_subject, msg_out->uuid, intent_token->uuid);
@@ -1095,7 +1122,7 @@ void _np_msgproperty_send_discovery_messages(np_util_statemachine_t* statemachin
        (now - property->last_intent_rx_update) > property->token_min_ttl)
     {
         np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out, ref_obj_creation);
+        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_DISCOVER_SENDER, np_tree_clone(intent_data) );
 
         log_msg(LOG_INFO, "sending discovery message for %s as a receiver: _NP_MSG_DISCOVER_SENDER {msg uuid: %s / intent uuid: %s)", property->msg_subject, msg_out->uuid, intent_token->uuid);
@@ -1137,7 +1164,8 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
     {
         _np_msgproperty_upsert_token(statemachine, event);
         _np_msgproperty_send_discovery_messages(statemachine, event);
-    
+
+        __np_msgproperty_redeliver_messages(property);
         __np_intent_check(statemachine, event);
     }
 
@@ -1201,7 +1229,7 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
     if (ret) _np_increment_received_msgs_counter(property->msg_subject);
 
     log_debug(LOG_DEBUG, "in: (subject: %s / msg: %s) handling complete", property->msg_subject, msg_in->uuid);    
-    np_unref_obj(np_message_t, msg_in, ref_obj_creation);
+    np_unref_obj(np_message_t, msg_in, ref_message_in_send_system);
 }
 
 bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -1212,6 +1240,7 @@ bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_e
     bool ret = false;
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_internal);
+    if ( ret) ret &= !FLAG_CMP(event.type, evt_redeliver);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
     // if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_message_t);
 
@@ -1255,9 +1284,27 @@ void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np
     if (ret) {
         _np_increment_send_msgs_counter(property->msg_subject);
     }
-    np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+    np_unref_obj(np_message_t, msg_out, ref_message_in_send_system);
 }
-       
+
+void __np_property_redelivery_set(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_property_redelivery_set(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
+    NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
+    NP_CAST(event.user_data, np_message_t, message);
+
+    if (np_tree_find_str(property->redelivery_messages, message->uuid) == NULL) 
+    {
+        log_msg(LOG_INFO, "storing message %s / %s for possible re-delivery", message->uuid, property->msg_subject);
+        _np_msgproperty_threshold_increase(property);
+        np_tree_insert_str(property->redelivery_messages, message->uuid, np_treeval_new_v(message) );
+        np_ref_obj(np_message_t, message, FUNC);
+    }
+}
+
 void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -1267,7 +1314,35 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
     NP_CAST(event.user_data, np_responsecontainer_t, responsehandler);
 
-    np_tree_insert_str(property->response_handler, responsehandler->uuid, np_treeval_new_v(responsehandler) );
+    if (property->is_internal) 
+    {   // registration of response handler for message type NP_ACK
+        np_tree_insert_str(property->response_handler, responsehandler->uuid, np_treeval_new_v(responsehandler) );
+    }
+    else
+    {   // a responsehandler reporting a timeout or an acknowledgement
+        CHECK_STR_FIELD_BOOL(property->redelivery_messages, responsehandler->uuid, msg_tree_elem, "NO UUID FOUND") 
+        {
+            log_msg(LOG_INFO, "message %s / %s acknowledged or timed out", responsehandler->uuid, property->msg_subject);
+
+            np_unref_obj(np_message_t, msg_tree_elem->val.value.v, "__np_property_redelivery_set");
+            np_tree_del_str(property->redelivery_messages, responsehandler->uuid);
+            _np_msgproperty_threshold_decrease(property);        
+        }
+    }    
+}
+
+bool __is_message_redelivery_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_message_redelivery_event(...) {");
+
+    bool ret = false;
+    
+    if (!ret) ret  = FLAG_CMP(event.type, evt_message);
+    if ( ret) ret &= (FLAG_CMP(event.type, evt_redeliver) && FLAG_CMP(event.type, evt_internal) );
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+
+    return ret;
 }
 
 bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -1279,6 +1354,7 @@ bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_eve
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_response);
     if ( ret) ret &= (FLAG_CMP(event.type, evt_timeout) || FLAG_CMP(event.type, evt_internal) );
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_responsecontainer_t);
 
     return ret;
 }

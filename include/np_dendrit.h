@@ -20,6 +20,9 @@ NP_API_INTERN
 bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
+bool _check_and_send_destination_ack(np_state_t* context, np_util_event_t msg_event);
+
+NP_API_INTERN
 bool _np_in_piggy (np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
 bool _np_in_update (np_state_t* context, np_util_event_t msg_event);

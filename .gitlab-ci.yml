@@ -6,7 +6,6 @@ cache:
 stages:
   - test
   - build
-  - package
   - qa
   - release
 
@@ -15,7 +14,7 @@ test:
   script: ./do test
   artifacts:
     reports:
-      junit: report.xml
+      junit: neuropil_test_suite-junit.xml
 
 build:linux:
   stage: build
@@ -41,8 +40,16 @@ build:documentation:
     paths:
       - build/doc/html
 
-package:
-  stage: package
+qa:smoke_tests:
+  stage: qa
+  script: 
+      - ./do smoke
+  artifacts:
+    reports:
+      junit: smoke_test-junit.xml
+
+qa:package:
+  stage: qa
   script: 
     - ./do package
     - ./do deploy test
@@ -50,17 +57,12 @@ package:
     name: neuropil-release
     paths:
       - build/package/*
+  only:
+    - master
   dependencies:
     - build:documentation
     #- build:freebsd
     - build:linux
-
-qa:smoke_test:
-  stage: qa
-  script: 
-      - ./do smoke
-  dependencies:
-    - package
 
 release:
   stage: release
@@ -69,6 +71,8 @@ release:
     - ./do deploy production
     # auto saltstack deploy
   when: manual
+  only:
+    - master
   dependencies:
-    - package
+    - qa:package
     - build:documentation   

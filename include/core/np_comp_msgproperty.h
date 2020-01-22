@@ -265,9 +265,12 @@ struct np_msgproperty_s
     // The token created for this msgproperty will guaranteed live for token_min_ttl seconds
     uint32_t token_min_ttl;
 
+    // cache which will hold up to max_threshold messages
+    np_msgcache_policy_type cache_policy;
     uint16_t  cache_size;
     uint8_t  msg_threshold; // current cache size
     uint8_t  max_threshold; // local cache size
+
     bool is_internal;
 
     // timestamp for cleanup thread
@@ -277,11 +280,6 @@ struct np_msgproperty_s
 
     // dhkey of node(s)/identities/realms who are interested in message exchange
     np_dhkey_t partner_key;
-
-    // cache which will hold up to max_threshold messages
-    np_msgcache_policy_type cache_policy;
-
-    np_tree_t* response_handler;
 
     np_sll_t(np_message_ptr, msg_cache_in);
     np_sll_t(np_message_ptr, msg_cache_out);
@@ -293,13 +291,6 @@ struct np_msgproperty_s
     np_sll_t(np_usercallback_ptr, user_receive_clb);	// external user supplied for inbound
     np_sll_t(np_usercallback_ptr, user_send_clb);		// external user supplied for outbound
 
-    TSP(bool, is_acked);
-    np_sll_t(np_responsecontainer_on_t, on_ack);
-    TSP(bool, is_in_timeout);
-    np_sll_t(np_responsecontainer_on_t, on_timeout);
-    TSP(bool, is_sent);
-    np_sll_t(np_responsecontainer_on_t, on_send);
-
     TSP(bool, has_reply);
     np_sll_t(np_msgproperty_on_reply_t, on_reply);
 
@@ -307,6 +298,8 @@ struct np_msgproperty_s
     uint32_t unique_uuids_max;
 
     np_tree_t* unique_uuids;
+    np_tree_t* response_handler; // handler for ack messages
+    np_tree_t* redelivery_messages;
 
     np_message_intent_public_token_t* current_sender_token;
     np_message_intent_public_token_t* current_receive_token;
@@ -391,6 +384,12 @@ NP_API_INTERN
 void _np_msgproperty_cleanup_sender_cache(np_msgproperty_t* msg_prop);
 
 /**
+ ** check redelivery of already encrypted messages
+ **/
+NP_API_INTERN
+void __np_msgproperty_redeliver_messages(np_msgproperty_t* self);
+
+/**
  ** handle treshold breaches
  **/
 NP_API_INTERN
@@ -442,6 +441,11 @@ NP_API_INTERN
 bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
+void __np_property_redelivery_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+bool __is_message_redelivery_event(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
 bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_util_event_t event);
@@ -453,25 +457,6 @@ void __np_property_out_usermsg(np_util_statemachine_t* statemachine, const np_ut
  **/
 NP_API_INTERN
 void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
-
-NP_API_INTERN
-void np_msgproperty_add_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply);
-NP_API_INTERN
-void np_msgproperty_remove_on_reply(np_msgproperty_t* self, np_msgproperty_on_reply_t on_reply_to_remove);
-
-NP_API_INTERN
-void np_msgproperty_add_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
-NP_API_INTERN
-void np_msgproperty_remove_on_send(np_msgproperty_t* self, np_responsecontainer_on_t on_send);
-NP_API_INTERN
-void np_msgproperty_add_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
-NP_API_INTERN
-void np_msgproperty_remove_on_timeout(np_msgproperty_t* self, np_responsecontainer_on_t on_timeout);
-NP_API_INTERN
-void np_msgproperty_add_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
-NP_API_INTERN
-void np_msgproperty_remove_on_ack(np_msgproperty_t* self, np_responsecontainer_on_t on_ack);
-
 
 #ifdef __cplusplus
 }

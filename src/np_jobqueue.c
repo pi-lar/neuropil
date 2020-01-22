@@ -99,23 +99,26 @@ void _np_job_free(np_state_t* context, np_job_t* n)
 bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job)
 {	
     NP_PERFORMANCE_POINT_START(jobqueue_insert);
-    log_debug_msg(LOG_JOBS | LOG_DEBUG, "insert job into jobqueue (%-70s)", new_job.ident);
     
     bool ret = false;
     _LOCK_MODULE(np_jobqueue_t)
     {
         // do not add job items that would overflow internal queue size
         bool overflow = np_module(jobqueue)->job_list->count + np_module(jobqueue)->periodic_jobs + 1 > JOBQUEUE_MAX_SIZE;
-            if (overflow && false == new_job.is_periodic) {
-            log_msg(LOG_WARN, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");            
+        if (overflow && false == new_job.is_periodic) {
+            log_msg(LOG_DEBUG, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");            
         } else {
             pheap_insert(np_job_t, np_module(jobqueue)->job_list, new_job);
             ret = true;
         }
     }
 
-    if (ret == false) { log_debug(LOG_WARN, "Discarding Job %s", new_job.ident); }
-    
+#ifdef DEBUG
+    if (ret == false) { log_msg(LOG_WARN, "Discarding Job %s", new_job.ident); }
+#else 
+    if (ret == false) { log_msg(LOG_WARN, "Discarding Job. Build with DEBUG for further info."); }
+#endif    
+
     _np_jobqueue_check(context);
 
     NP_PERFORMANCE_POINT_END(jobqueue_insert);
@@ -435,7 +438,7 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
             log_debug_msg(LOG_JOBS, "start   worker thread (%p) with job (%s)", current_worker, current_worker->job.ident);
             _np_threads_mutex_condition_signal(context, &current_worker->job_lock);
         } 
-
+        
         _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
         {
             sll_next(iter_workers);
@@ -473,7 +476,7 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
     //_np_time_update_cache(context);
     // sanity checks if the job list really returned an element
     // if (NULL == job_to_execute) return;
-#ifdef NP_THREADS_CHECK_THREADING	
+#ifdef NP_THREADS_CHECK_THREADING
     if (NULL == job_to_execute.processorFuncs) 
     {
         np_thread_t * self = _np_threads_get_self(context);
@@ -509,7 +512,7 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
     else if (NULL != job_to_execute.processorFuncs && 
              sll_size(((job_to_execute.processorFuncs))) > 0)
     {
-        log_debug_msg(LOG_JOBS | LOG_DEBUG,
+        log_debug(LOG_JOBS,
             "thread-->%15"PRIu64" job remaining jobs: %"PRIu32") func_count-->%"PRIu32" funcs-->%15p ([0] == %15p) prio:%10.2f not before: %15.10f jobname: %s",
             self->id,
             np_jobqueue_count(context),
@@ -584,6 +587,7 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
 
         job_to_execute.exec_not_before_tstamp = fmax(started_at + job_to_execute.interval, np_time_now());
         if (!_np_jobqueue_insert(context, job_to_execute)) {
+            log_error("Catastrophic failure in jobqueue handeling");
             abort(); // Catastrophic failure - shut down system
         }
     }

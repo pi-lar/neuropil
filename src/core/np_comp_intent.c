@@ -476,7 +476,7 @@ void _np_intent_propagate_list(np_state_t* context, np_dhkey_t msgprop_dhkey, np
             np_tree_t* available_data = np_tree_create();
             np_aaatoken_encode(available_data, tmp_token);
 
-            np_new_obj(np_message_t, msg_out);
+            np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
             _np_message_create(
                 msg_out,
                 target,

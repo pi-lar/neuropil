@@ -116,8 +116,8 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     {
         my_identity_key->type |= np_key_type_node;
 
-        sll_append(void_ptr, my_identity_key->entities, identity);
         np_ref_obj(np_aaatoken_t, identity, "__np_set_identity");
+        sll_append(void_ptr, my_identity_key->entities, identity);
 
         context->my_node_key = my_identity_key;
 
@@ -130,8 +130,8 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     }
     else if(FLAG_CMP(identity->type, np_aaatoken_type_identity) )
     {
-        sll_append(void_ptr, my_identity_key->entities, identity);
         np_ref_obj(np_aaatoken_t, identity, "__np_set_identity");
+        sll_append(void_ptr, my_identity_key->entities, identity);
     
         if (NULL == context->my_identity || context->my_identity == context->my_node_key)
         {
@@ -225,9 +225,10 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
 
     bool clean_message = true;
     np_message_t* msg_in = NULL;
-    np_new_obj(np_message_t, msg_in, ref_obj_creation);
+    np_new_obj(np_message_t, msg_in, FUNC);
 
-    bool is_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, raw_message);
+    bool is_header_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, raw_message);
+    bool is_deserialization_successful = is_header_deserialization_successful;
     CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
     {   // check if the message is really a handshake message
         is_deserialization_successful &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
@@ -246,29 +247,30 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
             np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
             if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in)) 
             {
+                
                 _np_message_deserialize_chunked(msg_in);
 
                 np_dhkey_t handshake_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_HANDSHAKE);
                 np_util_event_t handshake_evt = { .type=(evt_external|evt_message), .context=context, 
-                                                .user_data=msg_in, .target_dhkey=event.target_dhkey};
+                                                .user_data=msg_in, .target_dhkey=event.target_dhkey};                                                    
+                ref_replace_reason(np_message_t, msg_in, FUNC, ref_message_in_send_system);
                 _np_keycache_handle_event(context, handshake_dhkey, handshake_evt, false);
-                clean_message = false;
             }
             else
             {
                 log_msg(LOG_INFO, "duplicate handshake message (%s) detected, dropping it ...", msg_in->uuid);
+                np_unref_obj(np_message_t, msg_in, FUNC);
+
             }
         }
-    }
-    else 
-    {
+    }else{
         log_msg(LOG_WARN, "error deserializing initial message from new partner node");
-        np_memory_free(context, raw_message);
-        clean_message = false;
+        np_unref_obj(np_message_t, msg_in, FUNC);
+        if(!is_header_deserialization_successful) 
+        {            
+            np_memory_free(context, raw_message); 
+        }
     }
-
-    if (clean_message)
-        np_unref_obj(np_message_t, msg_in, ref_obj_creation);
 
 } 
 
@@ -291,6 +293,8 @@ void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_
     { 
         // TODO: disable followup authn / authz requests
     }
+
+    //np_unref_obj(np_key_t, my_identity_key, "__np_set_identity");
 }
 
 bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event)

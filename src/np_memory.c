@@ -650,8 +650,9 @@ void np_memory_free(np_state_t*context, void* item) {
         bool rm = false;
         _LOCK_ACCESS(&config->access_lock) {
 
-            rm = config->ref_count == 0 && !config->persistent;
+            rm = (config->ref_count == 0 && !config->persistent) && config->in_use;
             if (rm) {
+                assert(config->in_use);
                 config->in_use = false;
 
                 if (container->on_free != NULL)
@@ -752,7 +753,7 @@ void np_mem_refobj(np_state_t*context, void * item, const char* reason)
         log_trace_msg(LOG_TRACE, "start: void np_mem_refobj(np_obj_t* obj){");
         if (config->persistent == false) {
             config->ref_count++;
-            //log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);
+            //log_msg(LOG_DEBUG,"Referencing object (%p; t: %d)", obj,obj->type);            
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
             assert(reason != NULL);
             sll_prepend(char_ptr, config->reasons, strdup(reason));
@@ -779,9 +780,8 @@ void np_mem_unrefobj(np_memory_itemconf_t * config, const char* reason)
                 log_msg(LOG_ERROR, "Unreferencing object (%p; t: %d/%s) too often! try to unref for \"%s\". left reasons(%"PRIu32")", 
                     config, config->container->type, np_memory_types_str[config->container->type], reason, config->ref_count);
 #endif
-                assert(config->ref_count > 0 && "Unreferencing object too often!");
                 abort();
-            }
+            }            
             config->ref_count--;
         }
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
@@ -817,11 +817,15 @@ char* np_mem_printpool(np_state_t* context, bool asOneLine, bool extended)
         ret = np_str_concatAndFree(ret, "--- extended reasons start ---%s", new_line);
     }
 
+    uint32_t tmp;
     for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE; memory_type++)
     {
         np_memory_container_t* container = np_module(memory)->__np_memory_container[memory_type];
-
-        summary[container->type] = fmax(summary[container->type], container->current_in_use);
+        
+        _LOCK_ACCESS(&container->current_in_use_lock) {
+            tmp = container->current_in_use;            
+        }
+        summary[container->type] = fmax(summary[container->type], tmp);
         
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING		
         uint32_t max = 1;

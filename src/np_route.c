@@ -58,15 +58,16 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
 {
     if (!np_module_initiated(route)) {
         np_module_malloc(route);
+        assert(me != NULL);
         
         for (int i = 0; i < NP_ROUTES_TABLE_SIZE; i++) {
             _module->table[i] = NULL;
         }
-        _module->my_key = NULL;
+        _module->my_key = me;
+        np_ref_obj(np_key_t, me, ref_route_routingtable_mykey);
         TSP_INITD(_module->route_count, 0);
         TSP_INITD(_module->leafset_left_count, 0);
         TSP_INITD(_module->leafset_right_count, 0);
-        _np_route_set_key(me);
 
         sll_init(np_key_ptr, _module->left_leafset);
         sll_init(np_key_ptr, _module->right_leafset);
@@ -281,21 +282,6 @@ np_key_t* _np_route_get_key(np_state_t* context) {
     }
     
     return ret;
-}
-
-void _np_route_set_key (np_key_t* new_node_key)
-{
-    np_ctx_memory(new_node_key);
-    _LOCK_MODULE(np_routeglobal_t)
-    {
-        if(np_module_initiated(route)){
-            np_ref_switch(np_key_t, np_module(route)->my_key, ref_route_routingtable_mykey, new_node_key);
-
-            // np_dhkey_t half = np_dhkey_half(context);
-            // _np_dhkey_add(&np_module(route)->Rrange, &np_module(route)->my_key->dhkey, &half);
-            // _np_dhkey_sub(&np_module(route)->Lrange, &np_module(route)->my_key->dhkey, &half);
-        }
-    }
 }
 
 /** route_get_table:

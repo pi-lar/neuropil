@@ -57,7 +57,7 @@ bool __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_util_event_t ar
 
                 // issue ping messages
                 np_message_t* msg_out = NULL;
-                np_new_obj(np_message_t, msg_out, ref_obj_creation);
+                np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
                 _np_message_create(msg_out, bootstrap_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
                 np_dhkey_t ping_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PING_REQUEST);

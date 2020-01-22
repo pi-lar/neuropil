@@ -105,14 +105,14 @@ void np_sysinfo_enable_client(np_state_t* context)
     
     struct np_mx_properties sysinfo_properties = { 
         .reply_subject = {0},
-        .ackmode = NP_MX_ACK_NONE,
-        .cache_policy = NP_MX_FIFO_PURGE,
-        .max_retry = 0, 
-        .cache_size = 1,
+        .ackmode = NP_MX_ACK_DESTINATION,
+        .message_ttl = 20.0,
+        .max_retry = 2, 
         .max_parallel = 1,
+        .cache_policy = NP_MX_FIFO_PURGE,
+        .cache_size = 1,
         .intent_ttl = SYSINFO_MAX_TTL, 
         .intent_update_after = SYSINFO_MIN_TTL,
-        .message_ttl = 20.0,
     };
 
     np_set_mx_properties(context, _NP_SYSINFO_DATA, sysinfo_properties);
@@ -135,13 +135,13 @@ void np_sysinfo_enable_server(np_state_t* context)
     struct np_mx_properties sysinfo_properties = { 
         .reply_subject = {0},
         .ackmode = NP_MX_ACK_NONE,
+        .message_ttl = 20.0,
+        .max_retry = 2, 
+        .max_parallel = 8,
         .cache_policy = NP_MX_FIFO_PURGE,
         .cache_size = 32 * (SYSINFO_MAX_TTL / SYSINFO_PROACTIVE_SEND_IN_SEC),
-        .max_parallel = 8,
-        .max_retry = 0, 
         .intent_ttl = SYSINFO_MAX_TTL, 
         .intent_update_after = SYSINFO_MIN_TTL,
-        .message_ttl = 20.0,
     };
 
     np_set_mx_properties(context, _NP_SYSINFO_DATA, sysinfo_properties);

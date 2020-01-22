@@ -355,6 +355,10 @@ void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_ev
     {
         _np_key_handle_event(key, event, force);
         np_unref_obj(np_key_t, key, "_np_keycache_find");
+    }else{
+        char tmp[65] = {0};
+        _np_dhkey_str(&event.target_dhkey, tmp);
+        log_warn(LOG_KEYCACHE,"key-target %s is not available for event", tmp );
     }
 }
 
