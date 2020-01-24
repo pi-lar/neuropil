@@ -19,30 +19,19 @@ class MsgDeliveryTest(unittest.TestCase):
         np_2 = NeuropilNode(5555, log_file="logs/smoke_test_msg_delivery_nl2.log",auto_run=False)
 
         subject = b"NP.TEST.msg_delivery"
-        mxp = np_1.get_mx_properties(subject)        
-        mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
-        mxp.max_retry = 10
-        mxp.apply()
+        mxp1 = np_1.get_mx_properties(subject)        
+        mxp1.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp1.max_retry = 10
+        mxp1.apply()
 
-        mxp = np_2.get_mx_properties(subject)        
-        mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
-        mxp.apply()
+        mxp2 = np_2.get_mx_properties(subject)        
+        mxp2.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp2.apply()
         np_2.set_receive_cb(subject, self.msg_received)
 
-        np_c.set_authenticate_cb(TestHelper.authn_allow_all)
-        np_c.set_authorize_cb(TestHelper.authz_allow_all)
-        np_c.set_accounting_cb(TestHelper.acc_allow_all)
-        np_c.run(0)
-        
-        np_1.set_authenticate_cb(TestHelper.authn_allow_all)
-        np_1.set_authorize_cb(TestHelper.authz_allow_all)
-        np_1.set_accounting_cb(TestHelper.acc_allow_all)
-        np_1.run(0)
-                
-        np_2.set_authenticate_cb(TestHelper.authn_allow_all)
-        np_2.set_authorize_cb(TestHelper.authz_allow_all)
-        np_2.set_accounting_cb(TestHelper.acc_allow_all)
-        np_2.run(0)        
+        TestHelper.disableAAA(np_c).run(0)
+        TestHelper.disableAAA(np_1).run(0)     
+        TestHelper.disableAAA(np_2).run(0) 
 
         np1_addr = np_1.get_address()
         np2_addr = np_2.get_address()    
@@ -50,18 +39,23 @@ class MsgDeliveryTest(unittest.TestCase):
         np_2.join(np1_addr)
         np_c.join(np2_addr)
 
-        t1 = time.time()
         timeout = 120 #sec
+
+        t1 = time.time()
+        elapsed = 0.
         send = False
         try:
-            while True:
+            while elapsed < timeout:
                 elapsed = float(time.time() - t1)
-                # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
-                if np_1.np_has_receiver_for(subject) and elapsed > 90 and not send :
-                    np_1.send(subject, b'test')
-                    send = True
+                # TODO: remove elapsed > X condition after reimplementation of np_has_receiver_for or a corresponding cache system          
+                if np_1.np_has_receiver_for(subject) and elapsed > mxp1.message_ttl and not send :            
+                    if np_1.send(subject, b'test') != neuropil.np_ok:
+                        print("ERROR sending Data")
+                    else:
+                        print("sending Data")
+                        send = True
 
-                if msg_delivery_succ or elapsed > timeout:
+                if msg_delivery_succ:
                     break
 
         finally:
