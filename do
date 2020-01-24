@@ -91,6 +91,8 @@ task_build_local() {
 task_clean() {
   ensure_venv
 
+  rm -rf logs/*  
+  rm -rf bindings/python_cffi/build bindings/python_cffi/_neuropil.abi3.so bindings/python_cffi/neuropil.egg-info
   rm -rf build
   scons -c
 }
@@ -178,7 +180,6 @@ task_smoke() {
       esac
     fi
     set -e
-
   )
 }
 
