@@ -32,3 +32,4 @@
 
 #include "unit/test_m_jobqueue.c"
 #include "unit/test_m_identity.c"
+#include "unit/test_neuropil_data.c"

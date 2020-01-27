@@ -105,12 +105,19 @@ extern "C" {
         np_network_error,
         np_invalid_argument,
         np_invalid_operation,
-        np_startup
+        np_startup,
+        np_key_not_found,
     } NP_CONST_ENUM;
 
     NP_API_EXPORT
     const char *np_error_str(enum np_return e);
 
+    struct version_t {
+        uint8_t major;
+        uint8_t minor;
+        uint8_t patch;
+    } NP_PACKED(1);
+    
     typedef void np_context;    
 
     typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
