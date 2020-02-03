@@ -19,27 +19,6 @@ def exec_call(target):
         print("Error: cannot execute {target}".format(**locals()))
     return ret
 
-def SymLink(target, source, env):
-    os.symlink(os.path.abspath(str(source[0])), os.path.abspath(str(target[0])))
-
-def buildNo():
-    try:
-      f = open('.buildno', 'r+')
-    except:
-      f = open('.buildno', 'w+')
-
-    buildno = f.read()
-    if buildno == "":
-        buildno = 1;
-    else:
-        buildno = int(buildno) + 1
-    f.seek(0)
-    f.write(str(buildno))
-    f.truncate()
-    f.close()
-
-    return buildno
-
 
 print ('####')
 print ('#### starting neuropil build')
@@ -50,26 +29,26 @@ try:
     import multiprocessing
     SetOption('num_jobs', multiprocessing.cpu_count())
 except:
-    pass;
+    pass
 
+target = ARGUMENTS.get('target', "test")
 
 verbose = bool(ARGUMENTS.get('verbose', 1))
 analyze = ARGUMENTS.get('analyze', 0)
 build_tests = int(ARGUMENTS.get('test', 1))
 build_tests_enable_test_coverage = build_tests > 1
-build_doc = int(ARGUMENTS.get('doc', 0))
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
-console_log = ARGUMENTS.get('console', 0)
 strict = int(ARGUMENTS.get('strict', 0))
 build_program = ARGUMENTS.get('program', False)
 opt_debug_optimization_level = ARGUMENTS.get('dO', 0)
 build_x64 = int(ARGUMENTS.get('x64', -1))
 install = int(ARGUMENTS.get('install', 0))
+
 build_bindings = bool(int(ARGUMENTS.get('bindings', False)))
 build_bindings_lua = bool(int(ARGUMENTS.get('lua_binding', build_bindings)))
 build_bindings_python = bool(int(ARGUMENTS.get('python_binding', build_bindings)))
-target = ARGUMENTS.get('target', "test")
+
 
 
 buildDir = os.path.join('build', target)
@@ -143,10 +122,6 @@ if int(debug) >= 1:
   default_env.Append(CCFLAGS = debug_flags)
   if int(debug) <= 1:
     default_env.Append(CCFLAGS = ['-DDEBUG'])
-
-if int(console_log):
-    default_env.Append(CCFLAGS = ['-DCONSOLE_LOG'])
-
 
 # platform specific compiler options
 
@@ -247,13 +222,6 @@ if int(analyze) and not scan_build_exe:
     print ('---')
     Exit(1)
 
-sphinx_exe = neuropil_env.WhereIs('sphinx-build') or SCons.Util.WhereIs('sphinx-build')
-if build_doc and not sphinx_exe:
-    print ('---')
-    print ('did not find sphinx executable in the path, skipping build of documentation')
-    print ('---')
-    Exit(1)
-
 neuropil_env = conf.Finish()
 
 # create an own builder to do clang static source code analyisis
@@ -265,15 +233,6 @@ def analyze_source_code(source, target, neuropil_env, for_signature):
 analyze_builder = Builder(generator = analyze_source_code)
 neuropil_env.Append(BUILDERS = {'Analyzer' : analyze_builder})
 
-# create sphinx builder, hopefully sphinx-build will be on the path
-#def build_sphinx_doc(source, target, neuropil_env, for_signature):
-#    return 'sphinx-build %s %s' % (source[0], target[0])
-#sphinx_builder = Builder(generator = build_sphinx_doc, target_factory=Dir, source_factory=Dir)
-#neuropil_env.Append(BUILDERS = {'Sphinx' : sphinx_builder})
-
-if build_doc and sphinx_exe:
-    #neuropil_env.Sphinx('./build/html', './doc/source')
-    compile_documentation = neuropil_env.Command("compile.documentation", None, lambda target,source,env: exec_call(['make','html','-C','doc','BUILDDIR='+os.path.join('..',buildDir)]))
 
 if int(analyze) and scan_build_exe:
     neuropil_env.Analyzer(os.path.join(buildDir,'sca'))
@@ -399,10 +358,8 @@ Clean('.', 'warn_clean.log')
 print ("build with:")
 print ("analyze                  =  %r" % analyze)
 print ("build_tests              =  %r" % build_tests)
-print ("build_doc                =  %r" % build_doc)
 print ("debug                    =  %r" % debug)
 print ("release                  =  %r" % release)
-print ("console_log              =  %r" % console_log)
 print ("strict                   =  %r" % strict)
 print ("build_program            =  %r" % build_program)
 print ("build_x64                =  %r" % build_x64)
