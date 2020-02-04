@@ -281,8 +281,7 @@ Initialization
 
    Creates a new neuropil application context.
 
-   :param settings:         a :c:type:`np_settings` structure used to configure the application
-       context.
+   :param settings:         a :c:type:`np_settings` structure used to configure the application context.
    :return:        a pointer to the newly created application context.
 
 .. c:type:: void np_context
@@ -381,8 +380,7 @@ Starting up
    Adds a bootstrap node to be used by this node to join the neuropil network.
 
    :param ac:         a neuropil application context.
-   :param address:         a string that denotes an absolute address as obtained by
-       :c:func:`np_get_address`.
+   :param address:         a string that denotes an absolute address as obtained by :c:func:`np_get_address`.
    :return:        :c:data:`np_ok` on success.
 
    ===============================  ===========================================
@@ -399,12 +397,11 @@ Sending and receiving messages
 
    Sends a message on a given subject.
 
-   :param ac:         a neuropil application context.
-   :param subject:         the subject to send on.
-   :param message:         a pointer to a buffer containing the message to be sent. The message
-       could be, for instance, encoded using `MessagePack <https://msgpack.org/>`_.
-   :param length:         the length of *message* in bytes.
-   :return:        :c:data:`np_ok` on success.
+   :param ac:       a neuropil application context.
+   :param subject:  the subject to send on.
+   :param message:  a pointer to a buffer containing the message to be sent. The message could be, for instance, encoded using `MessagePack <https://msgpack.org/>`_.
+   :param length:   the length of *message* in bytes.
+   :return:         :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -418,11 +415,10 @@ Sending and receiving messages
    It is possible to add more than one receive callback for a given subject, in
    which case they are run in the order in which they were added.
 
-   :param ac:         a neuropil application context.
-   :param subject:         the subject to receive on.
-   :param callback:         a pointer to a function of type :c:type:`np_receive_callback` that
-       denotes the callback to be added.
-   :return:        :c:data:`np_ok` on success.
+   :param ac:        a neuropil application context.
+   :param subject:   the subject to receive on.
+   :param callback:  a pointer to a function of type :c:type:`np_receive_callback` that denotes the callback to be added.
+   :return:          :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -439,8 +435,7 @@ Sending and receiving messages
    no further callbacks for the subject are executed.
 
    :param message:         a pointer to a :c:type:`np_message` structure.
-   :return:        a boolean that indicates if the receipt was acknowledged
-       (:c:data:`true`) or rejected (:c:data:`false`.)
+   :return:        a boolean that indicates if the receipt was acknowledged (:c:data:`true`) or rejected (:c:data:`false`.)
 
 .. c:type:: struct np_message
 
@@ -477,11 +472,10 @@ Sending and receiving messages
    best-effort message delivery without any attempt at retransmission and if
    delivered messages are guaranteed to be delivered once only.
 
-   :param ac:         a neuropil application context.
-   :param subject:         the subject to configure message exchange semantics on.
-   :param properties:         a pointer to a :c:type:`np_mx_properties` structure that describes the
-       semantics to be applied.
-   :return:        :c:data:`np_ok` on success.
+   :param ac:          a neuropil application context.
+   :param subject:     the subject to configure message exchange semantics on.
+   :param properties:  a pointer to a :c:type:`np_mx_properties` structure that describes the semantics to be applied.
+   :return:            :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -570,10 +564,9 @@ Authentication and authorization
    issued a given token is permitted to exchange messages over a given subject.
    If no authorization callback is set all message exchanges will be rejected.
 
-   :param ac:         a neuropil application context.
-   :param callback:         a pointer to a function of type :c:type:`np_aaa_callback` that
-       denotes the callback to be set.
-   :return:        :c:data:`np_ok` on success.
+   :param ac:        a neuropil application context.
+   :param callback:  a pointer to a function of type :c:type:`np_aaa_callback` that denotes the callback to be set.
+   :return:          :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -589,10 +582,9 @@ Authentication and authorization
    is set only standard neuropil authentication is performed. Note that
    authenticated nodes are permitted to join the overlay network.
 
-   :param ac:         a neuropil application context.
-   :param callback:         a pointer to a function of type :c:type:`np_aaa_callback` that denotes
-       the callback to be set.
-   :return:        :c:data:`np_ok` on success.
+   :param ac:        a neuropil application context.
+   :param callback:  a pointer to a function of type :c:type:`np_aaa_callback` that denotes the callback to be set.
+   :return:          :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -607,8 +599,7 @@ Authentication and authorization
    provided and either accept or reject the token.
 
    :param aaa_token:         a pointer to a :c:type:`np_token` structure to be verified.
-   :return:        a boolean that indicates if the token was accepted (:c:data:`true`) or
-       rejected (:c:data:`false`.)
+   :return:        a boolean that indicates if the token was accepted (:c:data:`true`) or rejected (:c:data:`false`.)
 
 ------
 Tokens
@@ -671,8 +662,7 @@ Fingerprints
 
    :param id:         a :c:type:`np_id` to be written.
    :param string:         the data to be hashed.
-   :param length:         the length of the input data in bytes. If *length* is zero, *string* is
-       expected to be a zero-terminated string.
+   :param length:         the length of the input data in bytes. If *length* is zero, *string* is expected to be a zero-terminated string.
 
    :c:func:`np_get_id` constructs fingerprints by means of a cryptographic,
    one-way hash function. Hence, fingerprints are unique, unforgeable object
@@ -697,11 +687,9 @@ Running your application
    messages are transmitted and received, and the associated callbacks are
    executed.
 
-   :param ac:         a neuropil application context.
-   :param duration:         the duration in seconds allotted to execute the event loop. If
-       *duration* is zero :c:func:`np_run` will return as soon as it has
-       processed all outstanding events.
-   :return:        :c:data:`np_ok` on success.
+   :param ac:       a neuropil application context.
+   :param duration: the duration in seconds allotted to execute the event loop. If *duration* is zero :c:func:`np_run` will return as soon as it has processed all outstanding events.
+   :return:          :c:data:`np_ok` on success.
 
 ----------------
 Detecting errors
