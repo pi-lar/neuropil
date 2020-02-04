@@ -57,20 +57,31 @@ extern "C" {
 Initialization
 --------------
 
+The purpose of this API is to enable the user to create and use arbitrary attributes on :c:data:`np_token` and message intent level.
+
+Attributes can then be e.g. used to:
+
+  - publish searchable metadata (e.g. the location of a temperature sensor or the cost of a data sample)  
+
+  - create a `SessionID <https://en.wikipedia.org/wiki/Session_ID>`_ based authentication. (see: :c:data:`NP_ATTR_IDENTITY_AND_USER_MSG`)
+
+  - many more ...
+
 .. c:type:: enum np_msg_attr_type
 
-   This type denotes the set of inheritance levels relevant for a given attribute.
+   This type denotes the set of scope levels relevant for a given attribute.
+
    Possible values include:
 
    ================================================  ======================================================================
    Value                                             Meaning
    ================================================  ======================================================================
-   :c:data:`NP_ATTR_USER_MSG`                        The attribute will be available in every USER message (end-to-end encrypted)   
-   :c:data:`NP_ATTR_IDENTITY`                        The attribute will be available in every JOIN message (end-to-end encrypted)
-   :c:data:`NP_ATTR_IDENTITY_AND_USER_MSG`           The attribute will be available in every JOIN and USER message (end-to-end encrypted)
-   :c:data:`NP_ATTR_INTENT`                          The attribute will be available only during the pub-sub discovery phase (transport encrypted)
-   :c:data:`NP_ATTR_INTENT_AND_USER_MSG`             
-   :c:data:`NP_ATTR_INTENT_AND_IDENTITY`             
+   :c:data:`NP_ATTR_USER_MSG`                        The attribute will be available in every USER message. (end-to-end encrypted)
+   :c:data:`NP_ATTR_IDENTITY`                        The attribute will be appended to the identity :c:data:`np_token` and will then be transfered to every node receiving a :c:data:`_NP.JOIN.REQUEST`  request. (end-to-end encrypted)
+   :c:data:`NP_ATTR_INTENT`                          The attribute will be appended to every :c:data:`_NP.MESSAGE.DISCOVER.RECEIVER` and :c:data:`_NP.MESSAGE.DISCOVER.SENDER` message. (transport encrypted)
+   :c:data:`NP_ATTR_IDENTITY_AND_USER_MSG`           combine :c:data:`NP_ATTR_USER_MSG` and :c:data:`NP_ATTR_IDENTITY`
+   :c:data:`NP_ATTR_INTENT_AND_USER_MSG`             combine :c:data:`NP_ATTR_USER_MSG` and :c:data:`NP_ATTR_INTENT`
+   :c:data:`NP_ATTR_INTENT_AND_IDENTITY`             combine :c:data:`NP_ATTR_INTENT`   and :c:data:`NP_ATTR_IDENTITY`
    ================================================  ======================================================================
 
 .. c:function:: enum np_return np_set_ident_attr_bin(struct np_token* ident, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length)
