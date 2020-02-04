@@ -86,9 +86,9 @@ Tokens
 A *token*, sometimes specifically referred to as an *aaatoken*, is a record
 that represents the nodes of a directed acyclic graph. It consists of a number
 of predefined fields with conventional usage semantics, and can be extended
-with a set of arbitrary, user-defined fields. Refer to :c:data:`np_aaatoken_t`
+with a set of arbitrary, user-defined fields. Refer to :c:data:`np_token`
 for the aaatoken structure definition and predefined fields, and to
-:c:data:`np_tree_t` for the structure that holds the extension fields of a token.
+:ref:`api-neuropil-attributes` for the API methods to interact with user defined attributes.
 
 .. image:: token.svg
    :alt: Token illustration

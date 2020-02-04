@@ -24,7 +24,7 @@ Glossary
 
   token
     an extensible record type used to encode authentication, authorization, and
-    accounting information, see :c:data:`np_aaatoken_t`
+    accounting information, see :c:data:`np_token`
 
   DHT
     abbreviation for 'distributed hash table'
