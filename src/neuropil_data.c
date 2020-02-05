@@ -20,7 +20,7 @@
         return ret;
     }
     
-    enum np_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, void * data){
+    enum np_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, unsigned char * data){
         enum np_return ret = np_not_implemented;
         return ret;
     }
