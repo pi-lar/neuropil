@@ -25,7 +25,7 @@ Test(neuropil_data, _full_cycle_bin, .description="test the serialization and de
 
     size_t data_size = 12;
     unsigned char data[12] = {0x00034fdd2234};
-    cr_assert(np_ok == (tmp_ret = np_set_data(datablock, (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_BIN, .size=data_size }, data )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    cr_assert(np_ok == (tmp_ret = np_set_data(datablock, (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_BIN, .data_size=data_size }, data )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
 
     size_t serialized_datablock_size;
     unsigned char * serialized_datablock;
@@ -39,7 +39,7 @@ Test(neuropil_data, _full_cycle_bin, .description="test the serialization and de
     cr_assert(np_ok == (tmp_ret = np_get_data  (datablock, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);    
     cr_expect(deserialized_data_conf.type  == NP_DATA_TYPE_BIN,"Expected BIN container");
     cr_expect(strncmp(deserialized_data_conf.key, "TEST", 4),"Expected BIN container key to match");    
-    cr_expect(deserialized_data_conf.size  == data_size,"Expected BIN container size to match");
+    cr_expect(deserialized_data_conf.data_size  == data_size,"Expected BIN container size to match");
     cr_expect(0 == memcmp(deserialized_data, data, data_size), "Expected BIN data to be the same");
 
 }
