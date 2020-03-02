@@ -29,7 +29,14 @@ extern "C" {
 
     typedef void np_datablock_t;    
 
-    NP_API_EXPORT
+    NP_API_EXPORT    
+    /**
+     * @brief Initialises the provided memory allocation as datablock
+     * 
+     * @param block The memory block provided by the user (malloc'ed )
+     * @param block_length The memory block size
+     * @return enum np_return 
+     */
     enum np_return np_init_datablock(np_datablock_t * block, size_t block_length);
     NP_API_EXPORT
     enum np_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, unsigned char * data);
@@ -38,9 +45,9 @@ extern "C" {
 
     // Internal methods
     NP_API_PROTEC
-    enum np_return np_serialize_datablock(np_datablock_t * block, void * out_raw_block, size_t out_raw_block_size);
+    enum np_return np_serialize_datablock(np_datablock_t * block, void ** out_raw_block, size_t * out_raw_block_size);
     NP_API_PROTEC
-    enum np_return np_deserialize_datablock(np_datablock_t * out_block, void * raw_block);
+    enum np_return np_deserialize_datablock(np_datablock_t ** out_block, void * raw_block, size_t raw_block_length);
 
 #ifdef __cplusplus
 }
