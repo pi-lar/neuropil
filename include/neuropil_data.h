@@ -23,7 +23,7 @@ extern "C" {
     struct np_data_conf {
         char key[255];
         enum np_data_type type;
-        size_t data_size;
+        uint32_t data_size;
     } NP_PACKED(1);
     // value gets appended to np_data instance in datablock
 
