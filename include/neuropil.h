@@ -21,7 +21,7 @@ extern "C" {
 #define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2020 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2020 pi-lar GmbH, Cologne, Germany"
 
-
+s
     /* just in case NULL is not defined */
 #ifndef NULL
 #define NULL (void*)0
@@ -101,6 +101,7 @@ extern "C" {
 
     enum np_return {
         np_ok = 0,
+        np_unknown_error,
         np_not_implemented,
         np_network_error,
         np_invalid_argument,
