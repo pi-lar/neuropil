@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2019 by pi-lar GmbH
+// neuropil is copyright 2016-2020 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #ifndef _NP_BLOOMFILTER_H_
@@ -28,7 +28,7 @@ extern "C" {
     typedef bool        (*bloom_check         )  (np_bloom_t *bloom, np_dhkey_t s);
 
     typedef void        (*bloom_union         )  (np_bloom_t *result, np_bloom_t *bloom_l);
-    typedef void        (*bloom_intersect     )  (np_bloom_t *result, np_bloom_t *bloom_l);
+    typedef bool        (*bloom_intersect     )  (np_bloom_t *result, np_bloom_t *bloom_l);
     
     enum bloom_filter_type {
         standard_bf = 0,
@@ -82,7 +82,7 @@ extern "C" {
     NP_API_INTERN
     bool _np_standard_bloom_check(np_bloom_t* bloom, np_dhkey_t id);
     NP_API_INTERN
-    void _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
+    bool _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
     NP_API_INTERN
     void _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first);
     NP_API_INTERN
@@ -122,13 +122,22 @@ extern "C" {
     NP_API_INTERN
     bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_dhkey_t id);
     NP_API_INTERN
-    void _np_neuropil_bloom_decay(np_bloom_t* bloom);
+    void _np_neuropil_bloom_age_decrement(np_bloom_t* bloom);
     NP_API_INTERN
     float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id);
     NP_API_INTERN
-    void _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
+    bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
+    NP_API_INTERN
+    bool _np_neuropil_bloom_intersect_test(np_bloom_t* result, np_bloom_t* to_intersect);
+    NP_API_INTERN
+    float _np_neuropil_bloom_intersect_age(np_bloom_t* result, np_bloom_t* to_intersect);
     NP_API_INTERN
     void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* first);
+
+    NP_API_INTERN
+    void _np_neuropil_bloom_serialize(np_bloom_t* filter, unsigned char ** to, uint16_t* to_size);
+    NP_API_INTERN
+    void _np_neuropil_bloom_deserialize(np_bloom_t* filter, unsigned char * from, uint16_t from_size);
 
 #ifdef __cplusplus
 }

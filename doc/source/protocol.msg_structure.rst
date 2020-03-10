@@ -73,7 +73,7 @@ The end-to-end encryption covers only the inner part of the message structure:
   *  header / nonce = arg(ad / adlen) ?
   *  nonce = arg(npub)
 
-Even of no transport encryption is applied, the body contents are still safe. Only metadata hash values will be visible.
+Even if no transport encryption is applied, the body contents are still safe. Only metadata hash values will be visible.
 
 Key exchange and messages
 *************************

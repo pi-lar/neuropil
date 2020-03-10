@@ -37,6 +37,7 @@
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_intent.h"
 #include "core/np_comp_node.h"
+#include "np_pheromones.h"
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
@@ -260,7 +261,7 @@ bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
         if (node_token != NULL) {
 
             np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
-            np_util_event_t shutdown_event = { .context=context, .type=evt_shutdown|evt_internal, .target_dhkey=search_key, .user_data=node_token };
+            np_util_event_t shutdown_event = { .context=context, .type=evt_shutdown|evt_external, .target_dhkey=search_key, .user_data=node_token };
 
             _np_keycache_handle_event(context, search_key, shutdown_event, false);
 
@@ -269,7 +270,6 @@ bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
     }
     return true;
 }
-
 
 /** _np_in_join_req:
  ** internal function that is called at the destination of a JOIN message. This
@@ -490,35 +490,6 @@ bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
     return true;
 }
 
-bool _np_in_discover_sender(np_state_t* context, np_util_event_t msg_event)
-{
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_discover_sender(...){");
-
-    NP_CAST(msg_event.user_data, np_message_t, discover_msg_in);
-    np_aaatoken_t* msg_token = NULL;
-
-    CHECK_STR_FIELD(discover_msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject); // dicover sender or receiver
-    CHECK_STR_FIELD(discover_msg_in->header, _NP_MSG_HEADER_TO, msg_to); // note: this is the hash of the real message subject
-
-    // extract e2e encryption details for sender
-    msg_token = np_token_factory_read_from_tree(context, discover_msg_in->body);
-    if (msg_token)
-    {
-        np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
-        np_dhkey_t discovery_sender = np_dhkey_create_from_hostport(msg_subject.value.s, "0");
-
-        np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_sender };
-        _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
-
-        np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
-        np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
-    }
-
-    __np_cleanup__: {}
-
-    return true;
-}
-
 bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
 {
     log_trace_msg(LOG_TRACE, "start: bool _np_in_available_sender(...){");
@@ -538,35 +509,6 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
         // done in __np_property_handle_intent
         // np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
     }
-    return true;
-}
-
-bool _np_in_discover_receiver(np_state_t* context, np_util_event_t msg_event)
-{
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_discover_receiver(...){");
-
-    NP_CAST(msg_event.user_data, np_message_t, discover_msg_in);
-    np_aaatoken_t* msg_token = NULL;
-
-    CHECK_STR_FIELD(discover_msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject);
-    CHECK_STR_FIELD(discover_msg_in->header, _NP_MSG_HEADER_TO, msg_to); // note: this is the hash of the real message subject
-
-    // extract e2e encryption details for sender
-    msg_token = np_token_factory_read_from_tree(context, discover_msg_in->body); 
-    if (msg_token)
-    {
-        np_key_t* subject_key = _np_keycache_find_or_create(context, msg_to.value.dhkey);
-        np_dhkey_t discovery_receiver = np_dhkey_create_from_hostport(msg_subject.value.s, "0");    
-
-        np_util_event_t discover_event = { .type=(evt_token|evt_external), .context=context, .user_data=msg_token, .target_dhkey=discovery_receiver };
-        _np_keycache_handle_event(context, msg_to.value.dhkey, discover_event, false);
-
-        np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
-        np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
-    }
-    
-    __np_cleanup__: {}
-
     return true;
 }
 
@@ -591,384 +533,130 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
     return true;
 }
 
-bool _np_in_authenticate(np_state_t* context, np_util_event_t msg_event)
-{   /*
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_authenticate(np_jobargs_t* args){");
-    np_aaatoken_t* sender_token = NULL;
-    np_aaatoken_t* authentication_token = NULL;
+bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
+{
+    log_debug_msg(LOG_DEBUG, "start: bool _np_in_pheromone(...) {");
 
-    NP_CAST(msg_event.user_data, np_message_t, msg_in);
+    NP_CAST(msg_event.user_data, np_message_t, pheromone_msg_in);
 
-    np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(INBOUND, msg_subject);
-    np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
-    np_msgproperty_t* msg_prop = _np_msgproperty_get(context, INBOUND, msg_subject);
-
-    CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
-    np_dhkey_t reply_to_key = msg_from.value.dhkey;
-
-#ifdef DEBUG
-        char reply_to_dhkey_as_str[65];
-        _np_dhkey_str(&reply_to_key, reply_to_dhkey_as_str);
-#endif
-
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
-
-    sender_token = _np_aaatoken_get_sender_token(context, (char*) _NP_MSG_AUTHENTICATION_REQUEST,  &msg_from.value.dhkey);
-    if (NULL == sender_token)
-    {
+    CHECK_STR_FIELD(pheromone_msg_in->header, _NP_MSG_HEADER_TO, msg_to);
+    CHECK_STR_FIELD(pheromone_msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
+    // we have the final node hash in the following field and thus the know 
+    // the number of hops
+    np_key_t* _phkey = _np_keycache_find(context, msg_event.target_dhkey /*msg_from.value.dhkey */);
+    if (NULL == _phkey || _phkey->type != np_key_type_alias) {
+        log_debug_msg(LOG_DEBUG, "update of pheromone trail not possible, no alias node set");
         goto __np_cleanup__;
     }
 
-    bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-    if (false == decrypt_ok)
-    {
-        goto __np_cleanup__;
-    }
-    np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
+    // TODO: we could check if a pheromone reached a target system (aka sender/receiver) here
+    // and initiate the sending of the real intent. Too much work for now :-(
+    // np_key_t* msg_prop_key = _np_keycache_find(context, msg_to.value.dhkey /*msg_from.value.dhkey */);
 
-    // extract e2e encryption details for sender
-    authentication_token = np_token_factory_read_from_tree(context, msg_in->body);
+    np_tree_elem_t* tmp = RB_MIN(np_tree_s, pheromone_msg_in->body);
+    if (tmp != NULL)
+    {   // only one element per message right now
+        np_bloom_t* _scent = _np_neuropil_bloom_create();
+        _np_neuropil_bloom_deserialize(_scent, tmp->val.value.bin, tmp->val.size);
 
-    // always?: just store the available messages in memory and update if new data arrives
-    if (false == _np_aaatoken_is_valid(authentication_token, np_aaatoken_type_message_intent))
-    {
-        goto __np_cleanup__;
-    }
-
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (remote) authentication of token");
-    struct  np_token tmp;
-    bool authenticate = context->authenticate_func(context, np_aaatoken4user(&tmp, authentication_token));
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authentication of token: %"PRIu8, authenticate);
-    if (authenticate)
-    {
-        authentication_token->state |= AAA_AUTHENTICATED;
-    }
-
-    if (IS_AUTHENTICATED(authentication_token->state) )
-    {
-
-        np_aaatoken_t* old_token = _np_aaatoken_add_receiver(_NP_MSG_AUTHENTICATION_REPLY, sender_token);
-        np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
-        np_tree_t* token_data = np_tree_create();
-
-        np_aaatoken_encode(token_data, authentication_token);
-        np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out);
-        _np_message_create(msg_out, reply_to_key, context->my_node_key->dhkey, _NP_MSG_AUTHENTICATION_REPLY, token_data);
-        np_msgproperty_t* prop_route = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REPLY);
-
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending back authenticated data to %s", reply_to_dhkey_as_str);
-        _np_job_submit_route_event(context, 0.0, prop_route, NULL, msg_out);
-        np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-    }
-    else
-    {
-        log_msg(LOG_WARN, "unknown security token received for authentication, dropping token");
-        log_msg(LOG_WARN, "i:%s s:%s", authentication_token->issuer, authentication_token->subject);
-    }
-
-    __np_cleanup__:
-    np_unref_obj(np_aaatoken_t, sender_token,"_np_aaatoken_get_sender_token");
-    np_unref_obj(np_aaatoken_t, authentication_token, "np_token_factory_read_from_tree");
-
-    // __np_return__:
-    return;
-    */
-}
-
-bool _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_authenticate_reply(np_jobargs_t* args){");
-    np_aaatoken_t* authentication_token = NULL;
-    np_aaatoken_t* sender_token = NULL;
-    np_key_t* subject_key = NULL;
-
-    // args.properties->msg_threshold++;
-
-    CHECK_STR_FIELD(args.msg->header, _NP_MSG_HEADER_FROM, msg_from);
-
-    sender_token = _np_aaatoken_get_sender_token(context, (char*) _NP_MSG_AUTHENTICATION_REPLY,  &msg_from.value.dhkey);
-    if (NULL == sender_token)
-    {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "no sender token for authentication reply found");
-        goto __np_cleanup__;
-    }
-
-    // TODO: the following should not be required/possible, because it invalidates the token
-    bool decrypt_ok = _np_message_decrypt_payload(args.msg, sender_token);
-    if (false == decrypt_ok)
-    {
-        log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decryption of authentication reply failed");
-        goto __np_cleanup__;
-    }
-    np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
-
-    // extract e2e encryption details for sender
-    authentication_token = np_token_factory_read_from_tree(context, args.msg->body);
-
-    if (authentication_token != NULL) {
-        np_dhkey_t search_key = { 0 };
-        // TODO: validate token technically again
-        if (0 == strncmp(authentication_token->subject, _NP_URN_NODE_PREFIX, 12))
-        {
-            search_key = np_dhkey_create_from_hash(authentication_token->issuer);
-            // TODO: trigger JOIN request again if node has not joined ?
-
-        } // TODO: add a token type to identify msg exchanges, nodes and real persons
-        else // if (0 == strncmp(authentication_token->subject, "urn:np:msg:", 11))
-        {
-            search_key = np_dhkey_create_from_hostport( authentication_token->subject, "0");
+        double _delay = np_tree_find_str(pheromone_msg_in->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
+        double _now = np_time_now();
+        while (_delay < _now) {
+            _np_neuropil_bloom_age_decrement(_scent);
+            _delay += NP_PI / 100;
         }
 
-        subject_key = _np_keycache_find_or_create(context, search_key);
-
-        if (0 == strncmp(authentication_token->subject, _NP_URN_NODE_PREFIX, 12))
+        float _in_age = _np_neuropil_bloom_get_heuristic(_scent, msg_to.value.dhkey);
+        if (_in_age == 0.0) 
         {
-            subject_key->aaa_token->state |= AAA_AUTHENTICATED;
+            log_debug_msg(LOG_DEBUG, "dropping pheromone trail message, {msg uuid: %s) age now %f",
+                                     pheromone_msg_in->uuid, _in_age);
+            _np_bloom_free(_scent);
+            return true;
         }
-        else // if (0 == strncmp(authentication_token->subject, "urn:np:msg:", 11))
+
+        float _old_age = _in_age;
+
+        np_sll_t(np_key_ptr, result_list) = NULL;
+        sll_init(np_key_ptr, result_list);
+
+        // update the internal pheromone table
+        np_pheromone_t _pheromone = {0};
+        _pheromone._subj_bloom = _scent;
+        _pheromone._pos        = tmp->key.value.i;
+
+        if (0 > tmp->key.value.i)
         {
-            pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
-            while (NULL != iter)
+            ASSERT(0 > tmp->key.value.i && tmp->key.value.i >= -257,
+                   "index must be negative and between 0 and -257 (including)");
+            log_debug_msg(LOG_DEBUG, "update of send pheromone trail message, {msg uuid: %s) receiver age now %f",
+                                    pheromone_msg_in->uuid, _in_age);
+            _np_pheromone_snuffle_receiver(context, result_list, msg_to.value.dhkey, &_old_age);
+            _pheromone._sender = _phkey->parent_key;
+        }
+        else
+        {
+            ASSERT(0 < tmp->key.value.i && tmp->key.value.i <= 257,
+                   "index must be positive and between 0 and  257 (including)");
+            log_debug_msg(LOG_DEBUG, "update of recv pheromone trail message, {msg uuid: %s) sender age now %f",
+                                    pheromone_msg_in->uuid, _in_age);
+            _np_pheromone_snuffle_sender(context, result_list, msg_to.value.dhkey, &_old_age);
+            _pheromone._receiver = _phkey->parent_key;
+        }
+
+        log_msg(LOG_DEBUG, "update of pheromone trail: age in : %f, but have age : %f / %d", _pheromone._pos, _in_age, _old_age);
+        bool forward_pheromone_update = _np_pheromone_inhale(context, _pheromone);
+        
+        if (forward_pheromone_update) 
+        {   
+            // forward the received pheromone
+            np_message_t* msg_out = pheromone_msg_in;
+
+            log_debug_msg(LOG_DEBUG, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
+
+            np_dhkey_t pheromone_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PHEROMONE_UPDATE);
+            np_util_event_t pheromone_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=msg_to.value.dhkey };
+            pheromone_event.user_data = msg_out;
+            
+            // forward to axon sending unit with main direction "mgs_to"
+            np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
+            _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
+
+            np_dhkey_t last_hop = {0};
+            if (NULL != _phkey && _phkey->type == np_key_type_alias) 
             {
-                np_aaatoken_t* tmp_token = iter->val;
-                if (0 == strncmp(tmp_token->uuid, authentication_token->uuid, 255))
-                {
-                    tmp_token->state |= AAA_AUTHENTICATED;
-                    // _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
-                    break;
-                }
-                // TODO: move to msgcache.h and change parameter
-                pll_next(iter);
+                last_hop = _phkey->parent_key->dhkey;
             }
 
-            iter = pll_first(subject_key->send_tokens);
-            while (NULL != iter)
+            // forward to axon sending unit with main direction set to exisiting trails
+            sll_iterator(np_key_ptr) iter = sll_first(result_list);
+            while (iter != NULL) 
             {
-                np_aaatoken_t* tmp_token = iter->val;
-                if (0 == strncmp(tmp_token->uuid, authentication_token->uuid, 255))
+                if (!_np_dhkey_equal(&iter->val->dhkey, &msg_from.value.dhkey)        &&
+                    !_np_dhkey_equal(&iter->val->dhkey, &last_hop)                    &&
+                    !_np_dhkey_equal(&iter->val->dhkey, &context->my_node_key->dhkey) )
                 {
-                    tmp_token->state |= AAA_AUTHENTICATED;
-                    // _np_msgproperty_check_sender_msgcache(subject_key->send_property);
-                    break;
+                    pheromone_event.target_dhkey = iter->val->dhkey;
+                    np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
+                    _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
                 }
-                // TODO: move to msgcache.h and change parameter
-                pll_next(iter);
+                sll_next(iter);
             }
-        }
-    }
-    __np_cleanup__:
-    np_unref_obj(np_aaatoken_t, authentication_token, "np_token_factory_read_from_tree");
-    np_unref_obj(np_aaatoken_t, sender_token,"_np_aaatoken_get_sender_token");
-
-    // __np_return__:
-    // args.properties->msg_threshold--;
-    np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
-    return; */
-}
-
-bool _np_in_authorize(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_authorize(np_jobargs_t* args){");
-
-    np_aaatoken_t* sender_token = NULL;
-    np_aaatoken_t* authorization_token = NULL;
-
-    np_message_t *msg_in = args.msg;
-
-
-    CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
-    np_dhkey_t reply_to_key = msg_from.value.dhkey;
-#ifdef DEBUG
-        char reply_to_dhkey_as_str[65];
-        _np_dhkey_str(&reply_to_key, reply_to_dhkey_as_str);
-#endif
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "reply key: %s", reply_to_dhkey_as_str );
-
-    sender_token = _np_aaatoken_get_sender_token(context, (char*) _NP_MSG_AUTHORIZATION_REQUEST,  &msg_from.value.dhkey);
-    if (NULL == sender_token)
-    {
-        goto __np_cleanup__;
+        }  
+        // cleanup
+        np_key_unref_list(result_list, "_np_pheromone_snuffle");
+        sll_free(np_key_ptr, result_list);
+        
+        _np_bloom_free(_scent);
+    } else {
+        log_debug_msg(LOG_DEBUG, "pheromone message {msg uuid: %s) contained no element", pheromone_msg_in->uuid);
     }
 
-    bool decrypt_ok = _np_message_decrypt_payload(msg_in, sender_token);
-    if (false == decrypt_ok)
-    {
-        goto __np_cleanup__;
-    }
+    __np_cleanup__: {}
 
-    np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
-    // extract e2e encryption details for sender
-    authorization_token = np_token_factory_read_from_tree(context, msg_in->body);
+    np_unref_obj(np_key_t, _phkey, "_np_keycache_find");
 
-    // always?: just store the available messages in memory and update if new data arrives
-    if (false == _np_aaatoken_is_valid(authorization_token, np_aaatoken_type_message_intent))
-    {
-        goto __np_cleanup__;
-    }
-
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (remote) authorization of token");
-    struct np_token tmp;
-    bool authorize = context->authorize_func(context, np_aaatoken4user(&tmp, authorization_token));
-    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "authorize of token: %"PRIu8, authorize);
-    if (authorize)
-    {
-        authorization_token->state |= AAA_AUTHORIZED;
-    }
-
-    if (IS_AUTHORIZED(authorization_token->state) )
-    {
-        np_aaatoken_t* old_token = _np_aaatoken_add_receiver(_NP_MSG_AUTHORIZATION_REPLY, sender_token);
-        np_unref_obj(np_aaatoken_t, old_token, "_np_aaatoken_add_receiver");
-
-        np_tree_t* token_data = np_tree_create();
-        np_aaatoken_encode(token_data, authorization_token);
-
-        np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out);
-        _np_message_create(msg_out, reply_to_key, context->my_node_key->dhkey, _NP_MSG_AUTHORIZATION_REPLY, token_data);
-        np_msgproperty_t* prop_route = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REPLY);
-
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "sending back authorized data to %s", reply_to_dhkey_as_str);
-        _np_job_submit_route_event(context, 0.0, prop_route, NULL, msg_out);
-        np_unref_obj(np_message_t, msg_out,ref_obj_creation);
-    }
-    else
-    {
-        log_msg(LOG_WARN, "unknown security token received for authorization, dropping token");
-        log_msg(LOG_WARN, "i:%s s:%s", authorization_token->issuer, authorization_token->subject);
-    }
-
-    __np_cleanup__:
-    np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
-    np_unref_obj(np_aaatoken_t, authorization_token, "np_token_factory_read_from_tree");
-
-    // __np_return__:
-    return;*/
-}
-
-bool _np_in_authorize_reply(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_authorize_reply(np_jobargs_t* args){");
-    np_aaatoken_t* authorization_token = NULL;
-    np_aaatoken_t* sender_token = NULL;
-
-    // args.properties->msg_threshold++;
-    np_key_t* subject_key = NULL;
-
-    CHECK_STR_FIELD(args.msg->header, _NP_MSG_HEADER_FROM, msg_from);
-
-    sender_token = _np_aaatoken_get_sender_token(context, (char*) _NP_MSG_AUTHORIZATION_REPLY,  &msg_from.value.dhkey);
-    if (NULL == sender_token)
-    {
-        goto __np_cleanup__;
-    }
-
-    bool decrypt_ok = _np_message_decrypt_payload(args.msg, sender_token);
-    if (false == decrypt_ok)
-    {
-        goto __np_cleanup__;
-    }
-
-     np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
-
-    // extract e2e encryption details for sender
-    authorization_token = np_token_factory_read_from_tree(context, args.msg->body);
-
-    if (authorization_token != NULL) {
-        np_dhkey_t search_key = { 0 };
-
-        // TODO: validate token technically again
-        if (0 == strncmp(authorization_token->subject, _NP_URN_NODE_PREFIX, 12))
-        {
-            search_key = np_dhkey_create_from_hash(authorization_token->issuer);
-        }
-        else // if (0 == strncmp(authorization_token->subject, "urn:np:msg:", 11))
-        {
-            search_key = np_dhkey_create_from_hostport( authorization_token->subject, "0");
-        }
-
-        subject_key = _np_keycache_find_or_create(context, search_key);
-
-        if (0 == strncmp(authorization_token->subject, _NP_URN_NODE_PREFIX, 12))
-        {
-            subject_key->aaa_token->state |= AAA_AUTHORIZED;
-        }
-        else // if (0 == strncmp(authorization_token->subject, "urn:np:msg:", 11))
-        {
-            pll_iterator(np_aaatoken_ptr) iter = pll_first(subject_key->recv_tokens);
-            while (NULL != iter)
-            {
-                np_aaatoken_t* tmp_token = iter->val;
-                if (0 == strncmp(tmp_token->uuid, authorization_token->uuid, 255))
-                {
-                    tmp_token->state |= AAA_AUTHORIZED;
-                    // _np_msgproperty_check_receiver_msgcache(subject_key->recv_property,_np_aaatoken_get_issuer(tmp_token));
-                    break;
-                }
-                // TODO: move to msgcache.h and change parameter
-                pll_next(iter);
-            }
-
-            iter = pll_first(subject_key->send_tokens);
-            while (NULL != iter)
-            {
-                np_aaatoken_t* tmp_token = iter->val;
-                if (0 == strncmp(tmp_token->uuid, authorization_token->uuid, 255))
-                {
-                    tmp_token->state |= AAA_AUTHORIZED;
-                    // _np_msgproperty_check_sender_msgcache(subject_key->send_property);
-                    break;
-                }
-                pll_next(iter);
-            }
-        }
-    }
-    __np_cleanup__:
-    np_unref_obj(np_aaatoken_t, authorization_token, "np_token_factory_read_from_tree");
-    np_unref_obj(np_aaatoken_t, sender_token,"_np_aaatoken_get_sender_token");
-
-    // __np_return__:
-    // args.properties->msg_threshold--;
-    np_unref_obj(np_key_t, subject_key,"_np_keycache_find_or_create");
-    return;*/
-}
-
-bool _np_in_account(np_state_t* context, np_util_event_t msg_event)
-{/*
-    log_trace_msg(LOG_TRACE, "start: bool _np_in_account(np_jobargs_t* args){");
-    np_aaatoken_t* sender_token = NULL;
-    np_aaatoken_t* accounting_token = NULL;
-
-    CHECK_STR_FIELD(args.msg->header, _NP_MSG_HEADER_FROM, msg_from);
-
-    sender_token = _np_aaatoken_get_sender_token(context, (char*) _NP_MSG_ACCOUNTING_REQUEST,  &msg_from.value.dhkey);
-    if (NULL == sender_token)
-    {
-        goto __np_cleanup__;
-    }
-
-    np_tree_find_str(sender_token->extensions_local, "msg_threshold")->val.value.ui++;
-    bool decrypt_ok = _np_message_decrypt_payload(args.msg, sender_token);
-    if (false == decrypt_ok)
-    {
-        goto __np_cleanup__;
-    }
-
-    accounting_token  = np_token_factory_read_from_tree(context, args.msg->body);
-    if (accounting_token != NULL) {
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "now checking (remote) accounting of token");
-        struct np_token tmp;
-        bool accounting = context->accounting_func(context, np_aaatoken4user(&tmp, accounting_token));
-        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "accounting of token: %"PRIu8, accounting);
-
-    }
-    __np_cleanup__:
-    np_unref_obj(np_aaatoken_t, accounting_token, "np_token_factory_read_from_tree");
-    np_unref_obj(np_aaatoken_t, sender_token, "_np_aaatoken_get_sender_token");
-
-    // __np_return__:
-    return;*/
+    return true;
 }
 
 bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)

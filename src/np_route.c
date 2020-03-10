@@ -74,6 +74,9 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
 
         _np_dhkey_assign(&np_module(route)->Rrange, &np_module(route)->my_key->dhkey);
         _np_dhkey_assign(&np_module(route)->Lrange, &np_module(route)->my_key->dhkey);
+        // np_dhkey_t half = np_dhkey_half(context);
+        // _np_dhkey_add(&np_module(route)->Rrange, &np_module(route)->my_key->dhkey, &quart);
+        // _np_dhkey_sub(&np_module(route)->Lrange, &np_module(route)->my_key->dhkey, &half);
 
         // _np_route_clear();
     }

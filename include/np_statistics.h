@@ -75,6 +75,10 @@ char* np_statistics_prometheus_export(np_context*ac);
                 np_statistics_performance_point_event_suspend_http,
                 np_statistics_performance_point_event_suspend_file,
 
+                np_statistics_performance_point_is_dht_message,
+                np_statistics_performance_point_is_usr_in_message,
+                np_statistics_performance_point_is_discovery_message,
+
                 np_statistics_performance_point_handshake_out,
                 np_statistics_performance_point_handshake_out_lock,
                 np_statistics_performance_point_handshake_out_network,

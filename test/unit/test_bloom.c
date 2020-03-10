@@ -1,5 +1,5 @@
 //                                                                                                                          
-// neuropil is copyright 2016-2019 by pi-lar GmbH                                                                          
+// neuropil is copyright 2016-2020 by pi-lar GmbH                                                                          
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details                           
 //
 #include <criterion/criterion.h>
@@ -376,18 +376,18 @@ Test(np_bloom_t, _bloom_neuropil, .description="test the functions of the neurop
     cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test4), "expect that the id test4 is not found in bloom filter");
     cr_expect(false == neuropil_bloom->op.check_cb(neuropil_bloom, test5), "expect that the id test5 is not found in bloom filter");
 
-    for (uint8_t i = 0; i < 10; i++) {
+    for (uint8_t i = 0; i < 20; i++) {
 
-        // fprintf(stdout, "%f\n", _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1));
         _np_neuropil_bloom_age_decrement(neuropil_bloom);
+        // fprintf(stdout, "%f\n", _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1));
  
         if (i < 4) {
-            cr_expect( 0.5 <= _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1), "checking the probability that a np_id has been found");
+            cr_expect( 0.35 <= _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1), "checking the probability that a np_id has been found");
         } else {
-            cr_expect( 0.5 > _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1), "checking the probability that a np_id has been found");
+            cr_expect( 0.35 > _np_neuropil_bloom_get_heuristic(neuropil_bloom, test1), "checking the probability that a np_id has been found");
         }
         
-        if (i < 7) {
+        if (i < 15) {
             cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test2), "expect that the id test2 is     found in bloom filter");
             cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test1), "expect that the id test1 is     found in bloom filter");
             cr_expect(true  == neuropil_bloom->op.check_cb(neuropil_bloom, test3), "expect that the id test3 is     found in bloom filter");
@@ -514,4 +514,85 @@ Test(np_bloom_t, _bloom_neuropil_union_intersection, .description="test the unio
     _np_bloom_free(test2_bloom);
     _np_bloom_free(test4_bloom);
     _np_bloom_free(test5_bloom);
+}
+
+Test(np_bloom_t, _bloom_neuropil_serialize, .description="test the (de-)serialize functions of the neuropil bloom filter")
+{
+//  char test_string[65];    
+    np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+//  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+//  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+    np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+//  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+//  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+    np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+//  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+    
+    struct np_bloom_optable_s neuropil_operations = {
+        .add_cb       = _np_neuropil_bloom_add,
+        .check_cb     = _np_neuropil_bloom_check,
+        .clear_cb     = NULL,
+        .union_cb     = NULL,
+        .intersect_cb = NULL,
+    };
+        
+    np_bloom_t* neuropil_bloom_in = _np_neuropil_bloom_create();
+    neuropil_bloom_in->op = neuropil_operations;
+    
+    neuropil_bloom_in->op.add_cb(neuropil_bloom_in, test1);
+    cr_expect( 0.5 == _np_neuropil_bloom_intersect_age(neuropil_bloom_in, neuropil_bloom_in), "expect the age to be 0.5");
+
+    _np_neuropil_bloom_age_decrement(neuropil_bloom_in);
+    cr_expect( 0.46875 == _np_neuropil_bloom_intersect_age(neuropil_bloom_in, neuropil_bloom_in), "expect the age to be 0.46...");
+    neuropil_bloom_in->op.add_cb(neuropil_bloom_in, test2);
+    cr_expect( 0.46875 == _np_neuropil_bloom_intersect_age(neuropil_bloom_in, neuropil_bloom_in), "expect the age to be 0.46...");
+
+    _np_neuropil_bloom_age_decrement(neuropil_bloom_in);
+    neuropil_bloom_in->op.add_cb(neuropil_bloom_in, test4);
+    cr_expect( 0.4375 == _np_neuropil_bloom_intersect_age(neuropil_bloom_in, neuropil_bloom_in), "expect the age to be 0.43...");
+        
+    cr_expect(true  == neuropil_bloom_in->op.check_cb(neuropil_bloom_in, test1), "expect that the id test1 is     found in bloom filter");
+    cr_expect(true  == neuropil_bloom_in->op.check_cb(neuropil_bloom_in, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(false == neuropil_bloom_in->op.check_cb(neuropil_bloom_in, test3), "expect that the id test3 is not found in bloom filter");
+    cr_expect(true  == neuropil_bloom_in->op.check_cb(neuropil_bloom_in, test4), "expect that the id test4 is     found in bloom filter");
+    cr_expect(false == neuropil_bloom_in->op.check_cb(neuropil_bloom_in, test5), "expect that the id test5 is not found in bloom filter");
+
+    cr_expect( 0.5 >= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test1), "checking the probability that a np_id has been found");
+    cr_expect( 0.3 <= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test1), "checking the probability that a np_id has been found");
+    cr_expect( 0.5 >= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test2), "checking the probability that a np_id has been found");
+    cr_expect( 0.35 <= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test2), "checking the probability that a np_id has been found");
+    cr_expect( 0.5 == _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test4), "checking the probability that a np_id has been found");
+
+    unsigned char * buffer = NULL;
+    uint16_t buffer_size = 0;
+    _np_neuropil_bloom_serialize(neuropil_bloom_in, &buffer, &buffer_size);
+
+    cr_expect(256 >= buffer_size, "expect that the buffer size to be less than 256 bytes (32*8)");
+    cr_expect(  4 <= buffer_size, "expect that the buffer size to be more than   4 bytes (32*8)");
+    
+    np_bloom_t* neuropil_bloom_out = _np_neuropil_bloom_create();
+    neuropil_bloom_out->op = neuropil_operations;
+
+    _np_neuropil_bloom_deserialize(neuropil_bloom_out, buffer, buffer_size);
+
+    free(buffer); // not needed anymore
+
+    cr_expect(true  == neuropil_bloom_out->op.check_cb(neuropil_bloom_out, test1), "expect that the id test1 is     found in bloom filter");
+    cr_expect(true  == neuropil_bloom_out->op.check_cb(neuropil_bloom_out, test2), "expect that the id test2 is     found in bloom filter");
+    cr_expect(false == neuropil_bloom_out->op.check_cb(neuropil_bloom_out, test3), "expect that the id test3 is not found in bloom filter");
+    cr_expect(true  == neuropil_bloom_out->op.check_cb(neuropil_bloom_out, test4), "expect that the id test4 is     found in bloom filter");
+    cr_expect(false == neuropil_bloom_out->op.check_cb(neuropil_bloom_out, test5), "expect that the id test5 is not found in bloom filter");
+
+    cr_expect( 0.5  >= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test1), "checking the probability that a np_id has been found");
+    cr_expect( 0.3  <= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test1), "checking the probability that a np_id has been found");
+    cr_expect( 0.5  >= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test2), "checking the probability that a np_id has been found");
+    cr_expect( 0.35 <= _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test2), "checking the probability that a np_id has been found");
+    cr_expect( 0.5  == _np_neuropil_bloom_get_heuristic(neuropil_bloom_in, test4), "checking the probability that a np_id has been found");
+
+    cr_expect( neuropil_bloom_out->_free_items == neuropil_bloom_in->_free_items, "checking if the number of free items is equal");
+
+    _np_bloom_free(neuropil_bloom_in);
+    _np_bloom_free(neuropil_bloom_out);
 }

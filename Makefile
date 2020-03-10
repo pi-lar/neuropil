@@ -14,7 +14,7 @@ CFLAGS += -c -Wall -Wextra -g -gdwarf-2 -std=c99 -fprofile-instr-generate -O1 -D
 
 LDFLAGS=-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib -fPIC
 
-CLANG_SANITIZER=-fno-omit-frame-pointer -fsanitize-address-use-after-scope -fsanitize-coverage=edge,trace-pc-guard,indirect-calls,trace-cmp,trace-div,trace-gep -fcoverage-mapping -fprofile-instr-generate
+CLANG_SANITIZER=-fno-omit-frame-pointer -fsanitize-address-use-after-scope -fsanitize-coverage=edge,indirect-calls,trace-cmp,trace-div,trace-gep -fcoverage-mapping -fprofile-instr-generate
 CLANG_SANITIZER_COMPILE=$(CLANG_SANITIZER) -fsanitize=address,fuzzer-no-link
 CLANG_SANITIZER_LINK=$(CLANG_SANITIZER) -fsanitize=address,fuzzer 
 

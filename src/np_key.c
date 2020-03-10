@@ -66,7 +66,6 @@ enum NP_KEY_STATES {
     IN_USE_IDENTITY,    // user supplied identities and private key nodes
     IN_USE_NODE,        // holds connection status / outbound transport encryption
     IN_USE_ALIAS,       // holds inbound decryption
-    IN_USE_INTENT,      // intent storage
     IN_USE_MSGPROPERTY, // inbound and outbound message creation (payload encryption / routing decision / lookup / chunking / ...)
     IN_DESTROY,
     MAX_KEY_STATES
@@ -175,7 +174,6 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_NODE     , __np_node_set    , __is_node_token              ); // handle node token (updates)
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_IDENTITY   , __np_set_identity, __is_identity_aaatoken ); // create node or identity structures (private key is present)
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_MSGPROPERTY, __np_set_property, __is_msgproperty    ); // create msgproperty 
-            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_USE_INTENT     , __np_set_intent  , __is_intent_token);     // message intent handling
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_SETUP_ALIAS, "IN_SETUP_ALIAS", __keystate_noop, __np_create_session, __keystate_noop); // create node as well and "steal" network sructure
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_ALIAS, IN_SETUP_ALIAS, __np_alias_decrypt    , __is_crypted_message); // decrypt transport encryption
@@ -206,7 +204,7 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_decrypt    , __is_crypted_message); // decrypt transport encryption
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_in_message); // pass on to the specific message intent
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_dht_message); // handle dht messages (ping, piggy, leave, update, ack)
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_discovery_message); // handle discovery messages (sender list, dicover sender, ...)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_discovery, __is_discovery_message); // handle discovery messages (sender list, dicover sender, ...)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_forward, __is_forward_message); // handle forwarding of all other messages , but fill ara routing table
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY  , __np_alias_destroy    , __is_alias_invalid); // node has left, invalidate node
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_update      , NULL); // cleanup message part cache for incoming messages
@@ -225,13 +223,6 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_USE_IDENTITY, __np_identity_handle_account, __is_account_request); // check for local identity validity
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY     , __np_identity_shutdown      , __is_shutdown_event); // node is not used anymore
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY     , __np_identity_shutdown      , __is_identity_invalid); // check for local identity validity
-
-        NP_UTIL_STATEMACHINE_STATE(states, IN_USE_INTENT, "IN_USE_INTENT", __keystate_noop, __keystate_noop, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_receiver_update, __is_receiver_intent_token); // add intent token
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_sender_update  , __is_sender_intent_token); // add intent token
-            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_update         , __is_intent_authz); // add authorization for intent token
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_DESTROY   , __np_intent_destroy        , __is_intent_invalid); // no updates received for xxx minutes?
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_INTENT, IN_USE_INTENT, __np_intent_check          ,  NULL); // send out intents if dht distance is not mmatching anymore
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_MSGPROPERTY, "IN_USE_MSGPROPERTY", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_response_handler_set   , __is_response_event); // user changed mx_properties
@@ -311,7 +302,8 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     
     sll_init(void_ptr, new_key->entities); // link to components attached to this key id
 
-    new_key->parent_key = NULL;
+    new_key->parent_key  = NULL;
+    new_key->bloom_scent = NULL;
 
     char mutex_str[64];      
     snprintf(mutex_str, 63, "urn:np:key:%s", "access");              
@@ -324,6 +316,10 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     np_key_t* old_key = (np_key_t*) key;
 
     sll_free(void_ptr, old_key->entities);
+
+    if (old_key->bloom_scent != NULL) {
+        _np_bloom_free(old_key->bloom_scent);
+    }
 
     _np_threads_mutex_destroy(context, &old_key->key_lock);
 

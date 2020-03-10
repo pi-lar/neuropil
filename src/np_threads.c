@@ -281,7 +281,6 @@ int _np_threads_unlock_modules(np_state_t* context, np_module_lock_type module_i
 int _np_threads_mutex_init(np_state_t* context, np_mutex_t* mutex, const char* desc)
 {
     int ret = 0;
-    strncpy(mutex->desc, desc, 63);
     pthread_mutexattr_init(&mutex->lock_attr);
     pthread_mutexattr_settype(&mutex->lock_attr, PTHREAD_MUTEX_RECURSIVE);
 
@@ -293,6 +292,11 @@ int _np_threads_mutex_init(np_state_t* context, np_mutex_t* mutex, const char* d
         log_msg(LOG_ERROR, "pthread_mutex_init: %s (%d)",
             strerror(ret), ret);
     }
+
+#ifdef NP_THREADS_CHECK_THREADING
+    strncpy(mutex->desc, desc, 63);
+#endif // NP_THREADS_CHECK_THREADING
+
     return ret;
 }
 

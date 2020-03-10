@@ -79,40 +79,6 @@ static int8_t _np_intent_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr secon
     return _np_intent_cmp(first,second);
 }
 
-void _np_intent_create_token_ledger(np_key_t* my_intent_key, const np_util_event_t event)
-{
-    np_ctx_memory(my_intent_key);
-    log_trace_msg(LOG_TRACE, "start: void _np_intent_create_token_ledger(...) {");
-
-    NP_CAST(event.user_data, np_aaatoken_t, token);
-
-    if (sll_size(my_intent_key->entities) == 0) 
-    {   // list is not empty if subject is already locally well known
-        // create a wrapper property to facilitate the message intent exchange 
-        np_msgproperty_t* new_property = NULL;
-        np_new_obj(np_msgproperty_t, new_property);
-
-        new_property->msg_subject = strndup(token->subject, 255);
-        new_property->mode_type = (OUTBOUND | INBOUND);
-
-        sll_append(void_ptr, my_intent_key->entities, new_property);
-        np_ref_obj(np_msgproperty_t, new_property, "_np_intent_create_token_ledger");
-
-        log_debug_msg(LOG_DEBUG, "created ledger property for %s %p", token->subject, new_property);
-    }
-
-    if (sll_size(my_intent_key->entities) == 1) 
-    {
-        // could be empty on first use, therefore create and append it to the entities
-        struct __np_token_ledger* token_ledger = malloc( sizeof (struct __np_token_ledger) );
-        pll_init(np_aaatoken_ptr, token_ledger->recv_tokens);
-        pll_init(np_aaatoken_ptr, token_ledger->send_tokens);
-    
-        sll_append(void_ptr, my_intent_key->entities, token_ledger);
-        log_debug_msg(LOG_DEBUG, "creating intent ledger lists for %s / %p", token->subject, token_ledger);
-    }
-}
-
 // update internal structure and return a interest if a matching pair has been found
 np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token)
 {
@@ -144,7 +110,7 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
         np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_intent_cmp_exact;
         bool allow_dups = true;
 
-        if (SINGLE_SENDER == (SINGLE_SENDER & sender_mep_type))
+        if (FLAG_CMP(sender_mep_type, SINGLE_SENDER))
         {
             cmp_aaatoken_replace   = _np_intent_cmp;
             allow_dups = false;
@@ -392,8 +358,8 @@ sll_return(np_aaatoken_ptr) _np_intent_get_all_sender(np_key_t* subject_key, con
             
             if (audience != NULL && strlen(audience) > 0) {
                 include_token =
-                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
-                        (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
+                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) ||
+                        (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0)   ;
             }
 
             if (include_token==true) {
@@ -435,7 +401,7 @@ sll_return(np_aaatoken_ptr) _np_intent_get_all_receiver(np_key_t* subject_key, c
             bool include_token = true;
             if (audience != NULL && strlen(audience) > 0) {
                 include_token =
-                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) |
+                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) ||
                         (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
             }
 
@@ -457,228 +423,6 @@ sll_return(np_aaatoken_ptr) _np_intent_get_all_receiver(np_key_t* subject_key, c
     return (return_list);
 }
 
-void _np_intent_propagate_list(np_state_t* context, np_dhkey_t msgprop_dhkey, np_dhkey_t target, const char* subject, np_sll_t(np_aaatoken_ptr, list_to_send)) 
-{
-    np_aaatoken_t * tmp_token;
-    np_message_t * msg_out = NULL;
-
-    sll_iterator(np_aaatoken_ptr) iter_list_to_send = sll_first(list_to_send);
-
-    while (iter_list_to_send != NULL)
-    {
-        tmp_token = iter_list_to_send->val;
-        sll_next(iter_list_to_send);
-
-        np_dhkey_t tmp_token_issuer = np_aaatoken_get_partner_fp(tmp_token);
-        // do not send the msgtoken to its own issuer (remove clutter)
-        if (_np_dhkey_equal(&target, &tmp_token_issuer) == false)
-        {
-            np_tree_t* available_data = np_tree_create();
-            np_aaatoken_encode(available_data, tmp_token);
-
-            np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-            _np_message_create(
-                msg_out,
-                target,
-                context->my_node_key->dhkey,
-                subject,
-                available_data
-            );
-
-            log_msg(LOG_INFO,
-                    "discovery success: sending back %s (msg uuid: %s / intent token %s)",
-                    subject, msg_out->uuid, tmp_token->uuid);
-
-            np_util_event_t propagate_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out , .target_dhkey=target };
-            _np_keycache_handle_event(context, msgprop_dhkey, propagate_event, false);
-        }
-    }
-}
-
-void _np_intent_propagate_receiver(np_key_t* intent_key, np_message_intent_public_token_t* sender_msg_token) 
-{
-    np_ctx_memory(intent_key);
-
-    np_sll_t(np_aaatoken_ptr, available_list) = _np_intent_get_all_receiver(intent_key, NULL /* sender_msg_token->audience */);
-
-    np_dhkey_t target_dhkey = np_aaatoken_get_partner_fp(sender_msg_token);
-    np_dhkey_t available_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_AVAILABLE_RECEIVER);
-
-    _np_intent_propagate_list(context, available_dhkey, target_dhkey, _NP_MSG_AVAILABLE_RECEIVER, available_list);
-    
-    np_aaatoken_unref_list(available_list, "_np_intent_get_all_receiver");
-    sll_free(np_aaatoken_ptr, available_list);
-
-    // TODO: deprecated
-    // reason: any system should not be able to inflict traffic on peer nodes by sending message intents.
-    // message intents already bear a danger of being misused for flooding the network
-    // by just returning data to the sender the main conflict will be caused at the initiator of the traffic
-    /*
-    if(inform_counterparts){
-        available_list = _np_aaatoken_get_all_sender(context, sender_msg_token->subject, sender_msg_token->audience);
-
-        sll_iterator(np_aaatoken_ptr) iter_sender_tokens = sll_first(available_list);
-        while (iter_sender_tokens != NULL)
-        {
-            np_tree_elem_t* target_ele = np_tree_find_str(iter_sender_tokens->val->extensions, "target_node");
-
-            np_dhkey_t target_key;
-            if (target_ele != NULL) {
-                target_key = np_dhkey_create_from_hash(np_treeval_to_str(target_ele->val, NULL));
-            }
-            else {
-                target_key = _np_aaatoken_get_issuer(iter_sender_tokens->val);
-            }
-
-            _np_dendrit_propagate_senders(target_key, sender_msg_token, false);
-            sll_next(iter_sender_tokens);
-        }
-
-        np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_sender");
-        sll_free(np_aaatoken_ptr, available_list);
-    }
-    */
-}
-
-void _np_intent_propagate_sender(np_key_t* intent_key, np_message_intent_public_token_t* receiver_msg_token)
-{
-    np_ctx_memory(intent_key);
-
-    np_sll_t(np_aaatoken_ptr, available_list) = _np_intent_get_all_sender(intent_key, NULL /* receiver_msg_token->audience */ );
-
-    np_dhkey_t target_dhkey = np_aaatoken_get_partner_fp(receiver_msg_token);
-    np_dhkey_t available_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_AVAILABLE_SENDER);
-
-    _np_intent_propagate_list(context, available_dhkey, target_dhkey, _NP_MSG_AVAILABLE_SENDER, available_list);
-
-    np_aaatoken_unref_list(available_list, "_np_intent_get_all_sender");
-    sll_free(np_aaatoken_ptr, available_list);
-
-    // TODO: deprecated
-    // reason: any system should not be able to inflict traffic on peer nodes by sending message intents.
-    // message intents already bear a danger of being misused for flooding the network
-    // by just returning data to the sender the main conflict will be caused at the initiator of the traffic
-    /*
-    if (inform_counterparts) {
-        available_list = _np_aaatoken_get_all_receiver(context, receiver_msg_token->subject, receiver_msg_token->audience);
-
-        sll_iterator(np_aaatoken_ptr) iter_receiver_tokens = sll_first(available_list);
-        while (iter_receiver_tokens != NULL)
-        {
-
-            np_tree_elem_t* target_ele = np_tree_find_str(iter_receiver_tokens->val->extensions, "target_node");
-
-            np_dhkey_t target_key;
-            if (target_ele != NULL) {
-                target_key = np_dhkey_create_from_hash(np_treeval_to_str(target_ele->val, NULL));
-            }
-            else {
-                target_key = _np_aaatoken_get_issuer(iter_receiver_tokens->val);
-            }
-            _np_dendrit_propagate_receivers(target_key, receiver_msg_token, false);
-            sll_next(iter_receiver_tokens);
-        }
-
-        np_aaatoken_unref_list(available_list, "_np_aaatoken_get_all_receiver");
-        sll_free(np_aaatoken_ptr, available_list);
-    }
-    */
-}
-
-bool __is_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __is_intent_token(...){");
-
-    bool ret = false;
-    
-    // NP_CAST(statemachine->_user_data, np_key_t, intent_key);
-    NP_CAST(event.user_data, np_aaatoken_t, intent_token);
-
-    if (!ret) ret  = (FLAG_CMP(event.type, evt_token) && FLAG_CMP(event.type, evt_external) );
-    if ( ret) ret &= _np_memory_rtti_check(intent_token, np_memory_types_np_aaatoken_t);
-    if ( ret) ret &= _np_aaatoken_is_valid(intent_token, np_aaatoken_type_message_intent);
-
-    return ret;
-} 
-
-void __np_set_intent(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-
-    NP_CAST(statemachine->_user_data, np_key_t,  my_intent_key);    
-    log_trace_msg(LOG_TRACE, "start: void __np_set_intent(...) { %p", my_intent_key);
-
-    _np_intent_create_token_ledger(my_intent_key, event);
-
-    np_ref_obj(no_key_t, my_intent_key, "__np_set_intent");
-    my_intent_key->type |= np_key_type_intent;
-
-}
-
-bool __is_receiver_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __is_receiver_intent_token(...){");
-
-    bool ret = __is_intent_token(statemachine, event);
-
-    np_dhkey_t receiver_intent_dhkey = np_dhkey_create_from_hostport(_NP_MSG_DISCOVER_SENDER, "0");
-    ret &= _np_dhkey_equal(&event.target_dhkey, &receiver_intent_dhkey);
-
-    return ret;
-} 
-
-bool __is_sender_intent_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __is_sender_intent_token(...){");
-
-    bool ret = __is_intent_token(statemachine, event);
-
-    np_dhkey_t sender_intent_dhkey = np_dhkey_create_from_hostport(_NP_MSG_DISCOVER_RECEIVER, "0");
-    ret &= _np_dhkey_equal(&event.target_dhkey, &sender_intent_dhkey);
-
-    return ret;
-} 
-
-// add intent token
-void __np_intent_receiver_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __np_intent_receiver_update(...){");
-
-    NP_CAST(statemachine->_user_data, np_key_t, intent_key);
-    NP_CAST(event.user_data, np_aaatoken_t, intent_token);
-
-    // just store the available tokens in memory and update them if new data arrives
-    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "discovery: received new receiver token %s for %s", intent_token->uuid, intent_token->subject);
-
-    np_aaatoken_t* old_token = _np_intent_add_receiver(intent_key, intent_token);
-    np_unref_obj(np_aaatoken_t, old_token, "recv_tokens");
-
-    _np_intent_propagate_sender(intent_key, intent_token);
-} 
-
-void __np_intent_sender_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __np_intent_sender_update(...){");
-
-    NP_CAST(statemachine->_user_data, np_key_t, intent_key);
-    NP_CAST(event.user_data, np_aaatoken_t, intent_token);
-    // just store the available tokens in memory and update them if new data arrives
-    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "discovery: received new sender token %s for %s", intent_token->uuid, intent_token->subject);
-
-    np_aaatoken_t* old_token = _np_intent_add_sender(intent_key, intent_token);
-    np_unref_obj(np_aaatoken_t, old_token, "send_tokens");
-
-    _np_intent_propagate_receiver(intent_key, intent_token);
-}
-
-bool __is_intent_authn(np_util_statemachine_t* statemachine, const np_util_event_t event) {
-    return false;
-}
 
 bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
@@ -699,24 +443,21 @@ bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event
     return ret;
 }
 
-
-void __np_intent_update(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // add authorization for intent token
-
-bool __is_intent_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) {
-    return false;
-}
-void __np_intent_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) {} // no updates received for xxx minutes?
-
 void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{    
+{
     np_ctx_memory(statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, intent_key);
     if (intent_key->entities == NULL) return;
     if (sll_size(intent_key->entities) < 2) return;
 
+    NP_CAST(sll_first(intent_key->entities)->val, np_msgproperty_t, property);
     NP_CAST(sll_last(intent_key->entities)->val, struct __np_token_ledger, ledger);
-    
+
+    log_debug_msg(LOG_DEBUG,
+            "%s has intent token (recv: %u / send: %u)",
+            property->msg_subject, sll_size(ledger->recv_tokens), sll_size(ledger->send_tokens));
+
     if (ledger == NULL) return;
     pll_iterator(np_aaatoken_ptr) iter = NULL;
 

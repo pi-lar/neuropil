@@ -72,7 +72,7 @@ if args.httpdomain != "":
   httpdomain = " -w " + args.httpdomain +" "
 
 start_bootstrapper = True
-join_client = " -j *:{}:{}:{}".format(port_type_server, publish_domain , port)
+join_client = " -j \"*:{}:{}:{}\"".format(port_type_server, publish_domain , port)
 if args.j != "":
   join_client  = " -j {} ".format(args.j)
   start_bootstrapper = False

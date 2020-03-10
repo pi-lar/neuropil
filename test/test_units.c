@@ -28,6 +28,7 @@
 // #include "unit/test_sodium_crypt.c" // TODO: fixme on linux!
 #include "unit/test_scache.c"
 #include "unit/test_statemachine.c"
+#include "unit/test_pheromone.c"
 
 #include "unit/test_m_jobqueue.c"
 #include "unit/test_m_identity.c"

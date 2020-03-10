@@ -14,6 +14,7 @@
 #include "tree/tree.h"
 
 #include "np_dhkey.h"
+#include "np_bloom.h"
 #include "np_threads.h"
 #include "np_memory.h"
 
@@ -28,43 +29,45 @@ extern "C" {
 #endif
 
 enum np_key_type {
-
 	np_key_type_unknown			= 0x000,
-	// np_comp_alias
-	np_key_type_alias			= 0x001,
-	// np_comp_node
-	np_key_type_node            = 0x002,
-	np_key_type_wildcard        = 0x004,
-	// np_comp_identity
-	np_key_type_ident			= 0x008,
-	// np_comp_msgproperty
-	np_key_type_subject			= 0x010,
-	// np_comp_intent
-	np_key_type_intent			= 0x020,
+	np_key_type_alias			= 0x001, // an alias is used for incoming connections
+	np_key_type_node            = 0x002, // a node represents another app or next hop
+	np_key_type_wildcard        = 0x004, // a wildcard to join without knowing the hash
+	np_key_type_ident			= 0x008, // an identity represents a user or endpoint
+	np_key_type_subject			= 0x010, // a subject/msgproperty that two identities share
+// 	np_key_type_intent			= 0x020, // exchange point for intent messages
+	np_key_type_realm			= 0x040, // a realm component to forward authn/authz/acc requests
 };
 
+struct np_key_entity_s {
+	enum np_key_type type;
+	void* ptr;
+};
 
 struct np_key_s
 {
-	// link to memory management and ref counter
-	RB_ENTRY(np_key_s) link; // link for cache management
+    // link to memory management and ref counter
+    RB_ENTRY(np_key_s) link; // link for cache management
 
-	// state machine
-	np_util_statemachine_t sm;
+    // state machine
+    np_util_statemachine_t sm;
 
     // np_mutex_t key_lock;
-	np_dhkey_t dhkey;
-	char*      dhkey_str;
+    np_dhkey_t dhkey;
+    char*      dhkey_str;
+    np_bloom_t* bloom_scent;
 
-	double created_at;
-	double last_update;
+    double created_at;
+    double last_update;
 
-	bool   is_in_keycache;
+    bool   is_in_keycache;
 
-	enum np_key_type type;
+    enum np_key_type type;
 
-	np_key_t* parent_key; // reference to parent/partner key
-	np_sll_t(void_ptr, entities); // link to components attached to this key id
+    np_key_t* parent_key; // reference to parent/partner key
+    np_sll_t(void_ptr, entities); // link to components attached to this key id
+
+    // struct np_key_entity_s** entities;
 
     np_mutex_t key_lock;
 

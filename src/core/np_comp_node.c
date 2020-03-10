@@ -50,7 +50,7 @@ bool __is_shutdown_event(np_util_statemachine_t* statemachine, const np_util_eve
     
     bool ret = false;
     
-    if (!ret) ret  = FLAG_CMP(event.type, evt_shutdown) && FLAG_CMP(event.type, evt_internal);
+    if (!ret) ret  = FLAG_CMP(event.type, evt_shutdown);
     // if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     return ret;
 }
@@ -299,7 +299,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
         sll_of_keys = _np_route_row_lookup(context, node_key->dhkey);
         char* source_sll_of_keys = "_np_route_row_lookup";
         
-        if (sll_size(sll_of_keys) < 5)
+        if (sll_size(sll_of_keys) < 1)
         {   // nothing found, send leafset to exchange some data at least
             // prevents small clusters from not exchanging all data
             np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
@@ -400,7 +400,7 @@ void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const n
 
         if (deleted != NULL) {
             _np_key_get_node(deleted)->is_in_leafset = false;
-            log_debug_msg(LOG_INFO, "deleted from leafset: %s:%s:%s / %f / %1.2f",
+            log_debug_msg(LOG_INFO, "deleted from routing table: %s:%s:%s / %f / %1.2f",
                 _np_key_as_str(deleted),
                 _np_key_get_node(deleted)->dns_name, _np_key_get_node(deleted)->port,
                 _np_key_get_node(deleted)->last_success,
@@ -558,17 +558,18 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
     np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
     np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
 
-    // 1: create leave message
-    np_message_t* msg_out = NULL;
-    np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-    _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_LEAVE_REQUEST, jrb_data);
+    if (FLAG_CMP(event.type, evt_internal)) {
+        // 1: create leave message
+        np_message_t* msg_out = NULL;
+        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
+        _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_LEAVE_REQUEST, jrb_data);
 
-    np_dhkey_t leave_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_LEAVE_REQUEST);
-    np_util_event_t leave_evt = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
-    _np_keycache_handle_event(context, leave_prop_dhkey, leave_evt, true);
+        np_dhkey_t leave_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_LEAVE_REQUEST);
+        np_util_event_t leave_evt = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
+        _np_keycache_handle_event(context, leave_prop_dhkey, leave_evt, true);
 
-    np_tree_free(jrb_my_node);
-
+        np_tree_free(jrb_my_node);
+    }
     node_key->type = np_key_type_unknown;
 }
 

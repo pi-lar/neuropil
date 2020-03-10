@@ -22,3 +22,7 @@ div.sphinxsidebar {
 div.footer {
     background-color: #ffffff;
 }
+
+svg {
+    width: 100%;
+}
