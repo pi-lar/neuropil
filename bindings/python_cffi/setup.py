@@ -15,7 +15,7 @@ if PATH:
     os.chdir(PATH)
 
 setup (name = 'neuropil',
-       version = '0.9.5',
+       version = '0.9.6',
        author      = "pi-lar GmbH",
        description = """neuropil python bindings""",
        setup_requires=["cffi>=1.0.0"],
