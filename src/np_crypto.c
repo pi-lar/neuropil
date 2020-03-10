@@ -526,8 +526,10 @@ uint32_t np_crypt_rand() {
 	randombytes_buf(&ret, sizeof ret);
 	return ret;
 }
+
 uint32_t np_crypt_rand_mm(uint32_t min, uint32_t max) {
 	assert(max >= min);
-	uint32_t ret = randombytes_uniform(max - min) + min;
+	uint32_t ret = randombytes_uniform(max - min);
+	if (ret < min) ret = min;
 	return ret;
 }

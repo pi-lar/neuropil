@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2019 by pi-lar GmbH
+// neuropil is copyright 2016-2020 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <stdio.h>
@@ -16,6 +16,7 @@
 
 #include "np_log.h"
 #include "np_util.h"
+#include "np_tree.h"
 
 // bloom filter based on np_dhkey_t / np_dhkey_t
 // we treat the np_dhkey_t as (8 * uint32_t) -> 8 distinct hash values -> pobability of false positive approx 1 in 1024
@@ -105,7 +106,7 @@ bool _np_standard_bloom_check(np_bloom_t* bloom, np_dhkey_t id)
     return (true);
 }
 
-void _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first)
+bool _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first)
 {
     assert(first->_type == standard_bf);
     assert(first->_type == result->_type);
@@ -115,11 +116,13 @@ void _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first)
 
     // simplified max elements calculation
     result->_free_items = 0; // not altered, we cannot further intersect this filter
-
+    uint16_t i = 0;
     for (uint16_t k = 0; k < result->_size/8*result->_d; ++k)
     {
         result->_bitset[k] &= first->_bitset[k];
+        if (result->_bitset[k] > 0) i++;
     }
+    return (i > 0) ? true : false;
 }
 
 void _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first)
@@ -422,10 +425,21 @@ float _np_decaying_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
     return (ret);
 }
 
-// until somebody finds out that this is too small ...
-#define SCALE3D_X  3
-#define SCALE3D_Y  5
-#define SCALE3D_Z  7
+// neuropil bloom filter size calculation:
+// p(nbf) = (1-e^(- n/m))^k        // many thanks for the formulas!
+// p(nbf) = (1-e^(- n/m))^4        // k = 4 --> four 3dbf per filter
+// p(nbf) = (1-e^(-32/m))^4        // n = 32 --> target to insert 32 elements per filter
+// p(nbf) = (1-e^(-32/(3*5*7)))^4  // m = X*Y*Z --> 3*5*7 (?)
+// p(nbf) = 0,004762637855         // error probablilty would be 4 in 1000, too low imho
+// p(nbf) = (1-e^(-32/(3*5*11)))^4 // m = X*Y*Z --> 3*5*11 (?)
+// p(nbf) = 0,0009658999622        // better, approx one in 1000 
+// p(nbf) = (1-e^(-32/(3*5*13)))^4 // m = X*Y*Z --> 3*5*13
+// p(nbf) = 0,000524653516         // better, approx one in 2000 but still possible to transport
+//                                 // one neuropil bf (32 different subjects) with one message chunk
+
+#define SCALE3D_X   3
+#define SCALE3D_Y   5
+#define SCALE3D_Z  13
 
 #define SCALE3D_FREE_ITEMS 32 // upper limit of items per neuropil bloom filter
 
@@ -501,7 +515,7 @@ bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_dhkey_t id)
         uint8_t* _current_count = &bloom->_bitset[_local_pos+1];
 
         // check both field for bit being set
-        if ( 0 == (*_current_age) || _current_count == 0) ret = false;
+        if ( 0 == (*_current_age) || *_current_count == 0) ret = false;
 
 #ifdef DEBUG
         /*char test_string[65];
@@ -522,16 +536,17 @@ void _np_neuropil_bloom_age_decrement(np_bloom_t* bloom)
 {
     uint16_t block_size = (bloom->_size*bloom->_d/8);
 
-    for (uint16_t k = 0; k < block_size*4; k +=2 )
+    for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k +=2 )
     {
-        uint8_t* _current_age                 = &bloom->_bitset[k];
-        if (_current_age > 0) (*_current_age) = ((*_current_age) >> 1);
+        uint8_t* _current_age                             = &bloom->_bitset[k];
+        if (*_current_age > bloom->_d/2) (*_current_age) -= bloom->_d/2; // ((*_current_age) >> 1);
+        else                             (*_current_age)  = 0;
     }
 }
 
 float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
 {
-    float ret = 0.0;
+    float ret = 1.0;
     
     uint8_t block_index = 1;
     uint16_t block_size = (bloom->_size*bloom->_d/8);
@@ -540,14 +555,11 @@ float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
     {
         uint32_t _bit_array_pos = ( (id.t[k]%SCALE3D_X+1) * (id.t[k]%SCALE3D_Y+1) * (id.t[k]%SCALE3D_Z+1) );
         uint32_t _local_pos     = (block_index-1)*block_size + (_bit_array_pos-1)*2;
-        uint8_t* _current_age   = &bloom->_bitset[_local_pos  ];
-        uint8_t* _current_count = &bloom->_bitset[_local_pos+1];
+        uint8_t _current_age   = bloom->_bitset[_local_pos  ];
+        uint8_t _current_count = bloom->_bitset[_local_pos+1];
         
-        if   ( 0 == (*_current_age) || 0 == _current_count) { ret = 0.0; break; }
-
-        uint8_t n = 1;
-        while ( (*_current_age>>n) > 0) n++;
-        ret = ret > ((float) n)/(bloom->_d/2) ? ret : ((float) n)/(bloom->_d/2);
+        if   ( 0 == _current_count) { ret = 0.0; break; }
+        ret = ret < ((float) _current_age)/(256) ? ret : ((float) _current_age)/(256);
         
 #ifdef DEBUG
         /*char test_string[65];
@@ -562,7 +574,7 @@ float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
     return (ret);
 }
 
-void _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* to_intersect)
+bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* to_intersect)
 {
     assert(result->_type == neuropil_bf);
     assert(result->_type == to_intersect->_type);
@@ -573,35 +585,106 @@ void _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* to_intersect)
     assert(to_intersect->_free_items + result->_free_items >= SCALE3D_FREE_ITEMS);
 
     result->_free_items = 0; // an intersection cannot be used for further data addition
-
+    uint16_t i = 0;
     for (uint16_t k = 0; k < result->_num_blocks*result->_size*result->_d/8; k+=2)
     {
         result->_bitset[k  ] &= to_intersect->_bitset[k  ];
         if ((result->_bitset[k  ] > 0)) { // only add if an "age" is left
             result->_bitset[k+1] += to_intersect->_bitset[k+1];
+            i++;
         }
         /*
         fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
                         result->_bitset[k  ], result->_bitset[k+1],
                         to_intersect->_bitset[k  ], to_intersect->_bitset[k+1]);
         */
-    }    
+    }
+    return (i > 0) ? true : false;
+}
+
+bool _np_neuropil_bloom_intersect_test(np_bloom_t* result, np_bloom_t* to_intersect)
+{
+    assert(result->_type == neuropil_bf);
+    assert(result->_type == to_intersect->_type);
+    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
+    assert(result->_size == to_intersect->_size);
+    assert(result->_d    == to_intersect->_d);
+    assert(result->_num_blocks == to_intersect->_num_blocks);
+
+    uint16_t i = 0, j = 0;
+    
+    for (uint16_t k = 0; k < result->_num_blocks*result->_size*result->_d/8; k+=2)
+    {
+        // only test whether to_intersect is contained in result
+        if (result->_bitset[k  ] > 0 && to_intersect->_bitset[k  ] > 0)
+        { // only add if an "age" is left
+            i += to_intersect->_bitset[k+1];
+            j += result->_bitset[k+1];
+        }
+        /*
+        fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
+                        result->_bitset[k  ], result->_bitset[k+1],
+                        to_intersect->_bitset[k  ], to_intersect->_bitset[k+1]);
+        */
+    }
+
+    return (i <= j && i == 8) ? true : false;
+}
+
+float _np_neuropil_bloom_intersect_age(np_bloom_t* result, np_bloom_t* to_intersect)
+{
+    assert(result->_type == neuropil_bf);
+    assert(result->_type == to_intersect->_type);
+    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
+    assert(result->_size == to_intersect->_size);
+    assert(result->_d    == to_intersect->_d);
+    assert(result->_num_blocks == to_intersect->_num_blocks);
+
+    float ret = 1.0;
+    uint8_t i = 0;
+
+    for (uint16_t k = 0; k < result->_num_blocks*result->_size*result->_d/8; k+=2)
+    {
+        // only test whether to_intersect is contained in result
+        if (to_intersect->_bitset[k  ] > 0)
+        {
+            i += to_intersect->_bitset[k+1];
+            if (result->_bitset[k  ] > 0)
+            {   // only add if an "age" is left
+                ret = (ret < (((float) result->_bitset[k  ])/(256)) ) ? ret : ((float) result->_bitset[k  ])/(256);
+            }
+            else 
+            if (result->_bitset[k  ] == 0)
+            {
+                ret = 0.0;
+            }
+        }
+        /*
+        fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
+                        result->_bitset[k  ], result->_bitset[k+1],
+                        to_intersect->_bitset[k  ], to_intersect->_bitset[k+1]);
+        */
+    }
+
+    if (i == 0) ret = 0.0;
+
+    return ret;
 }
 
 void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* to_add)
 {
-    assert(to_add->_type == neuropil_bf);
-    assert(to_add->_type == to_add->_type);
-    assert(to_add->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(to_add->_size == result->_size);
-    assert(to_add->_d == result->_d);
-    assert(to_add->_num_blocks == result->_num_blocks);
-    assert(to_add->_free_items + result->_free_items >= SCALE3D_FREE_ITEMS);
+    assert(result->_type == neuropil_bf);
+    assert(result->_type == to_add->_type);
+    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
+    assert(result->_size == to_add->_size);
+    assert(result->_d    == to_add->_d);
+    assert(result->_num_blocks == to_add->_num_blocks);
+    assert(result->_free_items + to_add->_free_items >= SCALE3D_FREE_ITEMS);
 
     result->_free_items = result->_free_items - SCALE3D_FREE_ITEMS + to_add->_free_items;
 
     for (uint16_t k = 0; k < result->_num_blocks*result->_size*result->_d/8; k+=2)
-    {        
+    {   
         result->_bitset[k  ] |= to_add->_bitset[k  ];
         result->_bitset[k+1] += to_add->_bitset[k+1];
         /*      
@@ -612,3 +695,47 @@ void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* to_add)
     }
 }
 
+void _np_neuropil_bloom_serialize(np_bloom_t* filter, unsigned char** to, uint16_t* to_size)
+{
+    np_tree_t* data = np_tree_create();
+
+    np_tree_insert_int(data, -1, np_treeval_new_ui(filter->_free_items));
+
+    for (uint16_t k = 0; k < filter->_num_blocks*filter->_size*filter->_d/8; k+=2)
+    {
+        if ( (filter->_bitset[k  ] > 0) &&
+             (filter->_bitset[k+1] > 0)  )
+        {
+            np_tree_insert_int(data, k, np_treeval_new_iarray(filter->_bitset[k  ], 
+                                                              filter->_bitset[k+1]) );
+        }
+    }
+
+    *to      = malloc(data->byte_size);
+    *to_size = data->byte_size;
+    np_tree2buffer(NULL, data, *to);
+    
+    np_tree_free(data);
+}
+
+void _np_neuropil_bloom_deserialize(np_bloom_t* filter, unsigned char * from, uint16_t from_size)
+{
+    np_tree_t* data = np_tree_create();
+    np_buffer2tree(NULL, from, data);
+
+    filter->_free_items = np_tree_find_int(data, -1)->val.value.ui;
+    np_tree_del_int(data, -1);
+
+    np_tree_elem_t* iter = RB_MIN(np_tree_s, data);
+    while (iter != NULL) 
+    {
+        uint16_t pos = iter->key.value.ui;
+        assert(pos >= 0);
+        assert(pos < filter->_num_blocks*filter->_size*filter->_d/8);
+        filter->_bitset[pos  ] = (uint8_t) iter->val.value.a2_ui[0];
+        filter->_bitset[pos+1] = (uint8_t) iter->val.value.a2_ui[1];
+
+        iter = RB_NEXT(np_tree_s, data, iter);
+    }
+    np_tree_free(data);
+}

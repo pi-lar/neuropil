@@ -57,5 +57,5 @@ int main(int argc, char **argv)
     np_join(ac, jkey);
   }
 
-  while (1) np_time_sleep(np_run(ac, 0));
+  while (1) np_time_sleep(np_run(ac, 0.0));
 }

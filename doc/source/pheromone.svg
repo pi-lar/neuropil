@@ -1,0 +1,83 @@
+<svg id="pheromone_drawing" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" >
+  <script type="text/javascript" xlink:href="./_static/svg.min.js"></script>
+  <script type="text/javascript">
+    <![CDATA[
+        var draw = SVG('#pheromone_drawing').size(800, 300);
+
+        // create five nodes
+        var node_1   = draw.circle(30).move(105,105).animate().fill('#f03');
+        var node_2   = draw.circle(30).move(305,135).animate().fill('#f03');
+        var node_3   = draw.circle(30).move(505,105).animate().fill('#f03');
+        var node_4   = draw.circle(30).move(230, 55).animate().fill('#f03');
+        var node_5   = draw.circle(30).move(380, 55).animate().fill('#f03');
+
+        // create links between nodes
+        var line_1_1 = draw.polyline('120,120 320,150 520,120')
+                           .fill({ color: '#f03', opacity: 0.0 })
+                           .stroke({ color: '#f03', 
+                                     width: 3, 
+                            })
+                           .animate(1000, 8000)
+                           .stroke({ color: '#999', 
+                                     width: 5, 
+                            });
+        var line_2_1 = draw.polyline('120,120 245,70 395,70 520,120')
+                           .fill({ color: '#f03', opacity: 0.0 })
+                           .animate()
+                           .stroke({ color: '#f03', 
+                                     width: 3, 
+                            });
+        var line_2_1 = draw.polyline('245,70 320,150')
+                           .fill({ color: '#f03', opacity: 0.0 })
+                           .animate()
+                           .stroke({ color: '#f03', 
+                                     width: 3, 
+                            });
+
+        // create and animate data scent objects flowing through the graph
+        var data_1_3 = draw.rect(20,20).move(110,110).fill('#333')
+                           .animate(2000, 500).move(310,140).fill('#666')
+                           .animate(2000, 500).move(235,60).fill('#999')
+                           .animate(2000, 500).move(385,60).fill('#ccc')
+                           .animate(2000, 500).move(510,110).fill('#fff');
+        var data_1_2 = draw.rect(20,20).move(110,110).fill('#333')
+                           .animate(2000, 500).move(235,60).fill('#666')
+                           .animate(2000, 500).move(385,60).fill('#999')
+                           .animate(2000, 500).move(510,110).fill('#ccc')
+                           .animate(2000, 500).move(510,110).fill('#ccc');
+        var data_1_1 = draw.rect(20,20).move(110,110).fill('#333')
+                           .animate(2000, 500).move(310,140).fill('#666')
+                           .animate(2000, 500).move(510,110).fill('#999')
+                           .animate(2001, 500).move(510,110).fill('#999')
+                           .animate(2001, 500).move(510,110).fill('#999');
+
+        // create a legend
+        var legend = draw.group();
+
+        var link_text = draw.text("illustration: 'data scents' travelling through neuropil")
+                            .font('size', '15px')
+                            .move(10, 10).dx(10);
+        var data_obj_symbol = draw.rect(20,20)
+                                  .fill('#333')
+                                  .move(10, 210);
+        var data_obj_text = draw.text("= scent of data object (colour indicating the scent strength)")
+                                .font('size', '11px')
+                                .move(40, 210);
+        var node_symbol = draw.circle(20,20)
+                              .fill('#f03')
+                              .move(10, 235);
+        var node_text = draw.text("= neuropil nodes")
+                            .font('size', '11px')
+                            .move(40, 235);
+        var link_symbol = draw.rect(20,3)
+                              .fill('#f03')
+                              .move(10, 270);
+        var link_text = draw.text("= neuropil links between nodes")
+                            .font('size', '11px')
+                            .move(40, 260);
+
+        legend.add(data_obj_symbol, data_obj_text, link_text); 
+
+    ]]>
+  </script>
+</svg>

@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2019 by pi-lar GmbH
+// neuropil is copyright 2016-2020 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
@@ -42,10 +42,10 @@ static const char* _NP_MSG_LEAVE_REQUEST          = "_NP.LEAVE.REQUEST";
 static const char* _NP_MSG_PING_REQUEST           = "_NP.PING.REQUEST";
 static const char* _NP_MSG_PIGGY_REQUEST          = "_NP.NODES.PIGGY";
 static const char* _NP_MSG_UPDATE_REQUEST         = "_NP.NODES.UPDATE";
-static const char* _NP_MSG_DISCOVER_RECEIVER      = "_NP.MESSAGE.DISCOVER.RECEIVER";
-static const char* _NP_MSG_DISCOVER_SENDER        = "_NP.MESSAGE.DISCOVER.SENDER";
-static const char* _NP_MSG_AVAILABLE_RECEIVER     =	"_NP.MESSAGE.RECEIVER.LIST";
-static const char* _NP_MSG_AVAILABLE_SENDER	      = "_NP.MESSAGE.SENDER.LIST";
+static const char* _NP_MSG_PHEROMONE_UPDATE       = "_NP.PHEROMONE.UPDATE";
+static const char* _NP_MSG_AVAILABLE_RECEIVER     =	"_NP.MESSAGE.RECEIVER.TOKEN";
+static const char* _NP_MSG_AVAILABLE_SENDER	      = "_NP.MESSAGE.SENDER.TOKEN";
+
 static const char* _NP_MSG_AUTHENTICATION_REQUEST =	"_NP.MESSAGE.AUTHENTICATE";
 static const char* _NP_MSG_AUTHENTICATION_REPLY   = "_NP.MESSAGE.AUTHENICATION.REPLY";
 static const char* _NP_MSG_AUTHORIZATION_REQUEST  = "_NP.MESSAGE.AUTHORIZE";
@@ -275,8 +275,11 @@ struct np_msgproperty_s
 
     // timestamp for cleanup thread
     double          last_update;
+    // user settable properties share the same property, thus we have to differentiate between tx and rx
     double          last_intent_tx_update;
     double          last_intent_rx_update;    
+    double          last_pheromone_tx_update;    
+    double          last_pheromone_rx_update;    
 
     // dhkey of node(s)/identities/realms who are interested in message exchange
     np_dhkey_t partner_key;
@@ -297,9 +300,10 @@ struct np_msgproperty_s
     bool unique_uuids_check;
     uint32_t unique_uuids_max;
 
-    np_tree_t* unique_uuids;
     np_tree_t* response_handler; // handler for ack messages
     np_tree_t* redelivery_messages;
+    np_tree_t* unique_uuids_in;
+    np_tree_t* unique_uuids_out;
 
     np_message_intent_public_token_t* current_sender_token;
     np_message_intent_public_token_t* current_receive_token;
@@ -365,7 +369,9 @@ void _np_msgproperty_job_msg_uniquety(np_msgproperty_t* self);
 NP_API_INTERN
 void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_t* self, np_message_t* msg_to_remove);
 NP_API_INTERN
-bool _np_msgproperty_check_msg_uniquety(np_msgproperty_t* self, np_message_t* msg_to_check);
+bool _np_msgproperty_check_msg_uniquety_in(np_msgproperty_t* self, np_message_t* msg_to_check);
+NP_API_INTERN
+bool _np_msgproperty_check_msg_uniquety_out(np_msgproperty_t* self, np_message_t* msg_to_check);
 
 /**
  ** add|check|cleanup sender|receiver msgcache

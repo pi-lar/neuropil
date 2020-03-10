@@ -41,7 +41,7 @@ extern "C" {
     #define NP_STATISTICS_THREADS
 #endif
 
-#define NP_PI 3.1415
+#define NP_PI 3.1415926535
 #define NP_PI_INT 3
 
 #ifndef NP_STATISTICS_PROMETHEUS_PREFIX
@@ -72,10 +72,10 @@ extern "C" {
  * msgproperty default vaue definitions 
  */
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL_SEC
-    #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT*60)
+    #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT * 60) // 180 seconds
 #endif
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL_SEC
-    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (NP_PI_INT* 6)
+    #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (NP_PI_INT) // 3 seconds
 #endif
 
 /*
@@ -163,7 +163,7 @@ extern "C" {
     #define MISC_RENEW_NODE_SEC (NP_PI*1000)
 #endif
 #ifndef MISC_READ_EVENTS_SEC
-    #define MISC_READ_EVENTS_SEC (NP_PI/1000)
+    #define MISC_READ_EVENTS_SEC (NP_PI/500)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
     #define MISC_SEND_PINGS_SEC (NP_PI*10)

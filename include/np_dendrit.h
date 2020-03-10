@@ -46,6 +46,9 @@ NP_API_INTERN
 bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event);
 
 NP_API_INTERN
+bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event);
+
+NP_API_INTERN
 bool _np_in_authenticate(np_state_t* context, np_util_event_t msg_event);
 NP_API_INTERN
 bool _np_in_authenticate_reply(np_state_t* context, np_util_event_t msg_event);

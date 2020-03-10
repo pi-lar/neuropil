@@ -15,6 +15,7 @@
 
 #include "neuropil.h"
 #include "np_aaatoken.h"
+#include "np_bloom.h"
 #include "np_key.h"
 #include "np_legacy.h"
 #include "np_log.h"
@@ -180,7 +181,6 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     NP_CAST(event.user_data, np_aaatoken_t, handshake_token);
 
     alias_key->type |= np_key_type_alias;
-    // ref_replace_reason(np_key_t, alias_key, ref_obj_creation, "__np_alias_set");
     np_ref_obj(np_key_t, alias_key, "__np_alias_set");
 
     // fix TCP setup and set correct key
@@ -409,20 +409,24 @@ bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_
     log_trace_msg(LOG_TRACE, "start: bool __is_discovery_message(...) {");
 
     bool ret = __is_forward_message(statemachine, event);
-    if  (ret) {
+    if  (ret) 
+    {
         NP_CAST(event.user_data, np_message_t, discovery_message);
         /* TODO: use the bloom, luke */
+        NP_PERFORMANCE_POINT_START(is_discovery_message);
         CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
         {
             // use the bloom to exclude other message types
-            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_RECEIVER,  strlen(_NP_MSG_DISCOVER_RECEIVER))  ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_DISCOVER_SENDER,    strlen(_NP_MSG_DISCOVER_SENDER))    );
+            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_AVAILABLE_RECEIVER, strlen(_NP_MSG_AVAILABLE_RECEIVER)) ) ||
+                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_AVAILABLE_SENDER,   strlen(_NP_MSG_AVAILABLE_SENDER))   );
         }
-    
+        NP_PERFORMANCE_POINT_END(is_discovery_message);
+
+        /*
         CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
         {
             // perform a route lookup
-            np_sll_t(np_key_ptr, tmp) = NULL;    
+            np_sll_t(np_key_ptr, tmp) = NULL;
             // zero as "consider this node as final target"
             tmp = _np_route_lookup(context, str_msg_to->val.value.dhkey, 0);
             if (0 < sll_size(tmp)) {
@@ -431,10 +435,10 @@ bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_
                     discovery_message->uuid, _np_key_as_str(sll_first(tmp)->val)
                 );
             }
-            /* forward the message if
-                b) we do have a list of possible forwards
-                c) we are not the best possible forward
-            */
+            // forward the message if
+            //    b) we do have a list of possible forwards
+            //    c) we are not the best possible forward
+            
             if (NULL != tmp && sll_size(tmp) > 0 )
             {
                 ret &= _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &context->my_node_key->dhkey);
@@ -443,6 +447,7 @@ bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_
             np_key_unref_list(tmp, "_np_route_lookup");
             sll_free(np_key_ptr, tmp);
         }
+        */
     }
     return ret;
 }
@@ -458,24 +463,32 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
     if ( ret) ret &= (event.user_data != NULL);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
-    if ( ret) {
+    if ( ret) 
+    {
         NP_CAST(event.user_data, np_message_t, dht_message);
         /* TODO: use the bloom, luke */
         CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
         {
-            ret &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_ACK,                strlen(_NP_MSG_ACK))                ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PING_REQUEST,       strlen(_NP_MSG_PING_REQUEST))       ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PIGGY_REQUEST,      strlen(_NP_MSG_PIGGY_REQUEST))      ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_UPDATE_REQUEST,     strlen(_NP_MSG_UPDATE_REQUEST))     ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST,      strlen(_NP_MSG_LEAVE_REQUEST))      ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_AVAILABLE_RECEIVER, strlen(_NP_MSG_AVAILABLE_RECEIVER)) ) ||
-                   ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_AVAILABLE_SENDER,   strlen(_NP_MSG_AVAILABLE_SENDER))   );
+            NP_PERFORMANCE_POINT_START(is_dht_message);
+            // if (ret) {
+                ret &=  ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_ACK,                strlen(_NP_MSG_ACK))                ) ||
+                        ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PING_REQUEST,       strlen(_NP_MSG_PING_REQUEST))       ) ||
+                        ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PIGGY_REQUEST,      strlen(_NP_MSG_PIGGY_REQUEST))      ) ||
+                        ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_UPDATE_REQUEST,     strlen(_NP_MSG_UPDATE_REQUEST))     ) ||
+                        ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST,      strlen(_NP_MSG_LEAVE_REQUEST))      );
+            // }
+            NP_PERFORMANCE_POINT_END(is_dht_message);
+
+            if (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PHEROMONE_UPDATE,   strlen(_NP_MSG_PHEROMONE_UPDATE)) )
+                return true;
         }
 
-        CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
-        {
-            // messagepart is not addressed to our node --> forward
-            ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
+        if (ret) {
+            CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
+            {
+                // messagepart is not addressed to our node --> forward
+                ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
+            }
         }
         log_debug(LOG_MESSAGE,"(msg:%s) is %s DHT msg.",dht_message->uuid, (ret?"a ":"no"));        
     }
@@ -498,24 +511,58 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
         /* TODO: use the bloom, luke */
         CHECK_STR_FIELD_BOOL(usr_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
         {
+            NP_PERFORMANCE_POINT_START(is_usr_in_message);
             np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
             np_key_t* subject_key = _np_keycache_find(context, subject_dhkey);
 
             ret &= (NULL != subject_key);
 
+            np_msgproperty_t* user_prop = _np_msgproperty_get(context, INBOUND, str_msg_subject->val.value.s);
+            ret &= (NULL != user_prop);
+            if ( ret) ret &= !user_prop->is_internal;
+
             np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
+            NP_PERFORMANCE_POINT_END(is_usr_in_message);
         }
 
-        CHECK_STR_FIELD_BOOL(usr_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
+        if (ret) 
         {
-            ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
+            CHECK_STR_FIELD_BOOL(usr_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
+            {
+                ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
+            }
         }
-
-        np_msgproperty_t* user_prop = _np_msgproperty_get(context, INBOUND, str_msg_subject->val.value.s);
-        ret &= (false == user_prop->is_internal);
     }
     return ret;
 }
+
+void __np_handle_np_discovery(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   // handle discovery messages (ping, piggy, ...)
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_discovery(...) {");
+
+    NP_CAST(event.user_data, np_message_t, message);
+
+    CHECK_STR_FIELD(message->header, _NP_MSG_HEADER_TO, msg_to);
+    CHECK_STR_FIELD(message->header, _NP_MSG_HEADER_SUBJECT, msg_subj);
+
+    np_ref_obj(np_message_t, message, ref_message_in_send_system);
+
+    log_debug_msg(LOG_TRACE, "forwarding message token, (subject %s) to other nodes",  msg_subj.value.s);
+    np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, msg_subj.value.s);
+    np_util_event_t discover_event = event;
+    discover_event.type=(evt_internal|evt_message); 
+    _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
+
+    np_key_t* subject_key = _np_keycache_find(context, msg_to.value.dhkey);
+    if (NULL != subject_key) {
+        log_debug_msg(LOG_TRACE, "handling message token, subject     found in keycache");
+        __np_handle_np_message(statemachine, event);
+        np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
+    }
+    
+    __np_cleanup__: {}
+} 
 
 void __np_handle(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   // handle ght messages (ping, piggy, ...)

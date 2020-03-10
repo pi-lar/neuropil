@@ -431,14 +431,14 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
                 }
                 NP_PERFORMANCE_POINT_END(jobqueue_manager_distribute_job);
             }
+
+            if (new_worker_job == true) 
+            {
+                log_debug_msg(LOG_JOBS, "start   worker thread (%p) with job (%s)", current_worker, current_worker->job.ident);
+                _np_threads_mutex_condition_signal(context, &current_worker->job_lock);
+            } 
         }
 
-        if (new_worker_job == true) 
-        {
-            log_debug_msg(LOG_JOBS, "start   worker thread (%p) with job (%s)", current_worker, current_worker->job.ident);
-            _np_threads_mutex_condition_signal(context, &current_worker->job_lock);
-        } 
-        
         _LOCK_ACCESS(&np_module(jobqueue)->available_workers_lock)
         {
             sll_next(iter_workers);

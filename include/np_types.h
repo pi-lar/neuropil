@@ -95,7 +95,8 @@ typedef np_usercallback_t* np_usercallback_ptr;
 /*
 * list types and typedefs
 */
-#pragma clang diagnostic push ignored "-Wstrict-prototypes"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
 
 NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 

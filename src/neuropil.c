@@ -82,8 +82,9 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
     snprintf(ret->log_file, 256, "%.0f_neuropil.log",_np_time_now(NULL)*100);
     ret->log_level = LOG_ERROR;
     ret->log_level |= LOG_WARN;
-#ifdef DEBUG
     ret->log_level |= LOG_INFO;
+
+#ifdef DEBUG
     ret->log_level |= LOG_DEBUG;    
 //    ret->log_level |= LOG_VERBOSE;    
     ret->log_level |= LOG_MESSAGE|LOG_ROUTING|LOG_MISC;
@@ -92,12 +93,12 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
     return ret;
 }
 
-np_context* np_new_context(struct np_settings * settings_in) {
+np_context* np_new_context(struct np_settings * settings_in)
+{
     enum np_return status = np_ok;
     np_state_t* context = NULL;
 
     struct np_settings * settings = settings_in;
-
     if (settings_in == NULL) {
         settings = np_default_settings(NULL);
     }
@@ -487,7 +488,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     np_ctx_cast(ac);
 
     np_tree_t* body = np_tree_create();
-    np_tree_insert_str(body, NP_SERIALISATION_USERDATA, np_treeval_new_bin(message, length));
+    np_tree_insert_str(body, NP_SERIALISATION_USERDATA, np_treeval_new_bin((void*) message, length));
 
     np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(OUTBOUND, subject);
     np_dhkey_t target_dhkey = {0};    

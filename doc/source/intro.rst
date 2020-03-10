@@ -56,7 +56,7 @@ Roadmap
 * implement group encryption
 * define message callbacks in case of undelivered messages
 * hook in a javascript bindings for message callback handling
-* implement token / message structure
+* finalize token / message structure
 * more documentation and test cases
 * ... and many many more ideas ...
 

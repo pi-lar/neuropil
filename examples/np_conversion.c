@@ -14,6 +14,7 @@ struct np_text_exchange_s {
 };
 typedef struct np_text_exchange_s* np_text_exchange_ptr;
 
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wstrict-prototypes"
 NP_SLL_GENERATE_PROTOTYPES(np_text_exchange_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_text_exchange_ptr);

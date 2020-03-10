@@ -387,18 +387,19 @@ void np_statistics_add_watch_internals(np_state_t* context) {
     np_statistics_add_watch(context, _NP_MSG_PIGGY_REQUEST);
     np_statistics_add_watch(context, _NP_MSG_UPDATE_REQUEST);	
     
-    np_statistics_add_watch(context, _NP_MSG_DISCOVER_RECEIVER);
-    np_statistics_add_watch(context, _NP_MSG_DISCOVER_SENDER);
     np_statistics_add_watch(context, _NP_MSG_AVAILABLE_RECEIVER);
     np_statistics_add_watch(context, _NP_MSG_AVAILABLE_SENDER);
-    
-    if(context->enable_realm_server || context->enable_realm_client){
+
+    np_statistics_add_watch(context, _NP_MSG_PHEROMONE_UPDATE);
+
+    if(context->enable_realm_server || context->enable_realm_client)
+    {
+/*        np_statistics_add_watch(context, _NP_MSG_REALM_REGISTRATION);
         np_statistics_add_watch(context, _NP_MSG_AUTHENTICATION_REQUEST);
-        np_statistics_add_watch(context, _NP_MSG_AUTHENTICATION_REPLY);
         np_statistics_add_watch(context, _NP_MSG_AUTHORIZATION_REQUEST);
-        np_statistics_add_watch(context, _NP_MSG_AUTHORIZATION_REPLY);
+        np_statistics_add_watch(context, _NP_MSG_ACCOUNTING_REQUEST);
+*/
     }
-    np_statistics_add_watch(context, _NP_MSG_ACCOUNTING_REQUEST);
     
 }
 
