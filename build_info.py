@@ -73,11 +73,11 @@ def get_build_name():
 targets = [
     {
         'key':"freebsd",
-        'tarfile_name': "{version_tag}_{target}.tar.gz",
+        'tarfile_name': "{target}.tar.gz",
     },
     {
         'key':"linux",
-        'tarfile_name': "{version_tag}_{target}.tar.gz",
+        'tarfile_name': "{target}.tar.gz",
     },
 ]
 if __name__ == "__main__":
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     elif args.versiontag:
         print(version_tag)
     elif args.package or args.gitlab_release:
-        doc_tarfile_name = "{version_tag}_documentation.tar.gz".format(**locals())
+        doc_tarfile_name = "documentation.tar.gz"
         doc_tarfilepath = os.path.join(root_path, doc_tarfile_name)
 
         if args.package:
@@ -148,11 +148,14 @@ if __name__ == "__main__":
                     print("Signed  TAR file in {tarfilepath}".format(**locals()))
 
         if args.gitlab_release:
+            tag_ref = subprocess.check_output(['git','rev-parse','HEAD']).decode("utf-8")[:-1]
             GITLAB_API_TOKEN = os.environ.get("GITLAB_API_TOKEN")
             if not GITLAB_API_TOKEN:
                 GITLAB_API_TOKEN = getpass.getpass("Please insert GITLAB_API_TOKEN: ")
             
-            release_url = 'https://gitlab.com/api/v4/projects/14096230/releases'
+            project_id = os.getenv("PROJECT_ID","14096230")
+            
+            release_url = f"https://gitlab.com/api/v4/projects/{project_id}/releases"
             headers = {
                   'PRIVATE-TOKEN': GITLAB_API_TOKEN
             }
@@ -160,13 +163,13 @@ if __name__ == "__main__":
             release_payload = collections.OrderedDict({ 
                 "name": version_tag,
                 "tag_name": version,
-                "ref": subprocess.check_output(['git','rev-parse','HEAD']).decode("utf-8")[:-1],
+                "ref": tag_ref,
                 "description": "Neuropil Release {version}".format(**locals()), 
                 "assets": { 
                      "links": [] 
                 }
             })
-            url = 'https://gitlab.com/api/v4/projects/14096230/uploads'
+            url = f"https://gitlab.com/api/v4/projects/{project_id}/uploads"
             files = {'file': open(doc_tarfilepath,"rb") }
             r = requests.post(url, files=files, headers=headers)                
             try:
@@ -175,10 +178,10 @@ if __name__ == "__main__":
                 print("create asset response:")
                 print(r.text)
                 raise
-            url = r.json()['url']             
+            url = r.json()['full_path']             
             release_payload["assets"]["links"].append({
                 "name": "{doc_tarfile_name}".format(**locals()),
-                "url": "https://gitlab.com/pi-lar/neuropil{url}".format(**locals())
+                "url": f"https://gitlab.com{url}"
                 })         
 
             for target_conf in targets:
@@ -191,7 +194,7 @@ if __name__ == "__main__":
                         tarfilepath = os.path.join(root_path, tarfile_name+ext)
 
 
-                        url = 'https://gitlab.com/api/v4/projects/14096230/uploads'
+                        url = f"https://gitlab.com/api/v4/projects/{project_id}/uploads"
                         files = {'file': open(tarfilepath,"rb") }
                         r = requests.post(url, files=files, headers=headers)                
                         try:
@@ -200,10 +203,11 @@ if __name__ == "__main__":
                             print("create asset response:")
                             print(r.text)
                             raise
-                        url = r.json()['url']                     
+                        r_ret = r.json()
+                        url = r_ret['full_path']
                         release_payload["assets"]["links"].append({
                             "name": "{tarfile_name}{ext}".format(**locals()),
-                            "url": "https://gitlab.com/pi-lar/neuropil{url}".format(**locals())
+                            "url": f"https://gitlab.com{url}"
                             })         
 
             r = requests.post(release_url, json=release_payload, headers=headers)
@@ -217,6 +221,26 @@ if __name__ == "__main__":
                 print(r.text)
                 print("")
                 raise
+
+            tags_url = f"https://gitlab.com/api/v4/projects/{project_id}/repository/tags"
+            
+            r = requests.delete(f"{tags_url}/latest_release", headers=headers)
+            try:
+                r.raise_for_status()
+            except:
+                print("no \"latest_release\" git tag set")
+                print(r.text)
+
+            release_payload["ref"] = release_payload["tag_name"]
+            release_payload["tag_name"] = "latest_release"
+            release_payload["name"] = "Latest"
+            r = requests.post(release_url, json=release_payload, headers=headers)
+            try:
+                r.raise_for_status()
+            except:
+                print("could not create \"latest_release\" release")
+                print(r.text)
+
 
   
     else:
