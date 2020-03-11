@@ -85,6 +85,7 @@ qa:package:
       - latest_release
   dependencies:
     - build:documentation
+    - build:linux
 
 release:
   stage: release
@@ -102,3 +103,4 @@ release:
   dependencies:
     - qa:package
     - build:documentation
+    - build:linux
