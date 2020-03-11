@@ -199,7 +199,7 @@ if __name__ == "__main__":
                     if CI_PIPELINE_IID:
                         print(f"adding asset link for target {target}")
                         release_payload["assets"]["links"].append({
-                                "name": f"{target}{ext}",
+                                "name": f"{target}.zip",
                                 "url": f"{base_url}/{project_config['path_with_namespace']}/-/jobs/artifacts/{version}/download?job=build%3A{target}"
                                 })
                     else:
