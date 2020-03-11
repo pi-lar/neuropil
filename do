@@ -9,7 +9,7 @@ log(){
 
 ensure_venv() {
   if [ ! -d venv ]; then
-    virtualenv -p $(which python3.6) venv
+    virtualenv -p $(which python3) venv
     ./venv/bin/pip3 install -r requirements.txt
   fi
 
@@ -116,24 +116,6 @@ task_release() {
   ./build_info.py --gitlab_release
 }
 
-task_deploy() {
-  folder="neuropil/deployment"
-  enviroment="$1"
-
-  case "$enviroment" in
-    test) 
-      folder="$folder/testing";;
-    production)
-      folder="$folder/base";;
-    *) 
-      log "No such enviroment '$enviroment' known. (known: test|production)"; exit 1;;
-  esac
-
-  rsync -e ssh -hrv --exclude=".git/" --exclude="venv/" ./build/package/* "gitlab-runner@neuro0.in.pi-lar.net:$folder"
-
-  log "Deployment ready for salt interaction"
-}
-
 task_install_python() {
   ensure_venv
   
@@ -185,10 +167,9 @@ task_test_deployment() {
   task_package
   task_install_python
   task_smoke
-  #task_deploy test
 }
 usage() {
-  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci | deploy"
+  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci "
   exit 1
 }
 
@@ -210,7 +191,6 @@ shift || true
     release) task_release ;;
 
     prepare_ci) task_prepare_ci ;;
-    deploy) task_deploy "$1";;
 
     test_deployment) task_test_deployment ;;
     *) usage ;;

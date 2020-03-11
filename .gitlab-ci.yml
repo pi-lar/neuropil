@@ -52,7 +52,6 @@ qa:package:
   stage: qa
   script: 
     - ./do package
-    - ./do deploy test
   artifacts:
     name: neuropil-release
     paths:
@@ -68,7 +67,6 @@ release:
   stage: release
   script: 
     - ./do release
-    - ./do deploy production
     # auto saltstack deploy
   when: manual
   only:
