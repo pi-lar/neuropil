@@ -162,7 +162,6 @@ if __name__ == "__main__":
             headers = {
                   'PRIVATE-TOKEN': GITLAB_API_TOKEN
             }
-            pprint(f"{api_url}/projects/{project_id}")
             project_config = requests.get(f"{api_url}/projects/{project_id}", headers=headers).json()
 
             release_url = f"{api_url}/projects/{project_id}/releases"
