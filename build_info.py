@@ -192,14 +192,15 @@ if __name__ == "__main__":
 
             for target_conf in targets:
                 target = target_conf['key']
-                if not os.path.isdir(os.path.join("build",target)):
-                    print(f"ignoring {target} as no directory is found")
+
+                if CI_PIPELINE_IID:
+                    release_payload["assets"]["links"].append({
+                            "name": "{target}{ext}",
+                            "url": f"{base_url}/{project_config['owner']['path_with_namespace']}/-/jobs/artifacts/{version_tag}/download?job=build%3A{target}"
+                            })
                 else:
-                    if CI_PIPELINE_IID:
-                        release_payload["assets"]["links"].append({
-                                "name": "{target}{ext}",
-                                "url": f"{base_url}/{project_config['owner']['path_with_namespace']}/-/jobs/artifacts/latest_release/download?job=build%3A{target}"
-                                })
+                    if not os.path.isdir(os.path.join("build",target)):
+                        print(f"ignoring {target} as no directory is found")
                     else:
                         for ext in ["",".sha256.base64"]:
                             tarfile_name = target_conf['tarfile_name'].format(**locals())
