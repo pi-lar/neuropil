@@ -119,5 +119,6 @@ pages:
   except:
     refs:
       - neuropil_.*
-      - latest_release  dependencies:
+      - latest_release  
+  dependencies:
     - build:documentation
