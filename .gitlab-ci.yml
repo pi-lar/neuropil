@@ -15,6 +15,9 @@ test:
   artifacts:
     reports:
       junit: neuropil_test_suite-junit.xml
+  except:
+      - neuropil_.*
+      - latest_release
 
 build:linux:
   stage: build
@@ -23,6 +26,9 @@ build:linux:
     name: neuropil-linux
     paths:
       - build/linux
+  except:
+      - neuropil_.*
+      - latest_release
     
 #build:freebsd:
 #  stage: build
@@ -39,6 +45,9 @@ build:documentation:
     name: neuropil-documentation
     paths:
       - build/doc/html
+  except:
+      - neuropil_.*
+      - latest_release
 
 qa:smoke_tests:
   stage: qa
@@ -58,6 +67,9 @@ qa:package:
       - build/package/*
   only:
     - master
+  except:
+      - neuropil_.*
+      - latest_release
   dependencies:
     - build:documentation
 
@@ -69,8 +81,9 @@ release:
   when: manual
   only:
     - master
+  except:
+      - neuropil_.*
+      - latest_release
   dependencies:
     - qa:package
     - build:documentation
-    - build:linux
-    #- build:freebsd
