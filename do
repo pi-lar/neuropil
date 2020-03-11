@@ -97,8 +97,11 @@ task_clean() {
 
 task_doc() {
   ensure_venv
-
-  task_build doc debug doc=1
+  (
+    rm -rf build/doc
+    mkdir -p build/doc
+    make html -C doc BUILDDIR='../build/doc'        
+  )
 }
 
 task_package() {
