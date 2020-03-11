@@ -150,15 +150,21 @@ if __name__ == "__main__":
         if args.gitlab_release:
             tag_ref = subprocess.check_output(['git','rev-parse','HEAD']).decode("utf-8")[:-1]
             GITLAB_API_TOKEN = os.environ.get("GITLAB_API_TOKEN")
+            CI_PIPELINE_IID = os.environ.get("CI_PIPELINE_IID")
+            project_id = os.getenv("CI_PROJECT_ID","14096230")
+            base_url = os.environ.get("CI_SERVER_URL","https://gitlab.com")
+            api_url = f"{base_url}/api/v4"
+
             if not GITLAB_API_TOKEN:
                 GITLAB_API_TOKEN = getpass.getpass("Please insert GITLAB_API_TOKEN: ")
             
-            project_id = os.getenv("PROJECT_ID","14096230")
-            
-            release_url = f"https://gitlab.com/api/v4/projects/{project_id}/releases"
             headers = {
                   'PRIVATE-TOKEN': GITLAB_API_TOKEN
             }
+            pprint(f"{api_url}/projects/{project_id}")
+            project_config = requests.get(f"{api_url}/projects/{project_id}", headers=headers).json()
+
+            release_url = f"{api_url}/projects/{project_id}/releases"
             
             release_payload = collections.OrderedDict({ 
                 "name": version_tag,
@@ -169,7 +175,7 @@ if __name__ == "__main__":
                      "links": [] 
                 }
             })
-            url = f"https://gitlab.com/api/v4/projects/{project_id}/uploads"
+            url = f"{api_url}/projects/{project_id}/uploads"
             files = {'file': open(doc_tarfilepath,"rb") }
             r = requests.post(url, files=files, headers=headers)                
             try:
@@ -181,7 +187,7 @@ if __name__ == "__main__":
             url = r.json()['full_path']             
             release_payload["assets"]["links"].append({
                 "name": "{doc_tarfile_name}".format(**locals()),
-                "url": f"https://gitlab.com{url}"
+                "url": f"{base_url}{url}"
                 })         
 
             for target_conf in targets:
@@ -189,26 +195,32 @@ if __name__ == "__main__":
                 if not os.path.isdir(os.path.join("build",target)):
                     print(f"ignoring {target} as no directory is found")
                 else:
-                    for ext in ["",".sha256.base64"]:
-                        tarfile_name = target_conf['tarfile_name'].format(**locals())
-                        tarfilepath = os.path.join(root_path, tarfile_name+ext)
-
-
-                        url = f"https://gitlab.com/api/v4/projects/{project_id}/uploads"
-                        files = {'file': open(tarfilepath,"rb") }
-                        r = requests.post(url, files=files, headers=headers)                
-                        try:
-                            r.raise_for_status()
-                        except:
-                            print("create asset response:")
-                            print(r.text)
-                            raise
-                        r_ret = r.json()
-                        url = r_ret['full_path']
+                    if CI_PIPELINE_IID:
                         release_payload["assets"]["links"].append({
-                            "name": "{tarfile_name}{ext}".format(**locals()),
-                            "url": f"https://gitlab.com{url}"
-                            })         
+                                "name": "{target}{ext}",
+                                "url": f"{base_url}/{project_config['owner']['path_with_namespace']}/-/jobs/artifacts/latest_release/download?job=build%3A{target}"
+                                })
+                    else:
+                        for ext in ["",".sha256.base64"]:
+                            tarfile_name = target_conf['tarfile_name'].format(**locals())
+                            tarfilepath = os.path.join(root_path, tarfile_name+ext)
+
+
+                            url = f"{api_url}/projects/{project_id}/uploads"
+                            files = {'file': open(tarfilepath,"rb") }
+                            r = requests.post(url, files=files, headers=headers)                
+                            try:
+                                r.raise_for_status()
+                            except:
+                                print("create asset response:")
+                                print(r.text)
+                                raise
+                            r_ret = r.json()
+                            url = r_ret['full_path']
+                            release_payload["assets"]["links"].append({
+                                "name": "{tarfile_name}{ext}".format(**locals()),
+                                "url": f"{base_url}{url}"
+                                })  
 
             r = requests.post(release_url, json=release_payload, headers=headers)
             try:
@@ -222,7 +234,7 @@ if __name__ == "__main__":
                 print("")
                 raise
 
-            tags_url = f"https://gitlab.com/api/v4/projects/{project_id}/repository/tags"
+            tags_url = f"{api_url}/projects/{project_id}/repository/tags"
             
             r = requests.delete(f"{tags_url}/latest_release", headers=headers)
             try:
@@ -241,6 +253,8 @@ if __name__ == "__main__":
                 print("could not create \"latest_release\" release")
                 print(r.text)
 
+            pprint(requests.get(f"{release_url}/latest_release/assets/links", headers=headers).json())
+            pprint(f"{release_url}/latest_release/assets/links")
 
   
     else:
