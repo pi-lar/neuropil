@@ -16,6 +16,7 @@ test:
     reports:
       junit: neuropil_test_suite-junit.xml
   except:
+    refs:
       - neuropil_.*
       - latest_release
 
@@ -27,6 +28,7 @@ build:linux:
     paths:
       - build/linux
   except:
+    refs:
       - neuropil_.*
       - latest_release
     
@@ -37,6 +39,10 @@ build:linux:
 #    name: neuropil-freebsd
 #    paths:
 #      - build/freebsd
+#  except:
+#    refs:
+#      - neuropil_.*
+#      - latest_release
 
 build:documentation:
   stage: build
@@ -46,6 +52,7 @@ build:documentation:
     paths:
       - build/doc/html
   except:
+    refs:
       - neuropil_.*
       - latest_release
 
@@ -56,6 +63,10 @@ qa:smoke_tests:
   artifacts:
     reports:
       junit: smoke_test-junit.xml
+  except:
+    refs:
+      - neuropil_.*
+      - latest_release
 
 qa:package:
   stage: qa
@@ -66,8 +77,10 @@ qa:package:
     paths:
       - build/package/*
   only:
-    - master
+    refs:
+      - master
   except:
+    refs:
       - neuropil_.*
       - latest_release
   dependencies:
@@ -80,8 +93,10 @@ release:
     # auto saltstack deploy
   when: manual
   only:
-    - master
+    refs:
+      - master
   except:
+    refs:
       - neuropil_.*
       - latest_release
   dependencies:
