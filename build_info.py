@@ -196,7 +196,7 @@ if __name__ == "__main__":
                 if CI_PIPELINE_IID:
                     release_payload["assets"]["links"].append({
                             "name": "{target}{ext}",
-                            "url": f"{base_url}/{project_config['owner']['path_with_namespace']}/-/jobs/artifacts/{version_tag}/download?job=build%3A{target}"
+                            "url": f"{base_url}/{project_config['path_with_namespace']}/-/jobs/artifacts/{version_tag}/download?job=build%3A{target}"
                             })
                 else:
                     if not os.path.isdir(os.path.join("build",target)):
