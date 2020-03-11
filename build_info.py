@@ -148,6 +148,7 @@ if __name__ == "__main__":
                     print("Signed  TAR file in {tarfilepath}".format(**locals()))
 
         if args.gitlab_release:
+            print(f"start gitlab release process")
             tag_ref = subprocess.check_output(['git','rev-parse','HEAD']).decode("utf-8")[:-1]
             GITLAB_API_TOKEN = os.environ.get("GITLAB_API_TOKEN")
             CI_PIPELINE_IID = os.environ.get("CI_PIPELINE_IID")
@@ -194,6 +195,7 @@ if __name__ == "__main__":
                 target = target_conf['key']
 
                 if CI_PIPELINE_IID:
+                    print(f"adding asset link for target {target}")
                     release_payload["assets"]["links"].append({
                             "name": "{target}{ext}",
                             "url": f"{base_url}/{project_config['path_with_namespace']}/-/jobs/artifacts/{version_tag}/download?job=build%3A{target}"
@@ -202,6 +204,7 @@ if __name__ == "__main__":
                     if not os.path.isdir(os.path.join("build",target)):
                         print(f"ignoring {target} as no directory is found")
                     else:
+                        print(f"uploading asset for target {target}")
                         for ext in ["",".sha256.base64"]:
                             tarfile_name = target_conf['tarfile_name'].format(**locals())
                             tarfilepath = os.path.join(root_path, tarfile_name+ext)
@@ -223,6 +226,7 @@ if __name__ == "__main__":
                                 "url": f"{base_url}{url}"
                                 })  
 
+            print(f"Create release")
             r = requests.post(release_url, json=release_payload, headers=headers)
             try:
                 r.raise_for_status()
@@ -235,6 +239,7 @@ if __name__ == "__main__":
                 print("")
                 raise
 
+            print(f"remove latest_release tag")
             tags_url = f"{api_url}/projects/{project_id}/repository/tags"
             
             r = requests.delete(f"{tags_url}/latest_release", headers=headers)
@@ -247,16 +252,13 @@ if __name__ == "__main__":
             release_payload["ref"] = release_payload["tag_name"]
             release_payload["tag_name"] = "latest_release"
             release_payload["name"] = "Latest"
+
+            print(f"recreate latest_release tag")
             r = requests.post(release_url, json=release_payload, headers=headers)
             try:
                 r.raise_for_status()
             except:
                 print("could not create \"latest_release\" release")
-                print(r.text)
-
-            pprint(requests.get(f"{release_url}/latest_release/assets/links", headers=headers).json())
-            pprint(f"{release_url}/latest_release/assets/links")
-
-  
+                print(r.text)  
     else:
         parser.print_help()
