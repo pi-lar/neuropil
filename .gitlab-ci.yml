@@ -104,3 +104,21 @@ release:
     - qa:package
     - build:documentation
     - build:linux
+
+pages:
+  stage: release
+  script:
+    - rsync -r build/doc/html/ public/ 
+  artifacts:
+    paths:
+    - public/
+  when: manual
+  only:
+    refs:
+      - master
+  except:
+    refs:
+      - neuropil_.*
+      - latest_release  
+  dependencies:
+    - build:documentation
