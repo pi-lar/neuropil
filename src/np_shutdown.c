@@ -29,6 +29,7 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_destroycallback_t);
 NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
 
 #define __NP_SHUTDOWN_SIGNAL SIGINT

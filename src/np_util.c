@@ -44,7 +44,10 @@
 #include "np_util.h"
 
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
+
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_key_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
 char* np_uuid_create(const char* str, const uint16_t num, char** buffer)

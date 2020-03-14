@@ -34,6 +34,7 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_msgproperty_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
 #include "../np_msgproperty_init.c"

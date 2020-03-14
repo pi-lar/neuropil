@@ -51,8 +51,10 @@
 #include "np_settings.h"
 #include "np_constants.h"
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_usercallback_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_ptr);
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_evt_callback_t);
 NP_SLL_GENERATE_IMPLEMENTATION(np_evt_callback_t);
 
 /**

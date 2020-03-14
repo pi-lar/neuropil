@@ -516,6 +516,8 @@ int _np_threads_condition_signal(NP_UNUSED np_state_t* context, np_cond_t* condi
 }
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_thread_t);
+
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_thread_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_thread_ptr);
 
 void _np_threads_set_self(np_thread_t * myThread) 

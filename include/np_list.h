@@ -605,10 +605,12 @@ real macros for convenience usage
 //
 // SLL (single linked list) implementation generator
 //
+#define NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(TYPE)      \
+int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b) { \
+    return a == b ? 0 : -1;                                  \
+}
+
 #define NP_SLL_GENERATE_IMPLEMENTATION(TYPE)																\
-int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b) {                                                \
-    return a == b ? 0 : -1;                                                                                 \
-}                                                                                                           \
 TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_b, TYPE##_sll_cmp_func_t  fn_cmp) {		\
     np_sll_t(TYPE,ret);																					    \
     sll_init(TYPE,ret);																					    \
@@ -719,7 +721,7 @@ TYPE##_sll_node_t* TYPE##_sll_prepend(TYPE##_sll_t* sll_list, TYPE value) {					
     return sll_node;																						\
 }																											\
 TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
-    TYPE ret_val = 0;																						\
+    TYPE ret_val = {0};																						\
     if (NULL != sll_list->first) {																			\
         TYPE##_sll_node_t* tmp = sll_list->first;															\
         ret_val = tmp->val;																					\
@@ -728,7 +730,7 @@ TYPE TYPE##_sll_head(TYPE##_sll_t* sll_list) {																\
     return (ret_val);																						\
 }																											\
 TYPE TYPE##_sll_tail(TYPE##_sll_t* sll_list) {																\
-    TYPE ret_val = 0;																						\
+    TYPE ret_val = {0};																						\
     if (NULL != sll_list->last) {																			\
         TYPE##_sll_node_t* tmp = sll_list->last;															\
         ret_val = tmp->val;																					\

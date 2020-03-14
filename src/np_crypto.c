@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_crypto_encrypted_intermediate_key_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_crypto_encrypted_intermediate_key_ptr);
 
 void _np_crypto_t_new(NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* data) {

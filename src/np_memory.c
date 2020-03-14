@@ -49,6 +49,8 @@ typedef struct np_memory_itemconf_s np_memory_itemconf_t;
 typedef np_memory_itemconf_t* np_memory_itemconf_ptr;
 
 NP_SLL_GENERATE_PROTOTYPES(np_memory_itemconf_ptr);
+
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_memory_itemconf_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_memory_itemconf_ptr);
 
 np_module_struct(memory) {

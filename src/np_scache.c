@@ -16,6 +16,7 @@
 #include "np_legacy.h"
 #include "inttypes.h"
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_cache_item_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_ptr);
 
 np_simple_cache_table_t* np_cache_init(np_state_t* context) {

@@ -42,6 +42,7 @@
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
 
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_node_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_node_ptr);
 
 void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void*  node)

@@ -23,6 +23,8 @@ NP_PLL_GENERATE_IMPLEMENTATION(double);
 typedef np_dhkey_t* np_dhkey_ptr;
 
 NP_SLL_GENERATE_PROTOTYPES(np_dhkey_ptr);
+
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_dhkey_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_ptr);
 
 NP_DLL_GENERATE_PROTOTYPES(np_dhkey_ptr);
