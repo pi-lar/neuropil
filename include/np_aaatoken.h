@@ -75,19 +75,19 @@ Type enum for np_aaatoken_t objects, has impact on serialization and usage
 FLAG
 */
 enum np_aaatoken_type {
-	np_aaatoken_type_undefined		= 0x00,
-	np_aaatoken_type_identity		= 0x01,
-	np_aaatoken_type_node			= 0x02,
-	np_aaatoken_type_message_intent = 0x04,
-	np_aaatoken_type_handshake		= 0x08,
+    np_aaatoken_type_undefined      = 0x00,
+    np_aaatoken_type_identity       = 0x01,
+    np_aaatoken_type_node           = 0x02,
+    np_aaatoken_type_message_intent = 0x04,
+    np_aaatoken_type_handshake      = 0x08,
 };
 
 enum np_aaatoken_scope {
-	np_aaatoken_scope_private = 1,
-	// np_aaatoken_scope_private_available defines a state where the token does not hold the privatekey itself but we do have the privekey available (ex.: creation of a message intent token)
-	np_aaatoken_scope_private_available,
-	np_aaatoken_scope_public,
-	np_aaatoken_scope_undefined,
+    np_aaatoken_scope_private = 1,
+    // np_aaatoken_scope_private_available defines a state where the token does not hold the privatekey itself but we do have the privekey available (ex.: creation of a message intent token)
+    np_aaatoken_scope_private_available,
+    np_aaatoken_scope_public,
+    np_aaatoken_scope_undefined,
 };
 
 /**

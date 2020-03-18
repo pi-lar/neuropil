@@ -29,12 +29,12 @@ extern "C" {
 #endif
 
 enum np_key_type {
-	np_key_type_unknown			= 0x000,
-	np_key_type_alias			= 0x001, // an alias is used for incoming connections
-	np_key_type_node            = 0x002, // a node represents another app or next hop
-	np_key_type_wildcard        = 0x004, // a wildcard to join without knowing the hash
-	np_key_type_ident			= 0x008, // an identity represents a user or endpoint
-	np_key_type_subject			= 0x010, // a subject/msgproperty that two identities share
+	np_key_type_unknown			= 0x001,
+	np_key_type_alias			= 0x002, // an alias is used for incoming connections
+	np_key_type_node            = 0x004, // a node represents another app or next hop
+	np_key_type_wildcard        = 0x008, // a wildcard to join without knowing the hash
+	np_key_type_ident			= 0x010, // an identity represents a user or endpoint
+	np_key_type_subject			= 0x020, // a subject/msgproperty that two identities share
 // 	np_key_type_intent			= 0x020, // exchange point for intent messages
 	np_key_type_realm			= 0x040, // a realm component to forward authn/authz/acc requests
 };

@@ -301,6 +301,7 @@ np_msgproperty_ptr realm_msgproperty_template(np_state_t* context) {
     __authenticate->token_max_ttl = 30;
     __authenticate->token_min_ttl = 20;
 
+    return __authenticate;
 }
 
 #endif // REALM_MSGPROPERTY_SET

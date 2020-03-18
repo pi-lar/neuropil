@@ -45,6 +45,10 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
 NP_API_INTERN
 void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event); // handle ght messages (ping, piggy, ...)
 NP_API_INTERN
+bool __is_pheromone_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_handle_pheromone(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
 void __np_handle_np_discovery(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_event_t event); // handle ght messages (dicovery, ...)
@@ -63,6 +67,9 @@ NP_API_INTERN
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event); // handle external received handsjake token
+
+NP_API_INTERN
+void __np_alias_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
 void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event);

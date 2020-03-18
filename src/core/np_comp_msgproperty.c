@@ -564,7 +564,9 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhk
                 msg_in = sll_head(np_message_ptr, recv_prop->msg_cache_in);
             }
         }
-        else if (FLAG_CMP(recv_prop->cache_policy , LIFO)){
+        else 
+        if (FLAG_CMP(recv_prop->cache_policy , LIFO))
+        {
             peek = sll_last(recv_prop->msg_cache_in);
             if(peek != NULL && peek->val != NULL && _np_dhkey_cmp(_np_message_get_sender(peek->val), &from) ==0){
                 msg_in = sll_tail(np_message_ptr, recv_prop->msg_cache_in);
@@ -928,10 +930,9 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, NP_UNUSE
     }
 
     double now = np_time_now();
+
     pll_iterator(np_aaatoken_ptr) iter = pll_first(token_list);
-    
     // create new mx token
-    iter = pll_first(token_list);
     do {
         if (NULL == iter)
         {
@@ -1234,8 +1235,8 @@ void __np_msgproperty_send_pheromone_messages(np_util_statemachine_t* statemachi
     float _target_age = 0.2;
     float _return_age = _target_age;
 
-    np_sll_t(np_key_ptr, result_list) = NULL;
-    sll_init(np_key_ptr, result_list);
+    np_sll_t(np_dhkey_t, result_list) = NULL;
+    sll_init(np_dhkey_t, result_list);
 
     if (is_send)
     {
@@ -1251,15 +1252,14 @@ void __np_msgproperty_send_pheromone_messages(np_util_statemachine_t* statemachi
         last_pheromone_update = property->last_pheromone_rx_update;
     }
 
-    np_key_unref_list(result_list, "_np_pheromone_snuffle");
-    sll_free(np_key_ptr, result_list);
+    sll_free(np_dhkey_t, result_list);
 
     if (_return_age > _target_age) _target_age = _return_age;
 
     double now = np_time_now();
 
     if (last_pheromone_update > 0 &&
-        (now - last_pheromone_update) > _target_age * property->token_min_ttl)
+        (now - last_pheromone_update) > (_target_age * property->token_min_ttl) )
     {
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
@@ -1524,16 +1524,7 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
         // only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
         // TODO: CHECK IF NESSECARY
     }
-
-    if (IS_NOT_AUTHORIZED(intent_token->state)) 
-    {
-        log_msg(LOG_INFO, "authorizing intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
-        np_dhkey_t authz_target = context->my_identity->dhkey;
-        // if (real_prop->realm) authz_target = real_prop->realm->dhkey;
-        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=intent_token, .target_dhkey=authz_target };
-        _np_keycache_handle_event(context, authz_target, authz_event, false);
-    }
-
+    bool needs_authz = false;
     // add token, authorization could be in the future
     np_dhkey_t target_inbound_dhkey = _np_msgproperty_dhkey(INBOUND, intent_token->subject);
     np_dhkey_t target_outbound_dhkey = _np_msgproperty_dhkey(OUTBOUND, intent_token->subject);
@@ -1548,6 +1539,7 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
 
         // check if some messages are left in the cache
         _np_msgproperty_check_receiver_msgcache(real_prop, _np_aaatoken_get_issuer(intent_token));
+        needs_authz = true;
     }
 
     // choose correct target ledger
@@ -1559,6 +1551,16 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
 
         // check if some messages are left in the cache
         _np_msgproperty_check_sender_msgcache(real_prop);
+        needs_authz = true;
+    }
+
+    if (IS_NOT_AUTHORIZED(intent_token->state) && needs_authz == true) 
+    {
+        log_msg(LOG_INFO, "authorizing intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
+        np_dhkey_t authz_target = context->my_identity->dhkey;
+        // if (real_prop->realm) authz_target = real_prop->realm->dhkey;
+        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=intent_token, .target_dhkey=authz_target };
+        _np_keycache_handle_event(context, authz_target, authz_event, false);
     }
 
     np_unref_obj(np_aaatoken_t, intent_token, "np_token_factory_read_from_tree");

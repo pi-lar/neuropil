@@ -155,8 +155,8 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     }
 
     float target_age = 1.0;
-    np_sll_t(np_key_ptr, tmp) = NULL;
-    sll_init(np_key_ptr, tmp);
+    np_sll_t(np_dhkey_t, tmp) = NULL;
+    sll_init(np_dhkey_t, tmp);
 
     char* ref_reason = "_np_pheromone_snuffle";
     np_dhkey_t recv_dhkey = _np_msgproperty_dhkey(INBOUND,  msg_subj.value.s);
@@ -170,14 +170,21 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     
     if (sll_size(tmp) == 0) 
     {   // find next hop based on fingerprint of the message
-        sll_free(np_key_ptr, tmp);
         CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_TO, msg_to_ele);    
+        np_sll_t(np_key_ptr, route_tmp) = NULL;
         uint8_t i = 1;
         do {
-            tmp = _np_route_lookup(context, msg_to_ele.value.dhkey, i);
+            route_tmp = _np_route_lookup(context, msg_to_ele.value.dhkey, i);
             i++;
-        } while (sll_size(tmp) == 0 && i < 5);
-        ref_reason = "_np_route_lookup";
+        } while (sll_size(route_tmp) == 0 && i < 5);
+
+        sll_iterator(np_key_ptr) iter = sll_first(route_tmp);
+        while (NULL != iter) {
+            sll_append(np_dhkey_t, tmp, iter->val->dhkey);
+            sll_next(iter);
+        }
+        np_key_unref_list(route_tmp, "_np_route_lookup");
+        sll_free(np_key_ptr, route_tmp);
     } else {
         // routing based on pheromones, exhale ...
         _np_pheromone_exhale(context);
@@ -186,7 +193,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     if (sll_size(tmp) == 0)
     {
         log_msg(LOG_WARN, "--- request for default message out, but no routing found ...");
-        sll_free(np_key_ptr, tmp);
+        sll_free(np_dhkey_t, tmp);
         return false;
     }
 
@@ -202,18 +209,16 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     pll_iterator(np_messagepart_ptr) part_iter = pll_first(forward_msg->msg_chunks);
     while (NULL != part_iter) 
     {
-        sll_iterator(np_key_ptr) key_iter = sll_first(tmp);
+        sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
         while (key_iter != NULL) 
         {
-            if (!_np_dhkey_equal(&key_iter->val->dhkey, &msg_from.value.dhkey) &&
-                !_np_dhkey_equal(&key_iter->val->dhkey, &context->my_node_key->dhkey))
+            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey) &&
+                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey))
             {
-                np_key_t* target = key_iter->val;
                 memcpy(part_iter->val->uuid, forward_msg->uuid, NP_UUID_BYTES);
 
-                log_debug_msg(LOG_DEBUG, "sending    message part to target key %s / %p", _np_key_as_str(target), target);
                 np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=part_iter->val, .target_dhkey=msg_to.value.dhkey};
-                _np_keycache_handle_event(context, target->dhkey, send_event, false);
+                _np_keycache_handle_event(context, key_iter->val, send_event, false);
             }
             sll_next(key_iter);
         }
@@ -221,8 +226,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     }
 
     // 4 cleanup
-    np_key_unref_list(tmp, ref_reason);
-    sll_free(np_key_ptr, tmp);
+    sll_free(np_dhkey_t, tmp);
 
     __np_cleanup__: {}
 
@@ -246,8 +250,8 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
     }
 
     float target_age = 1.0;
-    np_sll_t(np_key_ptr, tmp) = NULL;
-    sll_init(np_key_ptr, tmp);
+    np_sll_t(np_dhkey_t, tmp) = NULL;
+    sll_init(np_dhkey_t, tmp);
 
     np_dhkey_t recv_dhkey = _np_msgproperty_dhkey(INBOUND,  msg_subj.value.s);
     uint8_t i = 0;
@@ -261,7 +265,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
     if (sll_size(tmp) == 0)
     {
         log_msg(LOG_WARN, "--- request for default message out, but no routing found ...");
-        sll_free(np_key_ptr, tmp);
+        sll_free(np_dhkey_t, tmp);
         return false;
     }
 
@@ -275,18 +279,16 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
     pll_iterator(np_messagepart_ptr) part_iter = pll_first(default_msg->msg_chunks);
     while (NULL != part_iter) 
     {
-        sll_iterator(np_key_ptr) key_iter = sll_first(tmp);
+        sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
         while (key_iter != NULL) 
         {
-            if (!_np_dhkey_equal(&key_iter->val->dhkey, &msg_from.value.dhkey) &&
-                !_np_dhkey_equal(&key_iter->val->dhkey, &context->my_node_key->dhkey))
+            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey) &&
+                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey))
             {
-                np_key_t* target = key_iter->val;
                 memcpy(part_iter->val->uuid, default_msg->uuid, NP_UUID_BYTES);
 
-                log_debug_msg(LOG_DEBUG, "sending    message part to target key %s / %p", _np_key_as_str(target), target);
                 np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=part_iter->val, .target_dhkey=msg_to.value.dhkey};
-                _np_keycache_handle_event(context, target->dhkey, send_event, false);
+                _np_keycache_handle_event(context, key_iter->val, send_event, false);
             }
             sll_next(key_iter);
         }
@@ -294,8 +296,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
     }
 
     // 4 cleanup
-    np_key_unref_list(tmp, "_np_pheromone_snuffle");
-    sll_free(np_key_ptr, tmp);
+    sll_free(np_dhkey_t, tmp);
 
     __np_cleanup__: {}
 
@@ -323,8 +324,8 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
     }
 
     float target_age = 1.0;
-    np_sll_t(np_key_ptr, tmp) = NULL;
-    sll_init(np_key_ptr, tmp);
+    np_sll_t(np_dhkey_t, tmp) = NULL;
+    sll_init(np_dhkey_t, tmp);
 
     bool find_receiver = (0 == strncmp(_NP_MSG_AVAILABLE_SENDER,   msg_subj.value.s, strlen(_NP_MSG_AVAILABLE_SENDER  )) );
     bool find_sender   = (0 == strncmp(_NP_MSG_AVAILABLE_RECEIVER, msg_subj.value.s, strlen(_NP_MSG_AVAILABLE_RECEIVER)) );
@@ -337,15 +338,15 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
         else 
         if (find_sender) 
             _np_pheromone_snuffle_sender(context, tmp, msg_to.value.dhkey, &target_age);
-        log_msg(LOG_WARN, "--- request for available message out %s: %f", msg_subj.value.s, target_age);
+        log_debug_msg(LOG_DEBUG, "--- request for available message out %s: %f", msg_subj.value.s, target_age);
         i++;
         target_age -= 0.1;
     };
     
     if (sll_size(tmp) == 0) 
     {
-        log_msg(LOG_WARN, "--- request for available message out, but no routing found ...");
-        sll_free(np_key_ptr, tmp);
+        log_msg(LOG_WARN, "--- request for available message (%s) out, but no routing found ...", msg_subj.value.s);
+        sll_free(np_dhkey_t, tmp);
         return false;
     }
 
@@ -355,50 +356,22 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
         _np_message_serialize_chunked(available_msg);
     }
 
-    // the value "event.target_dhkey" is set to an alias key when the request has been forwarded 
-    // from another node. If the query returns the correct type, then do not send message (loop)
-    np_dhkey_t last_hop = {0};
-    np_key_t *from_key = _np_keycache_find(context, event.target_dhkey);
-    if (from_key       != NULL                 &&
-        from_key->type == np_key_type_alias    &&
-        NULL           != from_key->parent_key  )
-    {
-        last_hop = from_key->parent_key->dhkey;
-        // increase our pheromone trail by adding a stronger scent
-        // TODO: move to np_dendrit.c and handle reply field as well
-        np_bloom_t* _scent = _np_neuropil_bloom_create();
-        _np_neuropil_bloom_add(_scent, msg_to.value.dhkey);
-        np_pheromone_t _pheromone = { 0 };
-        if (find_receiver) {
-            _pheromone._subj_bloom = _scent,
-            _pheromone._sender = from_key->parent_key,
-            _pheromone._pos = - ((msg_to.value.dhkey.t[0]%257)+1);
-        }
-        if (find_sender) {
-            _pheromone._subj_bloom = _scent,
-            _pheromone._receiver = from_key->parent_key,
-            _pheromone._pos =   ((msg_to.value.dhkey.t[0]%257)+1);
-        }
-        _np_pheromone_inhale(context, _pheromone);
-        _np_bloom_free(_scent);
-    }
+    np_dhkey_t last_hop = event.target_dhkey;
 
     // 3: send over the message parts
     pll_iterator(np_messagepart_ptr) part_iter = pll_first(available_msg->msg_chunks);
     while (NULL != part_iter) 
     {
-        sll_iterator(np_key_ptr) key_iter = sll_first(tmp);
+        sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
         while (key_iter != NULL) 
         {
-            if (!_np_dhkey_equal(&key_iter->val->dhkey, &msg_from.value.dhkey)        &&
-                !_np_dhkey_equal(&key_iter->val->dhkey, &last_hop)                    &&
-                !_np_dhkey_equal(&key_iter->val->dhkey, &context->my_node_key->dhkey) )
+            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey)        &&
+                !_np_dhkey_equal(&key_iter->val, &last_hop)                    &&
+                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) )
             {
-                np_key_t* target = key_iter->val;
                 memcpy(part_iter->val->uuid, available_msg->uuid, NP_UUID_BYTES);
-                log_debug_msg(LOG_DEBUG, "submitting available request {%s} to target key %s", part_iter->val->uuid, _np_key_as_str(target), target);
                 np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=part_iter->val, .target_dhkey=msg_to.value.dhkey};
-                _np_keycache_handle_event(context, target->dhkey, send_event, false);
+                _np_keycache_handle_event(context, key_iter->val, send_event, false);
             }
             sll_next(key_iter);
         }
@@ -410,10 +383,7 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
     // 4 cleanup
     __np_cleanup__: {}
 
-    np_key_unref_list(tmp, "_np_pheromone_snuffle");
-    sll_free(np_key_ptr, tmp);
-
-    if (from_key) np_unref_obj(np_key_t, from_key, "_np_keycache_find");
+    sll_free(np_dhkey_t, tmp);
 
     return true;
 }
@@ -445,8 +415,9 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
         source_sll_of_keys = "_np_route_neighbors";
     }
 
+    uint8_t send_counter = 0;
     sll_iterator(np_key_ptr) target_iter = sll_first(tmp);
-    while(NULL != target_iter) 
+    while(NULL != target_iter && send_counter < NP_ROUTE_LEAFSET_SIZE/2)
     {
         if (_np_dhkey_equal(&target_iter->val->dhkey, &msg_from.value.dhkey) ||
             _np_dhkey_equal(&target_iter->val->dhkey, &context->my_node_key->dhkey) )
@@ -472,7 +443,16 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
             _np_keycache_handle_event(context, target->dhkey, send_event, false);
             pll_next(part_iter);
         }
-        sll_next(target_iter);
+
+        if (_np_dhkey_equal(&target_iter->val->dhkey, &msg_event.target_dhkey) )
+        {   // if the target key was set to a real node, then do not send to further nodes 
+            break;
+        }
+        else 
+        {
+            sll_next(target_iter);
+            send_counter++;
+        }
     }
 
     _np_pheromone_exhale(context);

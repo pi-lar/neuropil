@@ -8,9 +8,11 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include "np_dhkey.h"
 #include "np_bloom.h"
+#include "np_dhkey.h"
+#include "np_list.h"
 #include "np_types.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +29,8 @@ extern "C" {
  * calculations involved).
  */
 
+    NP_SLL_GENERATE_PROTOTYPES(np_dhkey_t);
+
     // the pheromone struct defines the data we would liek to store in our table
     typedef struct np_pheromone_s 
     {
@@ -35,11 +39,11 @@ extern "C" {
         np_bloom_t *_subj_bloom; // bloom attr filter
         int16_t _pos;
 
-        np_key_ptr _sender;     // the next hop we received an intent
-        np_key_ptr _receiver;   // the next hop we received an intent
+        np_dhkey_t _sender;     // the next hop we received an intent
+        np_dhkey_t _receiver;   // the next hop we received an intent
 
-        np_sll_t(np_key_ptr, _send_list);
-        np_sll_t(np_key_ptr, _recv_list);
+        np_sll_t(np_dhkey_t, _send_list);
+        np_sll_t(np_dhkey_t, _recv_list);
 
         np_bloom_t _attr_bloom; // bloom attr filter (if full intent arrived)
     } np_pheromone_t;
@@ -50,11 +54,11 @@ extern "C" {
     void _np_pheromone_inhale_scent(np_state_t* context, uint16_t pos, np_bloom_t scent);
 
     NP_API_INTERN
-    void _np_pheromone_snuffle(np_state_t* context, sll_return(np_key_ptr) result_list, np_dhkey_t to_check, float* target_probability, bool find_sender, bool find_receiver);
+    void _np_pheromone_snuffle(np_state_t* context, sll_return(np_dhkey_t) result_list, np_dhkey_t to_check, float* target_probability, bool find_sender, bool find_receiver);
     NP_API_INTERN
-    void _np_pheromone_snuffle_receiver(np_state_t* context, sll_return(np_key_ptr) result_list, np_dhkey_t to_check, float* target_probability);
+    void _np_pheromone_snuffle_receiver(np_state_t* context, sll_return(np_dhkey_t) result_list, np_dhkey_t to_check, float* target_probability);
     NP_API_INTERN
-    void _np_pheromone_snuffle_sender(np_state_t* context, sll_return(np_key_ptr) result_list, np_dhkey_t to_check, float* target_probability);
+    void _np_pheromone_snuffle_sender(np_state_t* context, sll_return(np_dhkey_t) result_list, np_dhkey_t to_check, float* target_probability);
 
     NP_API_INTERN
     void _np_pheromone_exhale(np_state_t* context);

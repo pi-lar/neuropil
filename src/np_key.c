@@ -132,7 +132,7 @@ bool __is_key_invalid(np_util_statemachine_t* statemachine, const np_util_event_
     NP_CAST(statemachine->_user_data, np_key_t, my_key);
     
     if (!ret) ret  = (my_key->last_update < (_np_time_now(context)+3600) );
-    if ( ret) ret &= (my_key->type == np_key_type_unknown);
+    if ( ret) ret &= FLAG_CMP(my_key->type, np_key_type_unknown);
     if ( ret) ret &= (sll_size(my_key->entities) == 0);
 
     return ret;
@@ -202,13 +202,15 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_WILDCARD, IN_SETUP_WILDCARD, __np_node_handle_completion, NULL); // check node status and send out handshake / join messages
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_ALIAS, "IN_USE_ALIAS", __keystate_noop, __keystate_noop, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_decrypt    , __is_crypted_message); // decrypt transport encryption
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg   , __is_usr_in_message); // pass on to the specific message intent
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message, __is_dht_message); // handle dht messages (ping, piggy, leave, update, ack)
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_discovery, __is_discovery_message); // handle discovery messages (sender list, dicover sender, ...)
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_forward, __is_forward_message); // handle forwarding of all other messages , but fill ara routing table
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY  , __np_alias_destroy    , __is_alias_invalid); // node has left, invalidate node
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_update      , NULL); // cleanup message part cache for incoming messages
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_decrypt       , __is_crypted_message); // decrypt transport encryption
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_usr_msg      , __is_usr_in_message); // pass on to the specific message intent
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_message   , __is_dht_message); // handle dht messages (ping, piggy, leave, update, ack)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_pheromone    , __is_pheromone_message); // handle pheromone messages
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_discovery , __is_discovery_message); // handle discovery messages (sender list, dicover sender, ...)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_handle_np_forward   , __is_forward_message); // handle forwarding of all other messages , but fill ara routing table
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_DESTROY  , __np_alias_destroy       , __is_alias_invalid); // node has left, invalidate node
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_shutdown      , __is_shutdown_event); // node is not used anymore
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_ALIAS, IN_USE_ALIAS, __np_alias_update        , NULL); // cleanup message part cache for incoming messages
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_NODE, "IN_USE_NODE", __keystate_noop, __np_node_add_to_leafset, __np_node_destroy);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_NODE, IN_USE_NODE, __np_node_send_encrypted     , __is_np_message); // received authn information (eventually through identity join)
@@ -228,7 +230,6 @@ void __np_key_populate_states(np_key_t* key)
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_MSGPROPERTY, "IN_USE_MSGPROPERTY", __keystate_noop, __keystate_noop, __keystate_noop);
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_response_handler_set   , __is_response_event); // user changed mx_properties
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_redelivery_set, __is_message_redelivery_event); // user changed mx_properties
-            // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_out_usermsg   , __is_usr_message); // send out intents
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_in_msg , __is_external_message); // call usr callback function
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_out_msg, __is_internal_message); // call usr callback function
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_intent , __is_intent_authz); // received authn information (eventually through identity join)
@@ -274,7 +275,8 @@ void _np_key_destroy(np_key_t* to_destroy)
     log_debug_msg(LOG_KEY | LOG_DEBUG, "refcount of key %s at destroy: %"PRIu32, keyident, np_memory_get_refcount(to_destroy));
 
     _np_keycache_remove(context, to_destroy->dhkey);
-    np_unref_obj(np_key_t, to_destroy, "_np_keycache_finalize");
+
+    np_unref_obj(np_key_t, to_destroy, "_np_keycache_finalize" );
 
     /*
         if (to_destroy->parent_key != NULL) {

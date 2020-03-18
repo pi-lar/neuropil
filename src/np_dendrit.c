@@ -541,13 +541,9 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
 
     CHECK_STR_FIELD(pheromone_msg_in->header, _NP_MSG_HEADER_TO, msg_to);
     CHECK_STR_FIELD(pheromone_msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
-    // we have the final node hash in the following field and thus the know 
-    // the number of hops
-    np_key_t* _phkey = _np_keycache_find(context, msg_event.target_dhkey /*msg_from.value.dhkey */);
-    if (NULL == _phkey || _phkey->type != np_key_type_alias) {
-        log_debug_msg(LOG_DEBUG, "update of pheromone trail not possible, no alias node set");
-        goto __np_cleanup__;
-    }
+
+    // we have the final node hash in the following field and thus the know the next hop
+    np_dhkey_t _last_hop_dhkey = msg_event.target_dhkey;
 
     // TODO: we could check if a pheromone reached a target system (aka sender/receiver) here
     // and initiate the sending of the real intent. Too much work for now :-(
@@ -577,8 +573,8 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
 
         float _old_age = _in_age;
 
-        np_sll_t(np_key_ptr, result_list) = NULL;
-        sll_init(np_key_ptr, result_list);
+        np_sll_t(np_dhkey_t, result_list) = NULL;
+        sll_init(np_dhkey_t, result_list);
 
         // update the internal pheromone table
         np_pheromone_t _pheromone = {0};
@@ -592,7 +588,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
             log_debug_msg(LOG_DEBUG, "update of send pheromone trail message, {msg uuid: %s) receiver age now %f",
                                     pheromone_msg_in->uuid, _in_age);
             _np_pheromone_snuffle_receiver(context, result_list, msg_to.value.dhkey, &_old_age);
-            _pheromone._sender = _phkey->parent_key;
+            _pheromone._sender = _last_hop_dhkey;
         }
         else
         {
@@ -601,15 +597,14 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
             log_debug_msg(LOG_DEBUG, "update of recv pheromone trail message, {msg uuid: %s) sender age now %f",
                                     pheromone_msg_in->uuid, _in_age);
             _np_pheromone_snuffle_sender(context, result_list, msg_to.value.dhkey, &_old_age);
-            _pheromone._receiver = _phkey->parent_key;
+            _pheromone._receiver = _last_hop_dhkey;
         }
 
         log_msg(LOG_DEBUG, "update of pheromone trail: age in : %f, but have age : %f / %d", _pheromone._pos, _in_age, _old_age);
         bool forward_pheromone_update = _np_pheromone_inhale(context, _pheromone);
         
         if (forward_pheromone_update) 
-        {   
-            // forward the received pheromone
+        {   // forward the received pheromone
             np_message_t* msg_out = pheromone_msg_in;
 
             log_debug_msg(LOG_DEBUG, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
@@ -622,21 +617,15 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
             np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
             _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
 
-            np_dhkey_t last_hop = {0};
-            if (NULL != _phkey && _phkey->type == np_key_type_alias) 
-            {
-                last_hop = _phkey->parent_key->dhkey;
-            }
-
-            // forward to axon sending unit with main direction set to exisiting trails
-            sll_iterator(np_key_ptr) iter = sll_first(result_list);
+            // forward to axon sending unit with main direction set to existing trails
+            sll_iterator(np_dhkey_t) iter = sll_first(result_list);
             while (iter != NULL) 
             {
-                if (!_np_dhkey_equal(&iter->val->dhkey, &msg_from.value.dhkey)        &&
-                    !_np_dhkey_equal(&iter->val->dhkey, &last_hop)                    &&
-                    !_np_dhkey_equal(&iter->val->dhkey, &context->my_node_key->dhkey) )
+                if (!_np_dhkey_equal(&iter->val, &msg_from.value.dhkey)        &&
+                    !_np_dhkey_equal(&iter->val, &_last_hop_dhkey)             &&
+                    !_np_dhkey_equal(&iter->val, &context->my_node_key->dhkey) )
                 {
-                    pheromone_event.target_dhkey = iter->val->dhkey;
+                    pheromone_event.target_dhkey = iter->val;
                     np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
                     _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
                 }
@@ -644,8 +633,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
             }
         }  
         // cleanup
-        np_key_unref_list(result_list, "_np_pheromone_snuffle");
-        sll_free(np_key_ptr, result_list);
+        sll_free(np_dhkey_t, result_list);
         
         _np_bloom_free(_scent);
     } else {
@@ -653,8 +641,6 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
     }
 
     __np_cleanup__: {}
-
-    np_unref_obj(np_key_t, _phkey, "_np_keycache_find");
 
     return true;
 }

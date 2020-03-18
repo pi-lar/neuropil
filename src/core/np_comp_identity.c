@@ -293,8 +293,6 @@ void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_
     { 
         // TODO: disable followup authn / authz requests
     }
-
-    //np_unref_obj(np_key_t, my_identity_key, "__np_set_identity");
 }
 
 bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_event_t event)

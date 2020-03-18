@@ -22,6 +22,7 @@
 #include "np_keycache.h"
 #include "np_memory.h"
 #include "np_message.h"
+#include "np_pheromones.h"
 #include "np_route.h"
 #include "np_statistics.h"
 #include "util/np_event.h"
@@ -92,6 +93,7 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
 
                     ret = msg_in_cache;
                     // removing the message from the cache system
+                    np_ref_obj(np_message_t, msg_in_cache, ref_message_in_send_system);
                     msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
                     np_tree_del_str(context->msg_part_cache, msg_uuid);
                     np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
@@ -107,6 +109,7 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                 // as a structure to accumulate further chunks into
                 np_ref_obj(np_message_t, msg_to_check, ref_msgpartcache); // we need to unref this after we finish the handeling of this msg
                 np_tree_insert_str(context->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
+                np_unref_obj(np_message_t, msg_to_check, ref_message_in_send_system);
             }
         }
     }
@@ -277,7 +280,9 @@ bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_ev
 
     bool ret = false;
 
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message);
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
+    if ( ret) ret &= FLAG_CMP(event.type, evt_message);
     if ( ret) ret &= (FLAG_CMP(event.type, evt_external) );
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_BLOB_1024);
     // if ( ret) ret &= 
@@ -363,7 +368,9 @@ bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_ev
 
     bool ret = false;
 
-    if (!ret) ret  = (FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external) );
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
+    if ( ret) ret &= (FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external) );
     if ( ret) ret &= (event.user_data != NULL);
 
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
@@ -387,7 +394,9 @@ bool __is_forward_message(np_util_statemachine_t* statemachine, const np_util_ev
 
     bool ret = false;
 
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
+    if ( ret) ret &= FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= (event.user_data != NULL);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
@@ -421,34 +430,32 @@ bool __is_discovery_message(np_util_statemachine_t* statemachine, const np_util_
                    ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_AVAILABLE_SENDER,   strlen(_NP_MSG_AVAILABLE_SENDER))   );
         }
         NP_PERFORMANCE_POINT_END(is_discovery_message);
-
-        /*
-        CHECK_STR_FIELD_BOOL(discovery_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
-        {
-            // perform a route lookup
-            np_sll_t(np_key_ptr, tmp) = NULL;
-            // zero as "consider this node as final target"
-            tmp = _np_route_lookup(context, str_msg_to->val.value.dhkey, 0);
-            if (0 < sll_size(tmp)) {
-                log_debug_msg(LOG_DEBUG,
-                    "msg (%s) route_lookup result 1 = %s",
-                    discovery_message->uuid, _np_key_as_str(sll_first(tmp)->val)
-                );
-            }
-            // forward the message if
-            //    b) we do have a list of possible forwards
-            //    c) we are not the best possible forward
-            
-            if (NULL != tmp && sll_size(tmp) > 0 )
-            {
-                ret &= _np_dhkey_equal(&sll_first(tmp)->val->dhkey, &context->my_node_key->dhkey);
-            }
-
-            np_key_unref_list(tmp, "_np_route_lookup");
-            sll_free(np_key_ptr, tmp);
-        }
-        */
     }
+    return ret;
+}
+
+bool __is_pheromone_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: bool __is_pheromone_message(...) {");
+
+    bool ret = false;
+
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
+    if ( ret) ret &= FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
+    if ( ret) ret &= (event.user_data != NULL);
+    if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+
+    if ( ret) 
+    {
+        NP_CAST(event.user_data, np_message_t, phero_message);
+        CHECK_STR_FIELD_BOOL(phero_message->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
+        {
+            ret &= (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PHEROMONE_UPDATE, strlen(_NP_MSG_PHEROMONE_UPDATE)) );
+        }
+    }
+
     return ret;
 }
 
@@ -459,7 +466,9 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
 
     bool ret = false;
 
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
+    if ( ret) ret &= FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= (event.user_data != NULL);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
@@ -478,11 +487,7 @@ bool __is_dht_message(np_util_statemachine_t* statemachine, const np_util_event_
                         ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_LEAVE_REQUEST,      strlen(_NP_MSG_LEAVE_REQUEST))      );
             // }
             NP_PERFORMANCE_POINT_END(is_dht_message);
-
-            if (0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_PHEROMONE_UPDATE,   strlen(_NP_MSG_PHEROMONE_UPDATE)) )
-                return true;
         }
-
         if (ret) {
             CHECK_STR_FIELD_BOOL(dht_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
             {
@@ -502,7 +507,9 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
 
     bool ret = false;
 
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
+    if ( ret) ret &= FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= (event.user_data != NULL);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
@@ -536,49 +543,21 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
     return ret;
 }
 
-void __np_handle_np_discovery(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{   // handle discovery messages (ping, piggy, ...)
-    np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_discovery(...) {");
-
-    NP_CAST(event.user_data, np_message_t, message);
-
-    CHECK_STR_FIELD(message->header, _NP_MSG_HEADER_TO, msg_to);
-    CHECK_STR_FIELD(message->header, _NP_MSG_HEADER_SUBJECT, msg_subj);
-
-    np_ref_obj(np_message_t, message, ref_message_in_send_system);
-
-    log_debug_msg(LOG_TRACE, "forwarding message token, (subject %s) to other nodes",  msg_subj.value.s);
-    np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, msg_subj.value.s);
-    np_util_event_t discover_event = event;
-    discover_event.type=(evt_internal|evt_message); 
-    _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
-
-    np_key_t* subject_key = _np_keycache_find(context, msg_to.value.dhkey);
-    if (NULL != subject_key) {
-        log_debug_msg(LOG_TRACE, "handling message token, subject     found in keycache");
-        __np_handle_np_message(statemachine, event);
-        np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
-    }
-    
-    __np_cleanup__: {}
-} 
-
 void __np_handle(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   // handle ght messages (ping, piggy, ...)
     np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __np_handle(...) {");
 
     NP_CAST(event.user_data, np_message_t, message);
 
-    // TODO: messag part cache should be a component on its own, but for now just use it
+    // TODO: message part cache should be a component on its own, but for now just use it
     np_message_t* msg_to_use = _np_alias_check_msgpart_cache(context, message);
 
-    if (msg_to_use != NULL )
+    if (msg_to_use != NULL)
     {
         if(_np_message_deserialize_chunked(msg_to_use) )
         {
-            CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE") 
+            CHECK_STR_FIELD_BOOL(msg_to_use->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
             {
                 np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(INBOUND, str_msg_subject->val.value.s);
                 np_util_event_t msg_event = event;
@@ -586,15 +565,110 @@ void __np_handle(np_util_statemachine_t* statemachine, const np_util_event_t eve
                 log_msg(LOG_INFO, "handling   message (%s) for subject: %s", msg_to_use->uuid, str_msg_subject->val.value.s);
                 _np_keycache_handle_event(context, subject_dhkey, msg_event, false);
             }
-        }else{
+        } else {
             log_warn(LOG_MESSAGE, "message (%s) has invalid data structure.", msg_to_use->uuid);
+            np_unref_obj(np_message_t, msg_to_use, ref_message_in_send_system);
         }
+    }
+} 
+
+void __np_handle_np_discovery(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   // handle discovery messages (ping, piggy, ...)
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_handle_np_discovery(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+    NP_CAST(event.user_data, np_message_t, message);
+
+    CHECK_STR_FIELD(message->header, _NP_MSG_HEADER_TO, msg_to);
+    CHECK_STR_FIELD(message->header, _NP_MSG_HEADER_SUBJECT, msg_subj);
+
+    // the value "event.target_dhkey" is set to an alias key when the request has been forwarded 
+    // from another node.
+    np_dhkey_t last_hop = alias_key->parent_key->dhkey;
+    np_util_event_t available_event = event;
+    available_event.target_dhkey = last_hop;
+
+    log_debug_msg(LOG_TRACE, "forwarding message token, (subject %s) to other nodes",  msg_subj.value.s);
+    np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, msg_subj.value.s);
+    np_util_event_t discover_event = event;
+    discover_event.type=(evt_internal|evt_message); 
+
+    np_ref_obj(np_message_t, message, ref_message_in_send_system);
+    _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
+
+    // increase our pheromone trail by adding a stronger scent
+    // TODO: move to np_dendrit.c and handle reply field as well
+    bool find_receiver = (0 == strncmp(_NP_MSG_AVAILABLE_SENDER,   msg_subj.value.s, strlen(_NP_MSG_AVAILABLE_SENDER  )) );
+    bool find_sender   = (0 == strncmp(_NP_MSG_AVAILABLE_RECEIVER, msg_subj.value.s, strlen(_NP_MSG_AVAILABLE_RECEIVER)) );
+
+    np_bloom_t* _scent = _np_neuropil_bloom_create();
+    _np_neuropil_bloom_add(_scent, msg_to.value.dhkey);
+    np_pheromone_t _pheromone = { 0 };
+    if (find_receiver) {
+        _pheromone._subj_bloom = _scent;
+        _pheromone._sender     = last_hop;
+        _pheromone._pos        = - ((msg_to.value.dhkey.t[0]%257)+1);
+    }
+    if (find_sender) {
+        _pheromone._subj_bloom = _scent;
+        _pheromone._receiver   = last_hop;
+        _pheromone._pos        =   ((msg_to.value.dhkey.t[0]%257)+1);
+    }
+    _np_pheromone_inhale(context, _pheromone);
+    _np_bloom_free(_scent);
+
+    np_key_t* subject_key = _np_keycache_find(context, msg_to.value.dhkey);
+    if (NULL != subject_key) {
+        log_debug_msg(LOG_TRACE, "handling message token, subject     found in keycache");
+        __np_handle(statemachine, event);
+        np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
+    }
+    else 
+    {
+        np_unref_obj(np_message_t, message, ref_message_in_send_system);
+    }
+
+    __np_cleanup__: {}
+}
+
+void __np_handle_pheromone(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    // handle ght messages (ping, piggy, ...)
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __np_handle_pheromone_message(...) {");
+
+    bool ret = false;
+
+    // check whether node and alias are in the correct state
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+    NP_CAST(event.user_data, np_message_t, phero_message);
+
+    if (!ret) ret  = _np_dhkey_equal(&alias_key->dhkey, &event.target_dhkey);
+    if ( ret) ret &= (NULL != alias_key->parent_key);
+    if ( ret) ret &= FLAG_CMP(alias_key->parent_key->type, np_key_type_node);
+    if ( ret) 
+    {
+        np_node_t* node = _np_key_get_node(alias_key);
+        ret &= (node != NULL);
+        ret &= (node->is_in_leafset || node->is_in_routing_table);
+    }
+
+    if (ret) 
+    {
+        np_util_event_t pheromone_evt = event;
+        pheromone_evt.target_dhkey = alias_key->parent_key->dhkey;
+        __np_handle(statemachine, pheromone_evt);
+    }
+    else 
+    {
+        np_unref_obj(np_message_t, phero_message, ref_message_in_send_system);
     }
 } 
 
 void __np_handle_np_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
-       // handle ght messages (ping, piggy, ...)
+    // handle ght messages (ping, piggy, ...)
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __np_handle_np_message(...) {");
 
@@ -625,19 +699,6 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
     __np_cleanup__: {}
 } 
 
-bool __is_usr_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{
-    np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __is_usr_message(...) {");
-
-    bool ret = false;
-
-    if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_userspace);
-    if ( ret) ret &= (event.user_data != NULL);
-
-    return ret;
-}
-
 void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -656,17 +717,20 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_even
     NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
 
     if (!ret) ret = ( (alias_key->last_update + BAD_LINK_REMOVE_GRACETIME) < np_time_now() );
+    if (!ret) ret = FLAG_CMP(alias_key->type, np_key_type_unknown);
 
-    np_dhkey_t search_key = {0};
-    _np_str_dhkey(_np_key_get_token(alias_key)->issuer, &search_key);
-    np_key_t* node_key = _np_keycache_find(context, search_key);
-
-    if      (ret && node_key == NULL) { ret = true; }
-    else if (ret && node_key != NULL) {
-        ret = false; 
-    }
-    np_unref_obj(np_key_t, node_key, "_np_keycache_find");
     return ret;    
+}
+
+void __np_alias_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: void __np_alias_shutdown(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+
+    alias_key->parent_key = NULL;
+    alias_key->type = np_key_type_unknown;
 }
 
 void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -681,8 +745,8 @@ void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_even
     {
         if (_np_memory_rtti_check(iter->val, np_memory_types_np_node_t))     np_unref_obj(np_node_t,     iter->val, "__np_alias_set");
         // if (_np_memory_rtti_check(iter->val, np_memory_types_np_aaatoken_t)) np_unref_obj(np_aaatoken_t, iter->val, "__np_alias_set");
-        if (_np_memory_rtti_check(iter->val, np_memory_types_np_network_t))  {
-            _np_network_stop(iter->val, true);
+        if (_np_memory_rtti_check(iter->val, np_memory_types_np_network_t)) {
+            _np_network_disable(iter->val);
             np_unref_obj(np_network_t,  iter->val, "__np_alias_set");
         }
         sll_next(iter);
@@ -698,8 +762,6 @@ void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __np_alias_update(...) {");
-
-    NP_CAST(event.user_data, np_message_t, message);
 
     _np_alias_cleanup_msgpart_cache(context);
 }

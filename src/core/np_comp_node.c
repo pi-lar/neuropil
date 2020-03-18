@@ -88,20 +88,23 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event
     
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
-    if (!ret) ret = (node_key->type != np_key_type_node);
+    if (!ret) ret = !FLAG_CMP(node_key->type, np_key_type_node);
 
     if (!ret) ret = (_np_key_get_node(node_key) == NULL);
-    np_node_t* node = _np_key_get_node(node_key);
-    if ( (node_key->created_at + BAD_LINK_REMOVE_GRACETIME) < np_time_now() ) 
+
+    if ( !ret && (node_key->created_at + BAD_LINK_REMOVE_GRACETIME) < np_time_now() ) 
     {
-        if (!ret) ret  = !node->is_in_leafset && !node->is_in_routing_table;
+        np_node_t* node = _np_key_get_node(node_key);
+        ret  = (!node->is_in_leafset && !node->is_in_routing_table);
         log_trace_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
                         ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
 
     if (!ret) ret = (_np_key_get_token(node_key) == NULL);
-    np_aaatoken_t* node_token = _np_key_get_token(node_key);
-    if (!ret) ret  = !_np_aaatoken_is_valid(node_token, node_token->type);
+    if (!ret) {
+        np_aaatoken_t* node_token = _np_key_get_token(node_key);
+        ret  = !_np_aaatoken_is_valid(node_token, node_token->type);
+    }
 
     log_trace_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
                     ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
@@ -536,6 +539,7 @@ void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event
     __np_key_to_trinity(node_key, &trinity);
 
     _np_network_disable(trinity.network);
+    _np_network_set_key(trinity.network, NULL);
 
     np_unref_obj(np_network_t, trinity.network, "__np_create_client_network");
     np_unref_obj(np_node_t, trinity.node, "__np_node_set");
@@ -570,6 +574,12 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
 
         np_tree_free(jrb_my_node);
     }
+
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(node_key, &trinity);
+    _np_network_disable(trinity.network);
+    _np_network_set_key(trinity.network, NULL);
+
     node_key->type = np_key_type_unknown;
 }
 
@@ -602,7 +612,9 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
                 _np_network_stop(wildcard_trinity.network, true);
                 _np_network_set_key(wildcard_trinity.network, node_key);
 
-                sll_append(void_ptr, node_key->entities, _np_key_get_network(wildcard_key) );
+                np_ref_obj(np_network_t, wildcard_trinity.network, "__np_create_client_network");
+                sll_append(void_ptr, node_key->entities, wildcard_trinity.network );
+
                 sll_remove(void_ptr, wildcard_key->entities, wildcard_trinity.network, void_ptr_sll_compare_type);
                 __np_key_to_trinity(node_key, &trinity);
 
@@ -659,10 +671,10 @@ bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_e
 
     NP_CAST(statemachine->_user_data, np_key_t, wildcard_key); 
 
-    if (!ret) ret  = wildcard_key->type == np_key_type_wildcard;
+    if (!ret) ret  = FLAG_CMP(wildcard_key->type, np_key_type_wildcard);
     if ( ret) ret &= ( (wildcard_key->created_at + 10.0) < np_time_now() );
 
-    return false;
+    return ret;
 }
 
 void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -676,13 +688,13 @@ void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_e
     __np_key_to_trinity(wildcard_key, &trinity);
     if (NULL != trinity.network) 
     {
-        _np_network_stop(trinity.network, true);
+        _np_network_stop(trinity.network, false);
         np_unref_obj(np_network_t, trinity.network, "__np_create_client_network");
     }
 
     if (NULL != trinity.node) 
     {
-        np_unref_obj(np_node_t, trinity.network, "__np_wildcard_set");
+        np_unref_obj(np_node_t, trinity.node, "__np_wildcard_set");
     }
 
     sll_clear(void_ptr, wildcard_key->entities);
@@ -810,8 +822,7 @@ bool __is_np_message(np_util_statemachine_t* statemachine, const np_util_event_t
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_message));
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
-    if ( ret) ret &= node_key->type == np_key_type_node;
-
+    if ( ret) ret &= FLAG_CMP(node_key->type, np_key_type_node);
     if ( ret) ret &= (event.user_data != NULL);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
     if ( ret) {
@@ -831,7 +842,7 @@ bool __is_handshake_message(np_util_statemachine_t* statemachine, const np_util_
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_message));
-    if ( ret) ret &= (node_key->type == np_key_type_wildcard || node_key->type == np_key_type_node);
+    if ( ret) ret &= FLAG_CMP(node_key->type, np_key_type_wildcard) || FLAG_CMP(node_key->type, np_key_type_node);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_messagepart_t);
     if ( ret) {
         NP_CAST(event.user_data, np_messagepart_t, hs_messagepart);
