@@ -20,8 +20,8 @@
 
 
 NP_SLL_GENERATE_PROTOTYPES(int);
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(int);
 NP_SLL_GENERATE_IMPLEMENTATION(int);
-
 
 bool receive_message(np_context *context, struct np_message*  msg);
 
