@@ -188,7 +188,7 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
         np_new_obj(np_network_t, my_network);
         if (_np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, my_node->protocol) ) 
         {
-            _np_network_set_key(my_network, my_identity_key);
+            _np_network_set_key(my_network, my_identity_key->dhkey);
 
             sll_append(void_ptr, my_identity_key->entities, my_network);
             ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_identity_network")

@@ -70,7 +70,6 @@ struct np_network_s
     enum socket_type socket_type;
     struct addrinfo* addr_in; // where a node receives messages
 
-    np_mutex_t out_events_lock;
     double last_send_date;
     double last_received_date;
     np_sll_t(void_ptr, out_events);
@@ -79,9 +78,10 @@ struct np_network_s
 
     char ip[CHAR_LENGTH_IP];
     char port[CHAR_LENGTH_PORT];
-    np_mutex_t access_lock;
 
+    np_mutex_t access_lock;
     TSP(bool, can_be_enabled);
+
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
@@ -129,7 +129,7 @@ void _np_network_disable(np_network_t* self);
 NP_API_INTERN
 void _np_network_enable(np_network_t* self);
 NP_API_INTERN
-void _np_network_set_key(np_network_t* self, np_key_t* key);
+void _np_network_set_key(np_network_t* self, np_dhkey_t key);
 
 #ifdef __cplusplus
 }

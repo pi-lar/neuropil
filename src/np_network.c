@@ -56,6 +56,12 @@ static char* URN_UDP_V6 = "udp6";
 static char* URN_IP_V4  = "ip4";
 static char* URN_IP_V6  = "ip6";
 
+typedef struct _np_network_data_s {
+    np_network_t* network;
+    np_dhkey_t owner_dhkey;
+} _np_network_data_t;
+
+
 enum socket_type _np_network_parse_protocol_string (const char* protocol_str)
 {
     if (0 == strncmp(protocol_str, URN_TCP_V4, 4)) return (TCP     | IPv4);
@@ -259,17 +265,15 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
 {
     np_ctx_decl(ev_userdata(loop));
 
-    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_READ))
+    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_READ))
     {
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp read event");
         return;
     }
     if (event->data == NULL) return;
+    np_network_t* network = ((_np_network_data_t*)event->data)->network;
 
-    NP_CAST(event->data, np_key_t, key);
-    np_network_t* network = _np_key_get_network(key);
-    
-    _TRYLOCK_ACCESS(&network->out_events_lock)
+    _TRYLOCK_ACCESS(&network->access_lock)
     {
         /*
             a) if a data packet is available, try to send it until
@@ -289,7 +293,7 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
                                         MSG_CHUNK_SIZE_1024 - written_per_data,
 #ifdef MSG_NOSIGNAL
                                         MSG_NOSIGNAL
-#else								
+#else
                                         0
 #endif
                                     );
@@ -336,7 +340,6 @@ struct __np_network_data {
     void* data;
     int16_t in_msg_len;
     np_network_t* ng_tcp_host;
-    np_key_t* key;
 };
 
 void __np_network_get_ip_and_port(struct __np_network_data* network_data) 
@@ -361,7 +364,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
 {
     np_ctx_decl(ev_userdata(loop));
 
-    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE))
+    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE))
     {
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp accept event");
         return;
@@ -371,8 +374,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
     socklen_t fromlen = sizeof(struct sockaddr_storage);
 
     np_state_t* state = context;
-    np_key_t* key = (np_key_t*)event->data; // state->my_node_key->network;
-    np_network_t* ng = _np_key_get_network(state->my_node_key);
+    np_network_t* ng = ((_np_network_data_t*)event->data)->network;
 
     int client_fd = accept(ng->socket, (struct sockaddr*) &data_container.from, &fromlen);
 
@@ -421,8 +423,10 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
             current_flags |= O_NONBLOCK;
             fcntl(client_fd, F_SETFL, current_flags);
             
-            _np_network_set_key(new_network, key); // will be reset to alias key after first (handshake) message
             sll_append(void_ptr, alias_key->entities, new_network);
+
+            ((_np_network_data_t*)new_network->watcher.data)->network = new_network;
+            _np_network_set_key(new_network, ((_np_network_data_t*) event->data)->owner_dhkey); // will be reset to alias key after first (handshake) message
 
             log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is receiving", new_network, new_network->socket);
 
@@ -463,7 +467,7 @@ void _np_network_bidirektional(struct ev_loop *loop, ev_io *event, int revents) 
 void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 {
     np_ctx_decl(ev_userdata(loop));
-    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE))
+    if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE))
     {
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp read event");
         return;
@@ -473,7 +477,9 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     socklen_t fromlen = sizeof(struct sockaddr_storage);
     // calling address and port
     if (event->data == NULL) return;
-    NP_CAST(event->data, np_key_t, key); 
+
+    np_dhkey_t owner_dhkey = ((_np_network_data_t*)event->data)->owner_dhkey;
+    np_network_t* ng = ((_np_network_data_t*)event->data)->network;
 
     /* receive the new data */
     int last_recv_result = 0;
@@ -486,10 +492,8 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     bool stop = false;
 
     //do {
-        np_network_t* ng = _np_key_get_network(key);
 
         struct __np_network_data data_container = {0}; // calloc(1, sizeof(struct __np_network_data));
-        data_container.key = key;
         data_container.data = np_memory_new(context, np_memory_types_BLOB_1024);
 
         in_msg_len = 0;
@@ -548,7 +552,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                 {
                     // TODO: always enqueue via jobqueue
                     // _np_keycache_handle_event(context, key->dhkey, in_event, false);
-                    if(!np_jobqueue_submit_event(context, 0.0, key->dhkey, in_event, "event: externe message in")){
+                    if(!np_jobqueue_submit_event(context, 0.0, owner_dhkey, in_event, "event: externe message in")){
                         log_debug(LOG_NETWORK, "Dropping data package as jobqueue is rejecting it");    
                     }
                 }
@@ -562,7 +566,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                 }
                 else
                 {
-                    log_debug_msg(LOG_ERROR, "network in unknown state for key %s", _np_key_as_str(key) );
+                    // log_debug_msg(LOG_ERROR, "network in unknown state for key %s", _np_key_as_str(key) );
                 }            
 
                 if (NULL != alias_key) np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
@@ -590,7 +594,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 }
 
 void _np_network_stop(np_network_t* network, bool force) 
-{		    
+{    
     assert(NULL != network);
 
     np_ctx_memory(network);
@@ -681,7 +685,7 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     np_network_t* network = (np_network_t*) data;
 
     // network->watcher.data = NULL;
-    _LOCK_ACCESS(&network->out_events_lock)
+    _LOCK_ACCESS(&network->access_lock)
     {
         if (NULL != network->out_events)
         {
@@ -696,12 +700,13 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
             sll_free(void_ptr, network->out_events);
         }
     }
-    
+
+    free(network->watcher.data);
+
     if (0 < network->socket) close (network->socket);
     network->initialized = false;
-
     // finally destroy the mutex 
-    _np_threads_mutex_destroy(context, &network->out_events_lock);
+    _np_threads_mutex_destroy(context, &network->access_lock);
     TSP_DESTROY(network->can_be_enabled);
 }
 
@@ -723,11 +728,12 @@ void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     ng->ip[0] = 0;
     ng->port[0] = 0;
 
+    ng->watcher.data = calloc(1, sizeof(_np_network_data_t));
+    CHECK_MALLOC(ng->watcher.data);
+
     char mutex_str[64];
     snprintf(mutex_str, 63, "%s:%p", "urn:np:network:access", ng);
     _np_threads_mutex_init(context, &ng->access_lock, "network access_lock");
-    snprintf(mutex_str, 63, "%s:%p", "urn:np:network:out_events", ng);
-    _np_threads_mutex_init(context, &ng->out_events_lock, "network out_events_lock");
 
     TSP_INITD(ng->can_be_enabled, true);
 }
@@ -832,6 +838,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             else {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "don't know how to setup server network of type %"PRIu8, type);
             }
+            ((_np_network_data_t*)ng->watcher.data)->network = ng;
         }
         ng->initialized = true;
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
@@ -886,7 +893,6 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             }
 
             // initialize to be on the safe side
-            ng->watcher.data = NULL;
             if (FLAG_CMP(type, TCP) || FLAG_CMP(type, UDP))
             {
                 np_network_t* my_network = _np_key_get_network(context->my_node_key);
@@ -904,6 +910,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                         &ng->watcher, _np_network_write,
                         ng->socket, EV_WRITE);
                 }
+                ((_np_network_data_t*)ng->watcher.data)->network = ng;
             }
             else {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "Dont know how to setup client network of type %"PRIu8, type);
@@ -978,6 +985,7 @@ void _np_network_enable(np_network_t* self)
     }
 }
 
-void _np_network_set_key(np_network_t* self, np_key_t* key) {
-    self->watcher.data = key; 
+void _np_network_set_key(np_network_t* self, np_dhkey_t dhkey) {
+    _np_dhkey_assign(
+        &((_np_network_data_t*)self->watcher.data)->owner_dhkey, &dhkey);
 }

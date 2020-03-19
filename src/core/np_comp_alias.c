@@ -191,7 +191,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     if (alias_network != NULL) {
         _np_network_stop(alias_network, true);
         ref_replace_reason(np_network_t, alias_network, ref_obj_creation, "__np_alias_set");
-        _np_network_set_key(alias_network, alias_key);
+        _np_network_set_key(alias_network, alias_key->dhkey);
         _np_network_start(alias_network, true);
     }
 

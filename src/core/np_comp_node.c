@@ -539,7 +539,6 @@ void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event
     __np_key_to_trinity(node_key, &trinity);
 
     _np_network_disable(trinity.network);
-    _np_network_set_key(trinity.network, NULL);
 
     np_unref_obj(np_network_t, trinity.network, "__np_create_client_network");
     np_unref_obj(np_node_t, trinity.node, "__np_node_set");
@@ -578,7 +577,6 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
     _np_network_disable(trinity.network);
-    _np_network_set_key(trinity.network, NULL);
 
     node_key->type = np_key_type_unknown;
 }
@@ -610,7 +608,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
             if (NULL != wildcard_trinity.network) 
             {
                 _np_network_stop(wildcard_trinity.network, true);
-                _np_network_set_key(wildcard_trinity.network, node_key);
+                _np_network_set_key(wildcard_trinity.network, node_key->dhkey);
 
                 np_ref_obj(np_network_t, wildcard_trinity.network, "__np_create_client_network");
                 sll_append(void_ptr, node_key->entities, wildcard_trinity.network );
@@ -640,7 +638,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
         {
             // TODO: set an arbitrary constructed alias key because of tcp passive network connection (this node is passive)
             // remote port but "localhost"
-            _np_network_set_key(my_network, node_key);
+            _np_network_set_key(my_network, node_key->dhkey);
             
             sll_append(void_ptr, node_key->entities, my_network);
             ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_client_network");
@@ -720,7 +718,7 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
     char* packet = np_memory_new(context, np_memory_types_BLOB_1024);
     memcpy(packet, hs_messagepart->msg_part, 984);
     
-    _LOCK_ACCESS(&trinity.network->out_events_lock)  
+    _LOCK_ACCESS(&trinity.network->access_lock)  
     {
         sll_append(
             void_ptr,
@@ -799,7 +797,7 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
                 part->uuid, part->part+1, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port,tmp_hex, tmp_hex + strlen(tmp_hex) -5
             );
 #endif // DEBUG
-            _LOCK_ACCESS(&trinity.network->out_events_lock) 
+            _LOCK_ACCESS(&trinity.network->access_lock) 
             {
                 sll_append(void_ptr, trinity.network->out_events, (void*)enc_buffer);
                 _np_event_invoke_out(context); 
