@@ -18,20 +18,22 @@ extern "C" {
 #endif
 
 
-#define NP_EVENT_EVLOOP_PROTOTYPE(LOOPNAME)								        \
-NP_API_INTERN															        \
-struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context);	        \
-NP_API_INTERN															        \
-bool _np_events_read_##LOOPNAME(np_state_t* context, np_util_event_t event);    \
-NP_API_INTERN															        \
-void _np_event_##LOOPNAME##_run(np_state_t* context, np_thread_t* thread_ptr);	\
-NP_API_INTERN															        \
-void _np_event_suspend_loop_##LOOPNAME(np_state_t *context);			        \
-NP_API_INTERN															        \
-void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context); 		        \
-NP_API_INTERN															        \
-void _np_event_resume_loop_##LOOPNAME(np_state_t *context);                     \
-NP_API_INTERN                                                                   \
+#define NP_EVENT_EVLOOP_PROTOTYPE(LOOPNAME)								                           \
+NP_API_INTERN															                           \
+struct ev_loop * _np_event_get_loop_##LOOPNAME(np_state_t *context);	                           \
+NP_API_INTERN															                           \
+bool _np_events_read_##LOOPNAME(np_state_t* context, np_util_event_t event);                       \
+NP_API_INTERN															                           \
+void _np_event_##LOOPNAME##_run(np_state_t* context, np_thread_t* thread_ptr);                     \
+NP_API_INTERN															                           \
+void _np_event_##LOOPNAME##_run_triggered(np_state_t *context, NP_UNUSED np_thread_t* thread_ptr); \
+NP_API_INTERN															                           \
+void _np_event_suspend_loop_##LOOPNAME(np_state_t *context);			                           \
+NP_API_INTERN															                           \
+void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context); 		                           \
+NP_API_INTERN															                           \
+void _np_event_resume_loop_##LOOPNAME(np_state_t *context);                                        \
+NP_API_INTERN                                                                                      \
 void _np_event_invoke_##LOOPNAME(np_state_t *context);                          
 
 NP_EVENT_EVLOOP_PROTOTYPE(in)
@@ -40,10 +42,10 @@ NP_EVENT_EVLOOP_PROTOTYPE(http)
 NP_EVENT_EVLOOP_PROTOTYPE(file)
 
 
-NP_API_INTERN		
+NP_API_INTERN
 bool _np_event_init(np_state_t *context);
 
-NP_API_INTERN		
+NP_API_INTERN
 void _np_event_destroy(np_state_t *context);
 
 

@@ -890,7 +890,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 
     if (pool_size > worker_threads) {
         if (pool_size > 0 ) pool_size--;
-        special_thread = __np_createThread(context, pool_size, _np_event_out_run, true, np_thread_type_other);
+        special_thread = __np_createThread(context, pool_size, _np_event_out_run_triggered, true, np_thread_type_other);
 #ifdef DEBUG
         strncpy(special_thread->job.ident, "_np_event_out_run",255);
 #endif
@@ -900,7 +900,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 
     if (pool_size > worker_threads) {
         if (pool_size > 0 ) pool_size--;
-        special_thread = __np_createThread(context, pool_size, _np_event_file_run, true, np_thread_type_other);
+        special_thread = __np_createThread(context, pool_size, _np_event_file_run_triggered, true, np_thread_type_other);
 #ifdef DEBUG
         strncpy(special_thread->job.ident, "_np_event_file_run",255);
 #endif

@@ -614,8 +614,8 @@ void _np_network_stop(np_network_t* network, bool force)
                 ev_io_stop(EV_A_ &network->watcher);
                 // ev_io_set(&network->watcher, network->socket, EV_NONE);
                 // ev_io_start(EV_A_ &network->watcher);
-                _np_event_resume_loop_in(context);
                 _np_event_reconfigure_loop_in(context);
+                _np_event_resume_loop_in(context);
             }
 
             if (FLAG_CMP(network->type, np_network_type_client))
@@ -626,8 +626,8 @@ void _np_network_stop(np_network_t* network, bool force)
                 ev_io_stop(EV_A_ &network->watcher);
                 // ev_io_set(&network->watcher, network->socket, EV_NONE);
                 // ev_io_start(EV_A_ &network->watcher);
-                _np_event_resume_loop_out(context);
                 _np_event_reconfigure_loop_out(context);
+                _np_event_resume_loop_out(context);
             }
             network->is_running = false;
         }
@@ -638,8 +638,8 @@ void _np_network_start(np_network_t* network, bool force)
 {
     assert(NULL != network);
 
-    log_trace_msg(LOG_TRACE, "start: void _np_network_start(...){");
     np_ctx_memory(network);
+    log_debug_msg(LOG_TRACE, "start: void _np_network_start(...){");
 
     TSP_GET(bool, network->can_be_enabled, can_be_enabled);
     if (can_be_enabled) {
@@ -656,8 +656,8 @@ void _np_network_start(np_network_t* network, bool force)
                     // ev_io_stop(EV_A_ &network->watcher);
                     // ev_io_set(&network->watcher, network->socket, EV_READ);
                     ev_io_start(EV_A_ &network->watcher);
-                    _np_event_resume_loop_in(context);
                     _np_event_reconfigure_loop_in(context);
+                    _np_event_resume_loop_in(context);
                 }
 
                 if (FLAG_CMP(network->type, np_network_type_client)) {
@@ -667,8 +667,8 @@ void _np_network_start(np_network_t* network, bool force)
                     // ev_io_stop(EV_A_ &network->watcher);
                     // ev_io_set(&network->watcher, network->socket, EV_WRITE);
                     ev_io_start(EV_A_ &network->watcher);
-                    _np_event_resume_loop_out(context);
                     _np_event_reconfigure_loop_out(context);
+                    _np_event_resume_loop_out(context);
                 }
                 network->is_running = true;
             }
