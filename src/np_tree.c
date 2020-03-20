@@ -920,6 +920,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 		case CMP_TYPE_MAP32:
 			log_msg(LOG_WARN,
 				"error de-serializing message to normal form, found map type");
+			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
 
 		case CMP_TYPE_FIXARRAY:
@@ -934,6 +935,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 		case CMP_TYPE_ARRAY32:
 			log_msg(LOG_WARN,
 				"error de-serializing message to normal form, found array type");
+			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
 
 		case CMP_TYPE_FIXSTR:
@@ -982,17 +984,18 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 				memset(value->value.bin, 0, value->size);
 				cmp->read(cmp, value->value.bin, obj->as.bin_size);
 			}
-
-
 			break;
 		}
+
 		case CMP_TYPE_NIL:
 			log_msg(LOG_WARN, "unknown de-serialization for given type (cmp NIL) ");
+			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
 
 		case CMP_TYPE_BOOLEAN:
 			log_msg(LOG_WARN,
 				"unknown de-serialization for given type (cmp boolean) ");
+			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
 
 		case CMP_TYPE_EXT8:
@@ -1015,7 +1018,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 				np_tree_t* subtree = np_tree_create();
 				subtree->attr.in_place = tree->attr.in_place;
 				if(np_tree_deserialize( context, subtree, cmp) == false) {
-					//TODO: further error handling
+					cmp->error = 11; // EXT_TYPE_READING_ERROR
 					break;
 				}
 
@@ -1066,12 +1069,19 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 				log_msg(LOG_TREE | LOG_SERIALIZATION | LOG_WARN,
 					"Unknown de-serialization for given extension type %"PRIi8, obj->as.ext.type);
 				_np_buffer_set_buffer(cmp, target_buffer);
+
+				cmp->error = 11; // EXT_TYPE_READING_ERROR
 			}
 
-			ASSERT(_np_buffer_get_buffer(cmp) == target_buffer,
-				"buffer is not at expected position at \"%s\" (ext key type: %"PRIi32"). actual: %p expected: %p diff byte count: %"PRIi32" size: %"PRIu32" cmp error: %"PRIu8,
-				key_to_read_for, obj->as.ext.type, _np_buffer_get_buffer(cmp), target_buffer, _np_buffer_get_buffer(cmp) - target_buffer, (uint32_t) obj->as.ext.size, cmp->error
-			);
+			// ASSERT(_np_buffer_get_buffer(cmp) == target_buffer,
+			// 	"buffer is not at expected position at \"%s\" (ext key type: %"PRIi32"). actual: %p expected: %p diff byte count: %"PRIi32" size: %"PRIu32" cmp error: %"PRIu8,
+			// 	key_to_read_for, obj->as.ext.type, _np_buffer_get_buffer(cmp), target_buffer, _np_buffer_get_buffer(cmp) - target_buffer, (uint32_t) obj->as.ext.size, cmp->error
+			// );
+
+			if (_np_buffer_get_buffer(cmp) != target_buffer) {
+				cmp->error = 14; // LENGTH_READING_ERROR
+				break;
+			}
 			// skip forward in case of error ?
 			// cmp->skip(cmp,  (_np_buffer_get_buffer(cmp) - target_buffer) );
 		}
