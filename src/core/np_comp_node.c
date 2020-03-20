@@ -37,7 +37,7 @@ bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_ut
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     if ( ret) {
         NP_CAST(event.user_data, np_aaatoken_t, hs_token);
-        ret &= (hs_token->type == np_aaatoken_type_handshake);
+        ret &= FLAG_CMP(hs_token->type, np_aaatoken_type_handshake);
         ret &= _np_aaatoken_is_valid(hs_token, hs_token->type);
     }
     return ret;
@@ -66,7 +66,7 @@ bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     if ( ret) {
         NP_CAST(event.user_data, np_aaatoken_t, node);
-        ret &= (node->type == np_aaatoken_type_node);
+        ret &= FLAG_CMP(node->type, np_aaatoken_type_node);
         ret &= !node->private_key_is_set;
         ret &= _np_aaatoken_is_valid(node, node->type);
     }

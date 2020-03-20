@@ -160,8 +160,9 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             np_key_unref_list(sll_of_keys, "_np_route_row_lookup");
             sll_free(np_key_ptr, sll_of_keys);
         }
-        else if (_np_key_get_node(piggy_key)->joined_network                                           &&
-                 _np_key_get_node(piggy_key)->success_avg > BAD_LINK                                   &&
+        else if (NULL != _np_key_get_node(piggy_key)                                &&
+                 _np_key_get_node(piggy_key)->joined_network                        &&
+                 _np_key_get_node(piggy_key)->success_avg > BAD_LINK                &&
                 (np_time_now() - piggy_key->created_at) >= BAD_LINK_REMOVE_GRACETIME ) 
         {
             // let's try to fill up our leafset, routing table is filled by internal state
@@ -171,9 +172,9 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
         } 
         else 
         {
-            log_debug(LOG_ROUTING, "node %s is not qualified for a further piggy actions. (%s)",
-                                                   _np_key_as_str(piggy_key), 
-                                                   _np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
+            log_debug(LOG_ROUTING, "node %s is not qualified for a further piggy actions.",
+                                                   _np_key_as_str(piggy_key)); 
+                                                   // ,_np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
         }        
         np_unref_obj(np_node_t, node_entry,"_np_node_decode_from_jrb");
@@ -260,10 +261,16 @@ bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
         np_aaatoken_t* node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
         if (node_token != NULL) {
 
+            np_util_event_t shutdown_event = { .context=context, .type=evt_shutdown|evt_external };
+            shutdown_event.user_data=node_token;
+            
             np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
-            np_util_event_t shutdown_event = { .context=context, .type=evt_shutdown|evt_external, .target_dhkey=search_key, .user_data=node_token };
 
+            shutdown_event.target_dhkey=search_key;
             _np_keycache_handle_event(context, search_key, shutdown_event, false);
+
+            shutdown_event.target_dhkey=msg_event.target_dhkey;
+            _np_keycache_handle_event(context, msg_event.target_dhkey, shutdown_event, false);
 
             np_unref_obj(np_aaatoken_t, node_token, "np_token_factory_read_from_tree");
         }
