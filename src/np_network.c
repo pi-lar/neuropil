@@ -270,6 +270,7 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp read event");
         return;
     }
+    
     if (event->data == NULL) return;
     np_network_t* network = ((_np_network_data_t*)event->data)->network;
 
@@ -300,32 +301,27 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
 
             if (current_write_per_data == MSG_CHUNK_SIZE_1024)
             {
-                written_per_data += current_write_per_data;
-                _np_statistics_add_send_bytes(current_write_per_data);
-            } else {
-                sll_prepend(void_ptr, network->out_events, data_to_send);
-            }
-
-            #ifdef DEBUG
+#ifdef DEBUG
                 char msg_hex[2*written_per_data+1];
                 sodium_bin2hex(msg_hex, 2*written_per_data+1, data_to_send, written_per_data);
                 log_debug(LOG_NETWORK, "Did send    data (%"PRIi16" bytes) via fd: %d hex: %.5s...%s", written_per_data, network->socket, msg_hex, msg_hex + strlen(msg_hex) - 5);
-            #endif
+#endif
+                written_per_data += current_write_per_data;
+                _np_statistics_add_send_bytes(current_write_per_data);
 
-            if (written_per_data != MSG_CHUNK_SIZE_1024) {
+                np_memory_free(context, data_to_send);
+                network->last_send_date = np_time_now();
+
+                log_debug(LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
+            } 
+            else {
                 log_debug(LOG_NETWORK,
                     "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
-                    data_to_send,
-                    written_per_data, MSG_CHUNK_SIZE_1024,
+                    data_to_send, written_per_data, MSG_CHUNK_SIZE_1024,
                     strerror(errno), errno);
+                sll_prepend(void_ptr, network->out_events, data_to_send);
             }
-            else {
-                network->last_send_date = np_time_now();
-                log_debug(LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
-            }
-            np_memory_free(context, data_to_send);
         }
-
 #ifdef DEBUG 
         if (sll_size(network->out_events) > 0)
             log_debug_msg(LOG_DEBUG | LOG_NETWORK, "%"PRIu32" packages still in delivery", sll_size(network->out_events));
