@@ -121,16 +121,16 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
                     if (sll_contains(np_dhkey_t, _entry->_pheromone[i]._send_list, pheromone._sender, np_dhkey_t_sll_compare_type)) {
                         sll_remove(np_dhkey_t, _entry->_pheromone[i]._send_list, pheromone._sender, np_dhkey_t_sll_compare_type);
                     }
-
                     sll_prepend(np_dhkey_t, _entry->_pheromone[i]._send_list, pheromone._sender);
-                    _entry->_pheromone[i]._subj_bloom->_free_items +=1;
                     
                     if (sll_size(_entry->_pheromone[i]._send_list) > NP_ROUTE_LEAFSET_SIZE ) 
                     {
                         np_dhkey_t key_send = sll_tail(np_dhkey_t, _entry->_pheromone[i]._send_list);
+                        _entry->_pheromone[i]._subj_bloom->_free_items +=1;
                     }
 
                     np_module(pheromones)->_op.union_cb(_entry->_pheromone[i]._subj_bloom, pheromone._subj_bloom);
+                    _entry->_pheromone[i]._subj_bloom->_free_items +=1;
                     update_filter = true;
 
                     log_debug_msg(LOG_INFO, "added send pheromone entry at index %3d:%2d --> %u (%.3f/%.3f)", pheromone._pos, index, i, old_age, new_age);
@@ -142,16 +142,17 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
                     if (sll_contains(np_dhkey_t, _entry->_pheromone[i]._recv_list, pheromone._receiver, np_dhkey_t_sll_compare_type)) {
                         sll_remove(np_dhkey_t, _entry->_pheromone[i]._recv_list, pheromone._receiver, np_dhkey_t_sll_compare_type);
                     }
-
                     sll_prepend(np_dhkey_t, _entry->_pheromone[i]._recv_list, pheromone._receiver);
-                    _entry->_pheromone[i]._subj_bloom->_free_items +=1;
                     
                     if (sll_size(_entry->_pheromone[i]._recv_list) > NP_ROUTE_LEAFSET_SIZE ) 
                     {
                         np_dhkey_t key_recv = sll_tail(np_dhkey_t, _entry->_pheromone[i]._recv_list);
+                        _entry->_pheromone[i]._subj_bloom->_free_items +=1;
                     }
 
                     np_module(pheromones)->_op.union_cb(_entry->_pheromone[i]._subj_bloom, pheromone._subj_bloom);
+                    _entry->_pheromone[i]._subj_bloom->_free_items +=1;
+                    
                     update_filter = true;
 
                     log_debug_msg(LOG_INFO, "added recv pheromone entry at index %3d:%2d --> %u (%.3f/%.3f)", pheromone._pos, index, i, old_age, new_age);
