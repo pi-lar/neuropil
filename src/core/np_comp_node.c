@@ -613,7 +613,6 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
                 np_ref_obj(np_network_t, wildcard_trinity.network, "__np_create_client_network");
                 sll_append(void_ptr, node_key->entities, wildcard_trinity.network );
 
-                sll_remove(void_ptr, wildcard_key->entities, wildcard_trinity.network, void_ptr_sll_compare_type);
                 __np_key_to_trinity(node_key, &trinity);
 
                 _np_network_start(wildcard_trinity.network, true);
@@ -648,7 +647,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
         else 
         {
             log_msg(LOG_WARN, "creation of client network failed, invalidating key %p (type: %d)", node_key, node_key->type);
-            node_key->type = np_key_type_wildcard;
+            node_key->type = np_key_type_unknown;
             if (trinity.token != NULL) 
             {
                 sll_remove(void_ptr, node_key->entities, trinity.token, void_ptr_sll_compare_type);
@@ -697,7 +696,8 @@ void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     sll_clear(void_ptr, wildcard_key->entities);
 
-    wildcard_key->type = np_key_type_unknown;
+    // wildcard_key->type = np_key_type_unknown;
+    wildcard_key->type &= ~np_key_type_wildcard;
     ref_replace_reason(np_key_t, wildcard_key, "__np_wildcard_set", "_np_keycache_finalize");
 }
 

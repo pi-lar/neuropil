@@ -603,8 +603,7 @@ void _np_network_stop(np_network_t* network, bool force)
     _LOCK_ACCESS(&network->access_lock) 
     {
         EV_P;
-        if ( (network->is_running == true /*&& last_send_diff >= NP_PI/500 */) &&
-             (force == true || 0 == sll_size(network->out_events))              )
+        if (network->is_running == true)
         {
             if (FLAG_CMP(network->type , np_network_type_server)) 
             {

@@ -77,6 +77,7 @@ typedef np_http_client_t* np_http_client_ptr;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wstrict-prototypes"
 NP_SLL_GENERATE_PROTOTYPES(np_http_client_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_http_client_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_http_client_ptr);
 #pragma clang diagnostic pop
 
