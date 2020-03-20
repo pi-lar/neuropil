@@ -94,6 +94,7 @@
     {                                                                                                                    \
         np_state_t * context = ev_userdata(EV_A);                                                                        \
         if (ev_pending_count (EV_A)) {                                                                                   \
+            ev_invoke_pending (np_module(events)->__loop_##LOOPNAME);                                                    \
             _np_threads_module_condition_timedwait(context, np_event_##LOOPNAME##_t_lock, MISC_LOG_FLUSH_INTERVAL_SEC);  \
         }                                                                                                                \
     }                                                                                                                    \
@@ -143,7 +144,6 @@
     void _np_event_invoke_##LOOPNAME(np_state_t *context)                                                                \
     {                                                                                                                    \
         _LOCK_MODULE(np_event_##LOOPNAME##_t) {                                                                          \
-            ev_invoke_pending (np_module(events)->__loop_##LOOPNAME);                                                    \
             _np_threads_module_condition_signal(context, np_event_##LOOPNAME##_t_lock);                                  \
         }                                                                                                                \
     }                                                                                                                    \
