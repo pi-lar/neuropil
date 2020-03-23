@@ -30,7 +30,7 @@ class StarSetupTest(unittest.TestCase):
     @staticmethod
     def msg_received(node:NeuropilNode, message:np_message):    
         StarSetupTest.msg_delivery_succ.value = True        
-        print("received message complete")
+        # print("received message complete")
         return True
 
     @staticmethod
@@ -40,7 +40,7 @@ class StarSetupTest(unittest.TestCase):
         if ret is not neuropil.np_ok:
             return False
 
-        print ("{time:.3f} / {node}: A authentication granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id)) )
+        # print ("{time:.3f} / {node}: A authentication granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id)) )
         return True
 
     @staticmethod
@@ -52,7 +52,7 @@ class StarSetupTest(unittest.TestCase):
             return False
 
         if str(np_id(id)) == StarSetupTest.np_0_fp.value.decode():
-            print ("{time:.3f} / {node}: S authentication granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id) ))
+            # print ("{time:.3f} / {node}: S authentication granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id) ))
             return True
         else:
             # print ("{time:.3f} / {node}: S authentication reject  to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id) ))
@@ -60,7 +60,7 @@ class StarSetupTest(unittest.TestCase):
 
     @staticmethod
     def authz_allow_all(node:NeuropilNode, token:np_token):
-        print ("{time:.3f} / authorization granted to {issuer} / {fp} for {subject}".format(time=float(time.time()), issuer=token.issuer, fp=token.get_fingerprint(), subject=token.subject))
+        # print ("{time:.3f} / authorization granted to {issuer} / {fp} for {subject}".format(time=float(time.time()), issuer=token.issuer, fp=token.get_fingerprint(), subject=token.subject))
         return True
 
     def run_sender(self):
@@ -73,9 +73,9 @@ class StarSetupTest(unittest.TestCase):
         np_1.set_authenticate_cb(StarSetupTest.authn_allow_star)
         np_1.set_authorize_cb(StarSetupTest.authz_allow_all)
         np_1.join(StarSetupTest.np_0_addr)
-        print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
-                                                  node=np_1.get_fingerprint(), 
-                                                  addr=np_1.get_address()) )
+        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
+        #                                           node=np_1.get_fingerprint(), 
+        #                                           addr=np_1.get_address()) )
         np_1.run(math.pi/10)
         t1 = time.time()
         timeout = 120 #sec
@@ -89,7 +89,7 @@ class StarSetupTest(unittest.TestCase):
             if elapsed > 45 and not StarSetupTest.send.value:
                 np_1.send(StarSetupTest.subject, b'test data blob')
                 StarSetupTest.send.value = True
-                print("sending message complete")
+                # print("sending message complete")
             if StarSetupTest.msg_delivery_succ.value or elapsed > timeout:
                 break
             np_1.run(math.pi/10)
