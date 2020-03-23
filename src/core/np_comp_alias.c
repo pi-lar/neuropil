@@ -589,14 +589,6 @@ void __np_handle_np_discovery(np_util_statemachine_t* statemachine, const np_uti
     np_util_event_t available_event = event;
     available_event.target_dhkey = last_hop;
 
-    log_debug_msg(LOG_TRACE, "forwarding message token, (subject %s) to other nodes",  msg_subj.value.s);
-    np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, msg_subj.value.s);
-    np_util_event_t discover_event = event;
-    discover_event.type=(evt_internal|evt_message); 
-
-    np_ref_obj(np_message_t, message, ref_message_in_send_system);
-    _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
-
     // increase our pheromone trail by adding a stronger scent
     // TODO: move to np_dendrit.c and handle reply field as well
     bool find_receiver = (0 == strncmp(_NP_MSG_AVAILABLE_SENDER,   msg_subj.value.s, strlen(_NP_MSG_AVAILABLE_SENDER  )) );
@@ -615,8 +607,18 @@ void __np_handle_np_discovery(np_util_statemachine_t* statemachine, const np_uti
         _pheromone._receiver   = last_hop;
         _pheromone._pos        =   ((msg_to.value.dhkey.t[0]%257)+1);
     }
-    _np_pheromone_inhale(context, _pheromone);
+    bool _forward_discovery_msg = _np_pheromone_inhale(context, _pheromone);
     _np_bloom_free(_scent);
+
+    if (_forward_discovery_msg) {
+        log_debug_msg(LOG_TRACE, "forwarding message token, (subject %s) to other nodes",  msg_subj.value.s);
+        np_dhkey_t discover_dhkey = _np_msgproperty_dhkey(OUTBOUND, msg_subj.value.s);
+        np_util_event_t discover_event = event;
+        discover_event.type=(evt_internal|evt_message); 
+
+        np_ref_obj(np_message_t, message, ref_message_in_send_system);
+        _np_keycache_handle_event(context, discover_dhkey, discover_event, false);
+    }
 
     np_key_t* subject_key = _np_keycache_find(context, msg_to.value.dhkey);
     if (NULL != subject_key) {

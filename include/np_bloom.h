@@ -117,14 +117,23 @@ extern "C" {
     np_bloom_t* _np_neuropil_bloom_create();
     NP_API_INTERN
     void _np_neuropil_bloom_clear(np_bloom_t* res);
+
     NP_API_INTERN
     void _np_neuropil_bloom_add(np_bloom_t* bloom, np_dhkey_t id);
     NP_API_INTERN
+    void _np_neuropil_bloom_remove(np_bloom_t* bloom, np_dhkey_t id);
+
+    NP_API_INTERN
     bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_dhkey_t id);
+
     NP_API_INTERN
     void _np_neuropil_bloom_age_decrement(np_bloom_t* bloom);
     NP_API_INTERN
+    void _np_neuropil_bloom_count_decrement(np_bloom_t* bloom);
+
+    NP_API_INTERN
     float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id);
+
     NP_API_INTERN
     bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* first);
     NP_API_INTERN

@@ -500,6 +500,35 @@ void _np_neuropil_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
     bloom->_free_items--;
 }
 
+void _np_neuropil_bloom_remove(np_bloom_t* bloom, np_dhkey_t id)
+{    
+    if (bloom->_free_items == 0) abort();
+
+    uint8_t block_index = 1;
+    uint16_t block_size = (bloom->_size*bloom->_d)/8;
+
+    for (uint8_t k = 0; k < 8; ++k)
+    {
+        uint32_t _bit_array_pos = (id.t[k]%SCALE3D_X+1) * (id.t[k]%SCALE3D_Y+1) * (id.t[k]%SCALE3D_Z+1);
+        uint32_t _local_pos     = (block_index-1)*block_size + (_bit_array_pos-1)*2;
+        uint8_t* _current_age   = &bloom->_bitset[_local_pos  ];
+        uint8_t* _current_count = &bloom->_bitset[_local_pos+1];
+        (*_current_age) =  (*_current_age) >> 1;
+        (*_current_count)--;
+        
+#ifdef DEBUG
+        /*char test_string[65];
+        for (uint16_t i = (block_index-1)*block_size; i < block_index*block_size; i+=32 ) {
+          np_id_str(test_string, &bloom->_bitset[i]); 
+          fprintf(stdout, "%3d:   add: %s --> pos=%3d (%02x%02x)\n", i, test_string, _local_pos, bloom->_bitset[_local_pos*2], bloom->_bitset[_local_pos*2+1]);
+        }*/
+#endif
+        if ((k+1)%2 == 0) block_index++;
+    }
+    // fprintf(stdout, "\n");
+    bloom->_free_items++;
+}
+
 bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_dhkey_t id)
 {
     bool ret = true;
@@ -542,6 +571,18 @@ void _np_neuropil_bloom_age_decrement(np_bloom_t* bloom)
         if (*_current_age > bloom->_d/2) (*_current_age) -= bloom->_d/2; // ((*_current_age) >> 1);
         else                             (*_current_age)  = 0;
     }
+}
+
+void _np_neuropil_bloom_count_decrement(np_bloom_t* bloom) 
+{
+    uint16_t block_size = (bloom->_size*bloom->_d/8);
+
+    for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k +=2 )
+    {
+        uint8_t* _current_count  = &bloom->_bitset[k+1];
+        if (*_current_count > 0) (*_current_count)--;
+    }
+    bloom->_free_items++;
 }
 
 float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
@@ -619,7 +660,7 @@ bool _np_neuropil_bloom_intersect_test(np_bloom_t* result, np_bloom_t* to_inters
         if (result->_bitset[k  ] > 0 && to_intersect->_bitset[k  ] > 0)
         { // only add if an "age" is left
             i += to_intersect->_bitset[k+1];
-            j += result->_bitset[k+1];
+            if (result->_bitset[k+1] >= to_intersect->_bitset[k+1]) j += to_intersect->_bitset[k+1];
         }
         /*
         fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
@@ -628,7 +669,7 @@ bool _np_neuropil_bloom_intersect_test(np_bloom_t* result, np_bloom_t* to_inters
         */
     }
 
-    return (i <= j && i == 8) ? true : false;
+    return (i == 8 && j == 8) ? true : false;
 }
 
 float _np_neuropil_bloom_intersect_age(np_bloom_t* result, np_bloom_t* to_intersect)

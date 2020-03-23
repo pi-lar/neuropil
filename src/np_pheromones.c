@@ -23,7 +23,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_t);
 typedef struct np_pheromone_entry_s
 {
     np_pheromone_t _pheromone[32];
-    uint8_t _count;
+    uint16_t _count;
 } np_pheromone_entry_t;
 
 np_module_struct(pheromones)
@@ -31,7 +31,6 @@ np_module_struct(pheromones)
     np_state_t* context;
     np_pheromone_entry_t* pheromones[257];
 
-    np_mutex_t _lock_module; // could be per row
     struct np_bloom_optable_s _op;
 };
 
@@ -42,7 +41,6 @@ void __init_pheromones(np_state_t* context)
 
     char mutex_str[64];
     snprintf(mutex_str, 63, "%s:%p", "urn:np:pheromones:access", context);
-    _np_threads_mutex_init(context, &np_module(pheromones)->_lock_module, mutex_str);
 
     struct np_bloom_optable_s _op =
         {
@@ -62,12 +60,12 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
         __init_pheromones(context);
     }
 
-    bool update_filter = false;
+    bool ret = false;
 
     if (pheromone._subject == NULL && 
         pheromone._subj_bloom == NULL)
     {   
-        return update_filter;
+        return false;
     }
 
     if (pheromone._subject != NULL)
@@ -90,8 +88,10 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
 
     ASSERT(index >= 0 && index < 257, "pheromone index out of range");
 
-    _LOCK_ACCESS(&np_module(pheromones)->_lock_module)
+    _LOCK_MODULE(np_pheromones_t)
     {
+        bool update_filter = false;
+        
         np_pheromone_entry_t* _entry = np_module(pheromones)->pheromones[index];
         if (_entry == NULL)
         {
@@ -120,20 +120,21 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
                 {
                     if (sll_contains(np_dhkey_t, _entry->_pheromone[i]._send_list, pheromone._sender, np_dhkey_t_sll_compare_type)) {
                         sll_remove(np_dhkey_t, _entry->_pheromone[i]._send_list, pheromone._sender, np_dhkey_t_sll_compare_type);
+                        _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);
                     }
                     sll_prepend(np_dhkey_t, _entry->_pheromone[i]._send_list, pheromone._sender);
+                    update_filter = true;
                     
                     if (sll_size(_entry->_pheromone[i]._send_list) > NP_ROUTE_LEAFSET_SIZE ) 
                     {
-                        np_dhkey_t key_send = sll_tail(np_dhkey_t, _entry->_pheromone[i]._send_list);
-                        _entry->_pheromone[i]._subj_bloom->_free_items +=1;
+                        sll_tail(np_dhkey_t, _entry->_pheromone[i]._send_list);
+                        _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);
                     }
 
                     np_module(pheromones)->_op.union_cb(_entry->_pheromone[i]._subj_bloom, pheromone._subj_bloom);
-                    _entry->_pheromone[i]._subj_bloom->_free_items +=1;
-                    update_filter = true;
 
-                    log_debug_msg(LOG_INFO, "added send pheromone entry at index %3d:%2d --> %u (%.3f/%.3f)", pheromone._pos, index, i, old_age, new_age);
+                    log_debug_msg(LOG_DEBUG, "added send pheromone entry at index %3d:%2d --> %u (%.3f/%.3f) -- > %u", 
+                                      pheromone._pos, index, i, old_age, new_age, _entry->_pheromone[i]._subj_bloom->_free_items);
                 }
                 
                 if (pheromone._pos > 0                              && 
@@ -141,37 +142,40 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
                 {   
                     if (sll_contains(np_dhkey_t, _entry->_pheromone[i]._recv_list, pheromone._receiver, np_dhkey_t_sll_compare_type)) {
                         sll_remove(np_dhkey_t, _entry->_pheromone[i]._recv_list, pheromone._receiver, np_dhkey_t_sll_compare_type);
+                        _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);
                     }
                     sll_prepend(np_dhkey_t, _entry->_pheromone[i]._recv_list, pheromone._receiver);
-                    
+                    update_filter = true;
+
                     if (sll_size(_entry->_pheromone[i]._recv_list) > NP_ROUTE_LEAFSET_SIZE ) 
                     {
-                        np_dhkey_t key_recv = sll_tail(np_dhkey_t, _entry->_pheromone[i]._recv_list);
-                        _entry->_pheromone[i]._subj_bloom->_free_items +=1;
+                        sll_tail(np_dhkey_t, _entry->_pheromone[i]._recv_list);
+                        _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);
                     }
 
                     np_module(pheromones)->_op.union_cb(_entry->_pheromone[i]._subj_bloom, pheromone._subj_bloom);
-                    _entry->_pheromone[i]._subj_bloom->_free_items +=1;
                     
-                    update_filter = true;
-
-                    log_debug_msg(LOG_INFO, "added recv pheromone entry at index %3d:%2d --> %u (%.3f/%.3f)", pheromone._pos, index, i, old_age, new_age);
+                    log_debug_msg(LOG_DEBUG, "added recv pheromone entry at index %3d:%2d --> %u (%.3f/%.3f) --> %u", 
+                                      pheromone._pos, index, i, old_age, new_age, _entry->_pheromone[i]._subj_bloom->_free_items);
                 }
 
                 if (update_filter) 
                 {
                     // to update heuristic/age value
-                    log_debug_msg(LOG_INFO, "update 0-pheromone at index %3d:%2d / %d", index, i, _entry->_pheromone[i]._subj_bloom->_free_items);
                     np_module(pheromones)->_op.union_cb(_entry->_pheromone[0]._subj_bloom, pheromone._subj_bloom);
+                    _np_neuropil_bloom_count_decrement(_entry->_pheromone[0]._subj_bloom);
                     // yes, this is ugly! on purpose:
-                    _entry->_pheromone[0]._subj_bloom->_free_items += 1;
+                    _entry->_pheromone[0]._subj_bloom->_free_items = _entry->_count;
                     // update of a bloom filter at this stage would hit the free item counter, which is unwanted.
                     // this counter is already in place at the top level bloom filter. We do not need it here! 
                     // Even if double entries occur, the filter should still be intact because we have some buffer 
                     // probability left
+                    log_debug_msg(LOG_DEBUG, "update 0-pheromone at index %3d:%2d / %d --> %u", index, i, _entry->_pheromone[i]._subj_bloom->_free_items, _entry->_pheromone[0]._subj_bloom->_free_items);
                 }
-
                 break;
+            }
+            else {
+                log_debug_msg(LOG_DEBUG, "intersect failed for pheromone at index %3d:%2d / %d --> %u", index, i, _entry->_pheromone[i]._subj_bloom->_free_items, _entry->_pheromone[0]._subj_bloom->_free_items);
             }
             i++;
         }
@@ -180,7 +184,7 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
         // sanity check for full filter
         ASSERT( i > 0 && i < 32, "insertion index out of range");
 
-        if (i == _entry->_count)
+        if (i == _entry->_count && !update_filter)
         {
             np_module(pheromones)->_op.union_cb(_entry->_pheromone[0]._subj_bloom, pheromone._subj_bloom);
 
@@ -198,17 +202,20 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
             _entry->_pheromone[i]._pos            = index;
             _entry->_pheromone[i]._subj_bloom     = _np_neuropil_bloom_create();
             np_module(pheromones)->_op.union_cb(_entry->_pheromone[i]._subj_bloom, pheromone._subj_bloom);
+
             _entry->_count++;
+            _entry->_pheromone[0]._subj_bloom->_free_items = _entry->_count;
 
             update_filter = true;
 
             if (pheromone._pos < 0)
-                log_debug_msg(LOG_INFO, "added send pheromone at index %3d:%2d / %d %p/%p", index, i, pheromone._subj_bloom->_free_items, pheromone._sender, _entry->_pheromone[i]._send_list);
+                log_debug_msg(LOG_DEBUG, "added send pheromone at index %3d:%2d / %d %p/%p", index, i, pheromone._subj_bloom->_free_items, pheromone._sender, _entry->_pheromone[i]._send_list);
             else 
-                log_debug_msg(LOG_INFO, "added recv pheromone at index %3d:%2d / %d %p/%p", index, i, pheromone._subj_bloom->_free_items, pheromone._receiver, _entry->_pheromone[i]._recv_list);
+                log_debug_msg(LOG_DEBUG, "added recv pheromone at index %3d:%2d / %d %p/%p", index, i, pheromone._subj_bloom->_free_items, pheromone._receiver, _entry->_pheromone[i]._recv_list);
         }
+        ret = (update_filter) ? true : false;
     }
-    return update_filter;
+    return ret;
 }
 
 void _np_pheromone_snuffle(np_state_t* context, sll_return(np_dhkey_t) result_list, np_dhkey_t to_check, float* target_probability, bool find_sender, bool find_receiver) 
@@ -221,7 +228,7 @@ void _np_pheromone_snuffle(np_state_t* context, sll_return(np_dhkey_t) result_li
     uint16_t index = to_check.t[0] % 257;
     ASSERT(index >= 0 && index < 257, "pheromone index out of range");
 
-    _LOCK_ACCESS(&np_module(pheromones)->_lock_module)
+    _LOCK_MODULE(np_pheromones_t)
     {
         np_pheromone_entry_t* _entry = np_module(pheromones)->pheromones[index];
         if (_entry != NULL && np_module(pheromones)->_op.check_cb(_entry->_pheromone[0]._subj_bloom, to_check) )
@@ -294,7 +301,7 @@ void _np_pheromone_exhale(np_state_t* context)
     _random_number = ((rand() >> 4) & 0x000007ff) | ((rand() << 7) & 0x003ff800) | ((rand() << 18) & 0xffc00000);
 #endif
 
-    _LOCK_ACCESS(&np_module(pheromones)->_lock_module)
+    _LOCK_MODULE(np_pheromones_t)
     {
         np_pheromone_entry_t* _entry = np_module(pheromones)->pheromones[_random_number % 257]; 
         if (_entry != NULL)
@@ -308,7 +315,7 @@ void _np_pheromone_exhale(np_state_t* context)
                 _np_neuropil_bloom_age_decrement(_entry->_pheromone[i]._subj_bloom);
 
                 float _age = _np_neuropil_bloom_intersect_age(_entry->_pheromone[0]._subj_bloom, _entry->_pheromone[i]._subj_bloom);
-                log_debug_msg(LOG_INFO, "decreased pheromone strength (index %3d:%2d) age now %f",
+                log_debug_msg(LOG_DEBUG, "decreased pheromone strength (index %3d:%2d) age now %f",
                                         _random_number%257, i, _age);
 
                 if (_age == 0.0)
@@ -331,15 +338,27 @@ void _np_pheromone_exhale(np_state_t* context)
                     memset(&_entry->_pheromone[j], 0, sizeof(np_pheromone_t));
 
                     _entry->_count--;
-                    _entry->_pheromone[0]._subj_bloom->_free_items++;
+                    _entry->_pheromone[0]._subj_bloom->_free_items = _entry->_count;
 
-                    log_debug_msg(LOG_INFO, "removed pheromone at index %3d:%2d)",
-                                            _random_number%257, i);
+                    log_debug_msg(LOG_DEBUG, "removed pheromone at index %3d:%2d)",
+                                             _random_number%257, i);
                 }
                 else 
                 {
-                    log_debug_msg(LOG_ERROR, "decreased pheromone strength (index %3d:%2d) age now %f",
-                                        _random_number%257, i, _age);
+                    if (sll_size(_entry->_pheromone[i]._recv_list) > 1 ) 
+                    {
+                        sll_tail(np_dhkey_t, _entry->_pheromone[i]._recv_list);
+                        _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);
+                    }
+                    if (sll_size(_entry->_pheromone[i]._send_list) > 1 ) 
+                    {
+                        sll_tail(np_dhkey_t, _entry->_pheromone[i]._send_list);
+                        _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);
+                    }
+
+                    log_debug_msg(LOG_DEBUG, "decreased pheromone strength (index %3d:%2d) age now %f --> %u",
+                                      _random_number%257, i, _age,  _entry->_pheromone[i]._subj_bloom->_free_items);
+
                     i++;
                 }
             }
