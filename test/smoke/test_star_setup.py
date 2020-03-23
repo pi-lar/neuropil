@@ -109,9 +109,9 @@ class StarSetupTest(unittest.TestCase):
         np_2.set_authenticate_cb(StarSetupTest.authn_allow_star)
         np_2.set_authorize_cb(StarSetupTest.authz_allow_all)
         np_2.join(StarSetupTest.np_0_addr)
-        print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
-                                                  node=np_2.get_fingerprint(), 
-                                                  addr=np_2.get_address()) )
+        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
+        #                                           node=np_2.get_fingerprint(), 
+        #                                           addr=np_2.get_address()) )
         np_2.run(math.pi/10)
 
         t1 = time.time()
@@ -132,9 +132,9 @@ class StarSetupTest(unittest.TestCase):
         np_0 = NeuropilNode(4444, log_file="logs/smoke_test_star_n0.log", auto_run=False, n_threads=5)
         # np_0_addr = np_0.get_address()
         StarSetupTest.np_0_fp.value   = str(np_0.get_fingerprint()).encode()
-        print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
-                                                  node=StarSetupTest.np_0_fp.value, 
-                                                  addr=StarSetupTest.np_0_addr))
+        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
+        #                                           node=StarSetupTest.np_0_fp.value, 
+        #                                           addr=StarSetupTest.np_0_addr))
         np_0.run(math.pi/10)
 
         t1 = time.time()

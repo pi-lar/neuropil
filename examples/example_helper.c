@@ -1,5 +1,5 @@
 //
-// neuropil is copyright 2016-2019 by pi-lar GmbH
+// neuropil is copyright 2016-2020 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <errno.h>
@@ -69,7 +69,6 @@ const char* logo =
 "MMNxcccccclOWMMMMMMMMMMMMWOlcccccccckWMM";
 
 bool __np_terminal_resize_flag = false;
-
 
 void __np_example_deinti_ncurse(np_context * context);
 
@@ -759,12 +758,12 @@ example_user_context* parse_program_args(
             // | LOG_HANDSHAKE
             // | LOG_AAATOKEN
             // | LOG_SYSINFO
-            // | LOG_MESSAGE
+             | LOG_MESSAGE
             // | LOG_SERIALIZATION
             // | LOG_MEMORY
             // | LOG_MISC
             // | LOG_EVENT
-             | LOG_THREADS
+            // | LOG_THREADS
             // | LOG_JOBS
             // | LOG_GLOBAL
             ;
@@ -1183,7 +1182,7 @@ void __np_example_helper_loop(np_state_t* context) {
             }
 
             if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
-                memory_str = np_threads_print(context, true);
+                memory_str = np_jobqueue_print(context, true);
                 if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
                 free(memory_str);
             }
@@ -1234,8 +1233,10 @@ void __np_example_helper_loop(np_state_t* context) {
             }
         }
 #ifdef DEBUG
-        if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) {
-            if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console)) {
+        if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) 
+        {
+            if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console)) 
+            {
                 memory_str = np_threads_print_locks(context, false, false);
                 if (memory_str != NULL) {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)){
@@ -1412,9 +1413,9 @@ void __np_example_helper_run_loop(np_context*context) {
     double sleep;
     while (np_get_status(context) == np_running)
     {
+        if(((np_state_t*)context)->settings->n_threads == 0) np_run(context, 0.0);
+
         sleep = ud->input_intervall_sec;
-        if(((np_state_t*)context)->settings->n_threads == 0)
-            sleep = fmin(ud->input_intervall_sec, np_run(context,0));
         np_time_sleep(sleep);
     }
 }
@@ -1425,11 +1426,12 @@ void __np_example_helper_run_info_loop(np_context*context) {
     double sleep;
     while (np_get_status(context) == np_running)
     {
+        if (((np_state_t*)context)->settings->n_threads == 0) np_run(context, 0.0);
+        
         sleep = ud->input_intervall_sec;
-        __np_example_helper_loop(context);
-        if (((np_state_t*)context)->settings->n_threads == 0)
-            sleep = fmin(ud->input_intervall_sec, np_run(context,0));
         np_time_sleep(sleep);
+
+        __np_example_helper_loop(context);
     }
 }
 
