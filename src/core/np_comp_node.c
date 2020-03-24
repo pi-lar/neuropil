@@ -915,5 +915,5 @@ void __np_node_handle_response(np_util_statemachine_t* statemachine, const np_ut
         log_msg(LOG_INFO, "unknown responsehandler called, not doing any action ...");
     }
 
-    np_unref_obj(np_responsecontainer_t, response, "");
+    np_unref_obj(np_responsecontainer_t, response, ref_obj_usage);
 }

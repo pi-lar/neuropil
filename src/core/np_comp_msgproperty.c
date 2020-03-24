@@ -463,22 +463,19 @@ void _np_msgproperty_cleanup_response_handler(np_msgproperty_t* self)
         
         np_dhkey_t _null = {0};
         if (handle_event) 
-        {   // clean up message redlivery
+        {
+            np_ref_obj(np_responsecontainer_t, response_event.user_data, ref_obj_usage);
             if (!_np_dhkey_equal(&current->msg_dhkey, &_null) ) 
-            {        
+            {  // clean up message redlivery
                 response_event.target_dhkey=current->msg_dhkey;
-                np_ref_obj(np_responsecontainer_t, response_event.user_data, "");
                 _np_keycache_handle_event(context, current->msg_dhkey, response_event, false); 
-                np_unref_obj(np_responsecontainer_t, response_event.user_data, ref_obj_creation);
-            }            
-            // clean up ping ack
-            if (!_np_dhkey_equal(&current->dest_dhkey, &_null) ) 
-            { 
-                response_event.target_dhkey=current->dest_dhkey;
-                np_ref_obj(np_responsecontainer_t, response_event.user_data, "");
-                _np_keycache_handle_event(context, current->dest_dhkey, response_event, false);
-                np_unref_obj(np_responsecontainer_t, response_event.user_data, ref_obj_creation);
             }
+            if (!_np_dhkey_equal(&current->dest_dhkey, &_null) ) 
+            {   // clean up ping ack
+                response_event.target_dhkey=current->dest_dhkey;
+                _np_keycache_handle_event(context, current->dest_dhkey, response_event, false);
+            }
+            np_unref_obj(np_responsecontainer_t, response_event.user_data, ref_obj_creation);
         }
     }
 
@@ -1462,7 +1459,7 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
     NP_CAST(event.user_data, np_responsecontainer_t, responsehandler);
 
-    if (property->is_internal) 
+    if (property->is_internal)
     {   // registration of response handler for message type NP_ACK
         np_tree_insert_str(property->response_handler, responsehandler->uuid, np_treeval_new_v(responsehandler) );
     }
@@ -1476,6 +1473,7 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
             np_tree_del_str(property->redelivery_messages, responsehandler->uuid);
             _np_msgproperty_threshold_decrease(property);        
         }
+        np_unref_obj(np_responsecontainer_t, responsehandler, ref_obj_usage);
     }    
 }
 
