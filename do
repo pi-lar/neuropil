@@ -132,6 +132,32 @@ task_test() {
   ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
 }
 
+task_run() {
+  application=${1:-"defaultvalue"}
+  if [ "$application" == "defaultvalue" ]; then
+    application="neuropil_node"
+  else
+    application="neuropil_$application"
+    shift;
+  fi
+  application="$application"
+  target=$(get_local_target)
+
+   export LD_LIBRARY_PATH="./build/$target/lib"
+
+  echo "./build/$target/bin/$application" "$@"
+  set +e
+  run=$("./build/$target/bin/$application" "$@")
+  set -e  
+  if [ "$run" != 0 ] ; then      
+    gdb "./build/$target/bin/$application" -c core*
+  fi
+
+}
+
+#node -h 'neuropil_testbed_node__single________udp6_4002' -d -1 -s 0 -j "*:udp4:neuro0.in.pi-lar.net:3000"  -w localhost -e 5002 -u ::1 -b 4002 -t 0 -p udp6
+
+
 task_smoke() {
   ensure_venv
   task_install_python
@@ -169,7 +195,7 @@ task_test_deployment() {
   task_smoke
 }
 usage() {
-  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci "
+  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un"
   exit 1
 }
 
@@ -189,6 +215,8 @@ shift || true
     install_python) task_install_python ;;
     smoke) task_smoke ;;
     release) task_release ;;
+    run) task_run "$@";;
+    r) task_run "$@";;
 
     prepare_ci) task_prepare_ci ;;
 
