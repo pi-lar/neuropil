@@ -236,11 +236,11 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
             bool has_host = true;
             if (NULL == host && port != 0) {
                 log_msg(LOG_INFO, "neuropil_init: resolve hostname");
-                if (np_get_local_ip(context, np_host, 255) == false) {
-                    if (0 != gethostname(np_host, 255)) {
-                        strncpy(np_host,"localhost",255);
-                    }
+                // if (np_get_local_ip(context, np_host, 255) == false) {
+                if (0 != gethostname(np_host, 255)) {
+                    strncpy(np_host,"localhost",255);
                 }
+                // }
             } else if (NULL != host) {
                 strncpy(np_host, host, 255);
             } else {
