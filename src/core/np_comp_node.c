@@ -18,6 +18,7 @@
 #include "np_legacy.h"
 #include "np_memory.h"
 #include "np_message.h"
+#include "np_network.h"
 #include "np_responsecontainer.h"
 #include "np_route.h"
 
