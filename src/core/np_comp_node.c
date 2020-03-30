@@ -659,28 +659,28 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
         np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
     }
 
-    if (NULL == trinity.network && NULL != trinity.node) 
+    if (NULL == trinity.network && NULL != trinity.node)
     {   // create outgoing network
-        np_network_t* my_network = NULL;
-        np_new_obj(np_network_t, my_network);
+        np_network_t* new_network = NULL;
+        np_new_obj(np_network_t, new_network);
 
-        if (_np_network_init(my_network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, -1, UNKNOWN_PROTO))
+        if (_np_network_init(new_network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, -1, UNKNOWN_PROTO))
         {
             np_node_t* my_node = _np_key_get_node(context->my_node_key);
             if (FLAG_CMP(my_node->protocol, PASSIVE)) {
                 // set our identity key because of tcp passive network connection (this node is passive)
-                _np_network_init(my_network, true, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, my_network->socket, UNKNOWN_PROTO);
-                _np_network_set_key(my_network, context->my_identity->dhkey);
+                _np_network_init(new_network, true, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, new_network->socket, UNKNOWN_PROTO);
+                _np_network_set_key(new_network, context->my_identity->dhkey);
             }
             else
             {
                 // or use our node dhkey for other types of network connections
-                _np_network_set_key(my_network, node_key->dhkey);
+                _np_network_set_key(new_network, node_key->dhkey);
             }
-            sll_append(void_ptr, node_key->entities, my_network);
-            ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_client_network");
+            sll_append(void_ptr, node_key->entities, new_network);
+            ref_replace_reason(np_network_t, new_network, ref_obj_creation, "__np_create_client_network");
 
-            _np_network_enable(my_network);
+            _np_network_enable(new_network);
         }
         else 
         {
