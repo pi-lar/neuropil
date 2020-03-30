@@ -22,6 +22,13 @@
 extern "C" {
 #endif
 
+/**
+ * a alias component is the representation of an external physical node running on a distant os.
+ * it resides in memory at the dhkey composed by using the incoming IP/Port. usually it is used as
+ * an inbound channel to receive and decrypt messages. it has a np_node_t and np_network_t 
+ * structure which can be shared with it outound counterpart, the node component.
+ */
+
 NP_API_INTERN
 bool __is_alias_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN

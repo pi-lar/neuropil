@@ -14,6 +14,10 @@
 extern "C" {
 #endif
 
+/**
+ * mostly deprecated, most parts should be in the msgproperty component.
+ */
+
 #include "core/np_comp_intent.h"
 
 #include "neuropil.h"

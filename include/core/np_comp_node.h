@@ -25,6 +25,13 @@
 extern "C" {
 #endif
 
+/**
+ * a node component is the representation of an external physical node running on a distant os.
+ * it resides in memory at the fingerprint dhkey of its token. usually it is used as an outbound 
+ * channel to send or forward messages. Is has a np_node_t and np_network_t structure attached, 
+ * which may be shared with its inbound counterpart, the alias component.
+ */
+
 // CHECKS
 NP_API_INTERN
 bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
@@ -32,8 +39,7 @@ NP_API_INTERN
 bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
-NP_API_INTERN
-bool __is_node_complete(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
 NP_API_INTERN
 bool __is_node_join_nack(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
