@@ -444,11 +444,11 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
         np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_HANDSHAKE, NULL);
 
-        np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
-        _np_keycache_handle_event(context, hs_dhkey, handshake_event, false);
-
         trinity.node->_handshake_status++;
         trinity.node->handshake_send_at = np_time_now();
+
+        np_util_event_t handshake_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
+        _np_keycache_handle_event(context, hs_dhkey, handshake_event, false);
         
         log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now (hand)    : %p / %p %d", node_key, trinity.node, trinity.node->_handshake_status);
     }
@@ -458,11 +458,12 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
         np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_JOIN_REQUEST, NULL);
 
+        trinity.node->_joined_status++;
+        trinity.node->join_send_at = np_time_now();
+
         np_util_event_t join_event = { .type=(evt_internal|evt_message), .context=context, .user_data=msg_out, .target_dhkey=node_key->dhkey };
         _np_keycache_handle_event(context, join_dhkey, join_event, false);
 
-        trinity.node->join_send_at = np_time_now();
-        trinity.node->_joined_status++;
         log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now (join)    : %p / %p %d", node_key, trinity.node, trinity.node->_joined_status);
     }
 }
