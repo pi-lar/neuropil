@@ -1480,7 +1480,7 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
 bool __is_message_redelivery_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_message_redelivery_event(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_message_redelivery_event(...) {");
 
     bool ret = false;
     
