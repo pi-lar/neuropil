@@ -181,21 +181,23 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
         sll_append(void_ptr, my_identity_key->entities, my_node);
         ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_create_identity_network")
 
-        // create incoming network
-        np_network_t* my_network = NULL;
-        np_new_obj(np_network_t, my_network);
-        if (_np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, UNKNOWN_PROTO) ) 
-        {
-            _np_network_set_key(my_network, my_identity_key->dhkey);
+        if (!FLAG_CMP(my_node->protocol, PASSIVE)) {
+            // create incoming network
+            np_network_t* my_network = NULL;
+            np_new_obj(np_network_t, my_network);
+            if (_np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, UNKNOWN_PROTO) ) 
+            {
+                _np_network_set_key(my_network, my_identity_key->dhkey);
 
-            sll_append(void_ptr, my_identity_key->entities, my_network);
-            ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_identity_network")
+                sll_append(void_ptr, my_identity_key->entities, my_network);
+                ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_identity_network")
 
-            log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
+                log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
 
-            _np_network_enable(my_network);
-        } else {
-            np_unref_obj(np_network_t, my_network, ref_obj_creation);
+                _np_network_enable(my_network);
+            } else {
+                np_unref_obj(np_network_t, my_network, ref_obj_creation);
+            }
         }
     }
 }
