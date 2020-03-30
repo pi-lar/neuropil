@@ -63,7 +63,8 @@ struct np_network_s
 {
     bool initialized;
     int socket;
-    ev_io watcher;
+    ev_io watcher_in;
+    ev_io watcher_out;
     bool is_running;
     np_network_type_e type;
 
