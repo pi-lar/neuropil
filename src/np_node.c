@@ -92,7 +92,7 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
     np_node_t* node = _np_key_get_node(node_key);
     np_network_t* network = _np_key_get_network(node_key);
     
-    np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ush(node->protocol));
+    np_tree_insert_str( data, NP_SERIALISATION_NODE_PROTOCOL, np_treeval_new_ui(node->protocol));
 
     np_treeval_t address;
     if (node->dns_name == NULL) {
@@ -113,8 +113,8 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
     {
         port = np_treeval_new_s(node->port);
     }
-    np_tree_insert_str(data, NP_SERIALISATION_NODE_PORT, port);
 
+    np_tree_insert_str(data, NP_SERIALISATION_NODE_PORT, port);
     np_tree_insert_str(data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
 
     if (true == include_stats)
@@ -192,7 +192,7 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 
     np_tree_elem_t* ele;
     if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PROTOCOL))) {
-        i_host_proto = ele->val.value.ush;
+        i_host_proto = ele->val.value.ui;
     }
     else { return NULL; }
 
@@ -250,7 +250,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
     log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", details);
 
     // MANDATORY paramter
-    uint8_t i_host_proto = UNKNOWN_PROTO;
+    uint16_t i_host_proto = UNKNOWN_PROTO;
     char* s_host_proto = strsep(&details, ":");
     char* s_host_name  = strsep(&details, ":");
     char* s_host_port  = strsep(&details, ":");
