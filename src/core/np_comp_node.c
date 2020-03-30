@@ -427,13 +427,14 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
 
     double now = np_time_now();
 
-    np_dhkey_t hs_dhkey = _np_msgproperty_dhkey( OUTBOUND, _NP_MSG_HANDSHAKE);
+    np_dhkey_t hs_dhkey   = _np_msgproperty_dhkey( OUTBOUND, _NP_MSG_HANDSHAKE);
     np_dhkey_t join_dhkey = _np_msgproperty_dhkey( OUTBOUND, _NP_MSG_JOIN_REQUEST);
 
-    np_msgproperty_t* hs_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
+    np_msgproperty_t* hs_prop   = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_HANDSHAKE);
     np_msgproperty_t* join_prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_JOIN_REQUEST);
 
-    log_debug_msg(LOG_DEBUG, "node_status: %d %f", trinity.node->_handshake_status, trinity.node->handshake_send_at);
+    log_debug_msg(LOG_DEBUG, "node handshake status: %d %f", trinity.node->_handshake_status, trinity.node->handshake_send_at);
+    log_debug_msg(LOG_DEBUG, "node join      status: %d %f", trinity.node->_joined_status, trinity.node->join_send_at);
 
     np_message_t* msg_out = NULL;
 
@@ -449,7 +450,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
         trinity.node->_handshake_status++;
         trinity.node->handshake_send_at = np_time_now();
         
-        log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now         : %p / %p %d", node_key, trinity.node, trinity.node->_handshake_status);
+        log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now (hand)    : %p / %p %d", node_key, trinity.node, trinity.node->_handshake_status);
     }
     else if (trinity.node->session_key_is_set == true &&  trinity.node->_joined_status < np_status_Connected && 
             (trinity.node->join_send_at + join_prop->msg_ttl) < now ) 
@@ -462,6 +463,7 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
 
         trinity.node->join_send_at = np_time_now();
         trinity.node->_joined_status++;
+        log_debug_msg(LOG_DEBUG, "start: __np_node_handle_completion(...) { node now (join)    : %p / %p %d", node_key, trinity.node, trinity.node->_joined_status);
     }
 }
 
@@ -504,32 +506,34 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
             trinity.node->_joined_status++;
         } 
 
-        np_tree_t* jrb_token = np_tree_create();
-        np_tree_t* jrb_data  = np_tree_create();
+        if (!FLAG_CMP(trinity.node->protocol, PASSIVE)) 
+        {
+            np_tree_t* jrb_token = np_tree_create();
+            np_tree_t* jrb_data  = np_tree_create();
+            // send out update request to other nodes that are hashwise "nearer"
+            np_aaatoken_encode(jrb_token, token);
+            np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_token));
 
-        // send out update request to other nodes that are hashwise "nearer"
-        np_aaatoken_encode(jrb_token, token);
-        np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_token));
+            np_message_t* msg_out = NULL;
+            np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
+            _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_data);
 
-        np_message_t* msg_out = NULL;
-        np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-        _np_message_create(msg_out, event.target_dhkey, context->my_node_key->dhkey, _NP_MSG_UPDATE_REQUEST, jrb_data);
+            // send update messages to nodes near to this fingerprint        
+            np_dhkey_t update_key = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
+            np_util_event_t update_event = {.type=(evt_message|evt_internal), .context=context, .user_data=msg_out, .target_dhkey=token_fp};
+            _np_keycache_handle_event(context, update_key, update_event, false);
 
-        // send update messages to nodes near to this fingerprint        
-        np_dhkey_t update_key = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-        np_util_event_t update_event = {.type=(evt_message|evt_internal), .context=context, .user_data=msg_out, .target_dhkey=token_fp};
-        _np_keycache_handle_event(context, update_key, update_event, false);
-
-        np_tree_free(jrb_token);
+            np_tree_free(jrb_token);
+        }
     }
 }
 
-void __np_node_update_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_node_update_token(NP_UNUSED np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {   
     // comapare new and old node token, take over changes
 }
 
-void __np_node_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_node_destroy(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
     log_debug_msg(LOG_DEBUG, "start: void __np_node_destroy(...) {");
@@ -627,7 +631,32 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
         free(tmp_connection_str);
     }
 
-    // TODO: check alias key for already existing tcp passive network connection (partner is passive)
+    // look out for alias network after tcp accept
+    np_key_t*  alias_key   = _np_keycache_find(context, event.target_dhkey);
+    // take over existing alias network if it exists and it is passive node
+    if (NULL     != alias_key    && 
+        node_key != alias_key    && 
+        NULL     != trinity.node && 
+        FLAG_CMP(trinity.node->protocol, PASSIVE)
+       )
+    {
+        struct __np_node_trinity alias_trinity = {0};
+        __np_key_to_trinity(alias_key, &alias_trinity);
+        if (NULL != alias_trinity.network) 
+        {
+            _np_network_stop(alias_trinity.network, true);
+            np_ref_obj(np_network_t, alias_trinity.network, "__np_create_client_network");
+            sll_append(void_ptr, node_key->entities, alias_trinity.network );
+            // activate passive mode if peer is passive
+            __np_key_to_trinity(node_key, &trinity);
+            if (_np_network_init(trinity.network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, trinity.network->socket, UNKNOWN_PROTO))
+            {
+                log_debug_msg(LOG_DEBUG, "activated passive mode for: %p / %p {", node_key, trinity.node);
+            }
+            _np_network_start(alias_trinity.network, true);
+        }
+        np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
+    }
 
     if (NULL == trinity.network && NULL != trinity.node) 
     {   // create outgoing network
@@ -636,10 +665,17 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
 
         if (_np_network_init(my_network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, -1, UNKNOWN_PROTO))
         {
-            // TODO: set an arbitrary constructed alias key because of tcp passive network connection (this node is passive)
-            // remote port but "localhost"
-            _np_network_set_key(my_network, node_key->dhkey);
-            
+            np_node_t* my_node = _np_key_get_node(context->my_node_key);
+            if (FLAG_CMP(my_node->protocol, PASSIVE)) {
+                // set our identity key because of tcp passive network connection (this node is passive)
+                _np_network_init(my_network, true, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, my_network->socket, UNKNOWN_PROTO);
+                _np_network_set_key(my_network, context->my_identity->dhkey);
+            }
+            else
+            {
+                // or use our node dhkey for other types of network connections
+                _np_network_set_key(my_network, node_key->dhkey);
+            }
             sll_append(void_ptr, node_key->entities, my_network);
             ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_client_network");
 
@@ -743,14 +779,11 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
-    struct __np_node_trinity my_trinity = {0};
-    __np_key_to_trinity(context->my_node_key, &my_trinity);
-
     if (trinity.network == NULL) return;
     else                         _np_network_start(trinity.network, false);
 
     // replace with our onw local sequence number for next hop
-    np_tree_replace_str(part->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(my_trinity.network->seqend++));
+    np_tree_replace_str(part->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(trinity.network->seqend++));
     // increase resend counter for hop measurement
     np_tree_elem_t* jrb_send_counter = np_tree_find_str(part->instructions, _NP_MSG_INST_SEND_COUNTER);
     jrb_send_counter->val.value.ush++;

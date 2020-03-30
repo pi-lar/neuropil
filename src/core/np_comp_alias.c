@@ -218,10 +218,35 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     sll_append(void_ptr, alias_key->entities, alias_node);
     np_ref_obj(np_node_t, alias_node, "__np_alias_set");
 
+    np_node_t*  _my_node = _np_key_get_node(context->my_node_key);
+    // check node key for passive network connection (partner is passive)
+    if (NULL != node_key && 
+        NULL != _my_node && 
+        ( 
+            FLAG_CMP(alias_node->protocol, PASSIVE) ||
+            FLAG_CMP(_my_node->protocol, PASSIVE) 
+        )
+       )
+    {
+        // take over existing network if partner is passive
+        struct __np_node_trinity node_trinity = {0};
+        __np_key_to_trinity(node_key, &node_trinity);
+        if (NULL != node_trinity.network) 
+        {
+            _np_network_stop(node_trinity.network, true);
+            np_ref_obj(np_network_t, node_trinity.network, "__np_alias_set");
+            sll_append(void_ptr, alias_key->entities, node_trinity.network );
+            // set our key to receive and decrypt messages
+            _np_network_set_key(node_trinity.network, alias_key->dhkey);
+            _np_network_start(node_trinity.network, true);
+        }
+        np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
+    }
+
     handshake_token->state = AAA_VALID;
 }
 
-void __np_create_session(np_util_statemachine_t* statemachine, const np_util_event_t event)
+void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event)
 {   // create crypto session and "steal" node sructure
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_create_session(...) {");
