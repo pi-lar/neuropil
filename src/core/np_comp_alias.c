@@ -196,33 +196,42 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     }
 
     sll_append(void_ptr, alias_key->entities, handshake_token);
+    np_ref_obj(np_aaatoken_t, handshake_token, "__np_alias_set");
 
     np_dhkey_t search_key = {0};
     _np_str_dhkey(handshake_token->issuer, &search_key);
 
     np_node_t* alias_node = NULL;
     np_key_t* node_key = _np_keycache_find(context, search_key);
-    if (node_key == NULL) 
+    if (NULL == node_key) 
     {
+        log_debug_msg(LOG_DEBUG, "THIS CODE IS NEVER EXECUTED ?!? void __np_alias_set(...) %p / %p {", node_key, alias_node);
         alias_node = _np_node_from_token(handshake_token, handshake_token->type);
         // ref_replace_reason(np_key_t, alias_key, "_np_node_from_token", "__np_alias_set");
         alias_node->_handshake_status++;
     }
     else
+    if (NULL != node_key)
     {
-        alias_node = _np_key_get_node(node_key);
+        alias_node = _np_key_get_node(alias_key);
+        if (alias_node != _np_key_get_node(node_key))
+        {
+            np_unref_obj(np_node_t, alias_node, "__np_alias_set");
+            sll_remove(void_ptr, alias_key->entities, alias_node, void_ptr_sll_compare_type);
+            alias_node = _np_key_get_node(node_key);
+        }
+        sll_append(void_ptr, alias_key->entities, alias_node);
+        np_ref_obj(np_node_t, alias_node, "__np_alias_set");
+
         log_debug_msg(LOG_DEBUG, "start: void __np_alias_set(...) %p / %p {", node_key, alias_node);
         np_unref_obj(np_key_t, node_key, "_np_keycache_find");
     }
-
-    sll_append(void_ptr, alias_key->entities, alias_node);
-    np_ref_obj(np_node_t, alias_node, "__np_alias_set");
 
     np_node_t*  _my_node = _np_key_get_node(context->my_node_key);
     // check node key for passive network connection (partner is passive)
     if (NULL != node_key && 
         NULL != _my_node && 
-        ( 
+        (
             FLAG_CMP(alias_node->protocol, PASSIVE) ||
             FLAG_CMP(_my_node->protocol, PASSIVE) 
         )
@@ -244,6 +253,37 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     }
 
     handshake_token->state = AAA_VALID;
+}
+
+bool __is_alias_node_info(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: bool __is_alias_node_info(...) {");
+
+    bool ret = false;    
+    NP_CAST(event.user_data, np_node_t, my_node);
+
+    if (!ret) ret  = FLAG_CMP(event.type, evt_external);
+    if ( ret) ret &= _np_memory_rtti_check(my_node, np_memory_types_np_node_t);
+    if ( ret) ret &= _np_node_check_address_validity(my_node);
+
+    return ret;
+}
+
+void __np_alias_set_node(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{   
+    np_ctx_memory(statemachine->_user_data);
+    log_debug_msg(LOG_TRACE, "start: void __np_alias_set_node(...) {");
+
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+    NP_CAST(event.user_data, np_node_t, node);
+
+    np_ref_obj(np_key_t, alias_key, "__np_alias_set");
+    alias_key->type |= np_key_type_alias;
+    log_debug_msg(LOG_DEBUG, "start: void __np_alias_set_node(...) { %s:%s", node->dns_name, node->port);
+
+    sll_append(void_ptr, alias_key->entities, node);   
+    np_ref_obj(np_node_t, node, "__np_alias_set");
 }
 
 void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event)

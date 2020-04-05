@@ -35,6 +35,11 @@ NP_API_INTERN
 void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t event); // handle external received handsjake token
 
 NP_API_INTERN
+bool __is_alias_node_info(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_HIDDEN
+void __np_alias_set_node(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
 void __np_create_session(np_util_statemachine_t* statemachine, const np_util_event_t event); // create node as well and "steal" network sructure
  
 NP_API_INTERN

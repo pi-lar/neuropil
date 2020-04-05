@@ -39,6 +39,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_memory.h"
+#include "np_node.h"
 #include "np_threads.h"
 #include "np_event.h"
 #include "np_types.h"
@@ -288,16 +289,28 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
 
         if (data_to_send != NULL)
         {
-            current_write_per_data = send(
-                                        network->socket,
-                                        (((char*)data_to_send) + written_per_data),
-                                        MSG_CHUNK_SIZE_1024 - written_per_data,
-#ifdef MSG_NOSIGNAL
-                                        MSG_NOSIGNAL
-#else
-                                        0
-#endif
-                                    );
+            if (!FLAG_CMP(network->socket_type, PASSIVE)) {
+                current_write_per_data = send(network->socket,
+                                              (((char*)data_to_send) + written_per_data),
+                                              MSG_CHUNK_SIZE_1024 - written_per_data,
+    #ifdef MSG_NOSIGNAL
+                                            MSG_NOSIGNAL
+    #else
+                                            0
+    #endif
+                                        );
+            } else {
+                current_write_per_data = sendto(network->socket,
+                                                (((char*)data_to_send) + written_per_data),
+                                                MSG_CHUNK_SIZE_1024 - written_per_data,
+    #ifdef MSG_NOSIGNAL
+                                                MSG_NOSIGNAL,
+    #else
+                                                0,
+    #endif
+                                                network->remote_addr,
+                                                network->remote_addr_len);
+            }
 
             if (current_write_per_data == MSG_CHUNK_SIZE_1024)
             {
@@ -518,9 +531,22 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                 np_key_t*  alias_key  = _np_keycache_find(context, search_key);
 
                 np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container.data, 
-                                            .context=context, .target_dhkey=search_key };                
+                                            .context=context, .target_dhkey=search_key };
 
-                if (FLAG_CMP(ng->socket_type, TCP) || NULL == alias_key )
+                if (NULL == alias_key && FLAG_CMP(ng->socket_type, UDP)) 
+                {
+                    np_node_t* new_node = NULL;
+                    np_new_obj(np_node_t, new_node);
+                    _np_node_update(new_node, UDP, data_container.ipstr, data_container.port);
+                    np_key_t* temp_alias_key = _np_keycache_create(context, search_key);
+
+                    np_util_event_t node_evt = { .context=context,    .type=evt_external, 
+                                                 .user_data=new_node, .target_dhkey=search_key };
+                    _np_keycache_handle_event(context, search_key, node_evt, true);
+                    np_unref_obj(np_key_t, temp_alias_key, "_np_keycache_create");
+                }
+
+                if (FLAG_CMP(ng->socket_type, PASSIVE) || NULL == alias_key )
                 {
                     // TODO: always enqueue via jobqueue
                     // _np_keycache_handle_event(context, key->dhkey, in_event, false);
@@ -674,6 +700,7 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
 
     free(network->watcher_in.data);
     free(network->watcher_out.data);
+    free(network->remote_addr);
 
     if (0 < network->socket) close (network->socket);
     network->initialized = false;
@@ -931,6 +958,12 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
     }
 
+    memset((char *)&ng->remote_addr, 0, sizeof(ng->remote_addr));
+    ng->remote_addr = calloc(1, ng->addr_in->ai_addrlen);
+    CHECK_MALLOC(ng->remote_addr);
+    ng->remote_addr_len = ng->addr_in->ai_addrlen;
+    memcpy(ng->remote_addr, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
+    
     freeaddrinfo(ng->addr_in);
     ng->addr_in = NULL;
 

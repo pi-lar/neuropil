@@ -164,7 +164,27 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
     node_token->state = AAA_VALID;
     
     np_node_t* my_node = _np_node_from_token(node_token, node_token->type);
-    if (NULL != my_node) 
+    if (FLAG_CMP(my_node->protocol, PASSIVE)) 
+    {
+        np_key_t* alias_key = _np_keycache_find(context, event.target_dhkey);
+        if (NULL != alias_key) {
+            np_node_t* alias_node = _np_key_get_node(alias_key);
+            // if this node is not null, then a passive node contacted us first
+            if (NULL != alias_node) 
+            {
+                log_msg(LOG_WARN, "connecting passive node, check dns name %s / ip %s combination", my_node->dns_name, alias_node->dns_name);
+                sll_append(void_ptr, node_key->entities, alias_node);
+                alias_node->protocol |= my_node->protocol;
+                np_ref_obj(np_node_t, alias_node, "__np_node_set");
+
+                log_debug_msg(LOG_DEBUG, "node_status: %d:%s:%s", alias_node->protocol, alias_node->dns_name, alias_node->port);
+                log_debug_msg(LOG_DEBUG, "node_status: %d %f",    alias_node->_handshake_status, alias_node->handshake_send_at);
+
+                np_unref_obj(np_node_t, my_node, "_np_node_from_token");
+            }
+        }
+    }
+    else if (NULL != my_node) 
     {
         sll_append(void_ptr, node_key->entities, my_node);
         ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_node_set");
@@ -632,6 +652,9 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
         free(tmp_connection_str);
     }
 
+    // we nee our own node info now
+    np_node_t* my_node = _np_key_get_node(context->my_node_key);
+
     // look out for alias network after tcp accept
     np_key_t*  alias_key   = _np_keycache_find(context, event.target_dhkey);
     // take over existing alias network if it exists and it is passive node
@@ -643,12 +666,12 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
     {
         struct __np_node_trinity alias_trinity = {0};
         __np_key_to_trinity(alias_key, &alias_trinity);
-        if (NULL != alias_trinity.network) 
+        if (NULL != alias_trinity.network && FLAG_CMP(my_node->protocol, TCP)) 
         {
+            // activate passive mode if peer is passive, can only happen if own node runs tcp 
             _np_network_stop(alias_trinity.network, true);
             np_ref_obj(np_network_t, alias_trinity.network, "__np_create_client_network");
             sll_append(void_ptr, node_key->entities, alias_trinity.network );
-            // activate passive mode if peer is passive
             __np_key_to_trinity(node_key, &trinity);
             if (_np_network_init(trinity.network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, trinity.network->socket, UNKNOWN_PROTO))
             {
@@ -664,6 +687,19 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
         np_network_t* new_network = NULL;
         np_new_obj(np_network_t, new_network);
 
+        if (FLAG_CMP(trinity.node->protocol, PASSIVE) && 
+            FLAG_CMP(my_node->protocol, UDP))
+        {
+            log_debug_msg(LOG_DEBUG, "node_info: %d:%s:%s", trinity.node->protocol, trinity.node->dns_name, trinity.node->port);
+            np_network_t* my_network = _np_key_get_network(context->my_node_key);
+            // send messages from own socket
+            if (_np_network_init(new_network, false, my_node->protocol, trinity.node->dns_name, trinity.node->port, my_network->socket, PASSIVE))
+            {
+                sll_append(void_ptr, node_key->entities, new_network);
+                ref_replace_reason(np_network_t, new_network, ref_obj_creation, "__np_create_client_network");            
+            }
+        }
+        else
         if (_np_network_init(new_network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, -1, UNKNOWN_PROTO))
         {
             np_node_t* my_node = _np_key_get_node(context->my_node_key);
