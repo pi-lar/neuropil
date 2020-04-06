@@ -181,10 +181,12 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
                 log_debug_msg(LOG_DEBUG, "node_status: %d %f",    alias_node->_handshake_status, alias_node->handshake_send_at);
 
                 np_unref_obj(np_node_t, my_node, "_np_node_from_token");
+                my_node = alias_node;
             }
         }
     }
-    else if (NULL != my_node) 
+
+    if (NULL != my_node) 
     {
         sll_append(void_ptr, node_key->entities, my_node);
         ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_node_set");

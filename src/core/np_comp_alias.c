@@ -205,8 +205,11 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     np_key_t* node_key = _np_keycache_find(context, search_key);
     if (NULL == node_key) 
     {
+        // TODO: check if this code gets executed ever ...
         log_debug_msg(LOG_DEBUG, "THIS CODE IS NEVER EXECUTED ?!? void __np_alias_set(...) %p / %p {", node_key, alias_node);
         alias_node = _np_node_from_token(handshake_token, handshake_token->type);
+        np_ref_obj(np_node_t, alias_node, "__np_alias_set");
+        sll_append(void_ptr, alias_key->entities, alias_node);
         // ref_replace_reason(np_key_t, alias_key, "_np_node_from_token", "__np_alias_set");
         alias_node->_handshake_status++;
     }
@@ -214,15 +217,22 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     if (NULL != node_key)
     {
         alias_node = _np_key_get_node(alias_key);
-        if (alias_node != _np_key_get_node(node_key))
+        if (NULL != alias_node && alias_node != _np_key_get_node(node_key))
         {
-            np_unref_obj(np_node_t, alias_node, "__np_alias_set");
             sll_remove(void_ptr, alias_key->entities, alias_node, void_ptr_sll_compare_type);
+            np_unref_obj(np_node_t, alias_node, "__np_alias_set_node");
             alias_node = _np_key_get_node(node_key);
-        }
-        sll_append(void_ptr, alias_key->entities, alias_node);
-        np_ref_obj(np_node_t, alias_node, "__np_alias_set");
 
+            sll_append(void_ptr, alias_key->entities, alias_node);
+            np_ref_obj(np_node_t, alias_node, "__np_alias_set");
+        }
+        else
+        if (NULL == alias_node) 
+        {
+            alias_node = _np_key_get_node(node_key);
+            sll_append(void_ptr, alias_key->entities, alias_node);
+            np_ref_obj(np_node_t, alias_node, "__np_alias_set");
+        }
         log_debug_msg(LOG_DEBUG, "start: void __np_alias_set(...) %p / %p {", node_key, alias_node);
         np_unref_obj(np_key_t, node_key, "_np_keycache_find");
     }

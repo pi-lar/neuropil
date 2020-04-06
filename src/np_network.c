@@ -546,18 +546,14 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                     np_unref_obj(np_key_t, temp_alias_key, "_np_keycache_create");
                 }
 
-                if (FLAG_CMP(ng->socket_type, PASSIVE) || NULL == alias_key )
+                if (FLAG_CMP(ng->socket_type, TCP) || FLAG_CMP(ng->socket_type, PASSIVE) || NULL == alias_key )
                 {
-                    // TODO: always enqueue via jobqueue
-                    // _np_keycache_handle_event(context, key->dhkey, in_event, false);
                     if(!np_jobqueue_submit_event(context, 0.0, owner_dhkey, in_event, "event: externe message in")){
                         log_debug(LOG_NETWORK, "Dropping data package as jobqueue is rejecting it");    
                     }
                 }
                 else if (NULL != alias_key )
                 {
-                    // TODO: always enqueue via jobqueue
-                    // _np_keycache_handle_event(context, alias_key->dhkey, in_event, false);
                     if(!np_jobqueue_submit_event(context, 0.0, alias_key->dhkey, in_event, "event: externe message in")){
                         log_debug(LOG_NETWORK, "Dropping data package as jobqueue is rejecting it");    
                     }
