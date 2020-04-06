@@ -566,14 +566,14 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                 if (NULL != alias_key) np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
 
             } else {
-                if(!network_receive_timeout){
+                if(!network_receive_timeout) {
                     log_info(LOG_NETWORK, "Network receive iteration stopped due to timeout (Received Data: %"PRIu16")", in_msg_len);
                 }
 
                 if (in_msg_len == 0) 
-                {
-                    log_info(LOG_NETWORK, "Stopping network due to zero size package (%"PRIu16")", in_msg_len);
-                    _np_network_stop(ng, true);
+                {   // could be a tcp keep alive packet, ignore it
+                    // log_info(LOG_NETWORK, "Stopping network due to zero size package (%"PRIu16")", in_msg_len);
+                    // _np_network_stop(ng, true);
                 }
                 else 
                 {
@@ -839,7 +839,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             __set_v6_only_false(ng->socket);
         }
         if (FLAG_CMP(type, TCP)) {
-            __set_keepalive(ng->socket);
+            // __set_keepalive(ng->socket);
         }
         __set_non_blocking(ng->socket);
 
@@ -918,7 +918,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             __set_v6_only_false(ng->socket);
         }
         if (FLAG_CMP(type, TCP)) {
-            __set_keepalive(ng->socket);
+            // __set_keepalive(ng->socket);
         }
         __set_non_blocking(ng->socket);
 
