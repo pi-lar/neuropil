@@ -175,12 +175,13 @@ void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t e
                 log_msg(LOG_WARN, "connecting passive node, check dns name %s / ip %s combination", my_node->dns_name, alias_node->dns_name);
                 sll_append(void_ptr, node_key->entities, alias_node);
                 alias_node->protocol |= my_node->protocol;
-                np_ref_obj(np_node_t, alias_node, "__np_node_set");
 
                 log_debug_msg(LOG_DEBUG, "node_status: %d:%s:%s", alias_node->protocol, alias_node->dns_name, alias_node->port);
                 log_debug_msg(LOG_DEBUG, "node_status: %d %f",    alias_node->_handshake_status, alias_node->handshake_send_at);
 
+                np_ref_obj(np_node_t, alias_node, "_np_node_from_token");
                 np_unref_obj(np_node_t, my_node, "_np_node_from_token");
+
                 my_node = alias_node;
             }
         }

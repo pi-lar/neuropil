@@ -220,7 +220,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
         if (NULL != alias_node && alias_node != _np_key_get_node(node_key))
         {
             sll_remove(void_ptr, alias_key->entities, alias_node, void_ptr_sll_compare_type);
-            np_unref_obj(np_node_t, alias_node, "__np_alias_set_node");
+            np_unref_obj(np_node_t, alias_node, "__np_alias_set");
             alias_node = _np_key_get_node(node_key);
 
             sll_append(void_ptr, alias_key->entities, alias_node);
@@ -259,7 +259,6 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
             _np_network_set_key(node_trinity.network, alias_key->dhkey);
             _np_network_start(node_trinity.network, true);
         }
-        np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
     }
 
     handshake_token->state = AAA_VALID;
