@@ -808,7 +808,6 @@ void np_threads_shutdown_workers(np_state_t* context)
 {
     bool shutdown_complete;
     sll_iterator(np_thread_ptr) iter_threads;
-    np_thread_t* self = _np_threads_get_self(context);
     
     iter_threads = sll_first(np_module(threads)->threads);
     while (iter_threads != NULL)
