@@ -505,8 +505,12 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")", length);
 
     np_util_event_t send_event = { .type=(evt_internal | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
-    _np_keycache_handle_event(context, subject_dhkey, send_event, false);
+    // _np_keycache_handle_event(context, subject_dhkey, send_event, false);
 
+    if(!np_jobqueue_submit_event(context, 0.0, subject_dhkey, send_event, "event: userspace message delivery request")){
+        log_msg(LOG_WARN, "rejecting possible sending of message, please check jobqueue settings!");
+    }
+    
     return ret;
 }
 
