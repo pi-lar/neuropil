@@ -531,18 +531,21 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                 np_key_t*  alias_key  = _np_keycache_find(context, search_key);
 
                 np_util_event_t in_event = { .type=evt_external|evt_message, .user_data=data_container.data, 
-                                            .context=context, .target_dhkey=search_key };
+                                             .context=context, .target_dhkey=search_key };
 
                 if (NULL == alias_key && FLAG_CMP(ng->socket_type, UDP)) 
                 {
                     np_node_t* new_node = NULL;
                     np_new_obj(np_node_t, new_node);
                     _np_node_update(new_node, UDP, data_container.ipstr, data_container.port);
+
                     np_key_t* temp_alias_key = _np_keycache_create(context, search_key);
 
                     np_util_event_t node_evt = { .context=context,    .type=evt_external, 
                                                  .user_data=new_node, .target_dhkey=search_key };
-                    _np_keycache_handle_event(context, search_key, node_evt, true);
+                    if(!np_jobqueue_submit_event(context, 0.0, search_key, node_evt, "event: externe udp node in")){
+                        log_debug(LOG_NETWORK, "rejecting possible udp connection as jobqueue is rejecting it");    
+                    }
                     np_unref_obj(np_key_t, temp_alias_key, "_np_keycache_create");
                 }
 
@@ -570,10 +573,10 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                     log_info(LOG_NETWORK, "Network receive iteration stopped due to timeout (Received Data: %"PRIu16")", in_msg_len);
                 }
 
-                if (in_msg_len == 0) 
-                {   // could be a tcp keep alive packet, ignore it
-                    // log_info(LOG_NETWORK, "Stopping network due to zero size package (%"PRIu16")", in_msg_len);
-                    // _np_network_stop(ng, true);
+                if (in_msg_len == 0)
+                {   
+                    log_info(LOG_NETWORK, "Stopping network due to zero size package (%"PRIu16")", in_msg_len);
+                    _np_network_disable(ng);
                 }
                 else 
                 {
