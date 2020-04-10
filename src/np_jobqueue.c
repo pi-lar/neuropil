@@ -128,7 +128,10 @@ bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job)
 
 void _np_jobqueue_check(np_state_t* context) 
 {	    
-    _np_threads_module_condition_signal(context, np_jobqueue_t_lock);	
+    _LOCK_MODULE(np_jobqueue_t)
+    {
+        _np_threads_module_condition_signal(context, np_jobqueue_t_lock);	
+    }
 }
 
 void np_jobqueue_submit_event_callbacks(np_state_t* context, double delay, np_dhkey_t next, np_util_event_t event, np_sll_t(np_evt_callback_t, callbacks), const char* ident)
@@ -305,7 +308,6 @@ double __np_jobqueue_run_jobs_once(np_state_t * context, np_thread_t* my_thread)
         if (run_next_job == true) 
         {
             my_thread->job = next_job;
-            np_thread_t* self = _np_threads_get_self(context);
             __np_jobqueue_run_once(context, next_job);
             ret = 0.0;
         }
@@ -313,19 +315,18 @@ double __np_jobqueue_run_jobs_once(np_state_t * context, np_thread_t* my_thread)
     return ret;
 }
 
-void np_jobqueue_run_jobs_for(np_state_t * context, double duration)
+void np_jobqueue_run_jobs_for(np_state_t * context, np_thread_t* thread, double duration)
 {
     double now = np_time_now();
     double end = now + duration;
     double sleep = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
-    np_thread_t * thread = _np_threads_get_self(context);
 
     enum np_status np_runtime_status = np_get_status(context);
     do
     {
-        np_threads_busyness(context, thread,true);
+        np_threads_busyness(context, thread, true);
         sleep = __np_jobqueue_run_jobs_once(context, thread);        
-        np_threads_busyness(context, thread,false);
+        np_threads_busyness(context, thread, false);
 
         now = np_time_now();
         if (sleep > 0.0)

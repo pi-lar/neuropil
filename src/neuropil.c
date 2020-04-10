@@ -628,7 +628,7 @@ enum np_return np_run(np_context* ac, double duration) {
         }
         else 
         {
-            np_jobqueue_run_jobs_for(context, duration);
+            np_jobqueue_run_jobs_for(context, thread, duration);
         }
     }
     return ret;
