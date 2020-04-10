@@ -230,7 +230,19 @@ void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event
     np_ref_obj(np_node_t, node, "__np_wildcard_set");
 }
 
-void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_filter_remove_passive_nodes(np_sll_t(np_key_ptr, sll_of_keys))
+{
+    sll_iterator(np_key_ptr) iter = sll_first(sll_of_keys);
+    while (iter != NULL) {
+        if (FLAG_CMP(_np_key_get_node(iter->val)->protocol != NULL && 
+                     _np_key_get_node(iter->val)->protocol, PASSIVE)) {
+            sll_remove(np_key_ptr, sll_of_keys, iter->val, np_key_ptr_sll_compare_type);
+        }
+        sll_next(iter);
+    }
+}
+
+void __np_node_update(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_node_update(...) {");
@@ -334,9 +346,11 @@ void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_
             sll_of_keys = _np_route_neighbors(context);
             source_sll_of_keys = "_np_route_neighbors";
         }
-        
+
         if (sll_size(sll_of_keys) > 0)
         {
+            __np_filter_remove_passive_nodes(sll_of_keys);
+
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "job submit piggyinfo to %s:%s!", node->dns_name, node->port);
 
             np_tree_t* msg_body = np_tree_create();

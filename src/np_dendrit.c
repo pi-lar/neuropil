@@ -116,10 +116,17 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
     while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
-        np_dhkey_t search_key = {0};
-        _np_str_dhkey(node_entry->host_key, &search_key);
+        // ignore passive nodes, we cannot send a handshake to them
+        if (FLAG_CMP(node_entry->protocol, PASSIVE)) {
+            np_unref_obj(np_node_t, node_entry,"_np_node_decode_from_jrb");
+            continue;
+        }
+
         // add entries in the message to our routing table
         // routing table is responsible to handle possible double entries
+        np_dhkey_t search_key = {0};
+        _np_str_dhkey(node_entry->host_key, &search_key);
+
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
         np_key_t* piggy_key = _np_keycache_find(context, search_key);
         if (piggy_key == NULL)
