@@ -108,6 +108,7 @@ s
         np_invalid_operation,
         np_startup,
         np_key_not_found,
+        np_insufficient_memory,
     } NP_CONST_ENUM;
 
     NP_API_EXPORT
