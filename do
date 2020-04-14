@@ -3,7 +3,7 @@
 set -eu
 
 
-log(){  
+log(){
   echo  "$(date '+%H:%M:%S') $1"
 }
 
@@ -31,7 +31,7 @@ ensure_criterion() {
   then
     return
   fi
-  ( 
+  (
   root="$(pwd)"
   mkdir -p build/test/ext_tools/Criterion/build
   cd build/test/ext_tools/Criterion/build
@@ -67,7 +67,7 @@ task_build() {
   else
     shift;
   fi
-  
+
   type=${1:-"defaultvalue"}
   if [ "$type" == "defaultvalue" ]; then
     type="release=1"
@@ -77,11 +77,11 @@ task_build() {
       type="release=1"
     else
       type="debug=1"
-    fi    
+    fi
   fi
-  
-  
-  scons "$type" "target=$target" "$@"
+
+  scons "$type" "target=$target" "$@" |& tee /tmp/np_sorted.log
+  ./sorted_output.sh /tmp/np_sorted.log
 }
 
 task_build_local() {
@@ -120,18 +120,24 @@ task_release() {
 
 task_install_python() {
   ensure_venv
-  
+
   task_build_local release python_binding=1
 }
 
 task_test() {
   ensure_venv
   ensure_submodules
-  ensure_criterion  
+  ensure_criterion
 
   task_build "test" debug test=1
   export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
+
   ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
+  # Enable for test debugging
+  #nohup ./build/test/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
+  #sleep 1
+  #gdb ./build/test/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+
 }
 
 task_run() {
@@ -150,8 +156,8 @@ task_run() {
   echo "./build/$target/bin/$application" "$@"
   set +e
   run=$("./build/$target/bin/$application" "$@")
-  set -e  
-  if [ "$run" != 0 ] ; then      
+  set -e
+  if [ "$run" != 0 ] ; then
     gdb "./build/$target/bin/$application" -c core*
   fi
 
@@ -163,13 +169,13 @@ task_smoke() {
 
   pwd=$(pwd)
   (
-    loc="$(get_local_target)"    
+    loc="$(get_local_target)"
 
     echo "export LD_LIBRARY_PATH=$pwd/build/$loc/lib"
     export LD_LIBRARY_PATH="$pwd/build/$loc/lib"
-    set +e         
+    set +e
     nose2 -v
-    if [ $? == 139 ] && [ -t 0 ]; then      
+    if [ $? == 139 ] && [ -t 0 ]; then
       read -r -p "${1:-Debug with gdb? [y/N]} " response
       case "$response" in
           [yY][eE][sS]|[yY])
@@ -209,7 +215,7 @@ shift || true
     build) task_build "$@";;
     doc) task_doc ;;
     test) task_test "$@";;
-    package) task_package "$@";;  
+    package) task_package "$@";;
     install_python) task_install_python ;;
     smoke) task_smoke ;;
     release) task_release ;;
