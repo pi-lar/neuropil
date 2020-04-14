@@ -245,7 +245,7 @@ void prometheus_metric_set(prometheus_metric* self, float value) {
 }
 
 float prometheus_metric_get(prometheus_metric* self) {
-    float ret = 0;        
+    float ret = 0;
     if(pthread_mutex_lock(&self->rw_lock)==0) {
         __prometheus_metric_update_sub_metrics(self,self->context->time());
         ret = self->value;

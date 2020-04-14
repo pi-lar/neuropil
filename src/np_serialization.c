@@ -47,7 +47,7 @@ bool _np_buffer_reader(struct cmp_ctx_s *ctx, void *data, size_t limit)
 }
 
 bool _np_buffer_skipper(struct cmp_ctx_s *ctx, size_t limit)
-{	
+{
 	ctx->buf += limit;
 	return true;
 }
@@ -77,7 +77,7 @@ bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit
 		*/
 
 	if (nextCount > wrapper->bufferMaxCount) {
-		
+
 		ctx->error = 14;// LENGTH_READING_ERROR
 						/*
 		log_msg(LOG_WARN,
@@ -107,7 +107,7 @@ bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
 		"BUFFER CHECK Current size: %zu; Max size: %zu; Skip size: %zu",
 		wrapper->bufferCount, wrapper->bufferMaxCount, limit);
 		*/
-	if (nextCount > wrapper->bufferMaxCount) {		
+	if (nextCount > wrapper->bufferMaxCount) {
 		ctx->error = 14;// LENGTH_READING_ERROR
 						/*
 		log_msg(LOG_WARN,
@@ -115,7 +115,7 @@ bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
 			wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
 			*/
 	}
-	else {		
+	else {
 		wrapper->buffer += limit;
 		wrapper->bufferCount = nextCount;
 		ret = true;
