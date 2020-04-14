@@ -11,8 +11,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    #define NP_DATA_MAGIC_NO 2223964591
-       
+    #define NP_DATA_MAGIC_NO 22964591
+
     enum np_data_type {
         NP_DATA_TYPE_MASK                     = 0xFFF000,
         NP_DATA_TYPE_BIN                      = 0x001000,
@@ -27,9 +27,9 @@ extern "C" {
     } NP_PACKED(1);
     // value gets appended to np_data instance in datablock
 
-    typedef void np_datablock_t;    
+    typedef void np_datablock_t;
 
-    NP_API_EXPORT    
+    NP_API_EXPORT
     /**
      * @brief Initialises the provided memory allocation as datablock
      * 
@@ -37,7 +37,7 @@ extern "C" {
      * @param block_length The memory block size
      * @return enum np_return 
      */
-    enum np_return np_init_datablock(np_datablock_t * block, size_t block_length);
+    enum np_return np_init_datablock(np_datablock_t * block, uint32_t block_length);
     NP_API_EXPORT
     enum np_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, unsigned char * data);
     NP_API_EXPORT

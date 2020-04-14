@@ -14,83 +14,138 @@
 #include "np_serialization.h"
 #include "np_util.h"
 
-struct np_datablock
+enum np_return np_init_datablock(np_datablock_t *block, uint32_t block_length)
 {
-    uint32_t magic_no;
-    size_t total_length;
-    size_t used_length;
-    cmp_ctx_t cmp;
-    unsigned char *data;
-} NP_PACKED(1);
-
-enum np_return np_init_datablock(np_datablock_t *block, size_t block_length)
-{
-    if (block_length <= sizeof(struct np_datablock))
+    if (block_length <= sizeof(uint32_t) * 3)
     {
         return np_invalid_argument;
     }
-
-    struct np_datablock *s_block = block;
-    s_block->total_length = block_length;
-    s_block->used_length = sizeof(struct np_datablock);
-    s_block->magic_no = NP_DATA_MAGIC_NO;
-    s_block->data = (s_block + 1);
-
-    printf(
-        "%p + %" PRIu32 " = %p + %" PRIu32 " = %p\n",
-        s_block,
-        sizeof(struct np_datablock),
-        s_block->data,
-        block_length - sizeof(struct np_datablock),
-        ((unsigned char *)s_block->data) + block_length - sizeof(struct np_datablock));
-    cmp_init(&(s_block->cmp), s_block->data, NULL, NULL, _np_buffer_writer);
+    memset(block, 0, block_length);
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, block, NULL, NULL, _np_buffer_writer);
+    //_np_buffer_reader, _np_buffer_skipper
+    cmp_write_u32(&cmp, NP_DATA_MAGIC_NO);                     // magic_no
+    cmp_write_u32(&cmp, block_length);                         // total_length
+    cmp_write_u32(&cmp, 3 /*marker */ + 3 * sizeof(uint32_t)); // used_length
 
     return np_ok;
 }
-
 enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf, unsigned char *data)
 {
-    enum np_return ret = np_ok;
-    struct np_datablock *s_block = block;
-    if (block == NULL || s_block->magic_no != NP_DATA_MAGIC_NO)
-    {
-        ret = np_invalid_argument;
-    }
-    else
-    {
+    enum np_return ret = np_invalid_argument;
 
-        // check for data space
-        size_t key_size = strnlen(data_conf.key, 255) * sizeof(char) + sizeof(uint8_t) /*msgpack type marker */;
-        size_t new_size = key_size + s_block->used_length;
-        if (data_conf.type == NP_DATA_TYPE_BIN)
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, block, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+    fprintf(stderr, "np_set_data 1 %p\n", cmp.buf);
+    uint32_t magic_no = 0;
+
+    if (cmp_read_u32(&cmp, &magic_no) && NP_DATA_MAGIC_NO == magic_no) // magic_no
+    {
+        fprintf(stderr, "np_set_data 2 %p\n", cmp.buf);
+        uint32_t total_length = 0;
+        if (!cmp_read_u32(&cmp, &total_length)) // total_length
         {
-            new_size += data_conf.data_size + sizeof(uint8_t) /*msgpack type marker */ + sizeof(uint32_t) /*msgpack size*/;
-        }
-        if (new_size > s_block->total_length || new_size < s_block->used_length /*uint overflow check*/)
-        {
-            ret = np_invalid_argument;
+            ret = np_unknown_error;
         }
         else
         {
-            printf("np_set_data\n");
-            printf("s_block->data:              %p\n", s_block->data);
-            printf("key_size:                   %" PRIu32 "\n", key_size);
-            printf("strnlen(data_conf.key):     %" PRIu32 "\n", strnlen(data_conf.key, 255));
-            printf("data_conf.key:             \"%s\"\n", data_conf.key);
-            printf("data_conf.data_size:        %" PRIu32 "\n", data_conf.data_size);
-            printf("s_block->used_length:       %" PRIu32 "\n", s_block->used_length);
-            printf("new_size:                   %" PRIu32 "\n", new_size);
-            s_block->used_length = new_size;
-
-            if (!cmp_write_str(&s_block->cmp, data_conf.key, strnlen(data_conf.key, 255)))
+            fprintf(stderr, "np_set_data 3 %p\n", cmp.buf);
+            uint32_t used_length = 0;
+            if (!cmp_read_u32(&cmp, &used_length)) // used_length
             {
                 ret = np_unknown_error;
             }
             else
             {
-                if (data_conf.type == NP_DATA_TYPE_BIN)
+                fprintf(stderr, "np_set_data 4 %p\n", cmp.buf);
+                char tmp_key[256] = {0};
+                uint8_t tmp_data_type = 0;
+                uint32_t tmp_data_size = 0;
+                while ((cmp.buf - block) < used_length)
                 {
-                    if (!cmp_write_bin(&s_block->cmp, data, data_conf.data_size))
+                    cmp_ctx_t pre_read_cmp = cmp;
+                    if (!cmp_read_str(&cmp, &tmp_key, 255)) // key
+                    {
+                        ret = np_unknown_error;
+                        break;
+                    }
+                    if (!cmp_read_u8(&cmp, &tmp_data_type)) // data_type
+                    {
+                        ret = np_unknown_error;
+                        break;
+                    }
+                    if (tmp_data_type == NP_DATA_TYPE_BIN)
+                    {
+                        if (!cmp_read_bin_size(&cmp, &tmp_data_size))
+                        {
+                            ret = np_unknown_error;
+                            break;
+                        }
+                    } // ... other types
+
+                    if (strncmp(tmp_key, data_conf.key, 255) == 0)
+                    {
+                        // check for space
+                        if ((total_length - (used_length - tmp_data_size)) <= data_conf.data_size)
+                        {
+                            // overwrite data (as in: move remaining data up und add new element)
+                            memmove(pre_read_cmp.buf, cmp.buf, used_length - (pre_read_cmp.buf - block));
+                            cmp = pre_read_cmp;
+                            break;
+                        }
+                        else
+                        {
+                            ret = np_insufficient_memory;
+                        }
+                    }
+                }
+
+                // write new value
+                if (ret != np_unknown_error && ret != np_insufficient_memory)
+                {
+                    uint32_t key_len = strnlen(data_conf.key, 255);
+                    fprintf(stderr, "np_set_data 5 %p\n", cmp.buf);
+                    if (!cmp_write_str(&cmp, data_conf.key, key_len))
+                    {
+                        ret = np_unknown_error;
+                    }
+                    else
+                    {
+                        fprintf(stderr, "np_set_data 6 %p\n", cmp.buf);
+                        if (!cmp_write_u32(&cmp, (uint32_t)data_conf.type))
+                        {
+                            ret = np_unknown_error;
+                        }
+                        else
+                        {
+                            fprintf(stderr, "np_set_data 7 %p\n", cmp.buf);
+                            if (data_conf.type == NP_DATA_TYPE_BIN)
+                            {
+                                if (cmp_write_bin32(&cmp, data, data_conf.data_size))
+                                {
+                                    fprintf(stderr, "np_set_data 8 %p\n", cmp.buf);
+                                }
+                                else
+                                {
+                                    ret = np_unknown_error;
+                                }
+                            } // ... other types
+                        }
+                    }
+                }
+                if (ret != np_unknown_error && ret != np_insufficient_memory)
+                {
+                    unsigned char * overwrite = block + 2 /*marker */ + 2 * sizeof(uint32_t);
+                    cmp_ctx_t overwrite_cmp;
+                    cmp_init(&overwrite_cmp, overwrite, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+
+                    fprintf(stderr, "np_set_data 3.2 %p\n", overwrite_cmp.buf);
+                    if (cmp_write_u32(&overwrite_cmp, (cmp.buf - block)))
+                    {
+                        fprintf(stderr, "np_set_data 4.2 %p\n", overwrite_cmp.buf);
+                        ret = np_ok;
+                    }
+                    else
                     {
                         ret = np_unknown_error;
                     }
@@ -98,116 +153,112 @@ enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf,
             }
         }
     }
+
     return ret;
 }
 
-enum np_return np_get_data(np_datablock_t *block, char key[255], struct np_data_conf *out_data_config, unsigned char **out_data)
+enum np_return np_get_data(np_datablock_t * block, char key[255], struct np_data_conf * out_data_config, unsigned char ** out_data)
 {
-    enum np_return ret = np_key_not_found;
-    if (key == NULL || block == NULL || out_data_config == NULL)
-    {
-        return np_invalid_argument;
-    }
-
-    struct np_datablock *s_block = block;
-
-    if (s_block->magic_no != NP_DATA_MAGIC_NO)
-    {
-        return np_invalid_argument;
-    }
+    enum np_return ret = np_invalid_argument;
 
     cmp_ctx_t cmp;
-    cmp_init(&cmp, s_block->data, _np_buffer_reader, _np_buffer_skipper, NULL);
+    cmp_init(&cmp, block, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
+    fprintf(stderr, "np_get_data 1 %p\n", cmp.buf);
+    uint32_t magic_no = 0;
 
-    size_t remaining_read = s_block->used_length - sizeof(struct np_datablock);
-    uint32_t key_size;
-    printf("\nnp_get_data\n");
-    while (remaining_read > 0)
+    if (cmp_read_u32(&cmp, &magic_no) && NP_DATA_MAGIC_NO == magic_no) // magic_no
     {
-        key_size = MIN(remaining_read, 255);
-        out_data_config->data_size = remaining_read;
-        printf("read key\n");
-        printf("s_block->data:              %p\n", s_block->data);
-        printf("remaining_read:             %" PRIu32 "\n", remaining_read);
-        printf("cmp.buf:                    %p\n", cmp.buf);
-        if (!cmp_read_str(&cmp, out_data_config->key, &key_size))
+        fprintf(stderr, "np_get_data 2 %p\n", cmp.buf);
+        uint32_t total_length = 0;
+        if (!cmp_read_u32(&cmp, &total_length)) // total_length
         {
-            printf("E:%" PRIu8 ":%s\n", cmp.error, cmp_strerror(&cmp));
             ret = np_unknown_error;
-            break;
         }
         else
         {
-            remaining_read = remaining_read - (key_size + sizeof(uint8_t) /*msgpack type marker */);
-            out_data_config->data_size = remaining_read;
-            printf("key_size:                   %" PRIu32 "\n", key_size);
-            printf("out_data_config->key:       %s\n", out_data_config->key);
-            printf("read val\n");
-            printf("remaining_read:             %" PRIu32 "\n", remaining_read);
-            printf("cmp.buf:                    %p\n", cmp.buf);
-            void * data = NULL;
-            printf("B");
-            fflush(NULL);
-
-            
-            if (!cmp_read_bin(&cmp, data, &(out_data_config->data_size)))
+            fprintf(stderr, "np_get_data 3 %p\n", cmp.buf);
+            uint32_t used_length = 0;
+            if (!cmp_read_u32(&cmp, &used_length)) // used_length
             {
-                printf("E:%" PRIu8 ":%s\n", cmp.error, cmp_strerror(&cmp));
                 ret = np_unknown_error;
-                break;
             }
             else
             {
-                printf("out_data_config->data_size: %" PRIu32 "\n", out_data_config->data_size);
+                fprintf(stderr, "np_get_data 4 %p\n", cmp.buf);
+                char tmp_key[256] = {0};
+                uint32_t tmp_data_type = 0;
+                uint32_t tmp_data_size = 0;
+                ret = np_key_not_found;
+                while ((cmp.buf - block) < used_length)
+                {
+                    cmp_ctx_t pre_read_cmp = cmp;
 
-                if (strncmp(key, out_data_config->key, 255) == 0)
-                {
-                    printf("  J1\n");
-                    ret = np_ok;
-                    break;
-                }
-                if (remaining_read <= out_data_config->data_size + key_size)
-                {
-                    printf("  J2\n");
-                    break;
-                }
-                else
-                {
-                    printf("  J3\n");
-                    remaining_read -= out_data_config->data_size + key_size + 2 * sizeof(uint8_t) /*msgpack marker*/;
+                    fprintf(stderr, "np_get_data 5 %p\n", cmp.buf);
+                    uint32_t tmp_key_size;
+                    if (!cmp_read_str(&cmp, tmp_key, &tmp_key_size)) // key
+                    {
+                        ret = np_unknown_error;
+                        break;
+                    }
+
+                    fprintf(stderr, "np_get_data 6 %p\n", cmp.buf);
+                    if (!cmp_read_u32(&cmp, &tmp_data_type)) // data_type
+                    {
+                        ret = np_unknown_error;
+                        break;
+                    }
+                    cmp_ctx_t pre_size_read;
+                    fprintf(stderr, "np_get_data 7 %p tmp_data_type: %"PRIu32"\n", cmp.buf, tmp_data_type);
+                    if (tmp_data_type == NP_DATA_TYPE_BIN)
+                    {
+                        fprintf(stderr, "np_get_data 7.1 BIN %p\n", cmp.buf);
+                        pre_size_read = cmp;
+                        if (!cmp_read_bin_size(&cmp, &tmp_data_size))
+                        {
+                            fprintf(stderr, "np_get_data 7.1 BREAK BIN %p\n", cmp.buf);
+                            ret = np_unknown_error;
+                            break;
+                        }
+                        cmp.buf = cmp.buf + tmp_data_size; // skip data
+
+                    } // ... other types
+                    fprintf(stderr, "np_get_data 8 %p\n", cmp.buf);
+
+                    if (strncmp(tmp_key, key, 255) == 0)
+                    {
+                        fprintf(stderr, "np_get_data 9 %p\n", cmp.buf);
+                        if (out_data != NULL)
+                        {
+
+                            if (tmp_data_type == NP_DATA_TYPE_BIN)
+                            {
+                                *out_data = malloc(tmp_data_size);
+                                if(*out_data == NULL){
+                                    ret = np_insufficient_memory;
+                                    break;
+                                }
+                                cmp = pre_size_read;
+                                fprintf(stderr, "np_get_data 9.1 BIN %p  *out_data %p\n", cmp.buf, *out_data);
+
+                                if (!cmp_read_bin(&cmp, *out_data, &tmp_data_size))
+                                {
+                                    fprintf(stderr, "np_get_data 9.1 BREAK BIN %p\n", cmp.buf);
+                                    ret = np_unknown_error;
+                                    break;
+                                }
+                            }
+                        }
+                        fprintf(stderr, "np_get_data 10 %p\n", cmp.buf);
+
+                        out_data_config->data_size = tmp_data_size;
+                        out_data_config->type = tmp_data_type;
+                        strncpy(out_data_config->key, key, 255);
+                        ret = np_ok;
+                        break;
+                    }
                 }
             }
         }
     }
     return ret;
-}
-
-enum np_return np_serialize_datablock(np_datablock_t *block, void **out_raw_block, size_t *out_raw_block_size)
-{
-    enum np_return ret = np_not_implemented;
-    if (block == NULL || out_raw_block == NULL)
-    {
-        return np_invalid_argument;
-    }
-
-    struct np_datablock *s_block = block;
-    out_raw_block_size = s_block->used_length - sizeof(struct np_datablock);
-    *out_raw_block = s_block->data;
-
-    return np_ok;
-}
-
-enum np_return np_deserialize_datablock(np_datablock_t **out_block, void *raw_block, size_t raw_block_length)
-{
-    enum np_return ret = np_not_implemented;
-
-    struct np_datablock *s_block = malloc(sizeof(struct np_datablock));
-    s_block->magic_no = NP_DATA_MAGIC_NO;
-    s_block->total_length = raw_block_length + sizeof(struct np_datablock);
-    s_block->used_length = s_block->total_length;
-    s_block->data = raw_block;
-    cmp_init(&s_block->cmp, s_block->data, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-
-    *out_block = s_block;
-    return np_ok;
 }
