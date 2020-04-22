@@ -238,7 +238,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     }
 
     np_node_t*  _my_node = _np_key_get_node(context->my_node_key);
-    // check node key for passive network connection (partner is passive)
+    // check node key for passive network connection (partner or own node is passive)
     if (NULL != node_key && 
         NULL != _my_node && 
         (

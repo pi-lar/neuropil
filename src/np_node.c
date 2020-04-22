@@ -87,6 +87,41 @@ void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     if (entry->port) free (entry->port);
 }
 
+struct __node_from_string{
+    char*     s_dhkey;
+    char*     s_protocol;
+    char*     s_hostname;
+    char*     s_port;
+};
+
+
+struct __node_from_string __get_node_details_from_string(np_state_t* context, char * str, bool parse_dhkey){
+
+    struct __node_from_string ret = {0};
+    char* delimiter[3];
+
+    // search last ':'
+    delimiter[2] = strrchr(str,            ':');
+    // search first two ':'
+    delimiter[0] = strchr (str,            ':');
+    delimiter[1] = strchr (delimiter[0]+1, ':');
+
+    // string encoded data contains dhkey, protocol, hostname and port
+    // hostname could be an ip6 address (has additional ':' in it)
+    ret.s_port     = delimiter[2]+1;     *delimiter[2] = '\0';
+    if (parse_dhkey) {
+        ret.s_dhkey    = str;
+        ret.s_protocol = delimiter[0]+1; *delimiter[0] = '\0';
+        ret.s_hostname = delimiter[1]+1; *delimiter[1] = '\0';
+    } else {
+        ret.s_protocol = str;
+        ret.s_hostname = delimiter[0]+1; *delimiter[0] = '\0';
+    }
+    log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s / %s / %s", ret.s_dhkey, ret.s_protocol, ret.s_hostname, ret.s_port);
+
+    return ret;
+}
+
 void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_stats)
 {
     np_node_t* node = _np_key_get_node(node_key);
@@ -145,36 +180,22 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     uint16_t iLen = strlen(key);
     assert (iLen > 0);
 
-    char     *s_hostkey = NULL;
-    char     *s_hostproto = NULL;
-    char     *s_hostname = NULL;
-    char     *s_hostport = NULL;
-
-    // key is mandatory element in string
-    s_hostkey = strsep(&to_parse, ":");
-    // log_debug_msg(LOG_DEBUG, "node decoded, extracted hostkey %s", sHostkey);
-
-    if (iLen > strlen(s_hostkey))
-    {
-        s_hostproto = strsep(&to_parse, ":");
-        s_hostname  = strsep(&to_parse, ":");
-        s_hostport  = strsep(&to_parse, ":");
-    }
+    struct __node_from_string details = __get_node_details_from_string(context, to_parse, true);
 
     // string encoded data contains key, eventually plus hostname and hostport
     // key string is mandatory !
-    log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", s_hostkey, s_hostproto, s_hostname, s_hostport);
+    log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
 
     np_node_t* new_node;
     np_new_obj(np_node_t, new_node);
 
     enum socket_type proto = PASSIVE | IPv4;
-    if(s_hostproto != NULL)
-    {	
-        proto = _np_network_parse_protocol_string(s_hostproto);
+    if(details.s_protocol != NULL)
+    {
+        proto = _np_network_parse_protocol_string(details.s_protocol);
     }
-    _np_node_update(new_node, proto, s_hostname, s_hostport);
-    new_node->host_key = s_hostkey;
+    _np_node_update(new_node, proto, details.s_hostname, details.s_port);
+    new_node->host_key = details.s_dhkey;
     
     free (key_dup);
 
@@ -244,34 +265,31 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
         return NULL;
     }
 
-    char *to_free = NULL, *details = NULL;
-    to_free = details = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], 255);
+    char *to_free = NULL, *to_parse = NULL;
+    to_free = to_parse = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], 255);
     
-    log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", details);
+    log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", to_parse);
 
-    // MANDATORY paramter
+    struct __node_from_string details = __get_node_details_from_string(context, to_parse, false);
+
     uint16_t i_host_proto = UNKNOWN_PROTO;
-    char* s_host_proto = strsep(&details, ":");
-    char* s_host_name  = strsep(&details, ":");
-    char* s_host_port  = strsep(&details, ":");
-
-    if (s_host_proto != NULL) {
-        i_host_proto = _np_network_parse_protocol_string(s_host_proto);
+    if (details.s_protocol != NULL) {
+        i_host_proto = _np_network_parse_protocol_string(details.s_protocol);
     } 
 
-    if (i_host_proto == UNKNOWN_PROTO || s_host_name == NULL || s_host_port == NULL)
+    if (i_host_proto == UNKNOWN_PROTO || details.s_hostname == NULL || details.s_port == NULL)
     {
-        log_debug_msg(LOG_ERROR, "error decoding node from token str: %i / %p / %p", i_host_proto, s_host_name, s_host_port);
-        free(details);
+        log_debug_msg(LOG_ERROR, "error decoding node from token str: %i / %p / %p", i_host_proto, details.s_hostname, details.s_port);
+        free(to_parse);
         return NULL;
     }
     
     np_node_t* new_node = NULL;
     np_new_obj(np_node_t, new_node, FUNC);
      
-    _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
+    _np_node_update(new_node, i_host_proto, details.s_hostname, details.s_port);
     log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s",
-                             i_host_proto, s_host_name, s_host_port);
+                             i_host_proto, details.s_hostname, details.s_port);
     free(to_free);
 
     return (new_node);

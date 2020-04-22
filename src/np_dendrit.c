@@ -703,37 +703,37 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     
     log_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
 
-    // TODO: passive check
-    // TODO: update the arbitrary constructed alias key because of tcp passive network connection (this node is passive)
-    // remote port but "localhost"
-
-    // setup inbound decryption session with the alias key
-    hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
-    hs_alias_key->parent_key = msg_source_key;
-
-    hs_event.type = (evt_internal | evt_token);
-    _np_keycache_handle_event(context, hs_alias_key->dhkey, hs_event, false);
-
-    log_trace_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
-    np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
-
-    // finally delete possible wildcard key
-    char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
-    np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
-    hs_wildcard_key = _np_keycache_find(context, wildcard_dhkey);
-    if (NULL != hs_wildcard_key)
+    // network init could have failed
+    if (FLAG_CMP(msg_source_key->type, np_key_type_node))
     {
-        hs_wildcard_key->parent_key = msg_source_key;
+        // setup inbound decryption session with the alias key
+        hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
+        hs_alias_key->parent_key = msg_source_key;
 
-        np_util_event_t hs_event = msg_event;
-        hs_event.type = (evt_external | evt_token);
-        hs_event.user_data = handshake_token;
-        _np_keycache_handle_event(context, hs_wildcard_key->dhkey, hs_event, false);
-        np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
+        hs_event.type = (evt_internal | evt_token);
+        _np_keycache_handle_event(context, hs_alias_key->dhkey, hs_event, false);
 
-        log_trace_msg(LOG_TRACE, "Update wildcard key done!");
-    } 
-    free(tmp_connection_str);
+        log_trace_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
+        np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
+
+        // finally delete possible wildcard key
+        char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
+        np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
+        hs_wildcard_key = _np_keycache_find(context, wildcard_dhkey);
+        if (NULL != hs_wildcard_key)
+        {
+            hs_wildcard_key->parent_key = msg_source_key;
+
+            np_util_event_t hs_event = msg_event;
+            hs_event.type = (evt_external | evt_token);
+            hs_event.user_data = handshake_token;
+            _np_keycache_handle_event(context, hs_wildcard_key->dhkey, hs_event, false);
+            np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
+
+            log_trace_msg(LOG_TRACE, "Update wildcard key done!");
+        } 
+        free(tmp_connection_str);
+    }
 
     __np_cleanup__:
         np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
