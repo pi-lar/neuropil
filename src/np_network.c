@@ -779,13 +779,15 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
 
     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
     _np_network_get_address(context, create_server, &ng->addr_in, type, hostname, service);
+
     ng->socket_type = type | passive_socket_type;
-    
-    if (NULL == ng->addr_in)
+
+    if (NULL == ng->addr_in && !FLAG_CMP(type, PASSIVE))
     {
         log_msg(LOG_ERROR, "could not receive network address");
         return false;
     }
+
     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
 
     // only need for client setup, but initialize to have zero size of list
@@ -917,7 +919,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             }
         }
 
-        if (FLAG_CMP(type, IPv6)) {
+        if (FLAG_CMP(type, IPv6)  && !FLAG_CMP(type, PASSIVE)) {
             __set_v6_only_false(ng->socket);
         }
         if (FLAG_CMP(type, TCP)) {
@@ -957,11 +959,15 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
         log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
     }
 
-    memset((char *)&ng->remote_addr, 0, sizeof(ng->remote_addr));
-    ng->remote_addr = calloc(1, ng->addr_in->ai_addrlen);
-    CHECK_MALLOC(ng->remote_addr);
-    ng->remote_addr_len = ng->addr_in->ai_addrlen;
-    memcpy(ng->remote_addr, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
+    if (ng->addr_in != NULL) 
+    {
+        memset((char *)&ng->remote_addr, 0, sizeof(ng->remote_addr));
+        ng->remote_addr = calloc(1, ng->addr_in->ai_addrlen);
+        CHECK_MALLOC(ng->remote_addr);
+
+        ng->remote_addr_len = ng->addr_in->ai_addrlen;
+        memcpy(ng->remote_addr, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
+    }
     
     freeaddrinfo(ng->addr_in);
     ng->addr_in = NULL;
