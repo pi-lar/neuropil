@@ -119,17 +119,17 @@ void _np_network_get_address(
     else
         hints.ai_flags = AI_CANONNAME | AI_NUMERICSERV;
 
-    if (0 < (type & IPv4) ) {
+    if (FLAG_CMP(type, IPv4) ) {
         hints.ai_family = PF_INET;
     }
-    if (0 < (type & IPv6) ) {
+    if (FLAG_CMP(type, IPv6) ) {
         hints.ai_family = PF_INET6;
     }
-    if (0 < (type & UDP) ) {
+    if (FLAG_CMP(type, UDP) ) {
         hints.ai_socktype = SOCK_DGRAM;
         hints.ai_protocol = IPPROTO_UDP;
     }
-    if (0 < (type & TCP) ) {
+    if (FLAG_CMP(type, TCP) ) {
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;
     }
@@ -427,21 +427,6 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
         else
         {
             np_unref_obj(np_network_t, new_network, ref_obj_creation);
-        }
-    }
-}
-
-void _np_network_bidirektional(struct ev_loop *loop, ev_io *event, int revents) {
-
-    if (!FLAG_CMP(revents, EV_ERROR)) 
-    {
-        if (FLAG_CMP(revents, EV_READ))
-        {
-            _np_network_read(loop, event, revents);
-        }
-        if (FLAG_CMP(revents, EV_WRITE))
-        {
-            _np_network_write(loop, event, revents);
         }
     }
 }
