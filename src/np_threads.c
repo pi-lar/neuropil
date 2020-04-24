@@ -715,12 +715,11 @@ void* __np_thread_status_wrapper(void* self)
             _LOCK_ACCESS(&thread->job_lock) 
             {    
                 np_threads_busyness(context, thread, true);
-                thread->status = np_running;            
+
                 thread->run_fn(context, thread);
-                thread->status = np_stopped;
+
                 np_threads_busyness(context, thread, false);
             }
-            
         }
         else 
         {
@@ -879,7 +878,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
     if (pool_size > worker_threads) 
     {
         if (pool_size > 0 ) pool_size--;
-        special_thread = __np_createThread(context, pool_size, _np_event_in_run, true, np_thread_type_other);
+        special_thread = __np_createThread(context, pool_size, _np_event_in_run, true, np_thread_type_eventloop);
 #ifdef DEBUG
         strncpy(special_thread->job.ident, "_np_event_in_run",255);
 #endif
@@ -889,7 +888,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 
     if (pool_size > worker_threads) {
         if (pool_size > 0 ) pool_size--;
-        special_thread = __np_createThread(context, pool_size, _np_event_out_run_triggered, true, np_thread_type_other);
+        special_thread = __np_createThread(context, pool_size, _np_event_out_run_triggered, true, np_thread_type_eventloop);
 #ifdef DEBUG
         strncpy(special_thread->job.ident, "_np_event_out_run",255);
 #endif
@@ -899,7 +898,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
 
     if (pool_size > worker_threads) {
         if (pool_size > 0 ) pool_size--;
-        special_thread = __np_createThread(context, pool_size, _np_event_file_run_triggered, true, np_thread_type_other);
+        special_thread = __np_createThread(context, pool_size, _np_event_file_run_triggered, true, np_thread_type_eventloop);
 #ifdef DEBUG
         strncpy(special_thread->job.ident, "_np_event_file_run",255);
 #endif

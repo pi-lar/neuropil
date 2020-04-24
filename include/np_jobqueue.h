@@ -27,8 +27,6 @@ struct np_job_s
     double exec_not_before_tstamp;
     double interval;
     bool is_periodic;
-    sll_return(np_evt_callback_t) processorFuncs;
-    bool __del_processorFuncs;
     np_util_event_t evt;
     np_dhkey_t next;
     double priority;
@@ -36,6 +34,9 @@ struct np_job_s
     double search_min_priority;
     double search_max_priority;
     double search_max_exec_not_before_tstamp;
+
+    bool __del_processorFuncs;
+    sll_return(np_evt_callback_t) processorFuncs;
 
 #ifdef DEBUG
     char ident[255];
