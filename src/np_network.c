@@ -521,7 +521,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
                 if (NULL == alias_key && FLAG_CMP(ng->socket_type, UDP)) 
                 {
                     np_node_t* new_node = NULL;
-                    np_new_obj(np_node_t, new_node);
+                    np_new_obj(np_node_t, new_node, FUNC);
                     _np_node_update(new_node, UDP, data_container.ipstr, data_container.port);
 
                     np_key_t* temp_alias_key = _np_keycache_create(context, search_key);

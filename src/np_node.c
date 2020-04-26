@@ -187,7 +187,7 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
 
     np_node_t* new_node;
-    np_new_obj(np_node_t, new_node);
+    np_new_obj(np_node_t, new_node, FUNC);
 
     enum socket_type proto = PASSIVE | IPv4;
     if(details.s_protocol != NULL)
@@ -232,7 +232,7 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
     }
 
     np_node_t* new_node = NULL;
-    np_new_obj(np_node_t, new_node);
+    np_new_obj(np_node_t, new_node, FUNC);
 
     if (NULL != s_host_name &&
         NULL == new_node->dns_name)
@@ -251,7 +251,7 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
     new_node->success_avg = ele->val.value.f;
     }
     */
-    ref_replace_reason(np_node_t, new_node, ref_obj_creation, FUNC);
+    // ref_replace_reason(np_node_t, new_node, ref_obj_creation, FUNC);
 
     return (new_node);
 }
