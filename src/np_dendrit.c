@@ -63,21 +63,29 @@ bool _check_and_send_destination_ack(np_state_t* context, np_util_event_t msg_ev
 
     CHECK_STR_FIELD_BOOL(msg->instructions, _NP_MSG_INST_ACK, msg_ack, "NOT AN ACK MSG")
     {
+        // TODO: check intent token for ack indicator if user space message
         if (FLAG_CMP(msg_ack->val.value.ush, ACK_DESTINATION) )
         {
-            np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
-            np_dhkey_t target    = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
+            np_dhkey_t ack_dhkey    = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
 
+            np_dhkey_t target_dhkey = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
+            char*      subject      = np_tree_find_str(msg->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
+            np_dhkey_t subj_dhkey   = _np_msgproperty_dhkey(INBOUND,  subject);
+            np_dhkey_t ping_dhkey   = _np_msgproperty_dhkey(INBOUND, _NP_MSG_PING_REQUEST);
+            
             np_tree_t* msg_body  = np_tree_create();
             np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
 
             np_message_t* msg_out;
             np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-            _np_message_create(msg_out, target, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
+            if (_np_dhkey_equal(&subj_dhkey, &ping_dhkey) )
+                _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
+            else 
+                _np_message_create(msg_out, subj_dhkey, target_dhkey, _NP_MSG_ACK, msg_body);
 
             log_msg(LOG_INFO, "ack of message %s with %s", msg->uuid, msg_out->uuid);
 
-            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=msg_out };
+            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=subj_dhkey, .user_data=msg_out };
             _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
         }
     }

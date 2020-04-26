@@ -477,29 +477,85 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
 
     NP_CAST(msg_event.user_data, np_message_t, ack_msg);
 
+    CHECK_STR_FIELD(ack_msg->header, _NP_MSG_HEADER_FROM, msg_from); // dhkey of original msg subject
+    CHECK_STR_FIELD(ack_msg->header, _NP_MSG_HEADER_TO, msg_to); // dhkey of a node
+    CHECK_STR_FIELD(ack_msg->header, _NP_MSG_HEADER_SUBJECT, msg_subj); // "ack" msg subject
+
+    if (!_np_route_my_key_has_connection(context))
+    {
+        log_msg(LOG_INFO, "--- request for forward message out, but no connections left ...");
+        return false;
+    }
+
+    float target_age = 1.0;
+    np_sll_t(np_dhkey_t, tmp) = NULL;
+    sll_init(np_dhkey_t, tmp);
+
+    np_dhkey_t ack_subj_dhkey = msg_from.value.dhkey; // (INBOUND,  msg_subj.value.s);
+    np_dhkey_t ack_to_dhkey   = msg_to.value.dhkey;
+        
+    // 1a. check if the ack is for a direct neighbour
+    np_key_t* target_key = _np_keycache_find(context, ack_to_dhkey);
+    if (NULL == target_key)
+    {
+        // no --> 1b. lookup based on original msg subject, but snuffle for sender
+        uint8_t i = 0;
+        while (sll_size(tmp) == 0 && i < 8)
+        {
+            _np_pheromone_snuffle_sender(context, tmp, ack_subj_dhkey, &target_age);
+            i++;
+            target_age -= 0.1;
+        };
+
+        // routing based on pheromones, exhale ...
+        _np_pheromone_exhale(context);
+    }
+    else 
+    {
+        // yes --> 1a. append to result list
+        sll_append(np_dhkey_t, tmp, target_key->dhkey);
+    }
+
+    if (sll_size(tmp) == 0)
+    {   // exit early if no routing has been found
+        log_msg(LOG_WARN, "--- request for ack message out, but no routing found ...");
+        sll_free(np_dhkey_t, tmp);
+        return false;
+    }
+
     // chunking for 1024 bit message size
     _np_message_calculate_chunking(ack_msg);
     _np_message_serialize_chunked(ack_msg);
 
-    // 3: send over the message parts
-    pll_iterator(np_messagepart_ptr) iter = pll_first(ack_msg->msg_chunks);
-    while (NULL != iter) 
+    // 2: send over the message parts
+    pll_iterator(np_messagepart_ptr) part_iter = pll_first(ack_msg->msg_chunks);
+    while (NULL != part_iter) 
     {
+        sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
+        while (key_iter != NULL) 
+        {
+            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey) &&
+                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey))
+            {
+                #ifdef DEBUG
+                np_key_t* target_key = _np_keycache_find(context, iter->val);
+                if (NULL != target_key) {
+                    log_debug_msg(LOG_DEBUG, "submitting ack to target key %s / %p", _np_key_as_str(target_key), target_key);
+                }
+                #endif // DEBUG
+                memcpy(part_iter->val->uuid, ack_msg->uuid, NP_UUID_BYTES);
 
-#ifdef DEBUG
-        np_key_t* target_key = _np_keycache_find(context, msg_event.target_dhkey);
-        if (NULL != target_key) {
-            log_debug_msg(LOG_DEBUG, "submitting ack to target key %s / %p", _np_key_as_str(target_key), target_key);
-            np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+                np_util_event_t ack_event = { .type=(evt_internal|evt_message), .context=context, .user_data=part_iter->val, .target_dhkey=msg_to.value.dhkey};
+                _np_keycache_handle_event(context, key_iter->val, ack_event, false);
+            }
+            sll_next(key_iter);
         }
-#endif // DEBUG
-
-        memcpy(iter->val->uuid, ack_msg->uuid, NP_UUID_BYTES);
-        np_util_event_t ack_event = { .type=(evt_internal|evt_message), .context=context, .user_data=iter->val, .target_dhkey=msg_event.target_dhkey};
-        _np_keycache_handle_event(context, msg_event.target_dhkey, ack_event, false);
-
-        pll_next(iter);
+        pll_next(part_iter);
     }
+
+    __np_cleanup__: {}
+
+    sll_free(np_dhkey_t, tmp);
 
     return true;
 }
