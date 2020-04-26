@@ -787,9 +787,10 @@ void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     sll_clear(void_ptr, wildcard_key->entities);
 
+    ref_replace_reason(np_key_t, wildcard_key, "__np_wildcard_set", "_np_keycache_finalize");
+
     // wildcard_key->type = np_key_type_unknown;
     wildcard_key->type &= ~np_key_type_wildcard;
-    ref_replace_reason(np_key_t, wildcard_key, "__np_wildcard_set", "_np_keycache_finalize");
 }
 
 void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_event_t event)

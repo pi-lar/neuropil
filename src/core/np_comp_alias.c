@@ -292,7 +292,7 @@ void __np_alias_set_node(np_util_statemachine_t* statemachine, const np_util_eve
     log_debug_msg(LOG_DEBUG, "start: void __np_alias_set_node(...) { %s:%s", node->dns_name, node->port);
 
     sll_append(void_ptr, alias_key->entities, node);   
-    np_ref_obj(np_node_t, node, "__np_alias_set");
+    ref_replace_reason(np_node_t, node, "_np_network_read", "__np_alias_set");
 }
 
 void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event)
