@@ -792,7 +792,7 @@ void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_eve
     __np_handle(statemachine, event);
 } 
 
-bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_alias_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __is_alias_invalid(...) {");
@@ -807,7 +807,7 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, const np_util_even
     return ret;    
 }
 
-void __np_alias_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_alias_shutdown(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_alias_shutdown(...) {");
@@ -818,7 +818,7 @@ void __np_alias_shutdown(np_util_statemachine_t* statemachine, const np_util_eve
     alias_key->type = np_key_type_unknown;
 }
 
-void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_alias_destroy(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __np_alias_destroy(...) {");
@@ -828,7 +828,8 @@ void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_even
     sll_iterator(void_ptr) iter = sll_first(alias_key->entities);
     while (iter != NULL) 
     {
-        if (_np_memory_rtti_check(iter->val, np_memory_types_np_node_t))     np_unref_obj(np_node_t,     iter->val, "__np_alias_set");
+        if (_np_memory_rtti_check(iter->val, np_memory_types_np_node_t))     
+            np_unref_obj(np_node_t,     iter->val, "__np_alias_set");
         // if (_np_memory_rtti_check(iter->val, np_memory_types_np_aaatoken_t)) np_unref_obj(np_aaatoken_t, iter->val, "__np_alias_set");
         if (_np_memory_rtti_check(iter->val, np_memory_types_np_network_t)) {
             _np_network_disable(iter->val);
@@ -843,7 +844,7 @@ void __np_alias_destroy(np_util_statemachine_t* statemachine, const np_util_even
     ref_replace_reason(np_key_t, alias_key, "__np_alias_set", "_np_keycache_finalize" );
 }
 
-void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event)
+void __np_alias_update(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __np_alias_update(...) {");

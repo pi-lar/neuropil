@@ -74,13 +74,8 @@ bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t
     return ret;
 }
 
-bool __is_node_complete(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{ 
-    return false;
-}
-
 // IN_USE -> IN_DESTROY transition condition / action #1
-bool __is_node_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_node_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __is_node_invalid(...) {");
@@ -407,7 +402,7 @@ void __np_node_add_to_leafset(np_util_statemachine_t* statemachine, NP_UNUSED co
     }
 }
 
-void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const np_util_event_t event)
+void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_node_remove_from_routing(...) {");
@@ -452,7 +447,7 @@ void __np_node_remove_from_routing(np_util_statemachine_t* statemachine, const n
     }
 }
 
-void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_node_handle_completion(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 { 
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_node_handle_completion(...) {");
@@ -624,7 +619,7 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
     node_key->type = np_key_type_unknown;
 }
 
-void __np_create_client_network (np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_create_client_network (np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_create_client_network(...) { %p", statemachine->_user_data);
@@ -750,7 +745,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, const np_
     node_key->last_update = np_time_now();
 }
 
-bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __is_wildcard_invalid(...) {");
@@ -765,7 +760,7 @@ bool __is_wildcard_invalid(np_util_statemachine_t* statemachine, const np_util_e
     return ret;
 }
 
-void __np_wildcard_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_wildcard_destroy(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_wildcard_destroy(...) {");

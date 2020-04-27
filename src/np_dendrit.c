@@ -33,6 +33,7 @@
 #include "np_dhkey.h"
 #include "np_key.h"
 #include "np_keycache.h"
+#include "np_list.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_intent.h"
@@ -41,7 +42,6 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
-#include "np_list.h"
 #include "np_route.h"
 #include "np_util.h"
 #include "np_types.h"
@@ -183,7 +183,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
                 (np_time_now() - piggy_key->created_at) >= BAD_LINK_REMOVE_GRACETIME ) 
         {
             // let's try to fill up our leafset, routing table is filled by internal state
-            // TODO: realize this via an event, otherwiese locking of the piggy key is not in place
+            // TODO: realize this via an event, otherwise locking of the piggy key is not in place
             __np_node_add_to_leafset(&piggy_key->sm, msg_event);
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
         } 
@@ -195,7 +195,6 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
         }        
         np_unref_obj(np_node_t, node_entry,"_np_node_decode_from_jrb");
-        // free(connect_str);
     }
     sll_free(np_node_ptr, o_piggy_list);
 
