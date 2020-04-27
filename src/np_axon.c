@@ -493,7 +493,7 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
 
     np_dhkey_t ack_subj_dhkey = msg_from.value.dhkey; // (INBOUND,  msg_subj.value.s);
     np_dhkey_t ack_to_dhkey   = msg_to.value.dhkey;
-        
+
     // 1a. check if the ack is for a direct neighbour
     np_key_t* target_key = _np_keycache_find(context, ack_to_dhkey);
     if (NULL == target_key)
@@ -506,14 +506,14 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
             i++;
             target_age -= 0.1;
         };
-
         // routing based on pheromones, exhale ...
         _np_pheromone_exhale(context);
     }
-    else 
+    else
     {
         // yes --> 1a. append to result list
         sll_append(np_dhkey_t, tmp, target_key->dhkey);
+        np_unref_obj(np_key_t, target_key, "_np_keycache_find");
     }
 
     if (sll_size(tmp) == 0)
@@ -534,13 +534,13 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
         sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
         while (key_iter != NULL) 
         {
-            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey) &&
-                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey))
+            if (!_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey))
             {
                 #ifdef DEBUG
-                np_key_t* target_key = _np_keycache_find(context, iter->val);
+                np_key_t* target_key = _np_keycache_find(context, key_iter->val);
                 if (NULL != target_key) {
                     log_debug_msg(LOG_DEBUG, "submitting ack to target key %s / %p", _np_key_as_str(target_key), target_key);
+                    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
                 }
                 #endif // DEBUG
                 memcpy(part_iter->val->uuid, ack_msg->uuid, NP_UUID_BYTES);
