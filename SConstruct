@@ -289,14 +289,16 @@ criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criteri
 test_env = conf.Finish()
 
 # build test executable
-if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:    
+if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
     print ('Test cases included')
     # include the neuropil build path library infos
     test_env.Append(LIBS = ['criterion', 'sodium','ncurses','neuropil'])
     test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_suite'),    os.path.join(variantDir,'test','test_suite.c'))
-    Depends(test_suite, np_dylib)    
+    Depends(test_suite, np_dylib)
     test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_units'),     os.path.join(variantDir,'test','test_units.c'))
     Depends(test_suite, np_dylib)
+    #test_prog = test_env.Program(os.path.join(buildDir,'bin','neuropil_test'),     os.path.join(variantDir,'examples','neuropil_test.c'))
+    #Depends(test_prog, np_dylib)
 else:
     print ('Test cases not included')
 
@@ -307,7 +309,7 @@ programs = [
     ('receiver',       ['neuropil']),
     ('sender',         ['neuropil']),
     ('node',           ['neuropil','ncurses','sodium']),
-    ('receiver_lb',     ['neuropil','ncurses','sodium']),
+    ('receiver_lb',    ['neuropil','ncurses','sodium']),
     ('cloud',          ['neuropil','ncurses','sodium']),
     ('hydra',          ['neuropil','ncurses','sodium']),
     ('receiver_cb',    ['neuropil','ncurses','sodium']),
