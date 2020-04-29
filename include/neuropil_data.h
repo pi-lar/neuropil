@@ -32,10 +32,10 @@ extern "C" {
     NP_API_EXPORT
     /**
      * @brief Initialises the provided memory allocation as datablock
-     * 
+     *
      * @param block The memory block provided by the user (malloc'ed )
      * @param block_length The memory block size
-     * @return enum np_return 
+     * @return enum np_return
      */
     enum np_return np_init_datablock(np_datablock_t * block, uint32_t block_length);
     NP_API_EXPORT

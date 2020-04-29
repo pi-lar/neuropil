@@ -2,89 +2,47 @@
 // neuropil is copyright 2016-2020 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-#include "np_route.h"
 
 #include "../test/test_macros.c"
-#include "../src/np_memory.c"
-typedef struct test_struct
-{
-	unsigned int i_test;
-	char* s_test;
-} test_struct_t;
+#include "neuropil_data.h"
+
 
 
 #undef cr_expect
 #define cr_expect(A,B) assert((A) && B)
 int main()
 {
-	CTX() {
-		uint32_t routing_table_size = 64 * 16 * 3; // keysize * hex * alternatives
-		uint32_t current_size = 0;
+    enum np_return tmp_ret;
+    struct np_data_conf deserialized_data_conf = {0};
+    unsigned char * deserialized_data = NULL;
 
-		np_sll_t(np_key_ptr, my_keys);
-		sll_init(np_key_ptr, my_keys);
-		unsigned long i = 0;
+    size_t datablock_size = 2000;
+    unsigned char datablock[datablock_size];
+    char hex_datablock[2*datablock_size+1];
 
-		// TODO: seems to run forever with no check for i :-/ better reduce the loglevel to save my laptop
-		np_log_setlevel(context, LOG_ERROR | LOG_WARN | LOG_ROUTING | LOG_DEBUG | LOG_INFO | LOG_MEMORY);
-		// TODO: check whether routing table implementation is correct
-		// even with 4M generated dhkeys there are only 55 entries in the table ...
-		while (current_size < routing_table_size &&
-			i < (routing_table_size*5))
-		{
-			char tmp_1[33];
-			randombytes_buf(tmp_1, 16);
-			//memset(tmp_1, i, sizeof(i));
-			sodium_bin2hex(tmp_1, 33, (unsigned char*)tmp_1, 16);
-			char tmp_2[33];
-			randombytes_buf(tmp_2, 16);
-			sodium_bin2hex(tmp_2, 33, (unsigned char*)tmp_2, 16);
+    uint32_t data_size = 452;
+    unsigned char data1[452];
+    memset(data1,'A',data_size);
+    unsigned char data2[452];
+    memset(data2,'B',data_size);
 
-			// sprintf(str, "%0d", i);
-			np_dhkey_t my_dhkey = np_dhkey_create_from_hostport( tmp_2, tmp_1);
+    // init datatablock
+    ASSERT (np_ok == (tmp_ret = np_init_datablock(datablock, datablock_size)), "expect initialized datablock. (ret: %"PRIu32")", tmp_ret);
 
-			np_key_t *insert_key = NULL;
-			np_new_obj(np_key_t, insert_key);
-			insert_key->dhkey = my_dhkey;
-			sll_append(np_key_ptr, my_keys, insert_key);
+    // insert TEST with data1
+    struct np_data_conf data_conf = (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_BIN, .data_size=data_size };
+    ASSERT(np_ok == (tmp_ret = np_set_data(datablock, data_conf, data1 )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    // insert TEST2 with data2
+    struct np_data_conf data_conf2 = (struct np_data_conf) { .key="TEST2", .type=NP_DATA_TYPE_BIN, .data_size=data_size };
+    ASSERT(np_ok == (tmp_ret = np_set_data(datablock, data_conf2, data2 )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    // insert TEST with data2
+    struct np_data_conf data_conf3 = (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_BIN, .data_size=data_size };
+    ASSERT(np_ok == (tmp_ret = np_set_data(datablock, data_conf3, data2 )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
 
-			np_new_obj(np_node_t, insert_key->node);
-			insert_key->node->latency = ((double)rand()) / 1000;
-
-			log_debug_msg(LOG_DEBUG, "created key %s", _np_key_as_str(insert_key));
-
-			np_key_t *added = NULL, *deleted = NULL;
-			_np_route_update(insert_key, true, &deleted, &added);
-
-			if (NULL != added)
-			{
-				cr_expect(0 == _np_dhkey_cmp(&insert_key->dhkey, &added->dhkey), "test whether the new key was added");
-				current_size++;
-			}
-			else
-			{
-				log_debug_msg(LOG_DEBUG, "key %s not added to the leafset", _np_key_as_str(insert_key));
-			}
-
-			if (NULL != deleted)
-			{
-				cr_expect(0 != _np_dhkey_cmp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
-				current_size--;
-
-			}
-
-			log_msg(LOG_ROUTING | LOG_INFO, "routing table now contains %d entries / %lu inserted", current_size, i + 1);
-			i++;
-		}
-
-		sll_iterator(np_key_ptr) iter = sll_first(my_keys);
-		while (NULL != iter)
-		{		 
-			np_unref_obj(np_node_t, iter->val->node, ref_obj_creation);
-			np_unref_obj(np_key_t, iter->val, ref_obj_creation);
-			sll_next(iter);
-		}
-
-
-	}
+    // check TEST for data2
+    ASSERT(np_ok == (tmp_ret = np_get_data(datablock, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    ASSERT(deserialized_data_conf.type  == NP_DATA_TYPE_BIN,"Expected BIN container not %"PRIu32, deserialized_data_conf.type);
+    ASSERT(0 == strncmp(deserialized_data_conf.key, "TEST", 4),"Expected BIN container key to match. not %s", deserialized_data_conf.key);
+    ASSERT(deserialized_data_conf.data_size  == data_size,"Expected BIN container size to match. not %"PRIu32, deserialized_data_conf.data_size);
+    ASSERT(0 == memcmp(deserialized_data, data2, MIN(data_size, deserialized_data_conf.data_size)), "Expected BIN data to be the same");
 }
