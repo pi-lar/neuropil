@@ -212,8 +212,9 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
         sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
         while (key_iter != NULL) 
         {
-            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey) &&
-                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey))
+            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey)        &&
+                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) &&
+                !_np_dhkey_equal(&key_iter->val, &event.target_dhkey)  )
             {
                 memcpy(part_iter->val->uuid, forward_msg->uuid, NP_UUID_BYTES);
 
@@ -471,11 +472,11 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
  ** _np_network_append_msg_to_out_queue: host, data, size
  ** Sends a message to host, updating the measurement info.
  **/
-bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
+bool _np_out_ack(np_state_t* context, np_util_event_t ack_event)
 {
     log_trace_msg(LOG_TRACE, "start: bool _np_send_ack(np_state_t* context, np_util_event_t msg_event){");
 
-    NP_CAST(msg_event.user_data, np_message_t, ack_msg);
+    NP_CAST(ack_event.user_data, np_message_t, ack_msg);
 
     CHECK_STR_FIELD(ack_msg->header, _NP_MSG_HEADER_FROM, msg_from); // dhkey of original msg subject
     CHECK_STR_FIELD(ack_msg->header, _NP_MSG_HEADER_TO, msg_to); // dhkey of a node
@@ -534,7 +535,8 @@ bool _np_out_ack(np_state_t* context, np_util_event_t msg_event)
         sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
         while (key_iter != NULL) 
         {
-            if (!_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey))
+            if (!_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) &&
+                !_np_dhkey_equal(&key_iter->val, &ack_event.target_dhkey)       )
             {
                 #ifdef DEBUG
                 np_key_t* target_key = _np_keycache_find(context, key_iter->val);

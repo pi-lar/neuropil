@@ -775,7 +775,6 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
         _np_dhkey_assign(&msg_handler, &forward_dhkey);
 
     np_util_event_t forward_event = event;
-    forward_event.target_dhkey = str_msg_to.value.dhkey;
     forward_event.type = (evt_internal | evt_message);
     _np_keycache_handle_event(context, msg_handler, forward_event, false);
 
