@@ -158,7 +158,6 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     np_sll_t(np_dhkey_t, tmp) = NULL;
     sll_init(np_dhkey_t, tmp);
 
-    char* ref_reason = "_np_pheromone_snuffle";
     np_dhkey_t recv_dhkey = _np_msgproperty_dhkey(INBOUND,  msg_subj.value.s);
     uint8_t i = 0;
     while (sll_size(tmp) == 0 && i < 8)
@@ -170,6 +169,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
     
     if (sll_size(tmp) == 0) 
     {   // find next hop based on fingerprint of the message
+        log_debug_msg(LOG_DEBUG, "pheromone lookup failed, looking up routing table", forward_msg->uuid, sll_size(tmp));
         CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_TO, msg_to_ele);    
         np_sll_t(np_key_ptr, route_tmp) = NULL;
         uint8_t i = 1;
@@ -217,6 +217,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
                 !_np_dhkey_equal(&key_iter->val, &event.target_dhkey)  )
             {
                 memcpy(part_iter->val->uuid, forward_msg->uuid, NP_UUID_BYTES);
+                log_debug_msg(LOG_DEBUG, "sending    message (%s) to next hop", forward_msg->uuid, key_iter->val);
 
                 np_util_event_t send_event = { .type=(evt_internal|evt_message), .context=context, .user_data=part_iter->val, .target_dhkey=msg_to.value.dhkey};
                 _np_keycache_handle_event(context, key_iter->val, send_event, false);
@@ -381,10 +382,10 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
 
     _np_pheromone_exhale(context);
 
+    sll_free(np_dhkey_t, tmp);
+
     // 4 cleanup
     __np_cleanup__: {}
-
-    sll_free(np_dhkey_t, tmp);
 
     return true;
 }
@@ -492,18 +493,20 @@ bool _np_out_ack(np_state_t* context, np_util_event_t ack_event)
     np_sll_t(np_dhkey_t, tmp) = NULL;
     sll_init(np_dhkey_t, tmp);
 
-    np_dhkey_t ack_subj_dhkey = msg_from.value.dhkey; // (INBOUND,  msg_subj.value.s);
     np_dhkey_t ack_to_dhkey   = msg_to.value.dhkey;
 
     // 1a. check if the ack is for a direct neighbour
     np_key_t* target_key = _np_keycache_find(context, ack_to_dhkey);
     if (NULL == target_key)
     {
+        // otherwise follow the ack trail of the "from" + "ack" dhkey path
+        np_dhkey_t ack_subj_dhkey = _np_msgproperty_dhkey(INBOUND,  _NP_MSG_ACK);
+        _np_dhkey_add(&ack_to_dhkey, &ack_to_dhkey, &ack_subj_dhkey);
         // no --> 1b. lookup based on original msg subject, but snuffle for sender
         uint8_t i = 0;
         while (sll_size(tmp) == 0 && i < 8)
         {
-            _np_pheromone_snuffle_sender(context, tmp, ack_subj_dhkey, &target_age);
+            _np_pheromone_snuffle_receiver(context, tmp, ack_to_dhkey, &target_age);
             i++;
             target_age -= 0.1;
         };
@@ -555,9 +558,9 @@ bool _np_out_ack(np_state_t* context, np_util_event_t ack_event)
         pll_next(part_iter);
     }
 
-    __np_cleanup__: {}
-
     sll_free(np_dhkey_t, tmp);
+
+    __np_cleanup__: {}
 
     return true;
 }

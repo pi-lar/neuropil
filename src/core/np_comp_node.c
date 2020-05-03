@@ -629,7 +629,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, NP_UNUSED
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
-    log_msg(LOG_DEBUG, "__np_create_client_network key %p (type: %d)", node_key, node_key->type);
+    log_debug_msg(LOG_DEBUG, "__np_create_client_network key %p (type: %d)", node_key, node_key->type);
 
     // lookup wildcard to extract existing np_network_t structure
     char* tmp_connection_str  = np_get_connection_string_from(node_key, false);

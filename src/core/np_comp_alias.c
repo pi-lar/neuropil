@@ -762,14 +762,15 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
     CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_TO, str_msg_to);
 
     np_dhkey_t subj_dhkey    = _np_msgproperty_dhkey(INBOUND,  str_msg_subject.value.s);
-    np_dhkey_t ping_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_PING_REQUEST);
+    np_dhkey_t ack_dhkey     = _np_msgproperty_dhkey(INBOUND,  _NP_MSG_ACK);
+    
     np_dhkey_t ackout_dhkey  = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
     np_dhkey_t forward_dhkey = _np_msgproperty_dhkey(OUTBOUND, _FORWARD);
 
     log_msg(LOG_INFO, "forwarding message (%s) for subject: %s", message_in->uuid, str_msg_subject.value.s);
 
     np_dhkey_t msg_handler = {};
-    if (_np_dhkey_equal(&ping_dhkey, &subj_dhkey) )
+    if (_np_dhkey_equal(&ack_dhkey, &subj_dhkey) )
         _np_dhkey_assign(&msg_handler, &ackout_dhkey);
     else
         _np_dhkey_assign(&msg_handler, &forward_dhkey);

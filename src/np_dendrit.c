@@ -66,29 +66,20 @@ bool _check_and_send_destination_ack(np_state_t* context, np_util_event_t msg_ev
         // TODO: check intent token for ack indicator if user space message
         if (FLAG_CMP(msg_ack->val.value.ush, ACK_DESTINATION) )
         {
-            np_dhkey_t ack_dhkey     = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
-
-            np_dhkey_t target_dhkey  = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
-            char*      subject       = np_tree_find_str(msg->header, _NP_MSG_HEADER_SUBJECT)->val.value.s;
-            
-            np_dhkey_t in_subj_dhkey = _np_msgproperty_dhkey(INBOUND,  subject);
-            np_dhkey_t ping_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_PING_REQUEST);
+            np_dhkey_t ack_out_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
+            np_dhkey_t target_dhkey = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey; // where the message came from
 
             np_tree_t* msg_body     = np_tree_create();
             np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
 
             np_message_t* msg_out   = NULL;
             np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-
-            if (_np_dhkey_equal(&in_subj_dhkey, &ping_dhkey) )
-                _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
-            else 
-                _np_message_create(msg_out, target_dhkey, in_subj_dhkey, _NP_MSG_ACK, msg_body);
+            _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
 
             log_msg(LOG_INFO, "ack of message %s with %s", msg->uuid, msg_out->uuid);
 
-            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=in_subj_dhkey, .user_data=msg_out };
-            _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
+            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=ack_out_dhkey, .user_data=msg_out };
+            _np_keycache_handle_event(context, ack_out_dhkey, ack_event, false);
         }
     }
     return true;
@@ -572,8 +563,12 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
     // and initiate the sending of the real intent. Too much work for now :-(
     // np_key_t* msg_prop_key = _np_keycache_find(context, msg_to.value.dhkey /*msg_from.value.dhkey */);
 
-    np_tree_elem_t* tmp = RB_MIN(np_tree_s, pheromone_msg_in->body);
-    if (tmp != NULL)
+    np_tree_elem_t* tmp = NULL;
+    bool forward_pheromone_update = false;
+    np_sll_t(np_dhkey_t, result_list) = NULL;
+    sll_init(np_dhkey_t, result_list);
+
+    RB_FOREACH(tmp, np_tree_s, pheromone_msg_in->body)
     {   // only one element per message right now
         np_bloom_t* _scent = _np_neuropil_bloom_create();
         _np_neuropil_bloom_deserialize(_scent, tmp->val.value.bin, tmp->val.size);
@@ -585,24 +580,21 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
             _delay += NP_PI / 100;
         }
 
-        float _in_age = _np_neuropil_bloom_get_heuristic(_scent, msg_to.value.dhkey);
-        if (_in_age == 0.0) 
+        float _in_age = _np_neuropil_bloom_intersect_age(_scent, _scent);
+        // float _in_age = _np_neuropil_bloom_get_heuristic(_scent, msg_to.value.dhkey);
+        if (_in_age == 0.0)
         {
             log_debug_msg(LOG_DEBUG, "dropping pheromone trail message, {msg uuid: %s) age now %f",
                                      pheromone_msg_in->uuid, _in_age);
             _np_bloom_free(_scent);
-            return true;
+            continue;
         }
 
         float _old_age = _in_age;
-
-        np_sll_t(np_dhkey_t, result_list) = NULL;
-        sll_init(np_dhkey_t, result_list);
-
         // update the internal pheromone table
         np_pheromone_t _pheromone = {0};
-        _pheromone._subj_bloom = _scent;
-        _pheromone._pos        = tmp->key.value.i;
+        _pheromone._subj_bloom    = _scent;
+        _pheromone._pos           = tmp->key.value.i;
 
         if (0 > tmp->key.value.i)
         {
@@ -624,45 +616,43 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         }
 
         log_msg(LOG_DEBUG, "update of pheromone trail: age in : %f, but have age : %f / %d", _pheromone._pos, _in_age, _old_age);
-        bool forward_pheromone_update = _np_pheromone_inhale(context, _pheromone);
-        
-        if (forward_pheromone_update) 
-        {   // forward the received pheromone
-            np_message_t* msg_out = pheromone_msg_in;
-
-            log_debug_msg(LOG_DEBUG, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
-
-            np_dhkey_t pheromone_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PHEROMONE_UPDATE);
-            np_util_event_t pheromone_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=msg_to.value.dhkey };
-            pheromone_event.user_data = msg_out;
-            
-            // forward to axon sending unit with main direction "mgs_to"
-            np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
-            _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
-
-            // forward to axon sending unit with main direction set to existing trails
-            sll_iterator(np_dhkey_t) iter = sll_first(result_list);
-            while (iter != NULL) 
-            {
-                if (!_np_dhkey_equal(&iter->val, &msg_from.value.dhkey)        &&
-                    !_np_dhkey_equal(&iter->val, &_last_hop_dhkey)             &&
-                    !_np_dhkey_equal(&iter->val, &context->my_node_key->dhkey) )
-                {
-                    pheromone_event.target_dhkey = iter->val;
-                    np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
-                    _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
-                }
-                sll_next(iter);
-            }
-        }  
-        // cleanup
-        sll_free(np_dhkey_t, result_list);
+        forward_pheromone_update = _np_pheromone_inhale(context, _pheromone);
         
         _np_bloom_free(_scent);
-    } else {
-        log_debug_msg(LOG_DEBUG, "pheromone message {msg uuid: %s) contained no element", pheromone_msg_in->uuid);
     }
 
+    if (forward_pheromone_update) 
+    {   // forward the received pheromone
+        np_message_t* msg_out = pheromone_msg_in;
+
+        log_debug_msg(LOG_DEBUG, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
+
+        np_dhkey_t pheromone_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PHEROMONE_UPDATE);
+        np_util_event_t pheromone_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=msg_to.value.dhkey };
+        pheromone_event.user_data = msg_out;
+        
+        // forward to axon sending unit with main direction "mgs_to"
+        np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
+        _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
+
+        // forward to axon sending unit with main direction set to existing trails
+        sll_iterator(np_dhkey_t) iter = sll_first(result_list);
+        while (iter != NULL) 
+        {
+            if (!_np_dhkey_equal(&iter->val, &msg_from.value.dhkey)        &&
+                !_np_dhkey_equal(&iter->val, &_last_hop_dhkey)             &&
+                !_np_dhkey_equal(&iter->val, &context->my_node_key->dhkey) )
+            {
+                pheromone_event.target_dhkey = iter->val;
+                np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
+                _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
+            }
+            sll_next(iter);
+        }
+    }
+    // cleanup
+    sll_free(np_dhkey_t, result_list);
+        
     __np_cleanup__: {}
 
     return true;
@@ -710,7 +700,7 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     hs_event.type = (evt_external | evt_token);
     _np_keycache_handle_event(context, search_dhkey, hs_event, false);
     
-    log_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
+    log_debug_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
 
     // network init could have failed
     if (FLAG_CMP(msg_source_key->type, np_key_type_node))
