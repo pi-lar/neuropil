@@ -36,7 +36,7 @@ class IPTransportTest(unittest.TestCase):
     @staticmethod
     def authn_allow_all(node:NeuropilNode, token:np_token):
 
-        print("{node} is authenticating issuer: {subject}".format(node=node.get_fingerprint(), subject=token.subject))
+        # print("{node} is authenticating issuer: {subject}".format(node=node.get_fingerprint(), subject=token.subject))
 
         if (token.subject.find("tcp4:localhost:4444")):
             IPTransportTest.tcp4_connections.value += 1
@@ -196,8 +196,6 @@ class IPTransportTest(unittest.TestCase):
         pm = Process(target=self.run_pas6,args=([]))
         processes.append(pm)
         pm.start()
-
-        time.sleep(1)
 
         # Ensure all processes have finished execution
         for p in processes:
