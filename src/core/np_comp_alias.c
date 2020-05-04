@@ -183,8 +183,11 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     NP_CAST(event.user_data, np_aaatoken_t, handshake_token);
 
-    alias_key->type |= np_key_type_alias;
-    np_ref_obj(np_key_t, alias_key, "__np_alias_set");
+    if (!FLAG_CMP(alias_key->type, np_key_type_alias))
+    {
+        alias_key->type |= np_key_type_alias;
+        np_ref_obj(np_key_t, alias_key, "__np_alias_set");
+    }
 
     // fix TCP setup and set correct key
     np_network_t* alias_network = _np_key_get_network(alias_key);

@@ -686,7 +686,11 @@ void _np_network_t_del(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     free(network->watcher_out.data);
     free(network->remote_addr);
 
-    if (0 < network->socket) close (network->socket);
+    if ((0 < network->socket)                                                            && 
+        !(FLAG_CMP(network->socket_type, PASSIVE) && FLAG_CMP(network->socket_type, UDP)) )
+    {
+        close (network->socket);
+    }
     network->initialized = false;
     // finally destroy the mutex 
     _np_threads_mutex_destroy(context, &network->access_lock);

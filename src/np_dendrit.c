@@ -274,9 +274,11 @@ bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
             np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
 
             shutdown_event.target_dhkey=search_key;
+            // shutdown node
             _np_keycache_handle_event(context, search_key, shutdown_event, false);
 
             shutdown_event.target_dhkey=msg_event.target_dhkey;
+            // shutdown alias
             _np_keycache_handle_event(context, msg_event.target_dhkey, shutdown_event, false);
 
             np_unref_obj(np_aaatoken_t, node_token, "np_token_factory_read_from_tree");
