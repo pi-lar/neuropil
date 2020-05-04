@@ -27,7 +27,7 @@ extern "C" {
     } NP_PACKED(1);
     // value gets appended to np_data instance in datablock
 
-    typedef void np_datablock_t;
+    typedef unsigned char np_datablock_t;
 
     NP_API_EXPORT
     /**
@@ -45,10 +45,7 @@ extern "C" {
 
     // Internal methods
     NP_API_PROTEC
-    enum np_return np_serialize_datablock(np_datablock_t * block, void ** out_raw_block, size_t * out_raw_block_size);
-    NP_API_PROTEC
-    enum np_return np_deserialize_datablock(np_datablock_t ** out_block, void * raw_block, size_t raw_block_length);
-
+    enum np_return np_get_data_size(np_datablock_t * block, size_t * out_block_size);
 #ifdef __cplusplus
 }
 #endif
