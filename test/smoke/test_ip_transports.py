@@ -68,8 +68,7 @@ class IPTransportTest(unittest.TestCase):
             elapsed = float(time.time() - t1)
             if elapsed % 2 == 0:
                 self.assertTrue(np_0.get_status() == neuropil.np_running)
-            if IPTransportTest.tcp4_connections.value>=4 or elapsed > timeout:
-                np_0.run(10)
+            if elapsed > timeout:
                 break
             np_0.run(math.pi/10)
         np_0.shutdown()
@@ -89,8 +88,7 @@ class IPTransportTest(unittest.TestCase):
             elapsed = float(time.time() - t1)
             if elapsed % 2 == 0:
                 self.assertTrue(np_2.get_status() == neuropil.np_running)
-            if IPTransportTest.tcp6_connections.value>=4 or elapsed > timeout:
-                np_2.run(10)
+            if elapsed > timeout:
                 break
             np_2.run(math.pi/10)
         np_2.shutdown()
@@ -109,8 +107,7 @@ class IPTransportTest(unittest.TestCase):
             elapsed = float(time.time() - t1)
             if elapsed % 2 == 0:
                 self.assertTrue(np_1.get_status() == neuropil.np_running)
-            if IPTransportTest.udp4_connections.value>=4 or elapsed > timeout:
-                np_1.run(10)
+            if elapsed > timeout:
                 break
             np_1.run(math.pi/10)
         np_1.shutdown()
@@ -130,11 +127,8 @@ class IPTransportTest(unittest.TestCase):
             elapsed = float(time.time() - t1)
             if elapsed % 2 == 0:
                 self.assertTrue(np_3.get_status() == neuropil.np_running)
-
-            if IPTransportTest.udp6_connections.value>=4 or elapsed > timeout:
-                np_3.run(10)
+            if elapsed > timeout:
                 break
-
             np_3.run(math.pi/10)
         np_3.shutdown()
 
@@ -153,8 +147,7 @@ class IPTransportTest(unittest.TestCase):
             elapsed = float(time.time() - t1)
             if elapsed % 2 == 0:
                 self.assertTrue(np_4.get_status() == neuropil.np_running)
-            if IPTransportTest.pas4_connections.value==4 or elapsed > timeout:
-                np_4.run(10)
+            if elapsed > timeout:
                 break
             np_4.run(math.pi/10)
         np_4.shutdown()
@@ -174,11 +167,8 @@ class IPTransportTest(unittest.TestCase):
             elapsed = float(time.time() - t1)
             if elapsed % 2 == 0:
                 self.assertTrue(np_5.get_status() == neuropil.np_running)
-
-            if IPTransportTest.pas6_connections.value==4 or elapsed > timeout:
-                np_5.run(10)
+            if elapsed > timeout:
                 break
-
             np_5.run(math.pi/10)
         np_5.shutdown()
 
@@ -218,9 +208,6 @@ class IPTransportTest(unittest.TestCase):
         self.assertTrue(IPTransportTest.udp6_connections.value >= 4)# = Value(c_int, 0)
         self.assertTrue(IPTransportTest.tcp4_connections.value >= 4)# = Value(c_int, 0)
         self.assertTrue(IPTransportTest.tcp6_connections.value >= 4)# = Value(c_int, 0)
-        self.assertTrue(IPTransportTest.pas4_connections.value == 4)# = Value(c_int, 0)
-        self.assertTrue(IPTransportTest.pas6_connections.value == 4)# = Value(c_int, 0)
-    
-if __name__ == "__main__":
-    unittest.main() # run all tests
+        self.assertTrue(IPTransportTest.pas4_connections.value >= 2)# = Value(c_int, 0)
+        self.assertTrue(IPTransportTest.pas6_connections.value >= 2)# = Value(c_int, 0)
 
