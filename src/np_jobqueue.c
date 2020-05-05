@@ -448,6 +448,8 @@ void __np_jobqueue_run_manager(np_state_t *context, np_thread_t* my_thread)
         }
 
         np_threads_busyness_stat(context, my_thread);
+
+        if (sleep > NP_SLEEP_MIN) break;
     }
 
     np_threads_busyness(context, my_thread, false);
