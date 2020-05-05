@@ -32,6 +32,9 @@ struct __kv_pair
     uint32_t data_size;
     union {
         unsigned char *bin;
+        int integer;
+        uint32_t unsigned_integer;
+        char *str;
     } data;
 };
 
@@ -70,14 +73,15 @@ enum np_return np_init_datablock(np_datablock_t *block, uint32_t block_length)
         {
             ret = np_unknown_error;
         }
-        else if (!cmp_write_map32(&cmp, (uint32_t) 0))  // object count
+        else if (!cmp_write_map32(&cmp, (uint32_t)0)) // object count
         {
             ret = np_unknown_error;
         }
     }
     return ret;
 }
-enum np_return __read_datablock_fixed(enum np_return *error, struct __np_datablock_s * ret){
+enum np_return __read_datablock_fixed(enum np_return *error, struct __np_datablock_s *ret)
+{
     uint32_t magic_no, array_size;
     if (!cmp_read_array(&ret->cmp, &array_size) && array_size == 4)
     {
@@ -103,7 +107,8 @@ struct __np_datablock_s __read_datablock(np_datablock_t *block, enum np_return *
     ret.ublock = ((unsigned char *)block);
     cmp_init(&ret.cmp, block, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-    if(__read_datablock_fixed(error, &ret) != np_ok) {
+    if (__read_datablock_fixed(error, &ret) != np_ok)
+    {
         // fprintf(stderr, "__read_datablock_0\n");
     }
     else if (!cmp_read_u32(&ret.cmp, &ret.used_length)) // used_length
@@ -133,6 +138,30 @@ enum np_return __write_object(cmp_ctx_t *target, struct __kv_pair to_write)
     else if (to_write.data_type == NP_DATA_TYPE_BIN)
     {
         if (!cmp_write_bin32(target, to_write.data.bin, to_write.data_size))
+        {
+            // fprintf(stderr, "__write_object.data_size");
+            ret = np_unknown_error;
+        }
+    }
+    else if (to_write.data_type == NP_DATA_TYPE_INT)
+    {
+        if (!cmp_write_s32(target, to_write.data.integer))
+        {
+            // fprintf(stderr, "__write_object.data_size");
+            ret = np_unknown_error;
+        }
+    }
+    else if (to_write.data_type == NP_DATA_TYPE_UNSIGNED_INT)
+    {
+        if (!cmp_write_u32(target, to_write.data.unsigned_integer))
+        {
+            // fprintf(stderr, "__write_object.data_size");
+            ret = np_unknown_error;
+        }
+    }
+    else if (to_write.data_type == NP_DATA_TYPE_STR)
+    {
+        if (!cmp_write_str(target, to_write.data.str, to_write.data_size))
         {
             // fprintf(stderr, "__write_object.data_size");
             ret = np_unknown_error;
@@ -168,6 +197,26 @@ struct __kv_pair __read_object(cmp_ctx_t *cmp, enum np_return *error)
             ret.data_size = type.as.bin_size;
             ret.data.bin = cmp->buf;
             cmp->buf += ret.data_size;
+        }
+        else if (type.type == CMP_TYPE_FIXSTR || type.type == CMP_TYPE_STR8 || type.type == CMP_TYPE_STR16 || type.type == CMP_TYPE_STR32)
+        {
+            ret.data_type = NP_DATA_TYPE_STR;
+            ret.data_size = type.as.str_size + 1;
+            ret.data.str = cmp->buf;
+        }
+        else if (type.type == CMP_TYPE_SINT32)
+        {
+            ret.data_type = NP_DATA_TYPE_INT;
+            ret.data_size = sizeof(type.as.s32);
+            ret.data.integer = type.as.s32;
+
+        }
+        else if (type.type == CMP_TYPE_UINT32)
+        {
+            ret.data_type = NP_DATA_TYPE_UNSIGNED_INT;
+            ret.data_size = sizeof(type.as.u32);
+            ret.data.integer = type.as.u32;
+
         } // ... other types
         else
         {
@@ -263,11 +312,12 @@ enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf,
                     overwrite.ublock = ((unsigned char *)block);
                     cmp_init(&overwrite.cmp, block, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-                    if(__read_datablock_fixed(&ret,&overwrite) != np_ok){
+                    if (__read_datablock_fixed(&ret, &overwrite) != np_ok)
+                    {
                         // fprintf(stderr, "np_set_data.__read_datablock_fixed\n");
                         ret = np_unknown_error;
-
-                    }else if (!cmp_write_u32(&overwrite.cmp, new_used_length))
+                    }
+                    else if (!cmp_write_u32(&overwrite.cmp, new_used_length))
                     {
                         // fprintf(stderr, "np_set_data.overwrite_used_length\n");
                         ret = np_unknown_error;

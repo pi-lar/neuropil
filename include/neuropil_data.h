@@ -17,7 +17,8 @@ extern "C" {
         NP_DATA_TYPE_MASK                     = 0xFFF000,
         NP_DATA_TYPE_BIN                      = 0x001000,
         NP_DATA_TYPE_INT                      = 0x002000,
-        NP_DATA_TYPE_STR                      = 0x003000,
+        NP_DATA_TYPE_UNSIGNED_INT             = 0x003000,
+        NP_DATA_TYPE_STR                      = 0x004000,
     } NP_CONST_ENUM;
 
     struct np_data_conf {
