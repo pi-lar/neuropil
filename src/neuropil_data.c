@@ -22,7 +22,6 @@ struct __np_datablock_s
     uint32_t used_length;
     uint32_t object_count;
 };
-
 struct __kv_pair
 {
     unsigned char *start_of_object;
@@ -30,12 +29,7 @@ struct __kv_pair
     char key[255];
     enum np_data_type data_type;
     uint32_t data_size;
-    union {
-        unsigned char *bin;
-        int integer;
-        uint32_t unsigned_integer;
-        char *str;
-    } data;
+    np_data_value data;
 };
 
 enum np_return np_init_datablock(np_datablock_t *block, uint32_t block_length)
@@ -215,7 +209,7 @@ struct __kv_pair __read_object(cmp_ctx_t *cmp, enum np_return *error)
         {
             ret.data_type = NP_DATA_TYPE_UNSIGNED_INT;
             ret.data_size = sizeof(type.as.u32);
-            ret.data.integer = type.as.u32;
+            ret.data.unsigned_integer = type.as.u32;
 
         } // ... other types
         else
@@ -255,7 +249,7 @@ struct __kv_pair __search_for_key(char *key, cmp_ctx_t *cmp, unsigned char *star
     return ret;
 }
 
-enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf, unsigned char *data)
+enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf, np_data_value data)
 {
     enum np_return ret = np_invalid_argument;
     struct __np_datablock_s db = __read_datablock(block, &ret);
@@ -280,7 +274,22 @@ enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf,
             if (data_conf.type == NP_DATA_TYPE_BIN)
             {
                 new_object_size += sizeof(uint8_t) /*Marker*/ + sizeof(uint32_t) /*DataSize*/ + data_conf.data_size /*Data*/;
-            } // other data types
+            }else if (data_conf.type == NP_DATA_TYPE_INT)
+            {
+                data_conf.data_size = sizeof(int);
+                new_object_size += sizeof(uint8_t) /*Marker*/ + sizeof(int);
+            }else if (data_conf.type == NP_DATA_TYPE_UNSIGNED_INT)
+            {
+                data_conf.data_size = sizeof(uint32_t);
+                new_object_size += sizeof(uint8_t) /*Marker*/ + sizeof(uint32_t);
+            }else if (data_conf.type == NP_DATA_TYPE_STR)
+            {
+                data_conf.data_size = strlen(data.str)+1;
+                new_object_size += sizeof(uint8_t) /*Marker*/ +  data_conf.data_size/*Data*/;
+            }// other data types
+            else{
+                ASSERT(false,"missing implementation for type %"PRIu32,(uint32_t) data_conf.type);
+            }
 
             if (new_object_size > (db.total_length - db.used_length))
             {
@@ -293,7 +302,7 @@ enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf,
                 struct __kv_pair tmp;
                 strncpy(tmp.key, data_conf.key, 255);
                 tmp.data_type = data_conf.type;
-                tmp.data.bin = data;
+                tmp.data = data;
                 tmp.data_size = data_conf.data_size;
 #ifdef DEBUG
                 void *old_buf = db.cmp.buf;
@@ -302,6 +311,9 @@ enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf,
 
 #ifdef DEBUG
                 uint32_t actual_new_object_size = db.cmp.buf - old_buf;
+                // fprintf(stderr, "np_set_data.actual_new_object_size:%"PRIu32"\n",actual_new_object_size);
+                // fprintf(stderr, "np_set_data.new_object_size:%"PRIu32"\n",new_object_size);
+
                 assert(actual_new_object_size == new_object_size);
 #endif
                 // update "used_length"
@@ -334,7 +346,7 @@ enum np_return np_set_data(np_datablock_t *block, struct np_data_conf data_conf,
     return ret;
 }
 
-enum np_return np_get_data(np_datablock_t *block, char key[255], struct np_data_conf *out_data_config, unsigned char **out_data)
+enum np_return np_get_data(np_datablock_t *block, char key[255], struct np_data_conf *out_data_config, np_data_value *out_data)
 {
     enum np_return ret = np_invalid_argument;
     struct __np_datablock_s db = __read_datablock(block, &ret);
@@ -348,7 +360,26 @@ enum np_return np_get_data(np_datablock_t *block, char key[255], struct np_data_
             out_data_config->type = tmp.data_type;
             strncpy(out_data_config->key, key, 255);
             if (out_data != NULL)
-                *out_data = tmp.data.bin;
+                if (out_data_config->type == NP_DATA_TYPE_BIN)
+                {
+                    out_data->bin = tmp.data.bin;
+                }
+                else if (out_data_config->type == NP_DATA_TYPE_INT)
+                {
+                    out_data->integer = tmp.data.integer;
+                }
+                else if (out_data_config->type == NP_DATA_TYPE_UNSIGNED_INT)
+                {
+                    out_data->unsigned_integer = tmp.data.unsigned_integer;
+                }
+                else if (out_data_config->type == NP_DATA_TYPE_STR)
+                {
+                    out_data->str = tmp.data.str;
+                }// other types
+                else
+                {
+                    ASSERT(false, "missing implementation");
+                }
         }
     }
     return ret;

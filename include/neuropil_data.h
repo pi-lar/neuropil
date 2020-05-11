@@ -28,6 +28,12 @@ extern "C" {
     } NP_PACKED(1);
     // value gets appended to np_data instance in datablock
 
+    typedef union {
+        unsigned char *bin;
+        int32_t  integer;
+        uint32_t unsigned_integer;
+        char * str;
+    } np_data_value;
     typedef unsigned char np_datablock_t;
 
     NP_API_EXPORT
@@ -40,9 +46,9 @@ extern "C" {
      */
     enum np_return np_init_datablock(np_datablock_t * block, uint32_t block_length);
     NP_API_EXPORT
-    enum np_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, unsigned char * data);
+    enum np_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, np_data_value data);
     NP_API_EXPORT
-    enum np_return np_get_data(np_datablock_t * block, char key[255], struct np_data_conf * out_data_config, unsigned char ** out_data);
+    enum np_return np_get_data(np_datablock_t * block, char key[255], struct np_data_conf * out_data_config, np_data_value * out_data);
 
     // Internal methods
     NP_API_PROTEC
