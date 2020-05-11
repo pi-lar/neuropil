@@ -81,17 +81,19 @@ task_build() {
   fi
 
   scons "$type" "target=$target" "$@" |& tee /tmp/np_sorted.log
+  ret=${PIPESTATUS[0]}
   ./sorted_output.sh /tmp/np_sorted.log
+  return $ret
 }
 
 task_build_local() {
-  task_build $(get_local_target) "$@"
+  return task_build $(get_local_target) "$@"
 }
 
 task_clean() {
   ensure_venv
 
-  rm -rf logs/*  
+  rm -rf logs/*
   rm -rf bindings/python_cffi/build bindings/python_cffi/_neuropil.abi3.so bindings/python_cffi/neuropil.egg-info
   rm -rf build
   scons -c
@@ -102,7 +104,7 @@ task_doc() {
   (
     rm -rf build/doc
     mkdir -p build/doc
-    make html -C doc BUILDDIR='../build/doc'        
+    make html -C doc BUILDDIR='../build/doc'
   )
 }
 
@@ -130,13 +132,15 @@ task_test() {
   ensure_criterion
 
   task_build "test" debug test=1
-  export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
+  if [[ $? == 0 ]] ; then
+    export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
 
-  ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
-  # Enable for test debugging
-  #nohup ./build/test/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
-  #sleep 1
-  #gdb ./build/test/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+    ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
+    # Enable for test debugging
+    #nohup ./build/test/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
+    #sleep 1
+    #gdb ./build/test/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+  fi
 
 }
 
@@ -151,7 +155,7 @@ task_run() {
   application="$application"
   target=$(get_local_target)
 
-   export LD_LIBRARY_PATH="./build/$target/lib"
+  export LD_LIBRARY_PATH="./build/$target/lib"
 
   echo "./build/$target/bin/$application" "$@"
   set +e
