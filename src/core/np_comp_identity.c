@@ -83,18 +83,22 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
+    struct __np_node_trinity trinity;
+    __np_key_to_trinity(my_identity_key, &trinity);
+
     if (FLAG_CMP(my_identity_key->type, np_key_type_node))
     {
-        NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_network_t, my_network);
-        _np_network_disable(my_network);
-        np_unref_obj(np_network_t, my_network, "__np_create_identity_network");
+        if (trinity.network != NULL)
+        {
+            if (!FLAG_CMP(trinity.network->socket_type, PASSIVE))
+                _np_network_disable(trinity.network);
+            np_unref_obj(np_network_t, trinity.network, "__np_create_identity_network");
+        }
 
-        NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_node_t, my_node);
-        np_unref_obj(np_node_t, my_node, "__np_create_identity_network");        
+        np_unref_obj(np_node_t, trinity.node, "__np_create_identity_network");        
     }
 
-    NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_aaatoken_t, my_token);
-    np_unref_obj(np_aaatoken_t, my_token, "__np_set_identity");
+    np_unref_obj(np_aaatoken_t, trinity.token, "__np_set_identity");
 
     sll_free(void_ptr, my_identity_key->entities);
 
@@ -286,8 +290,11 @@ void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_
     if (FLAG_CMP(my_identity_key->type, np_key_type_node) &&
         my_identity_key == context->my_node_key)
     {
-        NP_CAST(sll_last(my_identity_key->entities)->val, np_network_t, my_network);
-        _np_network_disable(my_network);
+        np_network_t* my_network = _np_key_get_network(my_identity_key);
+        if (my_network != NULL && !FLAG_CMP(my_network->socket_type, PASSIVE)) 
+        {
+            _np_network_disable(my_network);
+        }
     }
     
     if(FLAG_CMP(my_identity_key->type, np_key_type_ident) &&
