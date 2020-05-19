@@ -87,17 +87,16 @@ void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     if (entry->port) free (entry->port);
 }
 
-struct __node_from_string{
+struct __node_from_string_s {
     char*     s_dhkey;
     char*     s_protocol;
     char*     s_hostname;
     char*     s_port;
 };
 
+struct __node_from_string_s __get_node_details_from_string(np_state_t* context, char * str, bool parse_dhkey){
 
-struct __node_from_string __get_node_details_from_string(np_state_t* context, char * str, bool parse_dhkey){
-
-    struct __node_from_string ret = {0};
+    struct __node_from_string_s ret = {0};
     char* delimiter[3];
 
     // search last ':'
@@ -162,38 +161,6 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
     }
 }
 
-struct __node_from_string{
-    char     *s_dhkey;
-    char     *s_protocol;
-    char     *s_hostname;
-    char     *s_port;
-};
-
-struct __node_from_string __get_node_details_from_string(np_state_t* context, char * str, bool parse_dhkey){
-    struct __node_from_string ret = {0};
-
-    if(parse_dhkey)
-        ret.s_dhkey = strsep(&str, ":");
-
-    // log_debug_msg(LOG_DEBUG, "node decoded, extracted hostkey %s", sHostkey);
-
-    ret.s_protocol = strsep(&str, ":");
-
-    // hostname may contain ":" (ip6) so we need to factor this in
-    ret.s_hostname  = str;
-    ret.s_port = strrchr(str,':');
-    ret.s_port[0] = '\0';
-    ret.s_port = ret.s_port+1;
-    
-    //fprintf(stderr, "\ns_hostkey %s/%s/%s/%s\n", s_hostkey, s_hostproto, s_hostname, s_hostport);abort();
-
-    // string encoded data contains key, eventually plus hostname and hostport
-    // key string is mandatory !
-    log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s / %s / %s", ret.s_dhkey, ret.s_protocol, ret.s_hostname, ret.s_port);
-
-    return ret;
-}
-
 
 /** np_node_decode
  * decodes a string into a node structure. This acts as a
@@ -213,7 +180,7 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     uint16_t iLen = strlen(key);
     assert (iLen > 0);
 
-    struct __node_from_string details = __get_node_details_from_string(context, to_parse, true);
+    struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, true);
 
     // string encoded data contains key, eventually plus hostname and hostport
     // key string is mandatory !
@@ -303,7 +270,7 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
     
     log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", to_parse);
 
-    struct __node_from_string details = __get_node_details_from_string(context, to_parse, false);
+    struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, false);
 
     uint16_t i_host_proto = UNKNOWN_PROTO;
     if (details.s_protocol != NULL) {
