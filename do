@@ -155,9 +155,6 @@ task_run() {
 
 }
 
-#node -h 'neuropil_testbed_node__single________udp6_4002' -d -1 -s 0 -j "*:udp4:neuro0.in.pi-lar.net:3000"  -w localhost -e 5002 -u ::1 -b 4002 -t 0 -p udp6
-
-
 task_smoke() {
   ensure_venv
   task_install_python
