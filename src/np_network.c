@@ -73,7 +73,11 @@ enum socket_type _np_network_parse_protocol_string (const char* protocol_str)
     if (0 == strncmp(protocol_str, URN_UDP_V6, 4)) return (UDP     | IPv6);
     //if (0 == strncmp(protocol_str, URN_IP_V4, 3))  return (RAW     | IPv4);
     //if (0 == strncmp(protocol_str, URN_IP_V6, 3))  return (RAW     | IPv6);
+    int proto;
 
+    if(sscanf(protocol_str, "%d", &proto) == 1){
+        return proto;
+    }
     return (UNKNOWN_PROTO);
 }
 
