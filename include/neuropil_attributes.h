@@ -11,41 +11,39 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif      
-        
+#endif
+
     enum np_msg_attr_type {
         NP_ATTR_NONE = 0,
         NP_ATTR_USER_MSG,
         NP_ATTR_INTENT,
         NP_ATTR_IDENTITY,              // e.g. used when joining a network
-        NP_ATTR_IDENTITY_AND_USER_MSG, // e.g. used to secure the bootstapping process. 
-        // Scenario for further documentation:        
+        NP_ATTR_IDENTITY_AND_USER_MSG, // e.g. used to secure the bootstapping process.
+        // Scenario for further documentation:
         // Node "A" wants to connect to node "B"
         // "B" requests attr key "K1" to be given.  ("K1" is not in JOIN msg)
         // Node A registers by realm master "C"
         // "C" answers with a attribute "K1" configured for NP_ATTR_IDENTITY_AND_USER_MSG
         // "A" now saves "K1" in its identity token (so it can be saved) ("K1" is now in every JOIN msg)
         // "A" now preps every user message send with attribute "K1" (for example: SessionID)
-        
+
 
         NP_ATTR_INTENT_AND_USER_MSG,
         NP_ATTR_INTENT_AND_IDENTITY,
-        
-    } NP_CONST_ENUM;
 
+    } NP_CONST_ENUM;
 
     NP_API_EXPORT
     enum np_return np_set_ident_attr_bin(struct np_token* ident,       enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
     NP_API_EXPORT
-    enum np_return np_set_mxp_attr_bin(struct np_mx_properties * prop, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);            
-    
+    enum np_return np_set_mxp_attr_bin(struct np_mx_properties * prop, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
+
     NP_API_EXPORT
     enum np_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
     //NP_API_EXPORT
     //enum np_return np_get_attr_bin(np_mx_properties * prop, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
     //NP_API_EXPORT
     //enum np_return np_get_attr_bin(np_token* ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
-    
 
 #ifdef __cplusplus
 }
