@@ -151,7 +151,7 @@ class StarSetupTest(unittest.TestCase):
             np_0.run(math.pi/10)
         np_0.shutdown()
 
-    def test_msg_delivery(self):
+    def test_star_setup_delivery(self):
 
         send = Value('i', 0)
         send = Value('i', 0)

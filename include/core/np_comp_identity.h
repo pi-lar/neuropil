@@ -16,6 +16,16 @@
 extern "C" {
 #endif
 
+/**
+ * a identity component is the representation of an internal or external identity running on a node.
+ * it resides in memory at the fingerprint dhkey of its token.
+ * Usually internal identities are used for authentication, authorization and accounting purposes.
+ * The main substructure is therefore a token. If a private key is attached to teh token, then the
+ * identity may also act as a node and open an internet port.
+ * If no private key is present, the identity is used to maintain trust relations with peers, i.e.
+ * one may import a pre-shared pki identity and use it to verify additional signatures.
+ */
+
     NP_API_INTERN
     bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event);
 

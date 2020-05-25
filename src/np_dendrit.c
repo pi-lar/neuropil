@@ -33,6 +33,7 @@
 #include "np_dhkey.h"
 #include "np_key.h"
 #include "np_keycache.h"
+#include "np_list.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_intent.h"
@@ -41,7 +42,6 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_memory.h"
-#include "np_list.h"
 #include "np_route.h"
 #include "np_util.h"
 #include "np_types.h"
@@ -63,22 +63,23 @@ bool _check_and_send_destination_ack(np_state_t* context, np_util_event_t msg_ev
 
     CHECK_STR_FIELD_BOOL(msg->instructions, _NP_MSG_INST_ACK, msg_ack, "NOT AN ACK MSG")
     {
+        // TODO: check intent token for ack indicator if user space message
         if (FLAG_CMP(msg_ack->val.value.ush, ACK_DESTINATION) )
         {
-            np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
-            np_dhkey_t target    = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey;
+            np_dhkey_t ack_out_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_ACK);
+            np_dhkey_t target_dhkey = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)->val.value.dhkey; // where the message came from
 
-            np_tree_t* msg_body  = np_tree_create();
+            np_tree_t* msg_body     = np_tree_create();
             np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
 
-            np_message_t* msg_out;
+            np_message_t* msg_out   = NULL;
             np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-            _np_message_create(msg_out, target, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
+            _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_ACK, msg_body);
 
             log_msg(LOG_INFO, "ack of message %s with %s", msg->uuid, msg_out->uuid);
 
-            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=target, .user_data=msg_out };
-            _np_keycache_handle_event(context, ack_dhkey, ack_event, false);
+            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=ack_out_dhkey, .user_data=msg_out };
+            _np_keycache_handle_event(context, ack_out_dhkey, ack_event, false);
         }
     }
     return true;
@@ -116,10 +117,17 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
     while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
-        np_dhkey_t search_key = {0};
-        _np_str_dhkey(node_entry->host_key, &search_key);
+        // ignore passive nodes, we cannot send a handshake to them
+        if (FLAG_CMP(node_entry->protocol, PASSIVE)) {
+            np_unref_obj(np_node_t, node_entry,"_np_node_decode_from_jrb");
+            continue;
+        }
+
         // add entries in the message to our routing table
         // routing table is responsible to handle possible double entries
+        np_dhkey_t search_key = {0};
+        _np_str_dhkey(node_entry->host_key, &search_key);
+
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
         np_key_t* piggy_key = _np_keycache_find(context, search_key);
         if (piggy_key == NULL)
@@ -166,7 +174,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
                 (np_time_now() - piggy_key->created_at) >= BAD_LINK_REMOVE_GRACETIME ) 
         {
             // let's try to fill up our leafset, routing table is filled by internal state
-            // TODO: realize this via an event, otherwiese locking of the piggy key is not in place
+            // TODO: realize this via an event, otherwise locking of the piggy key is not in place
             __np_node_add_to_leafset(&piggy_key->sm, msg_event);
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
         } 
@@ -178,7 +186,6 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             np_unref_obj(np_key_t, piggy_key,"_np_keycache_find");
         }        
         np_unref_obj(np_node_t, node_entry,"_np_node_decode_from_jrb");
-        // free(connect_str);
     }
     sll_free(np_node_ptr, o_piggy_list);
 
@@ -267,9 +274,11 @@ bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
             np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
 
             shutdown_event.target_dhkey=search_key;
+            // shutdown node
             _np_keycache_handle_event(context, search_key, shutdown_event, false);
 
             shutdown_event.target_dhkey=msg_event.target_dhkey;
+            // shutdown alias
             _np_keycache_handle_event(context, msg_event.target_dhkey, shutdown_event, false);
 
             np_unref_obj(np_aaatoken_t, node_token, "np_token_factory_read_from_tree");
@@ -556,8 +565,12 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
     // and initiate the sending of the real intent. Too much work for now :-(
     // np_key_t* msg_prop_key = _np_keycache_find(context, msg_to.value.dhkey /*msg_from.value.dhkey */);
 
-    np_tree_elem_t* tmp = RB_MIN(np_tree_s, pheromone_msg_in->body);
-    if (tmp != NULL)
+    np_tree_elem_t* tmp = NULL;
+    bool forward_pheromone_update = false;
+    np_sll_t(np_dhkey_t, result_list) = NULL;
+    sll_init(np_dhkey_t, result_list);
+
+    RB_FOREACH(tmp, np_tree_s, pheromone_msg_in->body)
     {   // only one element per message right now
         np_bloom_t* _scent = _np_neuropil_bloom_create();
         _np_neuropil_bloom_deserialize(_scent, tmp->val.value.bin, tmp->val.size);
@@ -569,24 +582,21 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
             _delay += NP_PI / 100;
         }
 
-        float _in_age = _np_neuropil_bloom_get_heuristic(_scent, msg_to.value.dhkey);
-        if (_in_age == 0.0) 
+        float _in_age = _np_neuropil_bloom_intersect_age(_scent, _scent);
+        // float _in_age = _np_neuropil_bloom_get_heuristic(_scent, msg_to.value.dhkey);
+        if (_in_age == 0.0)
         {
             log_debug_msg(LOG_DEBUG, "dropping pheromone trail message, {msg uuid: %s) age now %f",
                                      pheromone_msg_in->uuid, _in_age);
             _np_bloom_free(_scent);
-            return true;
+            continue;
         }
 
         float _old_age = _in_age;
-
-        np_sll_t(np_dhkey_t, result_list) = NULL;
-        sll_init(np_dhkey_t, result_list);
-
         // update the internal pheromone table
         np_pheromone_t _pheromone = {0};
-        _pheromone._subj_bloom = _scent;
-        _pheromone._pos        = tmp->key.value.i;
+        _pheromone._subj_bloom    = _scent;
+        _pheromone._pos           = tmp->key.value.i;
 
         if (0 > tmp->key.value.i)
         {
@@ -608,45 +618,43 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         }
 
         log_msg(LOG_DEBUG, "update of pheromone trail: age in : %f, but have age : %f / %d", _pheromone._pos, _in_age, _old_age);
-        bool forward_pheromone_update = _np_pheromone_inhale(context, _pheromone);
-        
-        if (forward_pheromone_update) 
-        {   // forward the received pheromone
-            np_message_t* msg_out = pheromone_msg_in;
-
-            log_debug_msg(LOG_DEBUG, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
-
-            np_dhkey_t pheromone_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PHEROMONE_UPDATE);
-            np_util_event_t pheromone_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=msg_to.value.dhkey };
-            pheromone_event.user_data = msg_out;
-            
-            // forward to axon sending unit with main direction "mgs_to"
-            np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
-            _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
-
-            // forward to axon sending unit with main direction set to existing trails
-            sll_iterator(np_dhkey_t) iter = sll_first(result_list);
-            while (iter != NULL) 
-            {
-                if (!_np_dhkey_equal(&iter->val, &msg_from.value.dhkey)        &&
-                    !_np_dhkey_equal(&iter->val, &_last_hop_dhkey)             &&
-                    !_np_dhkey_equal(&iter->val, &context->my_node_key->dhkey) )
-                {
-                    pheromone_event.target_dhkey = iter->val;
-                    np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
-                    _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
-                }
-                sll_next(iter);
-            }
-        }  
-        // cleanup
-        sll_free(np_dhkey_t, result_list);
+        forward_pheromone_update = _np_pheromone_inhale(context, _pheromone);
         
         _np_bloom_free(_scent);
-    } else {
-        log_debug_msg(LOG_DEBUG, "pheromone message {msg uuid: %s) contained no element", pheromone_msg_in->uuid);
     }
 
+    if (forward_pheromone_update) 
+    {   // forward the received pheromone
+        np_message_t* msg_out = pheromone_msg_in;
+
+        log_debug_msg(LOG_DEBUG, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
+
+        np_dhkey_t pheromone_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PHEROMONE_UPDATE);
+        np_util_event_t pheromone_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=msg_to.value.dhkey };
+        pheromone_event.user_data = msg_out;
+        
+        // forward to axon sending unit with main direction "mgs_to"
+        np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
+        _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
+
+        // forward to axon sending unit with main direction set to existing trails
+        sll_iterator(np_dhkey_t) iter = sll_first(result_list);
+        while (iter != NULL) 
+        {
+            if (!_np_dhkey_equal(&iter->val, &msg_from.value.dhkey)        &&
+                !_np_dhkey_equal(&iter->val, &_last_hop_dhkey)             &&
+                !_np_dhkey_equal(&iter->val, &context->my_node_key->dhkey) )
+            {
+                pheromone_event.target_dhkey = iter->val;
+                np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
+                _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
+            }
+            sll_next(iter);
+        }
+    }
+    // cleanup
+    sll_free(np_dhkey_t, result_list);
+        
     __np_cleanup__: {}
 
     return true;
@@ -694,39 +702,39 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     hs_event.type = (evt_external | evt_token);
     _np_keycache_handle_event(context, search_dhkey, hs_event, false);
     
-    log_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
+    log_debug_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
 
-    // TODO: passive check
-    // TODO: update the arbitrary constructed alias key because of tcp passive network connection (this node is passive)
-    // remote port but "localhost"
-
-    // setup inbound decryption session with the alias key
-    hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
-    hs_alias_key->parent_key = msg_source_key;
-
-    hs_event.type = (evt_internal | evt_token);
-    _np_keycache_handle_event(context, hs_alias_key->dhkey, hs_event, false);
-
-    log_trace_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
-    np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
-
-    // finally delete possible wildcard key
-    char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
-    np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
-    hs_wildcard_key = _np_keycache_find(context, wildcard_dhkey);
-    if (NULL != hs_wildcard_key)
+    // network init could have failed
+    if (FLAG_CMP(msg_source_key->type, np_key_type_node))
     {
-        hs_wildcard_key->parent_key = msg_source_key;
+        // setup inbound decryption session with the alias key
+        hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
+        hs_alias_key->parent_key = msg_source_key;
 
-        np_util_event_t hs_event = msg_event;
-        hs_event.type = (evt_external | evt_token);
-        hs_event.user_data = handshake_token;
-        _np_keycache_handle_event(context, hs_wildcard_key->dhkey, hs_event, false);
-        np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
+        hs_event.type = (evt_internal | evt_token);
+        _np_keycache_handle_event(context, hs_alias_key->dhkey, hs_event, false);
 
-        log_trace_msg(LOG_TRACE, "Update wildcard key done!");
-    } 
-    free(tmp_connection_str);
+        log_trace_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
+        np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
+
+        // finally delete possible wildcard key
+        char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
+        np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
+        hs_wildcard_key = _np_keycache_find(context, wildcard_dhkey);
+        if (NULL != hs_wildcard_key)
+        {
+            hs_wildcard_key->parent_key = msg_source_key;
+
+            np_util_event_t hs_event = msg_event;
+            hs_event.type = (evt_external | evt_token);
+            hs_event.user_data = handshake_token;
+            _np_keycache_handle_event(context, hs_wildcard_key->dhkey, hs_event, false);
+            np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
+
+            log_trace_msg(LOG_TRACE, "Update wildcard key done!");
+        } 
+        free(tmp_connection_str);
+    }
 
     __np_cleanup__:
         np_unref_obj(np_aaatoken_t, handshake_token, "np_token_factory_read_from_tree");
