@@ -110,7 +110,7 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
         }
         else
         {
-            uint16_t recv_threshold = np_tree_find_str(tmp_token->extensions_local, "max_threshold")->val.value.ui;
+            uint16_t recv_threshold = np_tree_find_str(tmp_token->extensions, "max_threshold")->val.value.ui;
             if (recv_threshold < my_property->max_threshold) {
                 log_debug_msg(LOG_WARN, "reduce max threshold for subject (%s/%u) because receiver %s has lower, otherwise MESSAGE LOSS IS GUARANTEED!", my_property->msg_subject, recv_threshold, tmp_token->issuer);
             }

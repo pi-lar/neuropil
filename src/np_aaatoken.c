@@ -80,7 +80,6 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
 
     aaa_token->extensions = np_tree_create();
     aaa_token->state = AAA_UNKNOWN;
-    aaa_token->extensions_local = aaa_token->extensions;
 
     aaa_token->type = np_aaatoken_type_undefined;
     aaa_token->scope = np_aaatoken_scope_undefined;
@@ -98,9 +97,6 @@ void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, 
 
     
     // clean up extensions
-    if (aaa_token->extensions != aaa_token->extensions_local) {
-        np_tree_free(aaa_token->extensions_local);
-    }
     np_tree_free(aaa_token->extensions);
 }
 
@@ -232,13 +228,6 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
             token->uuid, tmp->val.type, np_treeval_type_jrb_tree
         );
 
-        if (token->extensions == token->extensions_local) {
-            token->extensions_local = np_tree_clone( tmp->val.value.tree);
-            token->extensions_local->attr.immutable = false;
-        }
-        else {
-            np_tree_copy(tmp->val.value.tree, token->extensions_local);
-        }
         np_tree_clear( token->extensions);
         np_tree_copy( tmp->val.value.tree, token->extensions);
 
@@ -456,8 +445,8 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
     // TODO: only if this is a message token
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
-    np_tree_elem_t* max_threshold = np_tree_find_str(token->extensions_local, "max_threshold");
-    np_tree_elem_t* msg_threshold = np_tree_find_str(token->extensions_local, "msg_threshold");
+    np_tree_elem_t* max_threshold = np_tree_find_str(token->extensions, "max_threshold");
+    np_tree_elem_t* msg_threshold = np_tree_find_str(token->extensions, "msg_threshold");
     
     if ( max_threshold && msg_threshold)
     {
