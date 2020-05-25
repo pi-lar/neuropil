@@ -1238,13 +1238,41 @@ void __np_msgproperty_send_pheromone_messages(np_util_statemachine_t* statemachi
     if (is_send)
     {
         np_tree_insert_int(bloom_data, -(target_dhkey.t[0] % 257)-1, np_treeval_new_bin((void*) buffer, buffer_size));
+        log_debug_msg(LOG_DEBUG, "adding %25s bloom data at %i", property->msg_subject, -(target_dhkey.t[0] % 257)-1);
+
         _np_pheromone_snuffle_receiver(context, result_list, target_dhkey, &_return_age);
         last_pheromone_update = property->last_pheromone_tx_update;
+
+        if (FLAG_CMP(property->ack_mode, ACK_DESTINATION) ||
+            FLAG_CMP(property->ack_mode, ACK_CLIENT     )  )
+        {
+            np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND,  _NP_MSG_ACK);
+
+            if (FLAG_CMP(property->ack_mode, ACK_DESTINATION))
+                _np_dhkey_add(&ack_dhkey, &ack_dhkey, &context->my_node_key->dhkey);
+            if (FLAG_CMP(property->ack_mode, ACK_CLIENT))
+                _np_dhkey_add(&ack_dhkey, &ack_dhkey, &context->my_identity->dhkey);
+
+            np_bloom_t* ack_scent = _np_neuropil_bloom_create();
+            _np_neuropil_bloom_add(ack_scent, ack_dhkey);
+            unsigned char* ack_buffer = NULL;
+            uint16_t ack_buffer_size = 0;
+            _np_neuropil_bloom_serialize(ack_scent, &ack_buffer, &ack_buffer_size);
+            
+            np_tree_insert_int(bloom_data, (ack_dhkey.t[0] % 257)+1, np_treeval_new_bin((void*) ack_buffer, ack_buffer_size));
+            log_debug_msg(LOG_DEBUG, "adding %25s bloom data at %i", _NP_MSG_ACK, (ack_dhkey.t[0] % 257)+1);
+
+            free(ack_buffer);
+            _np_bloom_free(ack_scent);
+        }
     }
+
     if (is_recv &&
         sll_contains(np_evt_callback_t, property->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type))
     {
         np_tree_insert_int(bloom_data,  (target_dhkey.t[0] % 257)+1, np_treeval_new_bin((void*) buffer, buffer_size));
+        log_debug_msg(LOG_DEBUG, "adding %25s bloom data at %i", property->msg_subject, (target_dhkey.t[0] % 257)+1);
+
         _np_pheromone_snuffle_sender(context, result_list, target_dhkey, &_return_age);
         last_pheromone_update = property->last_pheromone_rx_update;
     }
@@ -1480,7 +1508,7 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
 bool __is_message_redelivery_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_message_redelivery_event(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_message_redelivery_event(...) {");
 
     bool ret = false;
     

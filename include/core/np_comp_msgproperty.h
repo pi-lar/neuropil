@@ -2,12 +2,6 @@
 // neuropil is copyright 2016-2020 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-/**
- The structure np_msgproperty_t is used to describe properties of the message exchange itself.
- It is setup by sender and receiver independent of each other.
- It defines attributes like a re-send counter and the type of message exchange.
- A developer should be familiar with the main settings
-*/
 
 #ifndef _NP_COMP_MSGPROPERTY_H_
 #define _NP_COMP_MSGPROPERTY_H_
@@ -26,6 +20,20 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * The component msgproperty is responsible to handle incoming and outgoing messages. it is used as a 
+ * placeholder for topics and resides in two memory locations: the dhkey of the message subject concatenated
+ * with INBOUND, and the dhkey of the message subject concatenated with OUTBOUND. If an event is received,
+ * usually a list of registered callbacks is executed, the internal callbacks first, the user supplied callbacks 
+ * afterwards for incoming mnessages. for outgoing messages the order is reversed: user supplied callbacks first,
+ * internal messages callbacks afterwards. internal message subjects are fixed because of the neuropil 
+ * implementation and cannot be changed.
+ *
+ * The structure np_msgproperty_t is used to describe properties of the message exchange itself.
+ * It is setup by sender and receiver independent of each other. It defines attributes like a re-send counter 
+ * and the type of message exchange. A developer should be familiar with the main attributes and settings
+ */
 
 #define _NP_URN_PREFIX						"urn:np:"
 #define _NP_URN_MSG_PREFIX					"" // TODO: _NP_URN_PREFIX"msg:"

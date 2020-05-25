@@ -63,12 +63,17 @@ struct np_network_s
 {
     bool initialized;
     int socket;
-    ev_io watcher;
+    ev_io watcher_in;
+    ev_io watcher_out;
     bool is_running;
     np_network_type_e type;
 
     enum socket_type socket_type;
+
     struct addrinfo* addr_in; // where a node receives messages
+
+    struct sockaddr* remote_addr;
+    socklen_t remote_addr_len;
 
     double last_send_date;
     double last_received_date;

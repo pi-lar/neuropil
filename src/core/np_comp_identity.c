@@ -83,18 +83,22 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
+    struct __np_node_trinity trinity;
+    __np_key_to_trinity(my_identity_key, &trinity);
+
     if (FLAG_CMP(my_identity_key->type, np_key_type_node))
     {
-        NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_network_t, my_network);
-        _np_network_disable(my_network);
-        np_unref_obj(np_network_t, my_network, "__np_create_identity_network");
+        if (trinity.network != NULL)
+        {
+            if (!FLAG_CMP(trinity.network->socket_type, PASSIVE))
+                _np_network_disable(trinity.network);
+            np_unref_obj(np_network_t, trinity.network, "__np_create_identity_network");
+        }
 
-        NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_node_t, my_node);
-        np_unref_obj(np_node_t, my_node, "__np_create_identity_network");        
+        np_unref_obj(np_node_t, trinity.node, "__np_create_identity_network");        
     }
 
-    NP_CAST(sll_tail(void_ptr, my_identity_key->entities), np_aaatoken_t, my_token);
-    np_unref_obj(np_aaatoken_t, my_token, "__np_set_identity");
+    np_unref_obj(np_aaatoken_t, trinity.token, "__np_set_identity");
 
     sll_free(void_ptr, my_identity_key->entities);
 
@@ -108,16 +112,16 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     log_trace_msg(LOG_TRACE, "start: void _np_set_identity(...){");
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
-    NP_CAST(event.user_data, np_aaatoken_t, identity);
+    NP_CAST(event.user_data, np_aaatoken_t, identity_token);
 
     np_ref_obj(np_key_t, my_identity_key, "__np_set_identity");
 
-    if (FLAG_CMP(identity->type, np_aaatoken_type_node) )
+    if (FLAG_CMP(identity_token->type, np_aaatoken_type_node) )
     {
         my_identity_key->type |= np_key_type_node;
 
-        np_ref_obj(np_aaatoken_t, identity, "__np_set_identity");
-        sll_append(void_ptr, my_identity_key->entities, identity);
+        np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
+        sll_append(void_ptr, my_identity_key->entities, identity_token);
 
         context->my_node_key = my_identity_key;
 
@@ -126,18 +130,18 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
             my_identity_key->type |= np_key_type_ident;
             context->my_identity = my_identity_key;
         }
-        log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, identity, identity->type);
+        log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, identity_token, identity_token->type);
     }
-    else if(FLAG_CMP(identity->type, np_aaatoken_type_identity) )
+    else if(FLAG_CMP(identity_token->type, np_aaatoken_type_identity) )
     {
-        np_ref_obj(np_aaatoken_t, identity, "__np_set_identity");
-        sll_append(void_ptr, my_identity_key->entities, identity);
+        np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
+        sll_append(void_ptr, my_identity_key->entities, identity_token);
     
         if (NULL == context->my_identity || context->my_identity == context->my_node_key)
         {
             context->my_identity = my_identity_key;
         }
-        log_debug_msg(LOG_DEBUG, "context->my_identity =  %p %p %d", context->my_identity, identity, identity->type);
+        log_debug_msg(LOG_DEBUG, "context->my_identity =  %p %p %d", context->my_identity, identity_token, identity_token->type);
     }
 
     // to be moved
@@ -152,17 +156,15 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
         np_aaatoken_set_partner_fp(_np_key_get_token(context->my_node_key), ident_dhkey);
     }
     
-    _np_aaatoken_update_extensions_signature(identity);
-    identity->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
+    _np_aaatoken_update_extensions_signature(identity_token);
+    identity_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
     
-    // _np_statistics_update_prometheus_labels(context, NULL);
-
 #ifdef DEBUG
     char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
     char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';
     
-    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
-    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+    sodium_bin2hex(ed25519_pk, crypto_sign_ed25519_PUBLICKEYBYTES*2+1, identity_token->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES);
+    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, identity_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
     
     log_debug_msg(LOG_DEBUG, "identity token: my cu pk: %s ### my ed pk: %s", curve25519_pk, ed25519_pk);
 #endif
@@ -178,24 +180,28 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
 
     if (FLAG_CMP(identity->type, np_aaatoken_type_node))
     {
-        // create node structure (do we still need it ???)
+        // create node structure (we still need it !!!)
         np_node_t* my_node = _np_node_from_token(identity, np_aaatoken_type_node);
         sll_append(void_ptr, my_identity_key->entities, my_node);
         ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_create_identity_network")
 
-        // create incoming network
-        np_network_t* my_network = NULL;
-        np_new_obj(np_network_t, my_network);
-        if (_np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, my_node->protocol) ) 
-        {
-            _np_network_set_key(my_network, my_identity_key->dhkey);
+        if (!FLAG_CMP(my_node->protocol, PASSIVE)) {
+            // create incoming network
+            np_network_t* my_network = NULL;
+            np_new_obj(np_network_t, my_network);
+            if (_np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, UNKNOWN_PROTO) ) 
+            {
+                _np_network_set_key(my_network, my_identity_key->dhkey);
 
-            sll_append(void_ptr, my_identity_key->entities, my_network);
-            ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_identity_network")
+                sll_append(void_ptr, my_identity_key->entities, my_network);
+                ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_identity_network")
 
-            log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
+                log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
 
-            _np_network_enable(my_network);
+                _np_network_enable(my_network);
+            } else {
+                np_unref_obj(np_network_t, my_network, ref_obj_creation);
+            }
         }
     }
 }
@@ -284,8 +290,11 @@ void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_
     if (FLAG_CMP(my_identity_key->type, np_key_type_node) &&
         my_identity_key == context->my_node_key)
     {
-        NP_CAST(sll_last(my_identity_key->entities)->val, np_network_t, my_network);
-        _np_network_disable(my_network);
+        np_network_t* my_network = _np_key_get_network(my_identity_key);
+        if (my_network != NULL && !FLAG_CMP(my_network->socket_type, PASSIVE)) 
+        {
+            _np_network_disable(my_network);
+        }
     }
     
     if(FLAG_CMP(my_identity_key->type, np_key_type_ident) &&

@@ -645,10 +645,10 @@ bool _np_http_init(np_state_t* context, char* domain, char* port)
         
         _np_event_suspend_loop_http(context);
         EV_P = _np_event_get_loop_http(context);
-        ev_io_stop(EV_A_&_module->network->watcher);
-        ev_io_init(&_module->network->watcher, _np_http_accept, _module->network->socket, EV_READ);
-        _module->network->watcher.data = _module;
-        ev_io_start(EV_A_&_module->network->watcher);
+        ev_io_stop(EV_A_&_module->network->watcher_in);
+        ev_io_init(&_module->network->watcher_in, _np_http_accept, _module->network->socket, EV_READ);
+        _module->network->watcher_in.data = _module;
+        ev_io_start(EV_A_&_module->network->watcher_in);
         _np_event_resume_loop_http(context);
         _module->user_hooks = NULL;
     }
@@ -661,7 +661,7 @@ void _np_http_destroy(np_state_t* context)
     {
         EV_P = _np_event_get_loop_http(context);
         _np_event_suspend_loop_http(context);
-        ev_io_stop(EV_A_&np_module(http)->network->watcher);
+        ev_io_stop(EV_A_&np_module(http)->network->watcher_in);
 
         sll_iterator(np_http_client_ptr) iter = sll_first(np_module(http)->clients);
         while(iter != NULL)
@@ -697,7 +697,7 @@ void _np_http_destroy(np_state_t* context)
 
         free(np_module(http)->hooks);
 
-        np_module(http)->network->watcher.data = NULL;
+        np_module(http)->network->watcher_in.data = NULL;
         // _np_network_disable(np_module(http)->network);
         np_unref_obj(np_network_t, np_module(http)->network, ref_obj_creation);
 

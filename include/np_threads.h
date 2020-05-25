@@ -104,6 +104,7 @@ enum np_thread_type_e {
     np_thread_type_other = 0,
     np_thread_type_main,
     np_thread_type_worker,
+    np_thread_type_eventloop,
     np_thread_type_manager,
     np_thread_type_managed,
 }NP_ENUM;
@@ -112,6 +113,7 @@ static const char* np_thread_type_str[] =  {
     "other",
     "main",
     "worker",
+    "evloop",
     "coord",
     "managed",
 };
@@ -119,10 +121,10 @@ static const char* np_thread_type_str[] =  {
 /** thread														**/
 struct np_thread_s
 {  
-    np_threads_worker_run run_fn;
     uint8_t idx;
-
     size_t id;
+    pthread_t thread_id;
+
     /**
     this thread can only handle jobs up to the max_job_priority
     */
@@ -132,14 +134,13 @@ struct np_thread_s
     */
     double min_job_priority;
 
-    np_mutex_t job_lock;
-    np_job_t job;
     bool _busy;
     enum np_thread_type_e thread_type;
+    np_threads_worker_run run_fn;
 
-    enum np_status status;
-
-    pthread_t thread_id;
+    np_mutex_t job_lock;
+    volatile np_job_t job;
+    volatile bool has_job;
 
 #ifdef NP_THREADS_CHECK_THREADING
     np_mutex_t locklists_lock;

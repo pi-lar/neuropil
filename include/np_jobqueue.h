@@ -27,8 +27,6 @@ struct np_job_s
     double exec_not_before_tstamp;
     double interval;
     bool is_periodic;
-    sll_return(np_evt_callback_t) processorFuncs;
-    bool __del_processorFuncs;
     np_util_event_t evt;
     np_dhkey_t next;
     double priority;
@@ -36,6 +34,9 @@ struct np_job_s
     double search_min_priority;
     double search_max_priority;
     double search_max_exec_not_before_tstamp;
+
+    bool __del_processorFuncs;
+    sll_return(np_evt_callback_t) processorFuncs;
 
 #ifdef DEBUG
     char ident[255];
@@ -69,7 +70,7 @@ NP_API_INTERN
     void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread);
 
 NP_API_EXPORT
-    void np_jobqueue_run_jobs_for(np_state_t* context, double duration);
+    void np_jobqueue_run_jobs_for(np_state_t* context, np_thread_t* my_thread, double duration);
 NP_API_EXPORT
     double __np_jobqueue_run_jobs_once(np_state_t* context,np_thread_t* my_thread);
 
