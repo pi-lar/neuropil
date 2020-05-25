@@ -128,7 +128,6 @@ typedef struct _np_http_callback_s {
     void* user_arg;
 } _np_http_callback_t;
 
-ht_response_t _np_http_handle_sysinfo(np_state_t* context, np_http_client_t* client);
 
 void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args, _np_http_callback_func_t func) 
 {
@@ -282,6 +281,12 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client)
 
     log_msg(LOG_DEBUG, "lookup   of http callback for key %s", key);
 
+    client->ht_response.ht_header = np_tree_create();
+    np_tree_insert_str( client->ht_response.ht_header,
+        "Access-Control-Allow-Origin", np_treeval_new_s("*"));
+    np_tree_insert_str( client->ht_response.ht_header,
+        "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
+
     np_tree_elem_t* user_callback = np_tree_find_str(np_module(http)->user_hooks, key);
     if (NULL != user_callback)
     {
@@ -290,59 +295,50 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client)
         client->ht_response.ht_status = callback_data->callback(
                 &client->ht_request, &client->ht_response,
                 callback_data->user_arg);
-        client->ht_response.ht_header = np_tree_create();
         client->ht_response.cleanup_body = true;
         client->status = RESPONSE;
     } else {
         switch (client->ht_request.ht_method) {
-        case (htp_method_GET): {                    
-            client->ht_response.ht_header = np_tree_create();
-            if(CHECK_PATH("metrics"))
-            {
-                if(np_module_initiated(statistics))
+            case (htp_method_GET): {
+                if(CHECK_PATH("metrics"))
                 {
-                    client->ht_response.ht_body = np_statistics_prometheus_export(context);
-                    client->ht_response.ht_status = HTTP_CODE_OK;
-                    np_tree_insert_str( client->ht_response.ht_header, "Content-Type",
-                    np_treeval_new_s("text/plain; version=0.0.4"));
-                } else {
-                    client->ht_response.ht_body = strdup(MODULE_NOT_READY(statistics));
-                    client->ht_response.ht_header = np_tree_create();
-                    client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
-                    client->ht_response.cleanup_body = false;
-                    client->status = RESPONSE;                
+                    if(np_module_initiated(statistics))
+                    {
+                        client->ht_response.ht_body = np_statistics_prometheus_export(context);
+                        client->ht_response.ht_status = HTTP_CODE_OK;
+                        np_tree_insert_str( client->ht_response.ht_header, "Content-Type",
+                            np_treeval_new_s("text/plain; version=0.0.4"));
+                    } else {
+                        client->ht_response.ht_body = strdup(MODULE_NOT_READY(statistics));
+                        client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
+                        client->ht_response.cleanup_body = false;
+                        client->status = RESPONSE;
+                    }
                 }
-            } 
-            else
-            {
-                client->ht_response.ht_body = strdup(client->ht_request.ht_path);
-                client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
-                np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
-                np_treeval_new_s("application/json"));
+                else
+                {
+                    client->ht_response.ht_body = strdup(client->ht_request.ht_path);
+                    client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
+                    np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
+                        np_treeval_new_s("application/json"));
+                }
+                client->ht_response.cleanup_body = true;
+                client->status = RESPONSE;
+                break;
             }
-            np_tree_insert_str( client->ht_response.ht_header,
-                "Access-Control-Allow-Origin", np_treeval_new_s("*"));
-            np_tree_insert_str( client->ht_response.ht_header,
-                "Access-Control-Allow-Methods", np_treeval_new_s("GET"));
-            client->ht_response.cleanup_body = true;
-            client->status = RESPONSE;
-
-            break;
-                        
-        }
-
-        default:
-            client->ht_response.ht_body = strdup(HTML_NOT_IMPLEMENTED);
-            client->ht_response.ht_header = np_tree_create();
-            client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
-            client->ht_response.cleanup_body = false;
-            client->status = RESPONSE;
+            default: {
+                client->ht_response.ht_body = strdup(HTML_NOT_IMPLEMENTED);
+                client->ht_response.ht_header = np_tree_create();
+                client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
+                client->ht_response.cleanup_body = false;
+                client->status = RESPONSE;
+            }
         }
     }
 }
 
 void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) 
-{   
+{
     np_state_t* context = ev_userdata(loop);
     np_http_client_t* client = (np_http_client_t*) ev->data;
 
@@ -436,7 +432,7 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
                 // we may need to wait for the output buffer to be free
                 if(EAGAIN != errno){
                     log_msg(LOG_HTTP | LOG_WARN, "Sending http data error. %s", strerror(errno));
-                    retry++;				
+                    retry++;
                 }
             }
         }
