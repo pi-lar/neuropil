@@ -92,7 +92,7 @@ char* _np_network_get_protocol_string (np_state_t* context, enum socket_type pro
     //if (protocol == (RAW     | IPv4)) return (URN_IP_V4);
     //if (protocol == (RAW     | IPv6)) return (URN_IP_V6);
     log_msg(LOG_WARN, "Protocol %d is not availabe!", protocol);
-#ifdef DEBUG 
+#ifdef DEBUG
     assert(false && "Protocol is not availabe!");
 #endif
     return ("UNKNOWN_PROTOCOL");
@@ -108,7 +108,7 @@ void __np_network_close(np_network_t* self) {
  ** returns the addrinfo structure of the hostname / service
  **/
 void _np_network_get_address(
-        np_state_t* context, 
+        np_state_t* context,
         bool create_socket,
         struct addrinfo** ai_head,
         enum socket_type type,

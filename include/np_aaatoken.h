@@ -180,7 +180,6 @@ struct np_aaatoken_s
 
 	// key/value extension list
 	np_tree_t* extensions;
-	np_tree_t* extensions_local;
 	np_crypto_t crypto;
 	unsigned char signature[crypto_sign_BYTES];
 	unsigned char signature_extensions[crypto_sign_BYTES];

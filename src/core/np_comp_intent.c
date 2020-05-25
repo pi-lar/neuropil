@@ -99,7 +99,7 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
     property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
     property->last_update = np_time_now();
 
-    uint8_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ush;
+    uint8_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ush;
 
     if (max_threshold > 0)
     {
@@ -115,7 +115,7 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
             cmp_aaatoken_replace   = _np_intent_cmp;
             allow_dups = false;
         }
-        
+
         // update #1 key specific data
         np_ref_obj(np_aaatoken_t, token, "send_tokens");
         ret = pll_replace(np_aaatoken_ptr, ledger->send_tokens, token, cmp_aaatoken_replace);
@@ -208,7 +208,7 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
     NP_CAST(sll_first(subject_key->entities)->val, np_msgproperty_t, property);
     NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
 
-    np_aaatoken_t* ret = NULL;	
+    np_aaatoken_t* ret = NULL;
 
     log_debug_msg(LOG_DEBUG, "update on global receiving msg token structures ... %p (size %d)",
                              property, pll_size(ledger->recv_tokens));
@@ -220,13 +220,13 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
     property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & RECEIVER_MASK);
     property->last_update = np_time_now();
 
-    uint8_t max_threshold = np_tree_find_str(token->extensions_local, "max_threshold")->val.value.ush;
+    uint8_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ush;
     if (max_threshold > 0)
     {	// only add if there are messages to receive
         log_debug_msg(LOG_DEBUG, "adding receiver token %p threshold %"PRIu8, token, max_threshold);
 
         np_msg_mep_type receiver_mep_type = (property->mep_type & RECEIVER_MASK);
-        
+
         np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_intent_cmp;
         np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_intent_cmp_exact;
         bool allow_dups = true;
