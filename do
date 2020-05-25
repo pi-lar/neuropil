@@ -87,7 +87,8 @@ task_build() {
 }
 
 task_build_local() {
-  return task_build $(get_local_target) "$@"
+  task_build $(get_local_target) "$@"
+  return $?
 }
 
 task_clean() {
