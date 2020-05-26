@@ -10,19 +10,20 @@
 #include "np_dhkey.h"
 #include "np_list.h"
 #include "np_memory.h"
+#include "np_network.h"
 
 #include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
-#endif	
+#endif
 	NP_API_INTERN
 		np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, enum socket_type protocol, const char* hostname, const char* port);
 
 	NP_API_INTERN
 		np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context );
 
-	NP_API_INTERN		
+	NP_API_INTERN
 		np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request);
 
 	NP_API_EXPORT

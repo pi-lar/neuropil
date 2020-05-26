@@ -338,23 +338,23 @@ enum np_return np_node_fingerprint(np_context* ac, np_id (*id))
 
 enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign)
 {
-    np_ctx_cast(ac); 
+    np_ctx_cast(ac);
 
     enum np_return ret = np_ok;
     if(identity == NULL) {
         ret = np_invalid_argument;
     } else {
-        np_ident_private_token_t* id_token = NULL;        
+        np_ident_private_token_t* id_token = NULL;
         if (self_sign) {
             id_token = np_token_factory_new_identity_token(context, identity->expires_at, &identity->secret_key);
             np_user4aaatoken(id_token, identity);
             _np_aaatoken_set_signature(id_token, NULL);
-            _np_aaatoken_update_extensions_signature(id_token);
         } else {
             id_token = np_token_factory_new_identity_token(context, 20.0, NULL);
             np_user4aaatoken(id_token, identity);
             _np_aaatoken_set_signature(id_token, _np_key_get_token(context->my_identity) );
         }
+        _np_aaatoken_update_attributes_signature(id_token);
         np_aaatoken4user(identity, id_token);
 
         np_unref_obj(np_aaatoken_t, id_token, "np_token_factory_new_identity_token");
@@ -400,6 +400,7 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
 	_np_aaatoken_set_signature(imported_token, NULL);
 
     _np_set_identity(context, imported_token);
+    _np_aaatoken_update_attributes_signature(imported_token);
 
     log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
     return ret;

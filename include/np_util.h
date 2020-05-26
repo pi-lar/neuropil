@@ -19,14 +19,23 @@
 extern "C" {
 #endif
 
-	 
+#ifndef _np_debug_log_bin
+	#ifdef DEBUG
+		#define _np_debug_log_bin(bin, bin_size, log_category, log_msg, ...) {	\
+			char hex[bin_size * 2 + 1];							 				\
+			sodium_bin2hex(hex, bin_size * 2 + 1, bin, bin_size); 				\
+			log_debug_msg(log_category, log_msg, __VA_ARGS__, hex );			\
+		}
+	#else
+		#define _np_debug_log_bin(bin, bin_size, log_category, log_msg, ...)
+	#endif
+#endif
 
 #ifdef DEBUG
 #define debugf(s, ...) fprintf(stdout, s, ##__VA_ARGS__);fflush(stdout)
 #else
 #define debugf(s, ...)
 #endif
-	
 #define ARRAY_SIZE(array) ((int)( sizeof(array) / sizeof(array[0])))
 
 #define FLAG_CMP(data,flag) (((data) & (flag)) == (flag))

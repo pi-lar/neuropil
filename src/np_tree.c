@@ -287,11 +287,11 @@ void np_tree_del_ulong(np_tree_t* tree, const uint32_t key)
 }
 
 void np_tree_clear(np_tree_t* n)
-{	
+{
 	np_tree_elem_t* iter = RB_MIN(np_tree_s, n);
 
 	while(NULL != iter)
-	{		
+	{
 		np_tree_del_element(n, iter);
 		iter = RB_MIN(np_tree_s, n);
 	}
@@ -1199,16 +1199,16 @@ unsigned char* np_tree_get_hash(np_tree_t* self) {
 
 bool np_tree_check_field(np_state_t* context, np_tree_t* tree, const char* field_name,const  char* _NP_MSG_HEADER_SUBJECT, np_tree_elem_t** buffer) {
 	bool ret = true;
-	np_tree_elem_t* tmp; 									
+	np_tree_elem_t* tmp;
 	if (NULL == (tmp = np_tree_find_str(tree, field_name))) {
 		ret = false;
 		if (NULL != (tmp = np_tree_find_str(tree, _NP_MSG_HEADER_SUBJECT))) {
-			log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",		
-				field_name,														
-				np_treeval_to_str(tmp->val,NULL));	
-		}else {																	
-			log_msg(LOG_WARN,"Missing field \"%s\" in tree", field_name);		
-		}																				
+			log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",
+				field_name,
+				np_treeval_to_str(tmp->val,NULL));
+		}else {
+			log_msg(LOG_WARN,"Missing field \"%s\" in tree", field_name);
+		}
 	}
 	if(buffer != NULL) *buffer = tmp;
 	return ret;

@@ -42,7 +42,7 @@ s
     #if defined(__APPLE__) && defined(__MACH__)
         #define NP_ENUM __attribute__((flag_enum))
     #else
-        #define NP_ENUM 
+        #define NP_ENUM
     #endif
 #endif
 
@@ -90,13 +90,12 @@ s
         NP_EXTENSION_BYTES = 10240,
     } NP_CONST_ENUM;
 
-
     enum np_status {
         np_error = 0,
         np_uninitialized,
         np_running,
         np_stopped,
-        np_shutdown,		
+        np_shutdown,
     } NP_CONST_ENUM;
 
     enum np_return {
@@ -119,11 +118,13 @@ s
         uint8_t minor;
         uint8_t patch;
     } NP_PACKED(1);
-    
-    typedef void np_context;    
 
-    typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
-        
+    typedef void np_context;
+
+   typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
+   typedef unsigned char np_attributes_t[NP_EXTENSION_BYTES];
+   typedef unsigned char np_signature_t[NP_SIGNATURE_BYTES];
+
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
@@ -132,28 +133,27 @@ s
     struct np_token {
         char uuid[NP_UUID_BYTES];
         char subject[255]; // todo: has to be np_id
-        char issuer[65]; // todo: has to be np_id		
-        char realm[255]; // todo: has to be np_id		
-        char audience[255]; // todo: has to be np_id		
+        char issuer[65]; // todo: has to be np_id
+        char realm[255]; // todo: has to be np_id
+        char audience[255]; // todo: has to be np_id
         double  issued_at, not_before, expires_at;
         unsigned char public_key[NP_PUBLIC_KEY_BYTES],
                 secret_key[NP_SECRET_KEY_BYTES];
-        unsigned char signature[NP_SIGNATURE_BYTES];
+        np_signature_t signature;
 
-        size_t  extension_length;
-        unsigned char extensions[NP_EXTENSION_BYTES];
-        unsigned char ext_signature[NP_SIGNATURE_BYTES];
+        np_attributes_t attributes;
+        np_signature_t attributes_signature;
     } NP_PACKED(1);
-    
+
     struct np_message {
         char uuid[NP_UUID_BYTES];
-        np_id from; 
-        np_id subject;		
+        np_id from;
+        np_id subject;
         double received_at;
         unsigned char * data;
         size_t data_length;
     } NP_PACKED(1);
-        
+
     struct np_settings {
         uint32_t n_threads;
         char log_file[256];
@@ -179,7 +179,7 @@ s
 
     NP_API_EXPORT
     enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
-    
+
     NP_API_EXPORT
     enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
 
@@ -196,7 +196,7 @@ s
 
     NP_API_EXPORT
     enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length);
-    
+
     typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
     // There can be more than one receive callback, hence "add".
@@ -210,7 +210,7 @@ s
     enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
     NP_API_EXPORT
     enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
-    
+
 
     // duration: 0 => process pending events and return
     //           N => process events for up to N seconds and return
@@ -240,17 +240,17 @@ s
     void np_set_userdata(np_context * ac, void* userdata);
     NP_API_EXPORT
     void* np_get_userdata(np_context * ac);
-    
+
 
     NP_API_EXPORT
         enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target));
     NP_API_EXPORT
-        bool np_has_joined(np_context * ac);		
+        bool np_has_joined(np_context * ac);
     NP_API_EXPORT
         enum np_status np_get_status(np_context* ac);
     NP_API_EXPORT
-        bool np_has_receiver_for(np_context*ac, const char * subject);	
-    NP_API_EXPORT        
+        bool np_has_receiver_for(np_context*ac, const char * subject);
+    NP_API_EXPORT
         void np_id_str(char str[65], const np_id id);
     NP_API_EXPORT
         void np_str_id(np_id (*id), const char str[65]);

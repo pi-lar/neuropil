@@ -150,13 +150,12 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     {
         np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(_np_key_get_token(context->my_node_key), false);
         np_aaatoken_set_partner_fp(_np_key_get_token(context->my_identity), node_dhkey);
-        _np_aaatoken_update_extensions_signature(_np_key_get_token(context->my_node_key));
-        
+
         np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(_np_key_get_token(context->my_identity), false);
         np_aaatoken_set_partner_fp(_np_key_get_token(context->my_node_key), ident_dhkey);
     }
     
-    _np_aaatoken_update_extensions_signature(identity_token);
+    _np_aaatoken_update_attributes_signature(identity_token);
     identity_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
     
 #ifdef DEBUG
