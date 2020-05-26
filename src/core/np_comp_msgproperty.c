@@ -34,6 +34,8 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
+#include "neuropil_data.h"
+
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_msgproperty_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
@@ -949,7 +951,10 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, NP_UNUSE
         else
         {
             log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "--- update mxtoken for subject: %25s --------", property->msg_subject);
-            np_tree_replace_str(iter->val->extensions, "max_threshold", np_treeval_new_ush(property->max_threshold));
+            np_data_value max_threshold;
+            max_threshold.unsigned_integer = property->max_threshold;
+            np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, max_threshold);
+            //np_tree_replace_str(iter->val->extensions, "max_threshold", np_treeval_new_ush(property->max_threshold));
             // np_tree_replace_str(iter->val->extensions, "msg_threshold", np_treeval_new_ush(property->msg_threshold));
         }
 

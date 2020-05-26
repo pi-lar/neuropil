@@ -356,23 +356,25 @@ enum np_return np_get_data(np_datablock_t *block, char key[255], struct np_data_
 
         if (ret == np_ok)
         {
-            out_data_config->data_size = tmp.data_size;
-            out_data_config->type = tmp.data_type;
-            strncpy(out_data_config->key, key, 255);
+            if(out_data_config != NULL){
+                out_data_config->data_size = tmp.data_size;
+                out_data_config->type = tmp.data_type;
+                strncpy(out_data_config->key, key, 255);
+            }
             if (out_data != NULL)
-                if (out_data_config->type == NP_DATA_TYPE_BIN)
+                if (tmp.data_type == NP_DATA_TYPE_BIN)
                 {
                     out_data->bin = tmp.data.bin;
                 }
-                else if (out_data_config->type == NP_DATA_TYPE_INT)
+                else if (tmp.data_type == NP_DATA_TYPE_INT)
                 {
                     out_data->integer = tmp.data.integer;
                 }
-                else if (out_data_config->type == NP_DATA_TYPE_UNSIGNED_INT)
+                else if (tmp.data_type == NP_DATA_TYPE_UNSIGNED_INT)
                 {
                     out_data->unsigned_integer = tmp.data.unsigned_integer;
                 }
-                else if (out_data_config->type == NP_DATA_TYPE_STR)
+                else if (tmp.data_type == NP_DATA_TYPE_STR)
                 {
                     out_data->str = tmp.data.str;
                 }// other types

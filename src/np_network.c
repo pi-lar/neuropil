@@ -288,15 +288,15 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
                 a.3) the whole paket has been send
         */
         void* data_to_send = NULL;
-        ssize_t written_per_data = 0, current_write_per_data = 0;
+        ssize_t current_write_per_data = 0;
         data_to_send = sll_head(void_ptr, network->out_events);
 
         if (data_to_send != NULL)
         {
             if (!FLAG_CMP(network->socket_type, PASSIVE)) {
                 current_write_per_data = send(network->socket,
-                                              (((char*)data_to_send) + written_per_data),
-                                              MSG_CHUNK_SIZE_1024 - written_per_data,
+                                              (((char*)data_to_send)),
+                                              MSG_CHUNK_SIZE_1024,
     #ifdef MSG_NOSIGNAL
                                             MSG_NOSIGNAL
     #else
@@ -305,8 +305,8 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
                                         );
             } else {
                 current_write_per_data = sendto(network->socket,
-                                                (((char*)data_to_send) + written_per_data),
-                                                MSG_CHUNK_SIZE_1024 - written_per_data,
+                                                (((char*)data_to_send)),
+                                                MSG_CHUNK_SIZE_1024,
     #ifdef MSG_NOSIGNAL
                                                 MSG_NOSIGNAL,
     #else
@@ -315,31 +315,27 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
                                                 network->remote_addr,
                                                 network->remote_addr_len);
             }
+            _np_debug_log_bin(data_to_send, MSG_CHUNK_SIZE_1024,
+            LOG_NETWORK, "Did send    data (%"PRIi16" bytes) via fd: %d: %s", current_write_per_data, network->socket)
 
             if (current_write_per_data == MSG_CHUNK_SIZE_1024)
             {
-#ifdef DEBUG
-                char msg_hex[2*written_per_data+1];
-                sodium_bin2hex(msg_hex, 2*written_per_data+1, data_to_send, written_per_data);
-                log_debug(LOG_NETWORK, "Did send    data (%"PRIi16" bytes) via fd: %d hex: %.5s...%s", current_write_per_data, network->socket, msg_hex, msg_hex + strlen(msg_hex) - 5);
-#endif
-                written_per_data += current_write_per_data;
                 _np_statistics_add_send_bytes(current_write_per_data);
 
                 np_memory_free(context, data_to_send);
                 network->last_send_date = np_time_now();
 
                 log_debug(LOG_NETWORK, "Did send package %p via %p -> %d", data_to_send, network, network->socket);
-            } 
+            }
             else {
                 log_debug(LOG_NETWORK,
-                    "Could not send package %p fully (%"PRIu32"/%"PRIu32") %s (%d)",
-                    data_to_send, written_per_data, MSG_CHUNK_SIZE_1024,
+                    "Could not send package %p (fully). %s (%d)",
+                    data_to_send,
                     strerror(errno), errno);
                 sll_prepend(void_ptr, network->out_events, data_to_send);
             }
         }
-#ifdef DEBUG 
+#ifdef DEBUG
         if (sll_size(network->out_events) > 0)
             log_debug_msg(LOG_DEBUG | LOG_NETWORK, "%"PRIu32" packages still in delivery", sll_size(network->out_events));
 #endif

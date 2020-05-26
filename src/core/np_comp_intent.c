@@ -12,6 +12,7 @@
 #include "core/np_comp_intent.h"
 
 #include "neuropil.h"
+#include "neuropil_data.h"
 
 #include "np_aaatoken.h"
 #include "np_key.h"
@@ -95,11 +96,25 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
 
     // insert new token
     // update #2 subject specific data
-    property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & SENDER_MASK);
-    property->ack_mode = np_tree_find_str(token->extensions, "ack_mode")->val.value.ush;
-    property->last_update = np_time_now();
+    struct np_data_conf conf;
+    uint32_t max_threshold, mep_type, ack_mode, get_data_ret;
 
-    uint8_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ush;
+    if((get_data_ret = np_get_data(token->attributes, "max_threshold", &conf, &max_threshold)) != np_ok) {
+        max_threshold = 0;
+        log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"\" code: %"PRIu32, token->uuid, get_data_ret);
+    }
+    if((get_data_ret = np_get_data(token->attributes, "mep_type", &conf, &mep_type)) != np_ok){
+        mep_type = DEFAULT_TYPE;
+        log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"mep_type\" code: %"PRIu32, token->uuid, get_data_ret);
+    }
+    if((get_data_ret = np_get_data(token->attributes, "ack_mode", &conf, &ack_mode)) != np_ok){
+        ack_mode = ACK_NONE;
+        log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"ack_mode\" code: %"PRIu32, token->uuid, get_data_ret);
+    }
+
+    property->mep_type |= (mep_type & SENDER_MASK);
+    property->ack_mode = ack_mode;
+    property->last_update = np_time_now();
 
     if (max_threshold > 0)
     {
@@ -217,10 +232,19 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
     log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_add_receiver %d / %s", pll_size(ledger->recv_tokens), token->subject);
 
     // update #2 subject specific data
-    property->mep_type |= (np_tree_find_str(token->extensions, "mep_type")->val.value.ul & RECEIVER_MASK);
+    struct np_data_conf conf;
+    uint32_t max_threshold, mep_type, ack_mode;
+
+    if(np_get_data(token->attributes, "max_threshold", &conf, &max_threshold) != np_ok) {
+        max_threshold = 0;
+    }
+    if(np_get_data(token->attributes, "mep_type", &conf, &mep_type) != np_ok){
+        mep_type = DEFAULT_TYPE;
+    }
+
+    property->mep_type |= (mep_type & RECEIVER_MASK);
     property->last_update = np_time_now();
 
-    uint8_t max_threshold = np_tree_find_str(token->extensions, "max_threshold")->val.value.ush;
     if (max_threshold > 0)
     {	// only add if there are messages to receive
         log_debug_msg(LOG_DEBUG, "adding receiver token %p threshold %"PRIu8, token, max_threshold);

@@ -28,6 +28,7 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 #include "np_tree.h"
+#include "neuropil_data.h"
 
 np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* msg_to_check)
 {
@@ -311,17 +312,22 @@ void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const n
     np_aaatoken_t* my_token = _np_key_get_token(context->my_node_key);
     np_node_t* my_node = _np_key_get_node(context->my_node_key);
 
-    // MUST be there
-    np_tree_elem_t* remote_hs_prio = np_tree_find_str(handshake_token->extensions, NP_HS_PRIO);
+    // HAS TO BE be there
+    struct np_data_conf cfg;
+    np_data_value remote_hs_prio = {0};
+
+    if (np_get_data(handshake_token->attributes, NP_HS_PRIO, &cfg, &remote_hs_prio) != np_ok ){
+        log_error("Structual error in token. Missing %s key", NP_HS_PRIO);
+    }
     // COULD be there
     // np_tree_elem_t* response_uuid = np_tree_find_str(handshake_token->extensions, _NP_MSG_INST_RESPONSE_UUID);
-    
+
     if (/* response_uuid == NULL ||*/
-        remote_hs_prio->val.value.ul < my_node->handshake_priority)
+        remote_hs_prio.unsigned_integer < my_node->handshake_priority)
     {
         log_debug_msg(LOG_DEBUG,
             "handshake session created in server mode. remote-prio: %"PRIu32" local-prio: %"PRIu32" ",
-                remote_hs_prio->val.value.ul, my_node->handshake_priority
+                remote_hs_prio.unsigned_integer, my_node->handshake_priority
             );
         np_crypto_session(context,
                 &my_token->crypto,
@@ -329,12 +335,10 @@ void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const n
                 &handshake_token->crypto,
                 false
             );
-    }
-    else 
-    {
+    } else {
         log_debug_msg(LOG_DEBUG,
             "handshake session created in client mode. remote-prio: %"PRIu32" local-prio: %"PRIu32" ",
-                remote_hs_prio->val.value.ul, my_node->handshake_priority
+                remote_hs_prio.unsigned_integer, my_node->handshake_priority
             );
         np_crypto_session(context,
                 &my_token->crypto,
@@ -348,16 +352,16 @@ void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const n
     alias_node->session_key_is_set = true;
 
     log_debug_msg(LOG_DEBUG, "start: __np_create_session(...) { node now complete: %p / %p %d", alias_key, alias_node, alias_node->_handshake_status);
-} 
+}
 
-bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __is_crypted_message(...) {");
 
     bool ret = false;
 
-    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
     if ( ret) ret &= FLAG_CMP(event.type, evt_message);
     if ( ret) ret &= (FLAG_CMP(event.type, evt_external) );
