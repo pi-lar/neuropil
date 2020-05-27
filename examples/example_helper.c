@@ -763,10 +763,11 @@ example_user_context* parse_program_args(
              | LOG_ROUTING
             // | LOG_HTTP
             // | LOG_KEY
-             | LOG_NETWORK
+            //| LOG_NETWORK
             // | LOG_HANDSHAKE
-            // | LOG_AAATOKEN
-            // | LOG_SYSINFO
+             | LOG_AAATOKEN
+             | LOG_MSGPROPERTY
+             | LOG_SYSINFO
              | LOG_MESSAGE
             // | LOG_SERIALIZATION
             // | LOG_MEMORY

@@ -13,6 +13,28 @@ extern "C" {
 #endif
     #define NP_DATA_MAGIC_NO 22964591
 
+    enum np_data_return {
+        //np_ok = 0,
+        np_key_not_found = 1,
+        np_insufficient_memory,
+        np_invalid_structure,
+        np_could_not_write_magicno,
+        np_could_not_write_total_length,
+        np_could_not_write_used_length,
+        np_could_not_write_object_count,
+        np_could_not_write_bin,
+        np_could_not_write_str,
+        np_could_not_write_int,
+        np_could_not_write_uint,
+        np_could_not_write_key,
+        np_could_not_read_magicno,
+        np_could_not_read_total_length,
+        np_could_not_read_used_length,
+        np_could_not_read_object_count,
+        np_could_not_read_object,
+        np_could_not_read_key,
+    } NP_CONST_ENUM;
+
     enum np_data_type {
         NP_DATA_TYPE_MASK                     = 0xFFF000,
         NP_DATA_TYPE_BIN                      = 0x001000,
@@ -42,17 +64,17 @@ extern "C" {
      *
      * @param block The memory block provided by the user (malloc'ed )
      * @param block_length The memory block size
-     * @return enum np_return
+     * @return enum np_data_return
      */
-    enum np_return np_init_datablock(np_datablock_t * block, uint32_t block_length);
+    enum np_data_return np_init_datablock(np_datablock_t * block, uint32_t block_length);
     NP_API_EXPORT
-    enum np_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, np_data_value data);
+    enum np_data_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, np_data_value data);
     NP_API_EXPORT
-    enum np_return np_get_data(np_datablock_t * block, char key[255], struct np_data_conf * out_data_config, np_data_value * out_data);
+    enum np_data_return np_get_data(np_datablock_t * block, char key[255], struct np_data_conf * out_data_config, np_data_value * out_data);
 
     // Internal methods
     NP_API_PROTEC
-    enum np_return np_get_data_size(np_datablock_t * block, size_t * out_block_size);
+    enum np_data_return np_get_data_size(np_datablock_t * block, size_t * out_block_size);
 #ifdef __cplusplus
 }
 #endif
@@ -64,7 +86,7 @@ extern "C" {
 
    An opaque object that denotes a neuropil key/value store.
 
-.. c:function:: enum np_return np_init_datablock(np_datablock_t * block, size_t block_length)
+.. c:function:: enum np_data_return np_init_datablock(np_datablock_t * block, size_t block_length)
 
    Creates a new neuropil key value store.
 

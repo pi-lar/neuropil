@@ -97,28 +97,29 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
     // insert new token
     // update #2 subject specific data
     struct np_data_conf conf;
-    uint32_t max_threshold, mep_type, ack_mode, get_data_ret;
+    np_data_value max_threshold ={0}, mep_type ={0}, ack_mode ={0};
+    enum np_data_return get_data_ret;
 
-    if((get_data_ret = np_get_data(token->attributes, "max_threshold", &conf, &max_threshold)) != np_ok) {
-        max_threshold = 0;
-        log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"\" code: %"PRIu32, token->uuid, get_data_ret);
-    }
     if((get_data_ret = np_get_data(token->attributes, "mep_type", &conf, &mep_type)) != np_ok){
-        mep_type = DEFAULT_TYPE;
+        mep_type.unsigned_integer = DEFAULT_TYPE;
         log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"mep_type\" code: %"PRIu32, token->uuid, get_data_ret);
     }
     if((get_data_ret = np_get_data(token->attributes, "ack_mode", &conf, &ack_mode)) != np_ok){
-        ack_mode = ACK_NONE;
+        ack_mode.unsigned_integer = ACK_NONE;
         log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"ack_mode\" code: %"PRIu32, token->uuid, get_data_ret);
     }
+    if((get_data_ret = np_get_data(token->attributes, "max_threshold", &conf, &max_threshold)) != np_ok) {
+        max_threshold.unsigned_integer = 0;
+        log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"max_threshold\" code: %"PRIu32, token->uuid, get_data_ret);
+    }
 
-    property->mep_type |= (mep_type & SENDER_MASK);
-    property->ack_mode = ack_mode;
+    property->mep_type |= (mep_type.unsigned_integer & SENDER_MASK);
+    property->ack_mode = ack_mode.unsigned_integer;
     property->last_update = np_time_now();
 
-    if (max_threshold > 0)
+    if (max_threshold.unsigned_integer > 0)
     {
-        log_debug_msg(LOG_DEBUG, "adding sender token %p threshold %"PRIu8, token, max_threshold);
+        log_debug_msg(LOG_DEBUG, "adding sender token %p threshold %"PRIu32, token, max_threshold.unsigned_integer);
         np_msg_mep_type sender_mep_type = property->mep_type & SENDER_MASK;
 
         np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_intent_cmp;
@@ -233,19 +234,23 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
 
     // update #2 subject specific data
     struct np_data_conf conf;
-    uint32_t max_threshold, mep_type, ack_mode;
+    np_data_value max_threshold ={0}, mep_type ={0};
+    enum np_data_return get_data_ret;
 
-    if(np_get_data(token->attributes, "max_threshold", &conf, &max_threshold) != np_ok) {
-        max_threshold = 0;
+    if((get_data_ret = np_get_data(token->attributes, "max_threshold", &conf, &max_threshold) != np_ok)) {
+        max_threshold.unsigned_integer = 0;
+        log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"max_threshold\" code: %"PRIu32, token->uuid, get_data_ret);
+
     }
-    if(np_get_data(token->attributes, "mep_type", &conf, &mep_type) != np_ok){
-        mep_type = DEFAULT_TYPE;
+    if((get_data_ret = np_get_data(token->attributes, "mep_type", &conf, &mep_type) != np_ok)) {
+        mep_type.unsigned_integer = DEFAULT_TYPE;
+        log_debug_msg(LOG_ERROR|LOG_AAATOKEN, "token %s is missing key \"mep_type\" code: %"PRIu32, token->uuid, get_data_ret);
     }
 
-    property->mep_type |= (mep_type & RECEIVER_MASK);
+    property->mep_type |= (mep_type.unsigned_integer & RECEIVER_MASK);
     property->last_update = np_time_now();
 
-    if (max_threshold > 0)
+    if (max_threshold.unsigned_integer > 0)
     {	// only add if there are messages to receive
         log_debug_msg(LOG_DEBUG, "adding receiver token %p threshold %"PRIu8, token, max_threshold);
 
