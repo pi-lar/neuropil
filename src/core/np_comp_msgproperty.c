@@ -955,11 +955,13 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, NP_UNUSE
             max_threshold.unsigned_integer = property->max_threshold;
             enum np_data_return r;
             r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, max_threshold);
-            assert(r == np_ok);
+            ASSERT(r == np_ok,"Could not write \"max_threshold\" into attributes. Error: %"PRIu32, r);
+            /*
             np_data_value msg_threshold;
             msg_threshold.unsigned_integer = property->msg_threshold;
-            //r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, msg_threshold);
-            assert(r == np_ok);
+            r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, msg_threshold);
+            ASSERT(r == np_ok,"Could not write \"msg_threshold\" into attributes. Error: %"PRIu32, r);
+            */
         }
 
         if (iter != NULL) pll_next(iter);
