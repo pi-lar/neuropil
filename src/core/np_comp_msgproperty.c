@@ -950,12 +950,16 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, NP_UNUSE
         }
         else
         {
-            log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "--- update mxtoken for subject: %25s --------", property->msg_subject);
+            log_debug(LOG_MSGPROPERTY, "--- update mxtoken for subject: %25s token: %s--------", property->msg_subject,iter->val->uuid);
             np_data_value max_threshold;
             max_threshold.unsigned_integer = property->max_threshold;
-            np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, max_threshold);
-            //np_tree_replace_str(iter->val->extensions, "max_threshold", np_treeval_new_ush(property->max_threshold));
-            // np_tree_replace_str(iter->val->extensions, "msg_threshold", np_treeval_new_ush(property->msg_threshold));
+            enum np_data_return r;
+            r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, max_threshold);
+            assert(r == np_ok);
+            np_data_value msg_threshold;
+            msg_threshold.unsigned_integer = property->msg_threshold;
+            //r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, msg_threshold);
+            assert(r == np_ok);
         }
 
         if (iter != NULL) pll_next(iter);
@@ -1539,7 +1543,7 @@ bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_eve
 }
 
 void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{ 
+{
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_property_handle_intent(...){");
 

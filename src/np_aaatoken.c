@@ -118,8 +118,6 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
     np_tree_replace_str( data, "np.t.nb",   np_treeval_new_d(token->not_before));
     np_tree_replace_str( data, "np.t.si",   np_treeval_new_bin(token->signature, crypto_sign_BYTES));
 
-    log_debug_msg(LOG_DEBUG, "token %p", token);
-
     size_t attributes_size;
 
     np_get_data_size(token->attributes, &attributes_size);
@@ -375,7 +373,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check attribute signature checksum");
             size_t attr_data_size;
             bool ret = np_get_data_size(token->attributes, &attr_data_size) == np_ok;
-            if (!ret){
+            if (!ret) {
                 log_msg(LOG_WARN, "token (%s) for subject \"%s\": attributes do have no valid structure (total_size)", token->uuid, token->subject);
             }
             unsigned char * hash = __np_aaatoken_get_attributes_hash(token);
@@ -423,32 +421,33 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token checksum verification completed");
 
-    // TODO: only if this is a message token
-    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
+    if(FLAG_CMP(token->type,np_aaatoken_type_message_intent)){
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
 
-    np_data_value max_threshold, msg_threshold;
-    uint32_t max_threshold_ret=-1, msg_threshold_ret=-1;
-    if ((max_threshold_ret = np_get_data(token->attributes, "max_threshold", NULL, &max_threshold)) == np_ok &&
-        (msg_threshold_ret = np_get_data(token->attributes, "msg_threshold", NULL, &msg_threshold)) == np_ok)
-    {
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
-        uint32_t token_max_threshold = max_threshold.unsigned_integer;
-        uint32_t token_msg_threshold = msg_threshold.unsigned_integer;
+        np_data_value max_threshold, msg_threshold;
+        uint32_t max_threshold_ret=-1, msg_threshold_ret=-1;
+        if ((max_threshold_ret = np_get_data(token->attributes, "max_threshold", NULL, &max_threshold)) == np_ok &&
+            (msg_threshold_ret = np_get_data(token->attributes, "msg_threshold", NULL, &msg_threshold)) == np_ok)
+        {
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
+            uint32_t token_max_threshold = max_threshold.unsigned_integer;
+            uint32_t token_msg_threshold = msg_threshold.unsigned_integer;
 
-        if (0                   <= token_msg_threshold &&
-            token_msg_threshold <= token_max_threshold)
-        {
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token for subject \"%s\": %s can be used for %"PRIu32" msgs", token->subject, token->issuer, token_max_threshold-token_msg_threshold);
+            if (0                   <= token_msg_threshold &&
+                token_msg_threshold <= token_max_threshold)
+            {
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) for subject \"%s\": %s can be used for %"PRIu32" msgs", token->uuid, token->subject, token->issuer, token_max_threshold-token_msg_threshold);
+            }
+            else
+            {
+                log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu32"<%"PRIu32, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+                log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+                token->state &= AAA_INVALID;
+                return (false);
+            }
+        }else{
+            log_warn(LOG_AAATOKEN, "found NO max(%"PRIu32")/msg(%"PRIu32") threshold in token %s / %s", max_threshold_ret, msg_threshold_ret,token->uuid, token->subject);
         }
-        else
-        {
-            log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu32"<%"PRIu32, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
-            log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
-            token->state &= AAA_INVALID;
-            return (false);
-        }
-    }else{
-        log_warn(LOG_AAATOKEN, "found NO max(%"PRIu32")/msg(%"PRIu32") threshold in token %s", max_threshold_ret, msg_threshold_ret,token->uuid);
     }
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) validity for subject \"%s\": verification valid", token->uuid, token->subject);
     token->state |= AAA_VALID;
@@ -510,11 +509,8 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
     // }
     crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
 
-#ifdef DEBUG
-    char hash_str[crypto_generichash_BYTES * 2 + 1];
-    sodium_bin2hex(hash_str, crypto_generichash_BYTES * 2 + 1, ret, crypto_generichash_BYTES);
-    log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "token hash for %s is %s", self->uuid, hash_str);
-#endif
+    _np_debug_log_bin(ret, crypto_generichash_BYTES, LOG_AAATOKEN, "token hash for %s is %s", self->uuid);
+
     ASSERT(ret != NULL, "generated hash cannot be NULL");
     return ret;
 }
@@ -523,19 +519,8 @@ int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, u
 
     // unsigned long long signature_len = 0;
 
-#ifdef DEBUG
-    char hash_hex[crypto_generichash_BYTES * 2 + 1];
-    sodium_bin2hex(hash_hex, crypto_generichash_BYTES * 2 + 1, hash,
-        crypto_generichash_BYTES);
-    log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token hash key fingerprint: %s",
-        hash_hex);
-#endif
-
-#ifdef DEBUG
-    char sk_hex[crypto_sign_SECRETKEYBYTES * 2 + 1];
-    sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, private_key, crypto_sign_SECRETKEYBYTES);
-    log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token signature private key: %s", sk_hex);
-#endif
+    _np_debug_log_bin0(hash, crypto_generichash_BYTES, LOG_AAATOKEN, "token hash key fingerprint: %s");
+    _np_debug_log_bin0(private_key, crypto_sign_SECRETKEYBYTES, LOG_AAATOKEN, "token signature private key: %s")
 
     int ret = crypto_sign_detached(save_to, NULL,
                 (const unsigned char*)hash, crypto_generichash_BYTES, private_key);
@@ -550,7 +535,8 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
 
     char id[64];
     _np_str_dhkey(id, &partner_fp);
-    np_set_data(self->attributes,(struct np_data_conf){ .key = "_np.partner_fp", .type = NP_DATA_TYPE_STR}, (np_data_value){ .str = id });
+    enum np_data_return r = np_set_data(self->attributes,(struct np_data_conf){ .key = "_np.partner_fp", .type = NP_DATA_TYPE_STR}, (np_data_value){ .str = id });
+    assert(r == np_ok);
 
     _np_aaatoken_update_attributes_signature(self);
 }
@@ -654,17 +640,22 @@ unsigned char* __np_aaatoken_get_attributes_hash(np_aaatoken_t* self) {
     unsigned char* ret = calloc(1, crypto_generichash_BYTES);
 
     crypto_generichash_state gh_state;
-    crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
+    int c_ret;
+    c_ret = crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
+    assert(c_ret==0);
 
     //unsigned char* hash = np_tree_get_hash(self->extensions);
     //ASSERT(hash != NULL, "cannot sign NULL hash");
     //crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
 
-    crypto_generichash_update(&gh_state, self->attributes, sizeof(self->attributes));
-    crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
+    // TODO: Maybewe need to validate only till np_get_data_size(self)
+    c_ret = crypto_generichash_update(&gh_state, self->attributes, sizeof(self->attributes));
+    assert(c_ret==0);
+    c_ret = crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
+    assert(c_ret==0);
 
-    crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
-
+    c_ret = crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
+    assert(c_ret==0);
     //free(hash);
 
     return ret;

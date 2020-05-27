@@ -141,7 +141,7 @@ void _np_log_rotate(np_state_t* context, bool force)
     buffer may be at least 12 char wide
 */
 char * get_level_str(enum np_log_e level, char * buffer) {
-    
+
     char ret[12] = { 0 };
 
     if (FLAG_CMP(level, LOG_ERROR)) {
@@ -157,20 +157,23 @@ char * get_level_str(enum np_log_e level, char * buffer) {
         snprintf(ret, 12, "TRACE");
     }
 
-    // mark debug entry 
+    // mark debug entry
     if (FLAG_CMP(level, LOG_DEBUG)) {
         if (ret[0] == 0) {
             snprintf(ret, 12, "DEBUG");
         }
         else {
-            snprintf(ret, 12, "%s_D", ret);
+            char cpy[12] = { 0 };
+            strcpy(cpy,ret);
+            snprintf(ret, 12, "%s_D", cpy);
         }
     }
     // mark verbose entry
-    /*if (FLAG_CMP(level, LOG_VERBOSE)) {		
-        snprintf(ret, "%s_V", ret);
-    }
-    */
+    /*if (FLAG_CMP(level, LOG_VERBOSE)) {
+        char cpy[12] = { 0 };
+        strcpy(ret, cpy);
+        snprintf(ret, 12, "%s_V", cpy);
+    }*/
     snprintf(buffer, 12, "%-11s", ret);
 
     return buffer;

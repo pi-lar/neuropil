@@ -73,6 +73,75 @@ Test(neuropil_data, _check_insert_int, .description="test the serialization and 
     cr_expect(deserialized_data_conf.data_size  == sizeof(input),"Expected INT container size to match. not %"PRIu32, deserialized_data_conf.data_size);
     cr_expect(input == deserialized_data.integer, "Expected INT data to be the same. NOT %"PRId32" expected: %"PRId32, deserialized_data.integer,input);
 }
+Test(neuropil_data, _check_insert_str, .description="test the serialization and deserialization of an STR datablock")
+{
+    enum np_return tmp_ret;
+    struct np_data_conf deserialized_data_conf = {0};
+    np_data_value  deserialized_data;
+
+    size_t datablock_size = 2000;
+    unsigned char datablock[datablock_size];
+
+    char* input = "abc";
+    // init datatablock
+    cr_assert (np_ok == (tmp_ret = np_init_datablock(datablock, datablock_size)), "expect initialized datablock. (ret: %"PRIu32")", tmp_ret);
+
+    // insert TEST with data1
+    struct np_data_conf data_conf = (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_STR };
+    cr_assert(np_ok == (tmp_ret = np_set_data(datablock, data_conf, (np_data_value){ .str =input} )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+
+    // check TEST for data1
+    cr_assert(np_ok == (tmp_ret = np_get_data(datablock, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    cr_expect(deserialized_data_conf.type  == NP_DATA_TYPE_STR,"Expected STR container not %"PRIu32, deserialized_data_conf.type);
+    cr_expect(0 == strncmp(deserialized_data_conf.key, "TEST", 4),"Expected STR container key to match. not %s", deserialized_data_conf.key);
+    cr_expect(deserialized_data_conf.data_size  == sizeof(char)* strnlen(input,255)+sizeof(char)/*NULL*/,"Expected STR container size to match. not %"PRIu32, deserialized_data_conf.data_size);
+    cr_expect(0 == strncmp(input, deserialized_data.str,255), "Expected STR data to be the same. NOT %s expected: %s", deserialized_data.str,input);
+}
+Test(neuropil_data, _check_insert_str_overwrite, .description="test the serialization and deserialization of an STR datablock")
+{
+    enum np_return tmp_ret;
+    struct np_data_conf deserialized_data_conf = {0};
+    np_data_value  deserialized_data;
+
+    size_t datablock_size = 2000;
+    unsigned char datablock[datablock_size];
+
+    char* input = "abc";
+    // init datatablock
+    cr_assert (np_ok == (tmp_ret = np_init_datablock(datablock, datablock_size)), "expect initialized datablock. (ret: %"PRIu32")", tmp_ret);
+
+    // insert TEST with data1
+    struct np_data_conf data_conf = (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_STR };
+    cr_assert(np_ok == (tmp_ret = np_set_data(datablock, data_conf, (np_data_value){ .str =input} )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+
+    // check TEST for data1
+    cr_assert(np_ok == (tmp_ret = np_get_data(datablock, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    cr_expect(deserialized_data_conf.type  == NP_DATA_TYPE_STR,"Expected STR container not %"PRIu32, deserialized_data_conf.type);
+    cr_expect(0 == strncmp(deserialized_data_conf.key, "TEST", 4),"Expected STR container key to match. not %s", deserialized_data_conf.key);
+    cr_expect(deserialized_data_conf.data_size  == sizeof(char)* strnlen(input,255)+sizeof(char)/*NULL*/,"Expected STR container size to match. not %"PRIu32, deserialized_data_conf.data_size);
+    cr_expect(0 == strncmp(input, deserialized_data.str,255), "Expected STR data to be the same. NOT %s expected: %s", deserialized_data.str,input);
+
+    char* input2 = "LLLL";
+
+    // insert TEST with data1
+    struct np_data_conf data_conf2 = (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_STR };
+    cr_assert(np_ok == (tmp_ret = np_set_data(datablock, data_conf2, (np_data_value){ .str =input2} )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+
+    // check TEST for data1
+    cr_assert(np_ok == (tmp_ret = np_get_data(datablock, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    cr_expect(deserialized_data_conf.type  == NP_DATA_TYPE_STR,"Expected STR container not %"PRIu32, deserialized_data_conf.type);
+    cr_expect(0 == strncmp(deserialized_data_conf.key, "TEST", 4),"Expected STR container key to match. not %s", deserialized_data_conf.key);
+    cr_expect(deserialized_data_conf.data_size  == sizeof(char)* strnlen(input2,255)+sizeof(char)/*NULL*/,"Expected STR container size to match. not %"PRIu32, deserialized_data_conf.data_size);
+    cr_expect(0 == strncmp(input2, deserialized_data.str,255), "Expected STR data to be the same. NOT %s expected: %s", deserialized_data.str,input2);
+
+
+    // check TEST for data1
+    cr_assert(np_ok == (tmp_ret = np_get_data(datablock, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    cr_expect(deserialized_data_conf.type  == NP_DATA_TYPE_STR,"Expected STR container not %"PRIu32, deserialized_data_conf.type);
+    cr_expect(0 == strncmp(deserialized_data_conf.key, "TEST", 4),"Expected STR container key to match. not %s", deserialized_data_conf.key);
+    cr_expect(deserialized_data_conf.data_size  == sizeof(char)* strnlen(input2,255)+sizeof(char)/*NULL*/,"Expected STR container size to match. not %"PRIu32, deserialized_data_conf.data_size);
+    cr_expect(0 == strncmp(input2, deserialized_data.str,255), "Expected STR data to be the same. NOT %s expected: %s", deserialized_data.str,input2);
+}
 Test(neuropil_data, _check_insert_uint, .description="test the serialization and deserialization of an UNSIGNED INT datablock")
 {
     enum np_return tmp_ret;

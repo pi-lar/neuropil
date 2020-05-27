@@ -526,7 +526,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
         np_get_id(&message.subject, _np_message_get_subject(msg), strlen(_np_message_get_subject(msg)));
-        
+
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 
         message.received_at = np_time_now(); // todo get from network
@@ -535,16 +535,16 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         message.data_length = userdata->val.size;
 
         log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) conversion into public structs complete.", msg->uuid);
-        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Calling user function.", msg->uuid);        
+        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Calling user function.", msg->uuid);
         callback(context, &message);
-        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Called  user function.", msg->uuid);        
+        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Called  user function.", msg->uuid);
     }else{
         log_info(LOG_MESSAGE |LOG_ROUTING,"(msg: %s) contains no userdata", msg->uuid);
     }
     return ret;
 }
 
-enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback) 
+enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback)
 {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);

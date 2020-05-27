@@ -130,6 +130,8 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
         ret->issuer_token = source;
     }
 
+    memcpy(ret->attributes, source->attributes, sizeof(source->attributes));
+
     return (ret);
 }
 
@@ -194,12 +196,15 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     // memcpy((char*)ret->crypto.ed25519_public_key,
     //        (char*)identity_token->crypto.ed25519_public_key,
     //        crypto_sign_PUBLICKEYBYTES);
-
-    np_set_data(ret->attributes,(struct np_data_conf){.key="mep_type",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->mep_type});
-    np_set_data(ret->attributes,(struct np_data_conf){.key="ack_mode",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->ack_mode});
-    np_set_data(ret->attributes,(struct np_data_conf){.key="mep_type",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->mep_type});
-    np_set_data(ret->attributes,(struct np_data_conf){.key="max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->max_threshold});
-    np_set_data(ret->attributes,(struct np_data_conf){.key="msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = 0});
+    enum np_data_return tmp;
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="mep_type",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->mep_type});
+    ASSERT(np_ok == tmp,"Could not set \"mep_type\" data %"PRIu32,tmp);
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="ack_mode",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->ack_mode});
+    ASSERT(np_ok == tmp,"Could not set \"ack_mode\" data %"PRIu32,tmp);
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->max_threshold});
+    ASSERT(np_ok == tmp,"Could not set \"max_threshold\" data %"PRIu32,tmp);
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = 0});
+    ASSERT(np_ok == tmp,"Could not set \"msg_threshold\" data %"PRIu32,tmp);
 
     // TODO: insert value based on msg properties / respect (sticky) reply
     np_aaatoken_set_partner_fp(ret, context->my_node_key->dhkey);
