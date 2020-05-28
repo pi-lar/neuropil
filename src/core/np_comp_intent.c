@@ -226,8 +226,8 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
 
     np_aaatoken_t* ret = NULL;
 
-    log_debug_msg(LOG_DEBUG, "update on global receiving msg token structures ... %p (size %d)",
-                             property, pll_size(ledger->recv_tokens));
+    log_debug_msg(LOG_DEBUG, "update on global receiving msg token (%s)  structures ... %p (size %d)",
+                             token->uuid,property, pll_size(ledger->recv_tokens));
 
     // insert new token
     log_debug_msg(LOG_DEBUG, ".step1._np_aaatoken_add_receiver %d / %s", pll_size(ledger->recv_tokens), token->subject);
