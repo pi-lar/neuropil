@@ -1555,7 +1555,8 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, real_prop);
 
     // always?: just store the available tokens in memory and update them if new data arrives
-    np_dhkey_t sendtoken_issuer_key = np_aaatoken_get_partner_fp(intent_token); 
+    np_dhkey_t sendtoken_issuer_key = np_aaatoken_get_partner_fp(intent_token);
+
     if (_np_dhkey_equal(&sendtoken_issuer_key, &context->my_node_key->dhkey) )
     {
         // only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
