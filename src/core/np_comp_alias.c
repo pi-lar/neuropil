@@ -409,10 +409,10 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
     );
 
     if (crypto_result == 0)
-    {					
+    {
         ret = true;
         log_debug_msg(LOG_DEBUG, "correct decryption of message send from %s", _np_key_as_str(alias_key));
-        
+
         memset(event.user_data, 0, MSG_CHUNK_SIZE_1024);
         memcpy(event.user_data, dec_msg, MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 
@@ -427,7 +427,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         }
         log_debug_msg(LOG_SERIALIZATION, "(msg: %s) correct header deserialization of message", msg_in->uuid);
 
-        np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
+        np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context,
                                            .user_data=msg_in, .target_dhkey=alias_key->dhkey};
         _np_keycache_handle_event(context, alias_key->dhkey, in_message_evt, false);
         // _np_keycache_handle_event(context, alias_key->dhkey, in_message_evt, false);

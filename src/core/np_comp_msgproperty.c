@@ -1362,7 +1362,7 @@ bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_e
     log_trace_msg(LOG_TRACE, "start: bool __is_external_message(...){");
 
     bool ret = false;
-    
+
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
@@ -1513,7 +1513,7 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
             _np_msgproperty_threshold_decrease(property);        
         }
         np_unref_obj(np_responsecontainer_t, responsehandler, ref_obj_usage);
-    }    
+    }
 }
 
 bool __is_message_redelivery_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
