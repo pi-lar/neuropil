@@ -532,11 +532,18 @@ int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, u
 
 void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
     assert(self != NULL);
+    np_ctx_memory(self);
 
-    char id[64];
-    _np_str_dhkey(id, &partner_fp);
-    enum np_data_return r = np_set_data(self->attributes,(struct np_data_conf){ .key = "_np.partner_fp", .type = NP_DATA_TYPE_STR}, (np_data_value){ .str = id });
+    char id[65]={0};
+    _np_dhkey_str(&partner_fp,id);
+    uint32_t r = np_set_data(self->attributes,
+                                (struct np_data_conf) {
+                                    .key = "_np.partner_fp",
+                                    .type = NP_DATA_TYPE_STR
+                                }, (np_data_value){ .str = id }
+                            );
     assert(r == np_ok);
+    log_debug(LOG_AAATOKEN, "token (%s) setting \"_np.partner_fp\" result %"PRIu32, self->uuid, r);
 
     _np_aaatoken_update_attributes_signature(self);
 }
@@ -548,7 +555,13 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 
     struct np_data_conf conf;
     np_data_value val;
-    if(np_ok == np_get_data(self->attributes,"_np.partner_fp", &conf, &val)){
+    enum np_data_return r = np_get_data(self->attributes,"_np.partner_fp", &conf, &val);
+
+    ASSERT(r == np_ok || r == np_key_not_found,"token (%s): \"_np.partner_fp\" extraction %"PRIu32, self->uuid, r);
+
+    if(np_ok == r){
+        ASSERT(conf.data_size == 65,"token (%s): \"_np.partner_fp\" extraction size: %"PRIu32" \n", self->uuid, conf.data_size);
+
         _np_dhkey_str(&ret, val.str);
     }else{
         _np_str_dhkey(self->issuer, &ret);
