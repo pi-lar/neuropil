@@ -658,22 +658,24 @@ enum np_status np_get_status(np_context* ac) {
 void np_id_str(char str[65], const np_id id)
 {
     sodium_bin2hex(str, NP_FINGERPRINT_BYTES*2+1, id, NP_FINGERPRINT_BYTES);
+    //ASSERT(r==0, "could not convert np_id to str code: %"PRId32, r);
 }
 
-void np_str_id(np_id (*id), const char str[65])
+void np_str_id(np_id (*id), const char str[64])
 {
     // TODO: this is dangerous, encoding could be different between systems,
     // encoding has to be send over the wire to be sure ...
     // for now: all tests on the same system
-    // assert (64 == strlen((char*) str));
-    sodium_hex2bin(*id, NP_FINGERPRINT_BYTES, str, NP_FINGERPRINT_BYTES*2, NULL, NULL, NULL);
+    //assert (64 == strnlen((char*) str,65));
+    int r = sodium_hex2bin(*id, NP_FINGERPRINT_BYTES, str, NP_FINGERPRINT_BYTES*2, NULL, NULL, NULL);
+    ASSERT(r==0, "could not convert str to np_id  code: %"PRId32, r);
 }
 
 void np_destroy(np_context* ac, bool gracefully)
 {
     np_ctx_cast(ac);
 
-    if (gracefully) 
+    if (gracefully)
     {
         np_shutdown_add_callback(context, _np_shutdown_notify_others);
     }
