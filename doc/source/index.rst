@@ -22,7 +22,8 @@ Contents:
 
    intro
    core_concepts
-   ngizero
+   ngizerodiscovery
+   ngizerosearch
    compared_to
    tutorial
    api
