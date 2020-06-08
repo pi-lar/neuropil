@@ -124,6 +124,8 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
                 // encrypt the relevant message part itself
                 np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
 
+                _np_message_trace_info("MSG_WRAPPER", message);
+
                 _np_message_encrypt_payload(message, tmp_token);
 
                 if (FLAG_CMP(my_property->ack_mode, ACK_DESTINATION))

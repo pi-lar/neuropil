@@ -427,6 +427,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         }
         log_debug_msg(LOG_SERIALIZATION, "(msg: %s) correct header deserialization of message", msg_in->uuid);
 
+        _np_message_trace_info("MSG_IN", msg_in);
         np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context,
                                            .user_data=msg_in, .target_dhkey=alias_key->dhkey};
         _np_keycache_handle_event(context, alias_key->dhkey, in_message_evt, false);

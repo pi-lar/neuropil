@@ -193,3 +193,45 @@ char* np_messagepart_printcache(np_state_t* context, bool asOneLine)
 
 	return (ret);
 }
+
+
+void _np_messagepart_trace_info(char* desc, np_messagepart_t * msg_in) {
+
+    np_ctx_memory(msg_in);
+    char * info_str = NULL;
+    info_str = np_str_concatAndFree(info_str, "MessagePartTrace_%s", desc);
+
+#ifdef DEBUG
+    bool free_key, free_value;
+    char *key, *value;
+    info_str = np_str_concatAndFree(info_str, " Header (");
+    np_tree_elem_t * tmp;
+    if(msg_in->header != NULL){
+        RB_FOREACH(tmp, np_tree_s, (msg_in->header))
+        {
+            key = np_treeval_to_str(tmp->key, &free_key);
+            value = np_treeval_to_str(tmp->val, &free_value);
+            info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+            if (free_value) free(value);
+            if (free_key) free(key);
+        }
+    }
+    info_str = np_str_concatAndFree(info_str, ") Instructions (");
+    if (msg_in->instructions != NULL) {
+        RB_FOREACH(tmp, np_tree_s, (msg_in->instructions))
+        {
+            key = np_treeval_to_str(tmp->key, &free_key);
+            value = np_treeval_to_str(tmp->val, &free_value);
+            info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+            if (free_value) free(value);
+            if (free_key) free(key);
+        }
+    }
+    info_str = np_str_concatAndFree(info_str, ")");
+#else
+    info_str = np_str_concatAndFree(info_str, ": %s / %"PRIu16, msg_in->uuid, msg_in->part);
+#endif
+
+    log_debug(LOG_MESSAGE, info_str);
+    free(info_str);
+}

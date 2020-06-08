@@ -536,6 +536,7 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
 
     char id[65]={0};
     _np_dhkey_str(&partner_fp,id);
+
     uint32_t r = np_set_data(self->attributes,
                                 (struct np_data_conf) {
                                     .key = "_np.partner_fp",
@@ -543,7 +544,7 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
                                 }, (np_data_value){ .str = id }
                             );
     assert(r == np_ok);
-    log_debug(LOG_AAATOKEN, "token (%s) setting \"_np.partner_fp\" result %"PRIu32, self->uuid, r);
+    log_debug(LOG_AAATOKEN, "token (%s) setting \"_np.partner_fp\" result %"PRIu32" to %s", self->uuid, r, id);
 
     _np_aaatoken_update_attributes_signature(self);
 }
@@ -707,7 +708,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
     np_ctx_memory(self);
 
     char* info_str = NULL;
-    info_str = np_str_concatAndFree(info_str, "AAATokenTrace_%s", desc);
+    info_str = np_str_concatAndFree(info_str, "%s", desc);
 
     np_tree_t* data = np_tree_create();
     _np_aaatoken_encode(data, self, false);
@@ -731,7 +732,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
     np_tree_free(data);
     info_str = np_str_concatAndFree(info_str, "): %s", self->uuid);
 
-    log_msg(LOG_DEBUG, "%s", info_str);
+    log_debug(LOG_AAATOKEN, "AAATokenTrace_%s", info_str);
     free(info_str);
 }
 #endif
