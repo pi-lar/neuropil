@@ -794,13 +794,6 @@ inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
-inline void _np_message_set_to(np_message_t* msg, np_dhkey_t target)
-{
-    // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-    np_tree_replace_str( msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(target));
-    // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
-};
-
 inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
 {
     np_tree_t* old = msg->footer;

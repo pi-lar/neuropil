@@ -662,7 +662,9 @@ bool _np_out_update(np_state_t* context, const np_util_event_t event)
         return false;
     }
 
-    _np_message_set_to(update_msg, target->dhkey);
+    np_tree_replace_str(update_msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(target->dhkey));
+    _np_message_trace_info("MSG_OUT_UPDATE", update_msg);
+
 
     // 4: chunk the message if required
     // TODO: send two separate messages?
