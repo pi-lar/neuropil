@@ -597,12 +597,11 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
         ret = __np_aaatoken_generate_signature(context, hash, self->issuer_token->crypto.ed25519_secret_key, self->signature);
     } else {
         // add a field to the exension containing an additional signature
-        char signee_token_fp[65];
-        signee_token_fp [64] = '\0';
+        char signee_token_fp[NP_FINGERPRINT_BYTES*2+1]={0};
         np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
         _np_dhkey_str(&my_token_fp, signee_token_fp);
 
-        assert( 0 == strncmp(signee_token_fp, self->issuer, 64) );
+        ASSERT( 0 == strncmp(signee_token_fp, self->issuer, NP_FINGERPRINT_BYTES*2),"fingerprint of token and issuer need to be the same. issuer: %s fp: %s",signee_token_fp, self->issuer);
 
         unsigned char signer_pubsig[crypto_sign_PUBLICKEYBYTES+crypto_sign_BYTES];
         // copy public key
@@ -610,8 +609,9 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
         // add signature of signer to extensions
         ret = __np_aaatoken_generate_signature(context, self->signature, signee->crypto.ed25519_secret_key, signer_pubsig + crypto_sign_PUBLICKEYBYTES );
         // insert into extension table
-        struct np_data_conf attr_conf;
+        struct np_data_conf attr_conf={0};
         attr_conf.type = NP_DATA_TYPE_BIN;
+        attr_conf.data_size = sizeof(signer_pubsig);
         strncpy(attr_conf.key, signee_token_fp, 255);
         np_set_data(self->attributes, attr_conf, (np_data_value){ .bin=signer_pubsig});
 
