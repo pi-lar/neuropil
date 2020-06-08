@@ -47,6 +47,8 @@ bool _np_messagepart_encrypt(np_state_t* context, np_tree_t* msg_part,
 	unsigned char* public_key,
 	NP_UNUSED unsigned char* secret_key);
 
+NP_API_INTERN
+void _np_messagepart_trace_info(char* desc, np_messagepart_t * msg_in);
 
 NP_API_PROTEC
 char* np_messagepart_printcache(np_state_t* context, bool asOneLine);

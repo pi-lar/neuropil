@@ -778,6 +778,7 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     {
         _np_message_setbody(msg, the_data);
     }
+    _np_message_trace_info("MSG_CREATE", msg);
 }
 
 inline void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructions)
@@ -1050,6 +1051,6 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
     info_str = np_str_concatAndFree(info_str, ": %s", msg_in->uuid);	
 #endif
 
-    log_msg(LOG_MESSAGE | LOG_DEBUG, info_str);	
+    log_debug(LOG_MESSAGE, info_str);	
     free(info_str);
 }

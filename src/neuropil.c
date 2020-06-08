@@ -503,7 +503,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
     _np_message_create(msg_out, subject_dhkey, context->my_node_key->dhkey, subject, body);
 
-    log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")", length);
+    log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16" msg: %s)", length, msg_out->uuid);
 
     np_util_event_t send_event = { .type=(evt_internal | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
     // _np_keycache_handle_event(context, subject_dhkey, send_event, false);

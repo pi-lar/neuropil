@@ -807,6 +807,8 @@ void __np_node_send_direct(np_util_statemachine_t* statemachine, const np_util_e
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     NP_CAST(event.user_data, np_messagepart_t, hs_messagepart);
 
+    _np_messagepart_trace_info("MSGPART_OUT_DIRECT", hs_messagepart);
+
     struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(node_key, &trinity);
 
@@ -848,7 +850,9 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
     // increase resend counter for hop measurement
     np_tree_elem_t* jrb_send_counter = np_tree_find_str(part->instructions, _NP_MSG_INST_SEND_COUNTER);
     jrb_send_counter->val.value.ush++;
-    
+
+    _np_messagepart_trace_info("MSGPART_OUT_ENCRYPTED", part);
+
     // add protection from replay attacks ...
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     // TODO: move nonce to np_node_t and re-use it with increments ?
