@@ -23,39 +23,29 @@ ffibuilder.set_source(
     library_dirs=[np_lib_path],
     include_dirs=[np_include_path]
     )
-    
+
 # cdef() expects a string listing the C types, functions and
 # globals needed from Python. The string follows the C syntax.
 import subprocess
 
-h_file_path = os.path.join(np_include_path, 'neuropil.h')
+h_files = ['neuropil.h']
 
-cc = "clang"
-if os.getenv("CC"):
-    cc = os.getenv("CC")
+for h_file in h_files:
+    h_file_path = os.path.join(np_include_path, h_file)
+    cc = "clang"
+    if os.getenv("CC"):
+        cc = os.getenv("CC")
 
-h_file = None
-if platform.system() == 'Darwin':
-    h_file = subprocess.run([
-        cc,"-E",h_file_path,
-        "-D__CLANG_MAX_ALIGN_T_DEFINED",
-        # "-Ipycparser/utils/fake_libc_include"
-        "-D__signed=", "-D__builtin_va_list=void*",
-        "-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-DNP_ENUM=", "-DNP_CONST_ENUM="
-        ], stdout=subprocess.PIPE).stdout.decode('utf-8')
-else:
-    h_file = subprocess.run([
-        cc,"-E",h_file_path,
-        "-D__CLANG_MAX_ALIGN_T_DEFINED",
-        # "-Ipycparser/utils/fake_libc_include"
-        "-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-DNP_ENUM=", "-DNP_CONST_ENUM="
-        ], stdout=subprocess.PIPE).stdout.decode('utf-8')
-
-#print("START Neuropil.h")
-#print(h_file)
-#print("END   Neuropil.h")
-
-ffibuilder.cdef(h_file, packed=True)
+    cmd =[
+            cc,"-E",h_file_path,
+            "-D__CLANG_MAX_ALIGN_T_DEFINED",
+            # "-Ipycparser/utils/fake_libc_include"
+            "-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-DNP_ENUM=", "-DNP_CONST_ENUM="
+            ]
+    if platform.system() == 'Darwin':
+        cmd += ["-D__signed=", "-D__builtin_va_list=void*"]
+    h_file = subprocess.run(cmd, stdout=subprocess.PIPE).stdout.decode('utf-8')
+    ffibuilder.cdef(h_file, packed=True)
 
 if __name__ == "__main__":
     ffibuilder.compile(verbose=True)
