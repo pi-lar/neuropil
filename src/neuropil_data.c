@@ -122,9 +122,9 @@ enum np_data_return __write_object(cmp_ctx_t *target, struct __kv_pair to_write)
 {
     enum np_data_return ret = np_ok;
 
-    uint8_t key_len = strnlen(to_write.key, 255);
+    uint8_t key_len = strnlen(to_write.key, 254)+1;
 
-    if (!cmp_write_str(target, to_write.key, key_len))
+    if (!cmp_write_str8(target, to_write.key, key_len))
     {
         // fprintf(stderr, "__write_object.key");
         ret = np_could_not_write_key;
@@ -271,7 +271,7 @@ enum np_data_return np_set_data(np_datablock_t *block, struct np_data_conf data_
         if (ret == np_key_not_found || ret == np_ok)
         {
             // check for space in block
-            uint32_t new_object_size = sizeof(uint8_t) /*Marker*/ + strnlen(data_conf.key, 255) /*Key*/;
+            uint32_t new_object_size = sizeof(uint8_t) /*Marker*/ +sizeof(uint8_t) /*str size*/ + strnlen(data_conf.key, 254)/*Key*/+1 /*NULL byte*/;
             if (data_conf.type == NP_DATA_TYPE_BIN)
             {
                 new_object_size += sizeof(uint8_t) /*Marker*/ + sizeof(uint32_t) /*DataSize*/ + data_conf.data_size /*Data*/;
@@ -315,7 +315,7 @@ enum np_data_return np_set_data(np_datablock_t *block, struct np_data_conf data_
                 // fprintf(stderr, "np_set_data.actual_new_object_size:%"PRIu32"\n",actual_new_object_size);
                 // fprintf(stderr, "np_set_data.new_object_size:%"PRIu32"\n",new_object_size);
 
-                assert(actual_new_object_size == new_object_size);
+                ASSERT(actual_new_object_size == new_object_size,"object size does not match. actual: %"PRIu32" expected: %"PRIu32,actual_new_object_size,new_object_size);
 #endif
                 // update "used_length"
                 if (ret == np_ok)
