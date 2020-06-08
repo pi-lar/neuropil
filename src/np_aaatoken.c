@@ -558,12 +558,12 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
     np_data_value val;
     enum np_data_return r = np_get_data(self->attributes,"_np.partner_fp", &conf, &val);
 
-    ASSERT(r == np_ok || r == np_key_not_found,"token (%s): \"_np.partner_fp\" extraction %"PRIu32, self->uuid, r);
+    ASSERT(r == np_ok || r == np_key_not_found,"token (%s): \"_np.partner_fp\" extraction error %"PRIu32, self->uuid, r);
 
     if(np_ok == r){
         ASSERT(conf.data_size == 65,"token (%s): \"_np.partner_fp\" extraction size: %"PRIu32" \n", self->uuid, conf.data_size);
 
-        _np_dhkey_str(&ret, val.str);
+        _np_str_dhkey(val.str, &ret);
     }else{
         _np_str_dhkey(self->issuer, &ret);
     }
