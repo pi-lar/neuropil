@@ -75,6 +75,11 @@ extern "C" {
     // Internal methods
     NP_API_PROTEC
     enum np_data_return np_get_data_size(np_datablock_t * block, size_t * out_block_size);
+    NP_API_EXPORT
+    /**
+     * @brief merges src datablock into dest datablock. overwrites existing keys
+     */
+    enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src);
 #ifdef __cplusplus
 }
 #endif

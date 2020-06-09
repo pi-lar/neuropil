@@ -401,3 +401,26 @@ enum np_data_return np_get_data_size(np_datablock_t *block, size_t *out_block_si
     }
     return ret;
 }
+
+enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src)
+{
+    enum np_data_return ret = np_could_not_read_object;
+    struct __np_datablock_s db = __read_datablock(src, &ret);
+    if (ret == np_ok)
+    {
+        while ((((unsigned char *)db.cmp.buf) - db.ublock) < db.used_length)
+        {
+            struct __kv_pair tmp = __read_object(&db.cmp, &ret);
+            if(ret != np_ok)break;
+
+            struct np_data_conf cfg;
+            cfg.data_size = tmp.data_size;
+            cfg.type = tmp.data_type;
+            strncpy(cfg.key,tmp.key,255);
+            ret  = np_set_data(dest,cfg, tmp.data);
+            if(ret != np_ok)break;
+        }
+    }
+
+    return ret;
+}
