@@ -168,6 +168,68 @@ Test(neuropil_data, _check_insert_uint, .description="test the serialization and
 }
 
 
+Test(neuropil_data, _check_merge, .description="test the serialization and deserialization of an UNSIGNED INT datablock")
+{
+    enum np_return tmp_ret;
+    struct np_data_conf deserialized_data_conf = {0};
+    np_data_value  deserialized_data;
+
+    size_t datablock_size = 2000;
+    unsigned char datablock[datablock_size];
+
+    uint32_t input = 12399;
+    // init datatablock
+    cr_assert (np_ok == (tmp_ret = np_init_datablock(datablock, datablock_size)), "expect initialized datablock. (ret: %"PRIu32")", tmp_ret);
+
+    // insert TEST with data1
+    struct np_data_conf data_conf = (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_UNSIGNED_INT };
+    cr_assert(np_ok == (tmp_ret = np_set_data(datablock, data_conf, (np_data_value){ .integer=input} )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+
+    unsigned char datablock2[datablock_size];
+    cr_assert (np_ok == (tmp_ret = np_init_datablock(datablock2, datablock_size)), "expect initialized datablock. (ret: %"PRIu32")", tmp_ret);
+
+    cr_assert(np_ok == (tmp_ret = np_merge_data(datablock2, datablock), "expect successfull merge. (ret: %"PRIu32")", tmp_ret));
+
+    // check TEST for data1
+    cr_assert(np_ok == (tmp_ret = np_get_data(datablock2, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    cr_expect(deserialized_data_conf.type  == NP_DATA_TYPE_UNSIGNED_INT,"Expected uINT container not %"PRIu32, deserialized_data_conf.type);
+    cr_expect(0 == strncmp(deserialized_data_conf.key, "TEST", 4),"Expected uINT container key to match. not %s", deserialized_data_conf.key);
+    cr_expect(deserialized_data_conf.data_size  == sizeof(input),"Expected uINT container size to match. not %"PRIu32, deserialized_data_conf.data_size);
+    cr_expect(input == deserialized_data.integer, "Expected uINT data to be the same. NOT %"PRId32" expected: %"PRIu32, deserialized_data.integer,input);
+}
+Test(neuropil_data, _check_merge_overwrite, .description="test the serialization and deserialization of an UNSIGNED INT datablock")
+{
+    enum np_return tmp_ret;
+    struct np_data_conf deserialized_data_conf = {0};
+    np_data_value  deserialized_data;
+
+    size_t datablock_size = 2000;
+    unsigned char datablock[datablock_size];
+
+    uint32_t input =  12399;
+    uint32_t input2 = 99911;
+    // init datatablock
+    cr_assert (np_ok == (tmp_ret = np_init_datablock(datablock, datablock_size)), "expect initialized datablock. (ret: %"PRIu32")", tmp_ret);
+
+    // insert TEST with data1
+    struct np_data_conf data_conf = (struct np_data_conf) { .key="TEST", .type=NP_DATA_TYPE_UNSIGNED_INT };
+    cr_assert(np_ok == (tmp_ret = np_set_data(datablock, data_conf, (np_data_value){ .integer=input} )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+
+    unsigned char datablock2[datablock_size];
+    cr_assert (np_ok == (tmp_ret = np_init_datablock(datablock2, datablock_size)), "expect initialized datablock. (ret: %"PRIu32")", tmp_ret);
+    cr_assert(np_ok == (tmp_ret = np_set_data(datablock2, data_conf, (np_data_value){ .integer=input2} )), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+
+    cr_assert(np_ok == (tmp_ret = np_merge_data(datablock2, datablock), "expect successfull merge. (ret: %"PRIu32")", tmp_ret));
+
+    // check TEST for data1
+    cr_assert(np_ok == (tmp_ret = np_get_data(datablock2, "TEST", &deserialized_data_conf, &deserialized_data)), "expect inserted data. (ret: %"PRIu32")", tmp_ret);
+    cr_expect(deserialized_data_conf.type  == NP_DATA_TYPE_UNSIGNED_INT,"Expected uINT container not %"PRIu32, deserialized_data_conf.type);
+    cr_expect(0 == strncmp(deserialized_data_conf.key, "TEST", 4),"Expected uINT container key to match. not %s", deserialized_data_conf.key);
+    cr_expect(deserialized_data_conf.data_size  == sizeof(input),"Expected uINT container size to match. not %"PRIu32, deserialized_data_conf.data_size);
+    cr_expect(input == deserialized_data.integer, "Expected uINT data to be the same. NOT %"PRId32" expected: %"PRIu32, deserialized_data.integer,input);
+}
+
+
 Test(neuropil_data, _check_multi_insert, .description="test the serialization and deserialization of a BIN datablock")
 {
     enum np_return tmp_ret;
