@@ -31,6 +31,7 @@ tmp/*
 bindings/python_cffi/neuropil.egg-info/
 *.so
 core*
+vgcore*
 
 smoke_test-junit.xml
 neuropil_test_suite-junit.xml
