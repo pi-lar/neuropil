@@ -249,7 +249,7 @@ SOURCES += ['np_pheromones.c', 'np_route.c',   'np_tree.c',          'np_util.c'
 SOURCES += ['np_scache.c',  'np_event.c',         'np_messagepart.c', 'np_statistics.c',    'np_responsecontainer.c']
 SOURCES += ['np_legacy.c',  'np_serialization.c', 'np_shutdown.c',    'np_token_factory.c', 'np_crypto.c' ]
 SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_comp_intent.c', 'core/np_comp_node.c', 'core/np_comp_alias.c']
-SOURCES += ['util/np_statemachine.c', ]
+SOURCES += ['util/np_statemachine.c',  'neuropil_data.c',  'neuropil_attributes.c']
 
 SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c']
 
@@ -359,6 +359,7 @@ Clean('.', 'warn.log')
 Clean('.', 'warn_clean.log')
 
 print ("build with:")
+print ("verbose                  =  %r" % verbose)
 print ("analyze                  =  %r" % analyze)
 print ("build_tests              =  %r" % build_tests)
 print ("debug                    =  %r" % debug)
