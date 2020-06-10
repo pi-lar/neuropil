@@ -43,7 +43,9 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
     strncpy(subject, np_treeval_to_str(ele->val, NULL), 99);
 #endif
     // Detect from instructions if this msg was orginally chunked
-    char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
+    char msg_uuid[NP_UUID_BYTES+1]={0};
+    strncpy(msg_uuid, np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL), NP_UUID_BYTES);
+
     uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 
     if (1 < expected_msg_chunks)
@@ -82,20 +84,21 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                 if (current_count_of_chunks < expected_msg_chunks)
                 {
                     log_debug(LOG_MESSAGE,
-                        "message %s (%s) not complete yet (%d of %d), waiting for missing parts",
+                        "message %s (%s) not complete yet (%"PRIu32" of %"PRIu16"), waiting for missing parts",
                         subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
                     // nothing to return as we still wait for chunks
                 }
                 else
                 {
+
                     log_debug(LOG_MESSAGE,
-                        "message %s (%s) is complete now  (%d of %d)",
+                        "message %s (%s) is complete now  (%"PRIu32" of %"PRIu16")",
                         subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
 
                     ret = msg_in_cache;
                     // removing the message from the cache system
                     np_ref_obj(np_message_t, msg_in_cache, ref_message_in_send_system);
-                    msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
+                    //msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
                     np_tree_del_str(context->msg_part_cache, msg_uuid);
                     np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
                 }
