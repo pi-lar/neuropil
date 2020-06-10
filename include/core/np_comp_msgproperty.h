@@ -17,6 +17,8 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
+#include "neuropil.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -315,6 +317,8 @@ struct np_msgproperty_s
 
     np_message_intent_public_token_t* current_sender_token;
     np_message_intent_public_token_t* current_receive_token;
+
+    np_attributes_t attributes;
 
 } NP_API_EXPORT;
 

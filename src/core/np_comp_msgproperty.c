@@ -93,6 +93,8 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
 
     prop->current_sender_token = NULL;
     prop->current_receive_token = NULL;
+
+    np_init_datablock(prop->attributes,sizeof(prop->attributes));
 }
 
 void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)

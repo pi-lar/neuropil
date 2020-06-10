@@ -14,6 +14,8 @@
 #include "sodium.h"
 
 #include "neuropil.h"
+#include "neuropil_data.h"
+#include "neuropil_attributes.h"
 
 #include "np_dhkey.h"
 
@@ -150,6 +152,11 @@ np_context* np_new_context(struct np_settings * settings_in)
     else if (_np_msgproperty_init(context) == false)
     {
         log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed");
+        status = np_startup;
+    }
+    else if (_np_attributes_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: _np_attributes_init failed");
         status = np_startup;
     }
     else {
@@ -491,8 +498,20 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     np_tree_t* body = np_tree_create();
     np_tree_insert_str(body, NP_SERIALISATION_USERDATA, np_treeval_new_bin((void*) message, length));
 
+
+    np_attributes_t tmp_msg_attr;
+    if( np_ok == np_init_datablock(tmp_msg_attr,sizeof(tmp_msg_attr))){
+        np_merge_data(tmp_msg_attr,_np_get_attributes_cache(context, NP_ATTR_USER_MSG));
+        np_merge_data(tmp_msg_attr,_np_get_attributes_cache(context, NP_ATTR_IDENTITY_AND_USER_MSG));
+        np_merge_data(tmp_msg_attr,_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_USER_MSG));
+        size_t attributes_size;
+        if(np_ok == np_get_data_size(tmp_msg_attr, &attributes_size) && attributes_size > 0){
+            np_tree_insert_str(body, NP_SERIALISATION_ATTRIBUTES, np_treeval_new_bin(tmp_msg_attr, attributes_size));
+        }
+    }
+
     np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(OUTBOUND, subject);
-    np_dhkey_t target_dhkey = {0};    
+    np_dhkey_t target_dhkey = {0};
     if (target != NULL) {
         // TOOD: id to dhkey
     }
@@ -503,7 +522,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
     _np_message_create(msg_out, subject_dhkey, context->my_node_key->dhkey, subject, body);
 
-    log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16" msg: %s)", length, msg_out->uuid);
+    log_msg(LOG_INFO, "sending message (size: %"PRIu16" msg: %s)", length, msg_out->uuid);
 
     np_util_event_t send_event = { .type=(evt_internal | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
     // _np_keycache_handle_event(context, subject_dhkey, send_event, false);
@@ -511,7 +530,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     if(!np_jobqueue_submit_event(context, 0.0, subject_dhkey, send_event, "event: userspace message delivery request")){
         log_msg(LOG_WARN, "rejecting possible sending of message, please check jobqueue settings!");
     }
-    
+
     return ret;
 }
 
@@ -534,6 +553,17 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         message.data = userdata->val.value.bin;
         message.data_length = userdata->val.size;
 
+        np_tree_elem_t* msg_attributes = np_tree_find_str(body, NP_SERIALISATION_ATTRIBUTES);
+        if(msg_attributes == NULL){
+            np_init_datablock(message.attributes,sizeof(message.attributes));
+        }else{
+
+            np_datablock_t * dt = msg_attributes->val.value.bin;
+            size_t attr_size;
+            if(sizeof(message.attributes) >= msg_attributes->val.size) {
+                memcpy(message.attributes, dt, msg_attributes->val.size);
+            }
+        }
         log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) conversion into public structs complete.", msg->uuid);
         log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Calling user function.", msg->uuid);
         callback(context, &message);
