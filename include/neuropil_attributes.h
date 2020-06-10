@@ -6,6 +6,7 @@
 #ifndef _NP_ATTR_H_
 #define _NP_ATTR_H_
 
+#include "np_types.h"
 #include "neuropil.h"
 #include "neuropil_data.h"
 
@@ -14,7 +15,7 @@ extern "C" {
 #endif
 
     enum np_msg_attr_type {
-        NP_ATTR_NONE = 0,
+        NP_ATTR_NONE = -1,
         NP_ATTR_USER_MSG,
         NP_ATTR_INTENT,
         NP_ATTR_IDENTITY,              // e.g. used when joining a network
@@ -30,20 +31,29 @@ extern "C" {
 
         NP_ATTR_INTENT_AND_USER_MSG,
         NP_ATTR_INTENT_AND_IDENTITY,
+        NP_ATTR_MAX,
 
     } NP_CONST_ENUM;
 
     NP_API_EXPORT
-    enum np_return np_set_ident_attr_bin(struct np_token* ident,       enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
+    enum np_data_return np_set_ident_attr_bin(np_context *ac, struct np_token* ident, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
     NP_API_EXPORT
-    enum np_return np_set_mxp_attr_bin(struct np_mx_properties * prop, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
+    enum np_data_return np_set_mxp_attr_bin(np_context *ac,   char * subject,         enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
 
     NP_API_EXPORT
-    enum np_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
+    enum np_data_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
     //NP_API_EXPORT
-    //enum np_return np_get_attr_bin(np_mx_properties * prop, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
+    //enum np_data_return np_get_attr_bin(np_mx_properties * prop, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
     //NP_API_EXPORT
-    //enum np_return np_get_attr_bin(np_token* ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
+    //enum np_data_return np_get_attr_bin(np_token* ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
+
+    // neuropil setup functions
+    NP_API_PROTEC
+    bool _np_attributes_init(np_state_t* context);
+    NP_API_PROTEC
+    void _np_attributes_destroy(np_state_t* context);
+    NP_API_PROTEC
+    np_attributes_t* _np_get_attributes_cache(np_state_t* context, enum np_msg_attr_type cache);
 
 #ifdef __cplusplus
 }

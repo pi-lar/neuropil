@@ -150,6 +150,7 @@ s
         double received_at;
         unsigned char * data;
         size_t data_length;
+        np_attributes_t attributes;
     } NP_PACKED(1);
 
     struct np_settings {
