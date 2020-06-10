@@ -18,6 +18,7 @@ extern "C" {
         np_key_not_found = 1,
         np_insufficient_memory,
         np_invalid_structure,
+        np_invalid_arguments,
         np_could_not_write_magicno,
         np_could_not_write_total_length,
         np_could_not_write_used_length,
