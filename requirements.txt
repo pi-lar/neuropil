@@ -4,4 +4,5 @@ Sphinx==1.7.3
 sphinxcontrib-cmtinc>=0.2
 sphinxcontrib-websupport==1.0.1
 cffi==1.13.2
-nose2==0.9.1plantuml
+nose2==0.9.1
+plantuml

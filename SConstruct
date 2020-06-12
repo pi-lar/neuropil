@@ -241,7 +241,7 @@ if int(analyze) and scan_build_exe:
 #     neuropil_env.Append(CPPPATH='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES  = ['neuropil.c',   'neuropil_data.c']
+SOURCES  = ['neuropil.c',   'neuropil_data.c',    'neuropil_attributes.c']
 SOURCES += ['dtime.c',      'np_time.c',          'np_aaatoken.c',      'np_axon.c',             'np_dendrit.c']
 SOURCES += ['np_glia.c',    'np_jobqueue.c',      'np_dhkey.c',       'np_key.c',           'np_keycache.c',         'np_bootstrap.c']
 SOURCES += ['np_bloom.c',   'np_log.c',           'np_memory.c',      'np_message.c',       'np_network.c',          'np_node.c']
@@ -249,7 +249,7 @@ SOURCES += ['np_pheromones.c', 'np_route.c',   'np_tree.c',          'np_util.c'
 SOURCES += ['np_scache.c',  'np_event.c',         'np_messagepart.c', 'np_statistics.c',    'np_responsecontainer.c']
 SOURCES += ['np_legacy.c',  'np_serialization.c', 'np_shutdown.c',    'np_token_factory.c', 'np_crypto.c' ]
 SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_comp_intent.c', 'core/np_comp_node.c', 'core/np_comp_alias.c']
-SOURCES += ['util/np_statemachine.c',  'neuropil_data.c',  'neuropil_attributes.c']
+SOURCES += ['util/np_statemachine.c']
 
 SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c']
 
