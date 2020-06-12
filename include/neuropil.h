@@ -21,8 +21,8 @@ extern "C" {
 #define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2020 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2020 pi-lar GmbH, Cologne, Germany"
 
-s
-    /* just in case NULL is not defined */
+
+/* just in case NULL is not defined */
 #ifndef NULL
 #define NULL (void*)0
 #endif
