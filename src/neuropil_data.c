@@ -34,7 +34,7 @@ struct __kv_pair
 
 enum np_data_return np_init_datablock(np_datablock_t *block, uint32_t block_length)
 {
-    enum np_data_return ret = np_ok;
+    enum np_data_return ret = np_data_ok;
     uint32_t overhead =
         sizeof(uint8_t) /*marker+value*/ +                                          // fixarray
         3 * (sizeof(uint8_t) /*marker*/ + sizeof(uint32_t) /*value:->see right*/) + // magic_no + total_length + used_length
@@ -95,13 +95,13 @@ enum np_data_return __read_datablock_fixed(enum np_data_return *error, struct __
 
 struct __np_datablock_s __read_datablock(np_datablock_t *block, enum np_data_return *error)
 {
-    *error = np_ok;
+    *error = np_data_ok;
     struct __np_datablock_s ret = {0};
 
     ret.ublock = ((unsigned char *)block);
     cmp_init(&ret.cmp, block, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-    if (__read_datablock_fixed(error, &ret) != np_ok)
+    if (__read_datablock_fixed(error, &ret) != np_data_ok)
     {
         // fprintf(stderr, "__read_datablock_0\n");
     }
@@ -120,7 +120,7 @@ struct __np_datablock_s __read_datablock(np_datablock_t *block, enum np_data_ret
 
 enum np_data_return __write_object(cmp_ctx_t *target, struct __kv_pair to_write)
 {
-    enum np_data_return ret = np_ok;
+    enum np_data_return ret = np_data_ok;
 
     uint8_t key_len = strnlen(to_write.key, 254)+1;
 
@@ -241,7 +241,7 @@ struct __kv_pair __search_for_key(char *key, cmp_ctx_t *cmp, unsigned char *star
         if (strncmp(tmp.key, key, 255) == 0)
         {
             ret = tmp;
-            *error = np_ok;
+            *error = np_data_ok;
             break;
         }
     }
@@ -252,13 +252,13 @@ enum np_data_return np_set_data(np_datablock_t *block, struct np_data_conf data_
 {
     enum np_data_return ret = np_could_not_read_object;
     struct __np_datablock_s db = __read_datablock(block, &ret);
-    if (ret == np_ok)
+    if (ret == np_data_ok)
     {
         unsigned char *end_of_datablock = db.ublock + db.used_length;
 
         struct __kv_pair tmp = __search_for_key(data_conf.key, &db.cmp, db.ublock, db.used_length, &ret);
 
-        if (ret == np_ok)
+        if (ret == np_data_ok)
         {
             //  key is already in datablock
             // overwrite data (as in: delete old object und add anew)
@@ -266,7 +266,7 @@ enum np_data_return np_set_data(np_datablock_t *block, struct np_data_conf data_
             db.used_length -= (tmp.end_of_object - tmp.start_of_object); // remove old_object_size;
         }
 
-        if (ret == np_key_not_found || ret == np_ok)
+        if (ret == np_key_not_found || ret == np_data_ok)
         {
             // check for space in block
             uint32_t new_object_size = sizeof(uint8_t) /*Marker*/ +sizeof(uint8_t) /*str size*/ + strnlen(data_conf.key, 254)/*Key*/+1 /*NULL byte*/;
@@ -316,14 +316,14 @@ enum np_data_return np_set_data(np_datablock_t *block, struct np_data_conf data_
                 ASSERT(actual_new_object_size == new_object_size,"object size does not match. actual: %"PRIu32" expected: %"PRIu32,actual_new_object_size,new_object_size);
 #endif
                 // update "used_length"
-                if (ret == np_ok)
+                if (ret == np_data_ok)
                 {
                     uint32_t new_used_length = (unsigned char *)db.cmp.buf - db.ublock;
                     struct __np_datablock_s overwrite = {0};
                     overwrite.ublock = ((unsigned char *)block);
                     cmp_init(&overwrite.cmp, block, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-                    if (__read_datablock_fixed(&ret, &overwrite) != np_ok)
+                    if (__read_datablock_fixed(&ret, &overwrite) != np_data_ok)
                     {
                         // fprintf(stderr, "np_set_data.__read_datablock_fixed\n");
                         ret = np_could_not_read_object;
@@ -349,11 +349,11 @@ enum np_data_return np_get_data(np_datablock_t *block, char key[255], struct np_
 {
     enum np_data_return ret = np_could_not_read_object;
     struct __np_datablock_s db = __read_datablock(block, &ret);
-    if (ret == np_ok)
+    if (ret == np_data_ok)
     {
         struct __kv_pair tmp = __search_for_key(key, &db.cmp, db.ublock, db.used_length, &ret);
 
-        if (ret == np_ok)
+        if (ret == np_data_ok)
         {
             if(out_data_config != NULL) {
                 out_data_config->data_size = tmp.data_size;
@@ -391,7 +391,7 @@ enum np_data_return np_get_data_size(np_datablock_t *block, size_t *out_block_si
     assert(out_block_size != NULL);
     enum np_data_return ret = np_invalid_argument;
     struct __np_datablock_s db = __read_datablock(block, &ret);
-    if (ret == np_ok)
+    if (ret == np_data_ok)
     {
         *out_block_size = db.used_length;
     }else{
@@ -405,19 +405,19 @@ enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src)
     enum np_data_return ret = np_could_not_read_object;
     if(src != NULL){
         struct __np_datablock_s db = __read_datablock(src, &ret);
-        if (ret == np_ok)
+        if (ret == np_data_ok)
         {
             while ((((unsigned char *)db.cmp.buf) - db.ublock) < db.used_length)
             {
                 struct __kv_pair tmp = __read_object(&db.cmp, &ret);
-                if(ret != np_ok)break;
+                if(ret != np_data_ok)break;
 
                 struct np_data_conf cfg;
                 cfg.data_size = tmp.data_size;
                 cfg.type = tmp.data_type;
                 strncpy(cfg.key,tmp.key,255);
                 ret  = np_set_data(dest,cfg, tmp.data);
-                if(ret != np_ok)break;
+                if(ret != np_data_ok)break;
             }
         }
     }

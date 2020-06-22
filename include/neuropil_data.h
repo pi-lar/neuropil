@@ -14,7 +14,7 @@ extern "C" {
     #define NP_DATA_MAGIC_NO 22964591
 
     enum np_data_return {
-        //np_ok = 0,
+        np_data_ok = 0,
         np_key_not_found = 1,
         np_insufficient_memory,
         np_invalid_structure,
