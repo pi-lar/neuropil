@@ -14,9 +14,9 @@ class MsgDeliveryTest(unittest.TestCase):
     def test_msg_delivery(self):
         global msg_delivery_succ
 
-        np_c = NeuropilCluster(    3, port_range=4000, auto_run=False, log_file_prefix="logs/smoke_msg_delivery_cl_")
-        np_1 = NeuropilNode(4444, log_file="logs/smoke_test_msg_delivery_nl1.log", auto_run=False, no_threads=6)
-        np_2 = NeuropilNode(5555, log_file="logs/smoke_test_msg_delivery_nl2.log",auto_run=False)
+        np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_msg_delivery_cl_")
+        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_msg_delivery_nl1.log", auto_run=False, no_threads=6)
+        np_2 = NeuropilNode(4002, log_file="logs/smoke_test_msg_delivery_nl2.log",auto_run=False)
 
         subject = b"NP.TEST.msg_delivery"
         mxp1 = np_1.get_mx_properties(subject)        
