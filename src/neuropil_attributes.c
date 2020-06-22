@@ -30,7 +30,7 @@ bool _np_attributes_init(np_state_t* context)
 
     for (int i = 0; i < NP_ATTR_MAX; i++)
     {
-        ret = np_ok == np_init_datablock(&_module->attribute_cache[i], sizeof(np_attributes_t));
+        ret = np_ok == np_init_datablock((np_datablock_t*)&_module->attribute_cache[i], sizeof(np_attributes_t));
         if(!ret) break;
     }
     return ret;
