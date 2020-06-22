@@ -42,7 +42,7 @@ enum np_data_return np_init_datablock(np_datablock_t *block, uint32_t block_leng
         ;                                                                           // 21 byte
     if (block_length <= overhead)
     {
-        ret = np_invalid_argument;
+        ret = np_invalid_arguments;
     }
     else
     {
@@ -79,7 +79,7 @@ enum np_data_return __read_datablock_fixed(enum np_data_return *error, struct __
     uint32_t magic_no, array_size;
     if (!cmp_read_array(&ret->cmp, &array_size) && array_size == 4)
     {
-        *error = np_invalid_argument;
+        *error = np_invalid_arguments;
     }
     else if (!cmp_read_u32(&ret->cmp, &magic_no) && NP_DATA_MAGIC_NO == magic_no) // magic_no
     {
@@ -163,7 +163,7 @@ enum np_data_return __write_object(cmp_ctx_t *target, struct __kv_pair to_write)
     } // ... other types
     else
     {
-        ret = np_invalid_argument;
+        ret = np_invalid_arguments;
     }
     return ret;
 }
@@ -215,7 +215,7 @@ struct __kv_pair __read_object(cmp_ctx_t *cmp, enum np_data_return *error)
         } // ... other types
         else
         {
-            *error = np_invalid_argument;
+            *error = np_invalid_arguments;
         }
     }
     ret.end_of_object = cmp->buf;
@@ -360,7 +360,7 @@ enum np_data_return np_get_data(np_datablock_t *block, char key[255], struct np_
                 out_data_config->type = tmp.data_type;
                 strncpy(out_data_config->key, key, 255);
             }
-            if (out_data != NULL)
+            if (out_data != NULL){
                 if (tmp.data_type == NP_DATA_TYPE_BIN)
                 {
                     out_data->bin = tmp.data.bin;
@@ -381,6 +381,7 @@ enum np_data_return np_get_data(np_datablock_t *block, char key[255], struct np_
                 {
                     ASSERT(false, "missing implementation");
                 }
+            }
         }
     }
     return ret;
@@ -389,7 +390,7 @@ enum np_data_return np_get_data(np_datablock_t *block, char key[255], struct np_
 enum np_data_return np_get_data_size(np_datablock_t *block, size_t *out_block_size)
 {
     assert(out_block_size != NULL);
-    enum np_data_return ret = np_invalid_argument;
+    enum np_data_return ret = np_invalid_arguments;
     struct __np_datablock_s db = __read_datablock(block, &ret);
     if (ret == np_data_ok)
     {
