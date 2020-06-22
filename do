@@ -80,9 +80,40 @@ task_build() {
     fi
   fi
 
-  scons "$type" "target=$target" "$@" |& tee /tmp/np_sorted.log
+  tmpfile_sorted=$(mktemp /tmp/np_sorted.log.XXXXXX)
+  tmpfile_sorted2=$(mktemp /tmp/np_sorted.log.XXXXXX)
+
+  echo "executing: scons $type target=$target $@ |& tee $tmpfile_sorted"
+  (scons "$type" "target=$target" "$@" |& tee "$tmpfile_sorted")
   ret=${PIPESTATUS[0]}
-  ./sorted_output.sh /tmp/np_sorted.log
+  set +e
+  egrep "warning:|error:" "$tmpfile_sorted" > "$tmpfile_sorted2"
+  filterd=$(cat "$tmpfile_sorted2")
+  if [ "$?" == "0" ]; then
+    filterd=$(echo "$filterd" | sort)
+    filterd=$(echo "$filterd" | grep -v "/event/")
+    filterd=$(echo "$filterd" | uniq)
+    echo "$filterd"
+
+    warnings=$(echo "$filterd" | grep "warning:")
+    if [ "$?" != "0" ]; then
+      warn="0"
+    else
+      warn=$(echo "$warnings" | wc -l)
+    fi
+    errors=$(echo "$filterd" | grep "error:")
+    if [ "$?" != "0" ]; then
+      err="0"
+    else
+      err=$(echo "$errors" | wc -l)
+    fi
+    echo "$warnings"
+    echo "$errors"
+    printf "Warnings:\t%s\n" "$warn"
+    printf "Errors:\t\t%s\n" "$err"
+  fi
+  set -e
+
   return $ret
 }
 
