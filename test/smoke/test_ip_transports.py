@@ -12,12 +12,12 @@ from ctypes import c_char, c_bool, c_int
 class IPTransportTest(unittest.TestCase):
     
     # common class variables for each process
-    np_0_addr = b"*:tcp4:localhost:4444"
-    np_1_addr = b"*:udp4:localhost:5555"
-    np_2_addr = b"*:tcp6:localhost:6666"
-    np_3_addr = b"*:udp6:localhost:7777"
-    np_4_addr = b"*:pas4:localhost:8888"
-    np_5_addr = b"*:pas6:localhost:9999"
+    np_0_addr = b"*:tcp4:localhost:4001"
+    np_1_addr = b"*:udp4:localhost:4002"
+    np_2_addr = b"*:tcp6:localhost:4003"
+    np_3_addr = b"*:udp6:localhost:4004"
+    np_4_addr = b"*:pas4:localhost:4005"
+    np_5_addr = b"*:pas6:localhost:4006"
 
     # test targets
     udp4_connections = Value(c_int, 0)
@@ -38,13 +38,13 @@ class IPTransportTest(unittest.TestCase):
 
         # print("{node} is authenticating issuer: {subject}".format(node=node.get_fingerprint(), subject=token.subject))
 
-        if (token.subject.find("tcp4:localhost:4444")):
+        if (token.subject.find("tcp4:localhost:4001")):
             IPTransportTest.tcp4_connections.value += 1
-        if (token.subject.find("udp4:localhost:5555")):
+        if (token.subject.find("udp4:localhost:4002")):
             IPTransportTest.udp4_connections.value += 1
-        if (token.subject.find("tcp6:localhost:6666")):
+        if (token.subject.find("tcp6:localhost:4003")):
             IPTransportTest.tcp6_connections.value += 1
-        if (token.subject.find("udp6:localhost:7777")):
+        if (token.subject.find("udp6:localhost:4004")):
             IPTransportTest.udp6_connections.value += 1
         if (token.subject.find("pas4:localhost")):
             IPTransportTest.pas4_connections.value += 1
@@ -54,7 +54,7 @@ class IPTransportTest(unittest.TestCase):
         return True
 
     def run_tcp4(self):
-        np_0 = NeuropilNode(4444, log_file="logs/smoke_test_ip_transport_tcp4.log", auto_run=False, n_threads=5)
+        np_0 = NeuropilNode(4001, log_file="logs/smoke_test_ip_transport_tcp4.log", auto_run=False, n_threads=5)
         np_0.set_authenticate_cb(IPTransportTest.authn_allow_all)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
         #                                           node=IPTransportTest.np_0_fp.value, 
@@ -74,7 +74,7 @@ class IPTransportTest(unittest.TestCase):
         np_0.shutdown()
 
     def run_tcp6(self):
-        np_2 = NeuropilNode(6666, log_file="logs/smoke_test_ip_transport_tcp6.log", auto_run=False, n_threads=5)
+        np_2 = NeuropilNode(4003, log_file="logs/smoke_test_ip_transport_tcp6.log", auto_run=False, n_threads=5)
         np_2.set_authenticate_cb(IPTransportTest.authn_allow_all)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
         #                                           node=IPTransportTest.np_0_fp.value, 
@@ -94,7 +94,7 @@ class IPTransportTest(unittest.TestCase):
         np_2.shutdown()
 
     def run_udp4(self):
-        np_1 = NeuropilNode(5555, log_file="logs/smoke_test_ip_transport_udp4.log", auto_run=False, n_threads=5)
+        np_1 = NeuropilNode(4002, log_file="logs/smoke_test_ip_transport_udp4.log", auto_run=False, n_threads=5)
         np_1.set_authenticate_cb(IPTransportTest.authn_allow_all)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
         #                                           node=IPTransportTest.np_0_fp.value, 
@@ -113,7 +113,7 @@ class IPTransportTest(unittest.TestCase):
         np_1.shutdown()
 
     def run_udp6(self):
-        np_3 = NeuropilNode(7777, log_file="logs/smoke_test_ip_transport_udp6.log", auto_run=False, n_threads=5)
+        np_3 = NeuropilNode(4004, log_file="logs/smoke_test_ip_transport_udp6.log", auto_run=False, n_threads=5)
         np_3.set_authenticate_cb(IPTransportTest.authn_allow_all)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
         #                                           node=IPTransportTest.np_0_fp.value, 
@@ -133,7 +133,7 @@ class IPTransportTest(unittest.TestCase):
         np_3.shutdown()
 
     def run_pas4(self):
-        np_4 = NeuropilNode(8888, log_file="logs/smoke_test_ip_transport_pas4.log", proto="pas4", auto_run=False, n_threads=5)
+        np_4 = NeuropilNode(4005, log_file="logs/smoke_test_ip_transport_pas4.log", proto="pas4", auto_run=False, n_threads=5)
         np_4.set_authenticate_cb(IPTransportTest.authn_allow_all)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
         #                                           node=IPTransportTest.np_0_fp.value, 
@@ -153,7 +153,7 @@ class IPTransportTest(unittest.TestCase):
         np_4.shutdown()
 
     def run_pas6(self):
-        np_5 = NeuropilNode(9999, log_file="logs/smoke_test_ip_transport_pas6.log", proto="pas6", auto_run=False, n_threads=5)
+        np_5 = NeuropilNode(4006, log_file="logs/smoke_test_ip_transport_pas6.log", proto="pas6", auto_run=False, n_threads=5)
         np_5.set_authenticate_cb(IPTransportTest.authn_allow_all)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
         #                                           node=IPTransportTest.np_0_fp.value, 

@@ -110,8 +110,6 @@ NP_API_INTERN
 void _np_message_del_footerentry(np_message_t*, const char* key);
 
 NP_API_INTERN
-void _np_message_set_to(np_message_t* msg, np_dhkey_t target);
-NP_API_INTERN
 char* _np_message_get_subject(const np_message_t* const self);
 NP_API_INTERN
 double _np_message_get_expiery(const np_message_t* const self);

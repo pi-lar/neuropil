@@ -22,7 +22,7 @@ extern "C" {
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2020 pi-lar GmbH, Cologne, Germany"
 
 
-    /* just in case NULL is not defined */
+/* just in case NULL is not defined */
 #ifndef NULL
 #define NULL (void*)0
 #endif
@@ -42,7 +42,7 @@ extern "C" {
     #if defined(__APPLE__) && defined(__MACH__)
         #define NP_ENUM __attribute__((flag_enum))
     #else
-        #define NP_ENUM 
+        #define NP_ENUM
     #endif
 #endif
 
@@ -90,31 +90,39 @@ extern "C" {
         NP_EXTENSION_BYTES = 10240,
     } NP_CONST_ENUM;
 
-
     enum np_status {
         np_error = 0,
         np_uninitialized,
         np_running,
         np_stopped,
-        np_shutdown,		
+        np_shutdown,
     } NP_CONST_ENUM;
 
     enum np_return {
         np_ok = 0,
+        np_unknown_error,
         np_not_implemented,
         np_network_error,
         np_invalid_argument,
         np_invalid_operation,
-        np_startup
+        np_startup,
     } NP_CONST_ENUM;
 
     NP_API_EXPORT
     const char *np_error_str(enum np_return e);
 
-    typedef void np_context;    
+    struct version_t {
+        uint8_t major;
+        uint8_t minor;
+        uint8_t patch;
+    } NP_PACKED(1);
 
-    typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
-        
+    typedef void np_context;
+
+   typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
+   typedef unsigned char np_attributes_t[NP_EXTENSION_BYTES];
+   typedef unsigned char np_signature_t[NP_SIGNATURE_BYTES];
+
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
@@ -123,28 +131,28 @@ extern "C" {
     struct np_token {
         char uuid[NP_UUID_BYTES];
         char subject[255]; // todo: has to be np_id
-        char issuer[65]; // todo: has to be np_id		
-        char realm[255]; // todo: has to be np_id		
-        char audience[255]; // todo: has to be np_id		
+        char issuer[65]; // todo: has to be np_id
+        char realm[255]; // todo: has to be np_id
+        char audience[255]; // todo: has to be np_id
         double  issued_at, not_before, expires_at;
         unsigned char public_key[NP_PUBLIC_KEY_BYTES],
                 secret_key[NP_SECRET_KEY_BYTES];
-        unsigned char signature[NP_SIGNATURE_BYTES];
+        np_signature_t signature;
 
-        size_t  extension_length;
-        unsigned char extensions[NP_EXTENSION_BYTES];
-        unsigned char ext_signature[NP_SIGNATURE_BYTES];
+        np_attributes_t attributes;
+        np_signature_t attributes_signature;
     } NP_PACKED(1);
-    
+
     struct np_message {
         char uuid[NP_UUID_BYTES];
-        np_id from; 
-        np_id subject;		
+        np_id from;
+        np_id subject;
         double received_at;
         unsigned char * data;
         size_t data_length;
+        np_attributes_t attributes;
     } NP_PACKED(1);
-        
+
     struct np_settings {
         uint32_t n_threads;
         char log_file[256];
@@ -170,7 +178,7 @@ extern "C" {
 
     NP_API_EXPORT
     enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
-    
+
     NP_API_EXPORT
     enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
 
@@ -187,7 +195,7 @@ extern "C" {
 
     NP_API_EXPORT
     enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length);
-    
+
     typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
     // There can be more than one receive callback, hence "add".
@@ -201,7 +209,7 @@ extern "C" {
     enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
     NP_API_EXPORT
     enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
-    
+
 
     // duration: 0 => process pending events and return
     //           N => process events for up to N seconds and return
@@ -231,17 +239,17 @@ extern "C" {
     void np_set_userdata(np_context * ac, void* userdata);
     NP_API_EXPORT
     void* np_get_userdata(np_context * ac);
-    
+
 
     NP_API_EXPORT
         enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target));
     NP_API_EXPORT
-        bool np_has_joined(np_context * ac);		
+        bool np_has_joined(np_context * ac);
     NP_API_EXPORT
         enum np_status np_get_status(np_context* ac);
     NP_API_EXPORT
-        bool np_has_receiver_for(np_context*ac, const char * subject);	
-    NP_API_EXPORT        
+        bool np_has_receiver_for(np_context*ac, const char * subject);
+    NP_API_EXPORT
         void np_id_str(char str[65], const np_id id);
     NP_API_EXPORT
         void np_str_id(np_id (*id), const char str[65]);
@@ -257,8 +265,6 @@ extern "C" {
 #endif /* _NP_INTERFACE_H_ */
 
 /**
-
-\toggle_keepwhitespaces 
 
 .. raw:: html
 
@@ -276,11 +282,8 @@ Initialization
 
    Creates a new neuropil application context.
 
-   :param settings:
-       a :c:type:`np_settings` structure used to configure the application
-       context.
-   :return:
-       a pointer to the newly created application context.
+   :param settings:         a :c:type:`np_settings` structure used to configure the application context.
+   :return:        a pointer to the newly created application context.
 
 .. c:type:: void np_context
 
@@ -290,8 +293,7 @@ Initialization
 
    Initializes a :c:type:`np_settings` structure to the default settings.
 
-   :param settings:
-       a pointer to the :c:type:`np_settings` structure to be initialized.
+   :param settings:         a pointer to the :c:type:`np_settings` structure to be initialized.
 
 .. c:type:: struct np_settings
 
@@ -317,26 +319,18 @@ Identity management
 
    Creates a new neuropil identity.
 
-   :param ac:
-       a neuropil application context.
-   :param expires_at:
-       expiry date of the identity in seconds since the Unix epoch.
-   :param secret_key:
-       the secret key used by the identity. If `NULL` is supplied a random key
-       is generated.
-   :return:
-       an *identity token*.
+   :param ac:         a neuropil application context.
+   :param expires_at: expiry date of the identity in seconds since the Unix epoch.
+   :param secret_key: the secret key used by the identity. If `NULL` is supplied a random key is generated.
+   :return:        an *identity token*.
 
 .. c:function:: enum np_return np_set_identity(np_context* ac, struct np_token identity)
 
    Sets the identity used by the neuropil node.
 
-   :param ac:
-       a neuropil application context.
-   :param identity:
-       the *identity* to use.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:       a neuropil application context.
+   :param identity: the *identity* to use.
+   :return:        :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -353,18 +347,11 @@ Starting up
 
    Binds a neuropil application context to a listening address.
 
-   :param ac:
-       a neuropil application context.
-   :param protocol:
-       a string denoting the underlying protocol to be used. Currently, only
-       `"udp4"` is supported.
-   :param host:
-       the hostname to listen on. I.e., `"localhost"` to listen on the loopback
-       interface.
-   :param port:
-       the port to listen on. If *port* is zero, the default port 3141 is used.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac: a neuropil application context.
+   :param protocol: a string denoting the underlying protocol to be used. Currently, only `"udp4"` is supported.
+   :param host: the hostname to listen on. I.e., `"localhost"` to listen on the loopback interface.
+   :param port: the port to listen on. If *port* is zero, the default port 3141 is used.
+   :return:        :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -377,16 +364,10 @@ Starting up
 
    Gets the absolute address of the neuropil node within the overlay network.
 
-   :param ac:
-       a neuropil application context.
-   :param address:
-       a pointer to the address string to be written to.
-   :param max:
-       the size in bytes of *address*. Should be large enough to hold the
-       resulting address string. The required space depends on the node’s host
-       name (i.e., 1000 bytes should be more than enough for most uses.)
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac: a neuropil application context.
+   :param address: a pointer to the address string to be written to.
+   :param max: the size in bytes of *address*. Should be large enough to hold the resulting address string. The required space depends on the node’s host name (i.e., 1000 bytes should be more than enough for most uses.)
+   :return:        :c:data:`np_ok` on success.
        
    ===============================  ===========================================
    Status                           Meaning
@@ -399,13 +380,9 @@ Starting up
 
    Adds a bootstrap node to be used by this node to join the neuropil network.
 
-   :param ac:
-       a neuropil application context.
-   :param address:
-       a string that denotes an absolute address as obtained by
-       :c:func:`np_get_address`.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:         a neuropil application context.
+   :param address:         a string that denotes an absolute address as obtained by :c:func:`np_get_address`.
+   :return:        :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -421,17 +398,11 @@ Sending and receiving messages
 
    Sends a message on a given subject.
 
-   :param ac:
-       a neuropil application context.
-   :param subject:
-       the subject to send on.
-   :param message:
-       a pointer to a buffer containing the message to be sent. The message
-       could be, for instance, encoded using `MessagePack <https://msgpack.org/>`_.
-   :param length:
-       the length of *message* in bytes.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:       a neuropil application context.
+   :param subject:  the subject to send on.
+   :param message:  a pointer to a buffer containing the message to be sent. The message could be, for instance, encoded using `MessagePack <https://msgpack.org/>`_.
+   :param length:   the length of *message* in bytes.
+   :return:         :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -445,15 +416,10 @@ Sending and receiving messages
    It is possible to add more than one receive callback for a given subject, in
    which case they are run in the order in which they were added.
 
-   :param ac:
-       a neuropil application context.
-   :param subject:
-       the subject to receive on.
-   :param callback:
-       a pointer to a function of type :c:type:`np_receive_callback` that
-       denotes the callback to be added.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:        a neuropil application context.
+   :param subject:   the subject to receive on.
+   :param callback:  a pointer to a function of type :c:type:`np_receive_callback` that denotes the callback to be added.
+   :return:          :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -469,11 +435,8 @@ Sending and receiving messages
    callback returns (:c:data:`false`), the message is considered rejected and
    no further callbacks for the subject are executed.
 
-   :param message:
-       a pointer to a :c:type:`np_message` structure.
-   :return:
-       a boolean that indicates if the receipt was acknowledged
-       (:c:data:`true`) or rejected (:c:data:`false`.)
+   :param message:         a pointer to a :c:type:`np_message` structure.
+   :return:        a boolean that indicates if the receipt was acknowledged (:c:data:`true`) or rejected (:c:data:`false`.)
 
 .. c:type:: struct np_message
 
@@ -510,15 +473,10 @@ Sending and receiving messages
    best-effort message delivery without any attempt at retransmission and if
    delivered messages are guaranteed to be delivered once only.
 
-   :param ac:
-       a neuropil application context.
-   :param subject:
-       the subject to configure message exchange semantics on.
-   :param properties:
-       a pointer to a :c:type:`np_mx_properties` structure that describes the
-       semantics to be applied.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:          a neuropil application context.
+   :param subject:     the subject to configure message exchange semantics on.
+   :param properties:  a pointer to a :c:type:`np_mx_properties` structure that describes the semantics to be applied.
+   :return:            :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -607,13 +565,9 @@ Authentication and authorization
    issued a given token is permitted to exchange messages over a given subject.
    If no authorization callback is set all message exchanges will be rejected.
 
-   :param ac:
-       a neuropil application context.
-   :param callback:
-       a pointer to a function of type :c:type:`np_aaa_callback` that
-       denotes the callback to be set.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:        a neuropil application context.
+   :param callback:  a pointer to a function of type :c:type:`np_aaa_callback` that denotes the callback to be set.
+   :return:          :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -629,13 +583,9 @@ Authentication and authorization
    is set only standard neuropil authentication is performed. Note that
    authenticated nodes are permitted to join the overlay network.
 
-   :param ac:
-       a neuropil application context.
-   :param callback:
-       a pointer to a function of type :c:type:`np_aaa_callback` that denotes
-       the callback to be set.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:        a neuropil application context.
+   :param callback:  a pointer to a function of type :c:type:`np_aaa_callback` that denotes the callback to be set.
+   :return:          :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
@@ -649,11 +599,8 @@ Authentication and authorization
    functions are to inspect and verify the contents of the *aaa_token* they are
    provided and either accept or reject the token.
 
-   :param aaa_token:
-       a pointer to a :c:type:`np_token` structure to be verified.
-   :return:
-       a boolean that indicates if the token was accepted (:c:data:`true`) or
-       rejected (:c:data:`false`.)
+   :param aaa_token:         a pointer to a :c:type:`np_token` structure to be verified.
+   :return:        a boolean that indicates if the token was accepted (:c:data:`true`) or rejected (:c:data:`false`.)
 
 ------
 Tokens
@@ -714,13 +661,9 @@ Fingerprints
 
    Computes the fingerprint (or overlay address) of a serialized object.
 
-   :param id:
-       a :c:type:`np_id` to be written.
-   :param string:
-       the data to be hashed.
-   :param length:
-       the length of the input data in bytes. If *length* is zero, *string* is
-       expected to be a zero-terminated string.
+   :param id:         a :c:type:`np_id` to be written.
+   :param string:         the data to be hashed.
+   :param length:         the length of the input data in bytes. If *length* is zero, *string* is expected to be a zero-terminated string.
 
    :c:func:`np_get_id` constructs fingerprints by means of a cryptographic,
    one-way hash function. Hence, fingerprints are unique, unforgeable object
@@ -745,14 +688,9 @@ Running your application
    messages are transmitted and received, and the associated callbacks are
    executed.
 
-   :param ac:
-       a neuropil application context.
-   :param duration:
-       the duration in seconds allotted to execute the event loop. If
-       *duration* is zero :c:func:`np_run` will return as soon as it has
-       processed all outstanding events.
-   :return:
-       :c:data:`np_ok` on success.
+   :param ac:       a neuropil application context.
+   :param duration: the duration in seconds allotted to execute the event loop. If *duration* is zero :c:func:`np_run` will return as soon as it has processed all outstanding events.
+   :return:          :c:data:`np_ok` on success.
 
 ----------------
 Detecting errors

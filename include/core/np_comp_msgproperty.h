@@ -17,6 +17,8 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
+#include "neuropil.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -276,8 +278,8 @@ struct np_msgproperty_s
     // cache which will hold up to max_threshold messages
     np_msgcache_policy_type cache_policy;
     uint16_t  cache_size;
-    uint8_t  msg_threshold; // current cache size
-    uint8_t  max_threshold; // local cache size
+    uint32_t  msg_threshold; // current cache size
+    uint32_t  max_threshold; // local cache size
 
     bool is_internal;
 
@@ -315,6 +317,8 @@ struct np_msgproperty_s
 
     np_message_intent_public_token_t* current_sender_token;
     np_message_intent_public_token_t* current_receive_token;
+
+    np_attributes_t attributes;
 
 } NP_API_EXPORT;
 

@@ -34,6 +34,8 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
+#include "neuropil_data.h"
+
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_msgproperty_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
@@ -91,6 +93,8 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
 
     prop->current_sender_token = NULL;
     prop->current_receive_token = NULL;
+
+    np_init_datablock(prop->attributes,sizeof(prop->attributes));
 }
 
 void _np_msgproperty_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)
@@ -948,9 +952,18 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t* statemachine, NP_UNUSE
         }
         else
         {
-            log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG, "--- update mxtoken for subject: %25s --------", property->msg_subject);
-            np_tree_replace_str(iter->val->extensions, "max_threshold", np_treeval_new_ush(property->max_threshold));
-            // np_tree_replace_str(iter->val->extensions, "msg_threshold", np_treeval_new_ush(property->msg_threshold));
+            log_debug(LOG_MSGPROPERTY, "--- update mxtoken for subject: %25s token: %s--------", property->msg_subject,iter->val->uuid);
+            np_data_value max_threshold;
+            max_threshold.unsigned_integer = property->max_threshold;
+            enum np_data_return r;
+            r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, max_threshold);
+            ASSERT(r == np_ok,"Could not write \"max_threshold\" into attributes. Error: %"PRIu32, r);
+            /*
+            np_data_value msg_threshold;
+            msg_threshold.unsigned_integer = property->msg_threshold;
+            r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key = "msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, msg_threshold);
+            ASSERT(r == np_ok,"Could not write \"msg_threshold\" into attributes. Error: %"PRIu32, r);
+            */
         }
 
         if (iter != NULL) pll_next(iter);
@@ -1351,7 +1364,7 @@ bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_e
     log_trace_msg(LOG_TRACE, "start: bool __is_external_message(...){");
 
     bool ret = false;
-    
+
     if (!ret) ret  = FLAG_CMP(event.type, evt_message) && FLAG_CMP(event.type, evt_external);
     if ( ret) ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
@@ -1502,7 +1515,7 @@ void __np_response_handler_set(np_util_statemachine_t* statemachine, const np_ut
             _np_msgproperty_threshold_decrease(property);        
         }
         np_unref_obj(np_responsecontainer_t, responsehandler, ref_obj_usage);
-    }    
+    }
 }
 
 bool __is_message_redelivery_event(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -1534,7 +1547,7 @@ bool __is_response_event(np_util_statemachine_t* statemachine, const np_util_eve
 }
 
 void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_util_event_t event)
-{ 
+{
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_property_handle_intent(...){");
 
@@ -1544,7 +1557,8 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, real_prop);
 
     // always?: just store the available tokens in memory and update them if new data arrives
-    np_dhkey_t sendtoken_issuer_key = np_aaatoken_get_partner_fp(intent_token); 
+    np_dhkey_t sendtoken_issuer_key = np_aaatoken_get_partner_fp(intent_token);
+
     if (_np_dhkey_equal(&sendtoken_issuer_key, &context->my_node_key->dhkey) )
     {
         // only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)

@@ -46,7 +46,7 @@ Step 2: joining the network
 The initiating node transmits a *join message* to its peer. The join message
 contains the identity that uses the node. This identity may or may not be
 identical to the node token. If they differ, then the identity must also
-contain the fingerprint of the node token in an extension field. Later on, this
+contain the fingerprint of the node token in an attribute field. Later on, this
 reference is used for routing purposes.
 
 The receiving node can now authenticate and authorize the identity that is

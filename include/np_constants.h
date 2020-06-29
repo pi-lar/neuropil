@@ -52,6 +52,7 @@ extern "C" {
 	#define NP_SERIALISATION_NODE_LAST_SUCCESS		"np.n.ls"
 
 	#define NP_SERIALISATION_USERDATA				"np.userdata"
+	#define NP_SERIALISATION_ATTRIBUTES				"np.attributes"
 
 	#define NP_NONCE  "_np.nonce"
 	#define NP_ENCRYPTED  "_np.encrypted"

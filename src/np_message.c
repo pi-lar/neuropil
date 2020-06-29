@@ -778,6 +778,7 @@ void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const
     {
         _np_message_setbody(msg, the_data);
     }
+    _np_message_trace_info("MSG_CREATE", msg);
 }
 
 inline void _np_message_setinstructions(np_message_t* msg, np_tree_t* instructions)
@@ -791,13 +792,6 @@ inline void _np_message_setbody(np_message_t* msg, np_tree_t* body)
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
     if (msg->body != NULL) np_tree_free(msg->body);
     msg->body = body;
-    // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
-};
-
-inline void _np_message_set_to(np_message_t* msg, np_dhkey_t target)
-{
-    // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body before %p", msg->body);
-    np_tree_replace_str( msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(target));
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "now setting body after %p", msg->body);
 };
 
@@ -1057,6 +1051,6 @@ void _np_message_trace_info(char* desc, np_message_t * msg_in) {
     info_str = np_str_concatAndFree(info_str, ": %s", msg_in->uuid);	
 #endif
 
-    log_msg(LOG_MESSAGE | LOG_DEBUG, info_str);	
+    log_debug(LOG_MESSAGE, info_str);	
     free(info_str);
 }

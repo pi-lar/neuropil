@@ -464,23 +464,32 @@ void np_print_startup(np_context * context) {
     }
 }
 
-bool __np_example_helper_authz_everyone (np_context* ac, struct np_token* token)
+bool __np_example_helper_authorize_everyone (np_context* ac, struct np_token* token)
 {
     np_ctx_cast(ac);
     log_error("using DANGEROUS handler (authorize all) to allow authorization for: %s", token->subject );
+    np_example_print(context, stdout, "ALLOW authorize: %s / %s\n", token->subject, token->issuer);
     return (true);
 }
-
+bool __np_example_helper_authenticate_everyone (np_context* ac, struct np_token* token)
+{
+    np_ctx_cast(ac);
+    log_error("using DANGEROUS handler (authorize all) to allow authenticate for: %s", token->subject );
+    np_example_print(context, stdout, "ALLOW authenticate:  %s / %s\n", token->subject, token->issuer);
+    return (true);
+}
 bool __np_example_helper_acc_everyone (np_context* ac, struct np_token* token)
 {
     np_ctx_cast(ac);
-    log_error("using DANGEROUS handler (account all) to allow authorization for: %s", token->subject );
+    log_error("using DANGEROUS handler (account all) to allow accounting for: %s", token->subject );
+    np_example_print(context, stdout, "ALLOW accounting:    %s / %s\n", token->subject, token->issuer);
     return (true);
 }
 
 void np_example_helper_allow_everyone(np_context* ac) {
 
-    np_set_authorize_cb(ac, __np_example_helper_authz_everyone);
+    np_set_authorize_cb(ac, __np_example_helper_authorize_everyone);
+    np_set_authenticate_cb(ac, __np_example_helper_authenticate_everyone);
     np_set_accounting_cb(ac, __np_example_helper_acc_everyone);
 }
 
@@ -754,10 +763,11 @@ example_user_context* parse_program_args(
              | LOG_ROUTING
             // | LOG_HTTP
             // | LOG_KEY
-             | LOG_NETWORK
+            //| LOG_NETWORK
             // | LOG_HANDSHAKE
-            // | LOG_AAATOKEN
-            // | LOG_SYSINFO
+             | LOG_AAATOKEN
+             | LOG_MSGPROPERTY
+             | LOG_SYSINFO
              | LOG_MESSAGE
             // | LOG_SERIALIZATION
             // | LOG_MEMORY

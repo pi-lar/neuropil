@@ -445,7 +445,7 @@ np_treeval_t np_treeval_new_bin (void* data, uint32_t ul)
 {
     np_treeval_t j;
 
-    j.value.bin = data; 
+    j.value.bin = data;
     j.size = ul;
     j.type = np_treeval_type_bin;
 

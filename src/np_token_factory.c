@@ -31,6 +31,8 @@
 #include "np_token_factory.h"
 #include "np_memory.h"
 #include "np_statistics.h"
+#include "neuropil_data.h"
+#include "neuropil_attributes.h"
 
 // create a new aaa token
 np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
@@ -129,6 +131,8 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
         ret->issuer_token = source;
     }
 
+    memcpy(ret->attributes, source->attributes, sizeof(source->attributes));
+
     return (ret);
 }
 
@@ -167,7 +171,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     ASSERT(msg_request != NULL, "source messageproperty cannot be NULL");
 
     np_aaatoken_t* identity_token = _np_key_get_token(context->my_identity);
-    
+
     ret = __np_token_factory_derive(identity_token, np_aaatoken_scope_private_available);
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
     ret->type = np_aaatoken_type_message_intent;
@@ -193,31 +197,35 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     // memcpy((char*)ret->crypto.ed25519_public_key,
     //        (char*)identity_token->crypto.ed25519_public_key,
     //        crypto_sign_PUBLICKEYBYTES);
-    
-    np_tree_replace_str( ret->extensions, "mep_type",
-        np_treeval_new_ul(msg_request->mep_type));
-    np_tree_replace_str( ret->extensions, "ack_mode",
-        np_treeval_new_ush(msg_request->ack_mode));
-    np_tree_replace_str( ret->extensions, "max_threshold",
-        np_treeval_new_ush(msg_request->max_threshold));
-    np_tree_replace_str( ret->extensions, "msg_threshold",
-        np_treeval_new_ush(0)); //TODO: correct ?
+    enum np_data_return tmp;
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="mep_type",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->mep_type});
+    ASSERT(np_ok == tmp,"Could not set \"mep_type\" data %"PRIu32,tmp);
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="ack_mode",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->ack_mode});
+    ASSERT(np_ok == tmp,"Could not set \"ack_mode\" data %"PRIu32,tmp);
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->max_threshold});
+    ASSERT(np_ok == tmp,"Could not set \"max_threshold\" data %"PRIu32,tmp);
+    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = 0});
+    ASSERT(np_ok == tmp,"Could not set \"msg_threshold\" data %"PRIu32,tmp);
 
     // TODO: insert value based on msg properties / respect (sticky) reply
     np_aaatoken_set_partner_fp(ret, context->my_node_key->dhkey);
+    // np_aaatoken_set_partner_fp calls _np_aaatoken_update_attributes_signature(ret);
+
     ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
+
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT));
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_USER_MSG));
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_IDENTITY));
 
     // fingerprinting and signing the token
     _np_aaatoken_set_signature(ret, NULL);
-    // _np_aaatoken_set_signature(ret);
-	_np_aaatoken_update_extensions_signature(ret);
 
     _np_aaatoken_trace_info("build_intent", ret);
 
     return (ret);
 }
 
-np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context) 
+np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
 {
     /// NP_PERFORMANCE_POINT_START(tokenfactory_new_handshake);
 
@@ -235,8 +243,14 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
     np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token, false);
     _np_dhkey_str(&node_dhkey, ret->issuer);
 
+    np_node_t* my_node = _np_key_get_node(context->my_node_key);
+    struct np_data_conf cfg;
+    strncpy(cfg.key,NP_HS_PRIO,255);
+    cfg.type = NP_DATA_TYPE_UNSIGNED_INT;
+    np_set_data(ret->attributes,cfg,(np_data_value)my_node->handshake_priority);
+
     _np_aaatoken_set_signature(ret, NULL);
-	_np_aaatoken_update_extensions_signature(ret);
+	_np_aaatoken_update_attributes_signature(ret);
 
 #ifdef DEBUG
     char my_token_fp_s[65] = { 0 };
@@ -286,8 +300,7 @@ np_node_private_token_t* _np_token_factory_new_node_token(np_state_t* context, e
     ret->type = np_aaatoken_type_node;
 
     _np_aaatoken_set_signature(ret, NULL);
-    _np_aaatoken_update_extensions_signature(ret);
-
+    _np_aaatoken_update_attributes_signature(ret);
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
     _np_aaatoken_trace_info("build_node", ret);
 
@@ -304,9 +317,13 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
 
     np_aaatoken_t* ret = __np_token_factory_new(context, issuer, node_subject, expires_at, secret_key);
     ret->type = np_aaatoken_type_identity;
-    
+
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY));
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY_AND_USER_MSG));
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_IDENTITY));
+
     _np_aaatoken_set_signature(ret, NULL);
-    _np_aaatoken_update_extensions_signature(ret); 
+    _np_aaatoken_update_attributes_signature(ret);
 
 #ifdef DEBUG
     char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';

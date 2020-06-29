@@ -179,11 +179,13 @@ struct np_aaatoken_s
 	double expires_at;
 
 	// key/value extension list
-	np_tree_t* extensions;
-	np_tree_t* extensions_local;
+	np_attributes_t attributes;
+	np_signature_t  attributes_signature;
+	//np_tree_t* extensions;
+	//np_tree_t* extensions_local;
+
 	np_crypto_t crypto;
-	unsigned char signature[crypto_sign_BYTES];
-	unsigned char signature_extensions[crypto_sign_BYTES];
+	np_signature_t signature;
 	// attributes to exchange END
 
 	// internal attributes
@@ -194,12 +196,11 @@ struct np_aaatoken_s
 	enum np_aaatoken_type type;
 	enum np_aaatoken_scope scope;
 	bool private_key_is_set;
-	
+
 	np_aaatoken_t* issuer_token;
 
 	bool is_signature_verified;
-	bool is_signature_extensions_verified;
-
+	bool is_signature_attributes_verified;
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
@@ -255,9 +256,9 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self);
 NP_API_INTERN
 void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee);
 NP_API_INTERN
-void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self);
+void _np_aaatoken_update_attributes_signature(np_aaatoken_t* self);
 NP_API_INTERN
-unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self);
+unsigned char* __np_aaatoken_get_attributes_hash(np_aaatoken_t* self);
 NP_API_INTERN
 void np_aaatoken_ref_list(np_sll_t(np_aaatoken_ptr, sll_list), const char* reason, const char* reason_desc);
 NP_API_INTERN

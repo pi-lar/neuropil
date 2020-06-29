@@ -14,6 +14,8 @@
 #include "sodium.h"
 
 #include "neuropil.h"
+#include "neuropil_data.h"
+#include "neuropil_attributes.h"
 
 #include "np_dhkey.h"
 
@@ -150,6 +152,11 @@ np_context* np_new_context(struct np_settings * settings_in)
     else if (_np_msgproperty_init(context) == false)
     {
         log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed");
+        status = np_startup;
+    }
+    else if (_np_attributes_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: _np_attributes_init failed");
         status = np_startup;
     }
     else {
@@ -338,23 +345,23 @@ enum np_return np_node_fingerprint(np_context* ac, np_id (*id))
 
 enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign)
 {
-    np_ctx_cast(ac); 
+    np_ctx_cast(ac);
 
     enum np_return ret = np_ok;
     if(identity == NULL) {
         ret = np_invalid_argument;
     } else {
-        np_ident_private_token_t* id_token = NULL;        
+        np_ident_private_token_t* id_token = NULL;
         if (self_sign) {
             id_token = np_token_factory_new_identity_token(context, identity->expires_at, &identity->secret_key);
             np_user4aaatoken(id_token, identity);
             _np_aaatoken_set_signature(id_token, NULL);
-            _np_aaatoken_update_extensions_signature(id_token);
         } else {
             id_token = np_token_factory_new_identity_token(context, 20.0, NULL);
             np_user4aaatoken(id_token, identity);
             _np_aaatoken_set_signature(id_token, _np_key_get_token(context->my_identity) );
         }
+        _np_aaatoken_update_attributes_signature(id_token);
         np_aaatoken4user(identity, id_token);
 
         np_unref_obj(np_aaatoken_t, id_token, "np_token_factory_new_identity_token");
@@ -400,6 +407,7 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
 	_np_aaatoken_set_signature(imported_token, NULL);
 
     _np_set_identity(context, imported_token);
+    _np_aaatoken_update_attributes_signature(imported_token);
 
     log_msg(LOG_INFO, "Using ident token %s", identity.uuid);
     return ret;
@@ -490,8 +498,20 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     np_tree_t* body = np_tree_create();
     np_tree_insert_str(body, NP_SERIALISATION_USERDATA, np_treeval_new_bin((void*) message, length));
 
+
+    np_attributes_t tmp_msg_attr;
+    if( np_ok == np_init_datablock(tmp_msg_attr,sizeof(tmp_msg_attr))){
+        np_merge_data(tmp_msg_attr,_np_get_attributes_cache(context, NP_ATTR_USER_MSG));
+        np_merge_data(tmp_msg_attr,_np_get_attributes_cache(context, NP_ATTR_IDENTITY_AND_USER_MSG));
+        np_merge_data(tmp_msg_attr,_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_USER_MSG));
+        size_t attributes_size;
+        if(np_ok == np_get_data_size(tmp_msg_attr, &attributes_size) && attributes_size > 0){
+            np_tree_insert_str(body, NP_SERIALISATION_ATTRIBUTES, np_treeval_new_bin(tmp_msg_attr, attributes_size));
+        }
+    }
+
     np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(OUTBOUND, subject);
-    np_dhkey_t target_dhkey = {0};    
+    np_dhkey_t target_dhkey = {0};
     if (target != NULL) {
         // TOOD: id to dhkey
     }
@@ -502,7 +522,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
     _np_message_create(msg_out, subject_dhkey, context->my_node_key->dhkey, subject, body);
 
-    log_msg(LOG_INFO, "sending sysinfo proactive (size: %"PRIu16")", length);
+    log_msg(LOG_INFO, "sending message (size: %"PRIu16" msg: %s)", length, msg_out->uuid);
 
     np_util_event_t send_event = { .type=(evt_internal | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
     // _np_keycache_handle_event(context, subject_dhkey, send_event, false);
@@ -510,7 +530,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
     if(!np_jobqueue_submit_event(context, 0.0, subject_dhkey, send_event, "event: userspace message delivery request")){
         log_msg(LOG_WARN, "rejecting possible sending of message, please check jobqueue settings!");
     }
-    
+
     return ret;
 }
 
@@ -525,7 +545,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
         np_get_id(&message.subject, _np_message_get_subject(msg), strlen(_np_message_get_subject(msg)));
-        
+
         memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
 
         message.received_at = np_time_now(); // todo get from network
@@ -533,17 +553,28 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         message.data = userdata->val.value.bin;
         message.data_length = userdata->val.size;
 
+        np_tree_elem_t* msg_attributes = np_tree_find_str(body, NP_SERIALISATION_ATTRIBUTES);
+        if(msg_attributes == NULL){
+            np_init_datablock(message.attributes,sizeof(message.attributes));
+        }else{
+
+            np_datablock_t * dt = msg_attributes->val.value.bin;
+            size_t attr_size;
+            if(sizeof(message.attributes) >= msg_attributes->val.size) {
+                memcpy(message.attributes, dt, msg_attributes->val.size);
+            }
+        }
         log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) conversion into public structs complete.", msg->uuid);
-        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Calling user function.", msg->uuid);        
+        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Calling user function.", msg->uuid);
         callback(context, &message);
-        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Called  user function.", msg->uuid);        
+        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Called  user function.", msg->uuid);
     }else{
         log_info(LOG_MESSAGE |LOG_ROUTING,"(msg: %s) contains no userdata", msg->uuid);
     }
     return ret;
 }
 
-enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback) 
+enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback)
 {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
@@ -657,22 +688,24 @@ enum np_status np_get_status(np_context* ac) {
 void np_id_str(char str[65], const np_id id)
 {
     sodium_bin2hex(str, NP_FINGERPRINT_BYTES*2+1, id, NP_FINGERPRINT_BYTES);
+    //ASSERT(r==0, "could not convert np_id to str code: %"PRId32, r);
 }
 
-void np_str_id(np_id (*id), const char str[65])
+void np_str_id(np_id (*id), const char str[64])
 {
     // TODO: this is dangerous, encoding could be different between systems,
     // encoding has to be send over the wire to be sure ...
     // for now: all tests on the same system
-    // assert (64 == strlen((char*) str));
-    sodium_hex2bin(*id, NP_FINGERPRINT_BYTES, str, NP_FINGERPRINT_BYTES*2, NULL, NULL, NULL);
+    //assert (64 == strnlen((char*) str,65));
+    int r = sodium_hex2bin(*id, NP_FINGERPRINT_BYTES, str, NP_FINGERPRINT_BYTES*2, NULL, NULL, NULL);
+    ASSERT(r==0, "could not convert str to np_id  code: %"PRId32, r);
 }
 
 void np_destroy(np_context* ac, bool gracefully)
 {
     np_ctx_cast(ac);
 
-    if (gracefully) 
+    if (gracefully)
     {
         np_shutdown_add_callback(context, _np_shutdown_notify_others);
     }

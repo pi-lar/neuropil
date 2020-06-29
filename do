@@ -3,7 +3,7 @@
 set -eu
 
 
-log(){  
+log(){
   echo  "$(date '+%H:%M:%S') $1"
 }
 
@@ -31,7 +31,7 @@ ensure_criterion() {
   then
     return
   fi
-  ( 
+  (
   root="$(pwd)"
   mkdir -p build/test/ext_tools/Criterion/build
   cd build/test/ext_tools/Criterion/build
@@ -67,7 +67,7 @@ task_build() {
   else
     shift;
   fi
-  
+
   type=${1:-"defaultvalue"}
   if [ "$type" == "defaultvalue" ]; then
     type="release=1"
@@ -77,20 +77,56 @@ task_build() {
       type="release=1"
     else
       type="debug=1"
-    fi    
+    fi
   fi
-  
-  
-  scons "$type" "target=$target" "$@"
+
+  tmpfile_sorted=$(mktemp /tmp/np_sorted.log.XXXXXX)
+  tmpfile_sorted2=$(mktemp /tmp/np_sorted.log.XXXXXX)
+
+  echo "executing: scons $type target=$target $@ |& tee $tmpfile_sorted"
+  (scons "$type" "target=$target" "$@" |& tee "$tmpfile_sorted")
+  ret=${PIPESTATUS[0]}
+  set +e
+  egrep "warning:|error:" "$tmpfile_sorted" > "$tmpfile_sorted2"
+  filterd=$(cat "$tmpfile_sorted2")
+  if [ "$?" == "0" ]; then
+    filterd=$(echo "$filterd" | sort)
+    filterd=$(echo "$filterd" | grep -v "/event/")
+    filterd=$(echo "$filterd" | uniq)
+    echo "$filterd"
+
+    warnings=$(echo "$filterd" | grep "warning:")
+    if [ "$?" != "0" ]; then
+      warn="0"
+    else
+      warn=$(echo "$warnings" | wc -l)
+    fi
+    errors=$(echo "$filterd" | grep "error:")
+    if [ "$?" != "0" ]; then
+      err="0"
+    else
+      err=$(echo "$errors" | wc -l)
+    fi
+    echo "$warnings"
+    echo "$errors"
+    printf "Warnings:\t%s\n" "$warn"
+    printf "Errors:\t\t%s\n" "$err"
+  fi
+  set -e
+
+  return $ret
 }
 
 task_build_local() {
   task_build $(get_local_target) "$@"
+  return $?
 }
 
 task_clean() {
   ensure_venv
 
+  rm -rf logs/*
+  rm -rf bindings/python_cffi/build bindings/python_cffi/_neuropil.abi3.so bindings/python_cffi/neuropil.egg-info
   rm -rf build
   scons -c
 }
@@ -100,7 +136,7 @@ task_doc() {
   (
     rm -rf build/doc
     mkdir -p build/doc
-    make html -C doc BUILDDIR='../build/doc'        
+    make html -C doc BUILDDIR='../build/doc'
   )
 }
 
@@ -118,18 +154,26 @@ task_release() {
 
 task_install_python() {
   ensure_venv
-  
+
   task_build_local release python_binding=1
 }
 
 task_test() {
   ensure_venv
   ensure_submodules
-  ensure_criterion  
+  ensure_criterion
 
   task_build "test" debug test=1
-  export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
-  ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
+  if [[ $? == 0 ]] ; then
+    export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
+
+    ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
+    # Enable for test debugging
+    #nohup ./build/test/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
+    #sleep 1
+    #gdb ./build/test/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+  fi
+
 }
 
 task_run() {
@@ -143,13 +187,13 @@ task_run() {
   application="$application"
   target=$(get_local_target)
 
-   export LD_LIBRARY_PATH="./build/$target/lib"
+  export LD_LIBRARY_PATH="./build/$target/lib"
 
   echo "./build/$target/bin/$application" "$@"
   set +e
   run=$("./build/$target/bin/$application" "$@")
-  set -e  
-  if [ "$run" != 0 ] ; then      
+  set -e
+  if [ "$run" != 0 ] ; then
     gdb "./build/$target/bin/$application" -c core*
   fi
 
@@ -161,13 +205,13 @@ task_smoke() {
 
   pwd=$(pwd)
   (
-    loc="$(get_local_target)"    
+    loc="$(get_local_target)"
 
     echo "export LD_LIBRARY_PATH=$pwd/build/$loc/lib"
     export LD_LIBRARY_PATH="$pwd/build/$loc/lib"
-    set +e         
+    set +e
     nose2 -v
-    if [ $? == 139 ] && [ -t 0 ]; then      
+    if [ $? == 139 ] && [ -t 0 ]; then
       read -r -p "${1:-Debug with gdb? [y/N]} " response
       case "$response" in
           [yY][eE][sS]|[yY])
@@ -178,7 +222,6 @@ task_smoke() {
       esac
     fi
     set -e
-
   )
 }
 
@@ -208,7 +251,7 @@ shift || true
     build) task_build "$@";;
     doc) task_doc ;;
     test) task_test "$@";;
-    package) task_package "$@";;  
+    package) task_package "$@";;
     install_python) task_install_python ;;
     smoke) task_smoke ;;
     release) task_release ;;

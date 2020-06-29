@@ -28,6 +28,7 @@
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 #include "np_tree.h"
+#include "neuropil_data.h"
 
 np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* msg_to_check)
 {
@@ -42,7 +43,9 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
     strncpy(subject, np_treeval_to_str(ele->val, NULL), 99);
 #endif
     // Detect from instructions if this msg was orginally chunked
-    char* msg_uuid = np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL);
+    char msg_uuid[NP_UUID_BYTES+1]={0};
+    strncpy(msg_uuid, np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL), NP_UUID_BYTES);
+
     uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
 
     if (1 < expected_msg_chunks)
@@ -81,20 +84,21 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                 if (current_count_of_chunks < expected_msg_chunks)
                 {
                     log_debug(LOG_MESSAGE,
-                        "message %s (%s) not complete yet (%d of %d), waiting for missing parts",
+                        "message %s (%s) not complete yet (%"PRIu32" of %"PRIu16"), waiting for missing parts",
                         subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
                     // nothing to return as we still wait for chunks
                 }
                 else
                 {
+
                     log_debug(LOG_MESSAGE,
-                        "message %s (%s) is complete now  (%d of %d)",
+                        "message %s (%s) is complete now  (%"PRIu32" of %"PRIu16")",
                         subject, msg_uuid, current_count_of_chunks, expected_msg_chunks);
 
                     ret = msg_in_cache;
                     // removing the message from the cache system
                     np_ref_obj(np_message_t, msg_in_cache, ref_message_in_send_system);
-                    msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
+                    //msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
                     np_tree_del_str(context->msg_part_cache, msg_uuid);
                     np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
                 }
@@ -311,17 +315,22 @@ void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const n
     np_aaatoken_t* my_token = _np_key_get_token(context->my_node_key);
     np_node_t* my_node = _np_key_get_node(context->my_node_key);
 
-    // MUST be there
-    np_tree_elem_t* remote_hs_prio = np_tree_find_str(handshake_token->extensions, NP_HS_PRIO);
+    // HAS TO BE be there
+    struct np_data_conf cfg;
+    np_data_value remote_hs_prio = {0};
+
+    if (np_get_data(handshake_token->attributes, NP_HS_PRIO, &cfg, &remote_hs_prio) != np_ok ){
+        log_error("Structual error in token. Missing %s key", NP_HS_PRIO);
+    }
     // COULD be there
     // np_tree_elem_t* response_uuid = np_tree_find_str(handshake_token->extensions, _NP_MSG_INST_RESPONSE_UUID);
-    
+
     if (/* response_uuid == NULL ||*/
-        remote_hs_prio->val.value.ul < my_node->handshake_priority)
+        remote_hs_prio.unsigned_integer < my_node->handshake_priority)
     {
         log_debug_msg(LOG_DEBUG,
             "handshake session created in server mode. remote-prio: %"PRIu32" local-prio: %"PRIu32" ",
-                remote_hs_prio->val.value.ul, my_node->handshake_priority
+                remote_hs_prio.unsigned_integer, my_node->handshake_priority
             );
         np_crypto_session(context,
                 &my_token->crypto,
@@ -329,12 +338,10 @@ void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const n
                 &handshake_token->crypto,
                 false
             );
-    }
-    else 
-    {
+    } else {
         log_debug_msg(LOG_DEBUG,
             "handshake session created in client mode. remote-prio: %"PRIu32" local-prio: %"PRIu32" ",
-                remote_hs_prio->val.value.ul, my_node->handshake_priority
+                remote_hs_prio.unsigned_integer, my_node->handshake_priority
             );
         np_crypto_session(context,
                 &my_token->crypto,
@@ -348,16 +355,16 @@ void __np_create_session(np_util_statemachine_t* statemachine, NP_UNUSED const n
     alias_node->session_key_is_set = true;
 
     log_debug_msg(LOG_DEBUG, "start: __np_create_session(...) { node now complete: %p / %p %d", alias_key, alias_node, alias_node->_handshake_status);
-} 
+}
 
-bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+bool __is_crypted_message(np_util_statemachine_t* statemachine, const np_util_event_t event)
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __is_crypted_message(...) {");
 
     bool ret = false;
 
-    NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
+    NP_CAST(statemachine->_user_data, np_key_t, alias_key);
     if (!ret) ret  = FLAG_CMP(alias_key->type, np_key_type_alias);
     if ( ret) ret &= FLAG_CMP(event.type, evt_message);
     if ( ret) ret &= (FLAG_CMP(event.type, evt_external) );
@@ -405,10 +412,10 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
     );
 
     if (crypto_result == 0)
-    {					
+    {
         ret = true;
         log_debug_msg(LOG_DEBUG, "correct decryption of message send from %s", _np_key_as_str(alias_key));
-        
+
         memset(event.user_data, 0, MSG_CHUNK_SIZE_1024);
         memcpy(event.user_data, dec_msg, MSG_CHUNK_SIZE_1024 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES);
 
@@ -423,7 +430,8 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
         }
         log_debug_msg(LOG_SERIALIZATION, "(msg: %s) correct header deserialization of message", msg_in->uuid);
 
-        np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context, 
+        _np_message_trace_info("MSG_IN", msg_in);
+        np_util_event_t in_message_evt = { .type=(evt_external|evt_message), .context=context,
                                            .user_data=msg_in, .target_dhkey=alias_key->dhkey};
         _np_keycache_handle_event(context, alias_key->dhkey, in_message_evt, false);
         // _np_keycache_handle_event(context, alias_key->dhkey, in_message_evt, false);

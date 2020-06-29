@@ -12,7 +12,7 @@ from ctypes import c_char, c_bool
 class StarSetupTest(unittest.TestCase):
     
     # common class variables for each process
-    np_0_addr = b"*:udp4:localhost:4444"
+    np_0_addr = b"*:udp4:localhost:4001"
     subject   = b"urn:np:test:subject:1"
 
     np_0_fp = Array(c_char, b'de19bde3dc1aaaf4b196d1c0941c2fbe1478649367c710062586825c76673da1')
@@ -64,7 +64,7 @@ class StarSetupTest(unittest.TestCase):
         return True
 
     def run_sender(self):
-        np_1 = NeuropilNode(5555, log_file="logs/smoke_test_star_n1.log", auto_run=False, n_threads=5)
+        np_1 = NeuropilNode(4002, log_file="logs/smoke_test_star_n1.log", auto_run=False, n_threads=5)
         # configure node 1 as sender
         mxp = np_1.get_mx_properties(StarSetupTest.subject)        
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
@@ -100,7 +100,7 @@ class StarSetupTest(unittest.TestCase):
         global subject
         global np_0_addr
 
-        np_2 = NeuropilNode(6666, log_file="logs/smoke_test_star_n2.log", auto_run=False, n_threads=5)
+        np_2 = NeuropilNode(4003, log_file="logs/smoke_test_star_n2.log", auto_run=False, n_threads=5)
         # configure node 2 as receiver
         mxp = np_2.get_mx_properties(StarSetupTest.subject)        
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
@@ -129,7 +129,7 @@ class StarSetupTest(unittest.TestCase):
         np_2.shutdown()
 
     def run_mitm(self):
-        np_0 = NeuropilNode(4444, log_file="logs/smoke_test_star_n0.log", auto_run=False, n_threads=5)
+        np_0 = NeuropilNode(4001, log_file="logs/smoke_test_star_n0.log", auto_run=False, n_threads=5)
         # np_0_addr = np_0.get_address()
         StarSetupTest.np_0_fp.value   = str(np_0.get_fingerprint()).encode()
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 

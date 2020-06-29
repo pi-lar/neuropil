@@ -241,14 +241,15 @@ if int(analyze) and scan_build_exe:
 #     neuropil_env.Append(CPPPATH='/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include')
 
 # sources for neuropil
-SOURCES  = ['dtime.c',         'np_time.c',          'neuropil.c',       'np_aaatoken.c',      'np_axon.c',             'np_dendrit.c']
-SOURCES += ['np_glia.c',       'np_jobqueue.c',      'np_dhkey.c',       'np_key.c',           'np_keycache.c',         'np_bootstrap.c']
-SOURCES += ['np_bloom.c',      'np_log.c',           'np_memory.c',      'np_message.c',       'np_network.c',          'np_node.c']
+SOURCES  = ['neuropil.c',   'neuropil_data.c',    'neuropil_attributes.c']
+SOURCES += ['dtime.c',      'np_time.c',          'np_aaatoken.c',      'np_axon.c',             'np_dendrit.c']
+SOURCES += ['np_glia.c',    'np_jobqueue.c',      'np_dhkey.c',       'np_key.c',           'np_keycache.c',         'np_bootstrap.c']
+SOURCES += ['np_bloom.c',   'np_log.c',           'np_memory.c',      'np_message.c',       'np_network.c',          'np_node.c']
 SOURCES += ['np_pheromones.c', 'np_route.c',   'np_tree.c',          'np_util.c',        'np_treeval.c',       'np_threads.c' ]
-SOURCES += ['np_scache.c',     'np_event.c',         'np_messagepart.c', 'np_statistics.c',    'np_responsecontainer.c']
-SOURCES += ['np_legacy.c',     'np_serialization.c', 'np_shutdown.c',    'np_token_factory.c', 'np_crypto.c' ]
+SOURCES += ['np_scache.c',  'np_event.c',         'np_messagepart.c', 'np_statistics.c',    'np_responsecontainer.c']
+SOURCES += ['np_legacy.c',  'np_serialization.c', 'np_shutdown.c',    'np_token_factory.c', 'np_crypto.c' ]
 SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_comp_intent.c', 'core/np_comp_node.c', 'core/np_comp_alias.c']
-SOURCES += ['util/np_statemachine.c', ]
+SOURCES += ['util/np_statemachine.c']
 
 SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c']
 
@@ -288,14 +289,16 @@ criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criteri
 test_env = conf.Finish()
 
 # build test executable
-if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:    
+if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
     print ('Test cases included')
     # include the neuropil build path library infos
     test_env.Append(LIBS = ['criterion', 'sodium','ncurses','neuropil'])
     test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_suite'),    os.path.join(variantDir,'test','test_suite.c'))
-    Depends(test_suite, np_dylib)    
+    Depends(test_suite, np_dylib)
     test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_units'),     os.path.join(variantDir,'test','test_units.c'))
     Depends(test_suite, np_dylib)
+    #test_prog = test_env.Program(os.path.join(buildDir,'bin','neuropil_test'),     os.path.join(variantDir,'examples','neuropil_test.c'))
+    #Depends(test_prog, np_dylib)
 else:
     print ('Test cases not included')
 
@@ -306,7 +309,7 @@ programs = [
     ('receiver',       ['neuropil']),
     ('sender',         ['neuropil']),
     ('node',           ['neuropil','ncurses','sodium']),
-    ('receiver_lb',     ['neuropil','ncurses','sodium']),
+    ('receiver_lb',    ['neuropil','ncurses','sodium']),
     ('cloud',          ['neuropil','ncurses','sodium']),
     ('hydra',          ['neuropil','ncurses','sodium']),
     ('receiver_cb',    ['neuropil','ncurses','sodium']),
@@ -356,6 +359,7 @@ Clean('.', 'warn.log')
 Clean('.', 'warn_clean.log')
 
 print ("build with:")
+print ("verbose                  =  %r" % verbose)
 print ("analyze                  =  %r" % analyze)
 print ("build_tests              =  %r" % build_tests)
 print ("debug                    =  %r" % debug)

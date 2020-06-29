@@ -33,6 +33,7 @@
 #include "np_util.h"
 #include "np_constants.h"
 #include "neuropil.h"
+#include "neuropil_data.h"
 #include "np_serialization.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t);
@@ -78,30 +79,22 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
     aaa_token->expires_at = aaa_token->not_before + expire_sec;
     log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "aaatoken expires in %d sec", expire_sec);
 
-    aaa_token->extensions = np_tree_create();
+
+    np_init_datablock(aaa_token->attributes, sizeof(aaa_token->attributes));
     aaa_token->state = AAA_UNKNOWN;
-    aaa_token->extensions_local = aaa_token->extensions;
 
     aaa_token->type = np_aaatoken_type_undefined;
     aaa_token->scope = np_aaatoken_scope_undefined;
     aaa_token->issuer_token = aaa_token;
-    
-    log_debug_msg(LOG_DEBUG, "token %p / extensions %p", aaa_token, aaa_token->extensions);
+
+    log_debug_msg(LOG_DEBUG, "token %p", aaa_token);
 
 }
 
 void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
-
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
-    log_debug_msg(LOG_DEBUG, "token %p / extensions %p", aaa_token, aaa_token->extensions);
-
-    
-    // clean up extensions
-    if (aaa_token->extensions != aaa_token->extensions_local) {
-        np_tree_free(aaa_token->extensions_local);
-    }
-    np_tree_free(aaa_token->extensions);
+    log_debug_msg(LOG_DEBUG, "token %p ", aaa_token);
 }
 
 void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
@@ -111,7 +104,7 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
     np_state_t* context = np_ctx_by_memory(token);
     // if(trace) _np_aaatoken_trace_info("encode", token);
     // included into np_token_handshake
-    
+
     np_tree_replace_str( data, "np.t.type", np_treeval_new_ush(token->type));
     np_tree_replace_str( data, "np.t.u",    np_treeval_new_s(token->uuid));
     np_tree_replace_str( data, "np.t.r",    np_treeval_new_s(token->realm));
@@ -119,19 +112,21 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
     np_tree_replace_str( data, "np.t.s",    np_treeval_new_s(token->subject));
     np_tree_replace_str( data, "np.t.a",    np_treeval_new_s(token->audience));
     np_tree_replace_str( data, "np.t.p",    np_treeval_new_bin(token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES));
-                                           
+
     np_tree_replace_str( data, "np.t.ex",   np_treeval_new_d(token->expires_at));
     np_tree_replace_str( data, "np.t.ia",   np_treeval_new_d(token->issued_at));
     np_tree_replace_str( data, "np.t.nb",   np_treeval_new_d(token->not_before));
     np_tree_replace_str( data, "np.t.si",   np_treeval_new_bin(token->signature, crypto_sign_BYTES));
 
-    log_debug_msg(LOG_DEBUG, "token %p / extensions %p", token, token->extensions);
+    size_t attributes_size;
 
-    np_tree_replace_str( data, "np.t.e",    np_treeval_new_tree(token->extensions));
+    np_get_data_size(token->attributes, &attributes_size);
+    np_tree_replace_str( data, "np.t.e",   np_treeval_new_bin(token->attributes, attributes_size));
+
     if(token->scope <= np_aaatoken_scope_private_available) {
-        _np_aaatoken_update_extensions_signature(token);
+        _np_aaatoken_update_attributes_signature(token);
     }
-    np_tree_replace_str( data, "np.t.sie", np_treeval_new_bin(token->signature_extensions, crypto_sign_BYTES));
+    np_tree_replace_str( data, "np.t.sie", np_treeval_new_bin(token->attributes_signature, sizeof(token->attributes_signature)));
 
 //#ifdef DEBUG
 //	char pubkey[65];
@@ -174,7 +169,7 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
         token->type = tmp->val.value.ush;
     }
     else { ret = false;/*Mandatory field*/ }
-    
+
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.r")))
     {
         strncpy(token->realm,  np_treeval_to_str(tmp->val, NULL), 255);
@@ -227,26 +222,13 @@ bool np_aaatoken_decode(np_tree_t* data, np_aaatoken_t* token)
     // decode extensions
     if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.e")))
     {
-        ASSERT(tmp->val.type == np_treeval_type_jrb_tree, 
-            "token (%s) type is %"PRIu32" instead of np_treeval_type_jrb_tree(%"PRIu32")",
-            token->uuid, tmp->val.type, np_treeval_type_jrb_tree
-        );
 
-        if (token->extensions == token->extensions_local) {
-            token->extensions_local = np_tree_clone( tmp->val.value.tree);
-            token->extensions_local->attr.immutable = false;
-        }
-        else {
-            np_tree_copy(tmp->val.value.tree, token->extensions_local);
-        }
-        np_tree_clear( token->extensions);
-        np_tree_copy( tmp->val.value.tree, token->extensions);
-
+        memcpy(token->attributes, tmp->val.value.bin, fmin(tmp->val.size, sizeof(token->attributes)));
 
         if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.sie")))
         {
-            memcpy(token->signature_extensions, tmp->val.value.bin, fmin(tmp->val.size, crypto_sign_BYTES));
-            token->is_signature_extensions_verified = false;
+            memcpy(token->attributes_signature, tmp->val.value.bin, fmin(tmp->val.size, crypto_sign_BYTES));
+            token->is_signature_attributes_verified = false;
         }
         else { ret = false;/*Mandatory field if extensions provided*/ }
     }
@@ -284,7 +266,7 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensi
 	crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
 
 	if (true == include_extensions) {
-		unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
+		unsigned char* hash = __np_aaatoken_get_attributes_hash(self);
 		crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
 		free(hash);
 	}
@@ -303,7 +285,7 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensi
 bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type)
 {
     log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: bool _np_aaatoken_is_valid(np_aaatoken_t* token){");
-    
+
     if (NULL == token) return false;
 
     np_state_t* context = np_ctx_by_memory(token);
@@ -324,7 +306,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
         log_trace_msg(LOG_AAATOKEN, ".end  .token_is_valid");
         return (false);
     }
-    else 
+    else
     {
         log_debug(LOG_AAATOKEN, "token has expected type");
     }
@@ -340,9 +322,9 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
         return (false);
     }
-    else 
+    else
     {
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token has not expired");
+        log_debug_msg(LOG_AAATOKEN, "token has not expired");
     }
 
     if (token->scope > np_aaatoken_scope_private_available) 
@@ -353,14 +335,14 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             // verify inserted signature first
             unsigned char* signature = token->signature;
 
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check signature checksum");
+            log_debug_msg(LOG_AAATOKEN, "try to check signature checksum");
             int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->crypto.ed25519_public_key);
 
 #ifdef DEBUG
             char signature_hex[crypto_sign_BYTES * 2 + 1] = { 0 };
             sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
                 signature, crypto_sign_BYTES);
-                
+
             char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
             sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
                 token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
@@ -370,7 +352,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
                 "(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %"PRId32,
-                token->uuid, ret != 0? " not":"", pk_hex, signature_hex, ret);				
+                token->uuid, ret != 0? " not":"", pk_hex, signature_hex, ret);
 #endif
             free(hash);
 
@@ -385,45 +367,30 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             token->is_signature_verified = true;
         }
 
-        if (token->is_signature_extensions_verified == false) 
+        if (token->is_signature_attributes_verified == false)
         {
-            unsigned char* hash = __np_aaatoken_get_extensions_hash(token);
-
             // verify inserted signature first
-            unsigned char* signature = token->signature_extensions;
-
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check extension signature checksum");
-            int ret = crypto_sign_verify_detached((unsigned char*)signature, hash, crypto_generichash_BYTES, token->crypto.ed25519_public_key);
-
-#ifdef DEBUG
-            if (ret != 0)
-            {
-                char hash_hex[crypto_generichash_BYTES * 2 + 1] = { 0 };
-                sodium_bin2hex(hash_hex, crypto_generichash_BYTES * 2 + 1, 
-                    hash, crypto_generichash_BYTES);
-
-                char signature_hex[crypto_sign_BYTES * 2 + 1] = { 0 };
-                sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
-                    signature, crypto_sign_BYTES);
-
-                char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = { 0 };
-                sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
-                    token->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
-
-                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "(token: %s) extension signature: is_valid (hash: 0x%s) (pk: 0x%s) 0x%s = %"PRId32, token->uuid, hash_hex, pk_hex, signature_hex, ret);
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to check attribute signature checksum");
+            size_t attr_data_size;
+            bool ret = np_get_data_size(token->attributes, &attr_data_size) == np_ok;
+            if (!ret) {
+                log_msg(LOG_WARN, "token (%s) for subject \"%s\": attributes do have no valid structure (total_size)", token->uuid, token->subject);
             }
-#endif
+            unsigned char * hash = __np_aaatoken_get_attributes_hash(token);
+            ret = ret && crypto_sign_verify_detached(token->attributes_signature, hash , crypto_generichash_BYTES, token->crypto.ed25519_public_key) == 0;
             free(hash);
-            if (ret < 0)
+
+            if (!ret)
             {
-                log_msg(LOG_WARN, "token (%s) for subject \"%s\": extension signature checksum verification failed", token->uuid, token->subject);
+                _np_debug_log_bin(token->attributes_signature, sizeof(token->attributes_signature), LOG_AAATOKEN, "token (%s) attribute signature: %s",token->uuid)
+                log_msg(LOG_WARN, "token (%s) for subject \"%s\": attribute signature checksum verification failed", token->uuid, token->subject);
                 log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
                 token->state &= AAA_INVALID;
-                
+
                 return (false);
             }
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) for subject \"%s\": extension signature checksum verification success", token->uuid, token->subject);
-            token->is_signature_extensions_verified = true;
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) for subject \"%s\": attribute signature checksum verification success", token->uuid, token->subject);
+            token->is_signature_attributes_verified = true;
         }
     }
     /*
@@ -454,28 +421,32 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token checksum verification completed");
 
-    // TODO: only if this is a message token
-    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
-    np_tree_elem_t* max_threshold = np_tree_find_str(token->extensions_local, "max_threshold");
-    np_tree_elem_t* msg_threshold = np_tree_find_str(token->extensions_local, "msg_threshold");
-    
-    if ( max_threshold && msg_threshold)
-    {
-        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
-        uint8_t token_max_threshold = max_threshold->val.value.ush;
-        uint8_t token_msg_threshold = msg_threshold->val.value.ush;
+    if(FLAG_CMP(token->type,np_aaatoken_type_message_intent)){
+        log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
 
-        if (0                   <= token_msg_threshold &&
-            token_msg_threshold <= token_max_threshold)
+        np_data_value max_threshold, msg_threshold;
+        uint32_t max_threshold_ret=-1, msg_threshold_ret=-1;
+        if ((max_threshold_ret = np_get_data(token->attributes, "max_threshold", NULL, &max_threshold)) == np_ok &&
+            (msg_threshold_ret = np_get_data(token->attributes, "msg_threshold", NULL, &msg_threshold)) == np_ok)
         {
-            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token for subject \"%s\": %s can be used for %"PRIu8" msgs", token->subject, token->issuer, token_max_threshold-token_msg_threshold);
-        }
-        else
-        {
-            log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu8"<%"PRIu8, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
-            log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
-            token->state &= AAA_INVALID;
-            return (false);
+            log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
+            uint32_t token_max_threshold = max_threshold.unsigned_integer;
+            uint32_t token_msg_threshold = msg_threshold.unsigned_integer;
+
+            if (0                   <= token_msg_threshold &&
+                token_msg_threshold <= token_max_threshold)
+            {
+                log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) for subject \"%s\": %s can be used for %"PRIu32" msgs", token->uuid, token->subject, token->issuer, token_max_threshold-token_msg_threshold);
+            }
+            else
+            {
+                log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu32"<%"PRIu32, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+                log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+                token->state &= AAA_INVALID;
+                return (false);
+            }
+        }else{
+            log_warn(LOG_AAATOKEN, "found NO max(%"PRIu32")/msg(%"PRIu32") threshold in token %s / %s", max_threshold_ret, msg_threshold_ret,token->uuid, token->subject);
         }
     }
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token (%s) validity for subject \"%s\": verification valid", token->uuid, token->subject);
@@ -538,11 +509,8 @@ unsigned char* _np_aaatoken_get_hash(np_aaatoken_t* self) {
     // }
     crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
 
-#ifdef DEBUG
-    char hash_str[crypto_generichash_BYTES * 2 + 1];
-    sodium_bin2hex(hash_str, crypto_generichash_BYTES * 2 + 1, ret, crypto_generichash_BYTES);
-    log_debug_msg(LOG_DEBUG| LOG_AAATOKEN, "token hash for %s is %s", self->uuid, hash_str);
-#endif
+    _np_debug_log_bin(ret, crypto_generichash_BYTES, LOG_AAATOKEN, "token hash for %s is %s", self->uuid);
+
     ASSERT(ret != NULL, "generated hash cannot be NULL");
     return ret;
 }
@@ -551,19 +519,8 @@ int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, u
 
     // unsigned long long signature_len = 0;
 
-#ifdef DEBUG
-    char hash_hex[crypto_generichash_BYTES * 2 + 1];
-    sodium_bin2hex(hash_hex, crypto_generichash_BYTES * 2 + 1, hash,
-        crypto_generichash_BYTES);
-    log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token hash key fingerprint: %s",
-        hash_hex);
-#endif
-
-#ifdef DEBUG
-    char sk_hex[crypto_sign_SECRETKEYBYTES * 2 + 1];
-    sodium_bin2hex(sk_hex, crypto_sign_SECRETKEYBYTES * 2 + 1, private_key, crypto_sign_SECRETKEYBYTES);
-    log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "token signature private key: %s", sk_hex);
-#endif
+    _np_debug_log_bin0(hash, crypto_generichash_BYTES, LOG_AAATOKEN, "token hash key fingerprint: %s");
+    _np_debug_log_bin0(private_key, crypto_sign_SECRETKEYBYTES, LOG_AAATOKEN, "token signature private key: %s")
 
     int ret = crypto_sign_detached(save_to, NULL,
                 (const unsigned char*)hash, crypto_generichash_BYTES, private_key);
@@ -575,21 +532,39 @@ int __np_aaatoken_generate_signature(np_state_t* context, unsigned char* hash, u
 
 void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
     assert(self != NULL);
-    // np_state_t* context = np_ctx_by_memory(self);
+    np_ctx_memory(self);
 
-    np_tree_replace_str( self->extensions, "_np.partner_fp", np_treeval_new_dhkey(partner_fp));
+    char id[65]={0};
+    _np_dhkey_str(&partner_fp,id);
+
+    uint32_t r = np_set_data(self->attributes,
+                                (struct np_data_conf) {
+                                    .key = "_np.partner_fp",
+                                    .type = NP_DATA_TYPE_STR
+                                }, (np_data_value){ .str = id }
+                            );
+    assert(r == np_ok);
+    log_debug(LOG_AAATOKEN, "token (%s) setting \"_np.partner_fp\" result %"PRIu32" to %s", self->uuid, r, id);
+
+    _np_aaatoken_update_attributes_signature(self);
 }
 
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
 
-    assert(self != NULL);    
+    assert(self != NULL);
     np_dhkey_t ret = { 0 };
 
-    np_tree_elem_t* ele = np_tree_find_str(self->extensions, "_np.partner_fp");
-    if (ele != NULL) {
-        ret = ele->val.value.dhkey;
-    }
-    else {
+    struct np_data_conf conf;
+    np_data_value val;
+    enum np_data_return r = np_get_data(self->attributes,"_np.partner_fp", &conf, &val);
+
+    ASSERT(r == np_ok || r == np_key_not_found,"token (%s): \"_np.partner_fp\" extraction error %"PRIu32, self->uuid, r);
+
+    if(np_ok == r){
+        ASSERT(conf.data_size == 65,"token (%s): \"_np.partner_fp\" extraction size: %"PRIu32" \n", self->uuid, conf.data_size);
+
+        _np_str_dhkey(val.str, &ret);
+    }else{
         _np_str_dhkey(self->issuer, &ret);
     }
 
@@ -602,7 +577,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
     np_state_t* context = np_ctx_by_memory(self);
 
     ASSERT(self->crypto.ed25519_public_key_is_set == true, "cannot sign token without public key");
-    
+
     if (signee != NULL) {
         ASSERT(signee != NULL, "Cannot sign extensions with empty signee");
         ASSERT(signee->private_key_is_set == true, "Cannot sign extensions without private key");
@@ -620,15 +595,13 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
     if (signee == NULL) {
         // set the signature of the token
         ret = __np_aaatoken_generate_signature(context, hash, self->issuer_token->crypto.ed25519_secret_key, self->signature);
-    
     } else {
         // add a field to the exension containing an additional signature
-        char signee_token_fp[65];
-        signee_token_fp [64] = '\0';
+        char signee_token_fp[NP_FINGERPRINT_BYTES*2+1]={0};
         np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
         _np_dhkey_str(&my_token_fp, signee_token_fp);
 
-        assert( 0 == strncmp(signee_token_fp, self->issuer, 64) );
+        ASSERT( 0 == strncmp(signee_token_fp, self->issuer, NP_FINGERPRINT_BYTES*2),"fingerprint of token and issuer need to be the same. issuer: %s fp: %s",signee_token_fp, self->issuer);
 
         unsigned char signer_pubsig[crypto_sign_PUBLICKEYBYTES+crypto_sign_BYTES];
         // copy public key
@@ -636,7 +609,13 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
         // add signature of signer to extensions
         ret = __np_aaatoken_generate_signature(context, self->signature, signee->crypto.ed25519_secret_key, signer_pubsig + crypto_sign_PUBLICKEYBYTES );
         // insert into extension table
-        np_tree_replace_str(self->extensions, signee_token_fp, np_treeval_new_bin(signer_pubsig, 96));
+        struct np_data_conf attr_conf={0};
+        attr_conf.type = NP_DATA_TYPE_BIN;
+        attr_conf.data_size = sizeof(signer_pubsig);
+        strncpy(attr_conf.key, signee_token_fp, 255);
+        np_set_data(self->attributes, attr_conf, (np_data_value){ .bin=signer_pubsig});
+
+        _np_aaatoken_update_attributes_signature(self);
     }
 
     free(hash);
@@ -650,7 +629,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t* self, np_aaatoken_t* signee) {
     ASSERT(ret == 0, "Error in token signature creation");
 }
 
-void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self) {
+void _np_aaatoken_update_attributes_signature(np_aaatoken_t* self) {
 
     assert(self != NULL);
     ASSERT(self->scope <= np_aaatoken_scope_private_available, "Cannot sign extensions without a private key");
@@ -658,38 +637,40 @@ void _np_aaatoken_update_extensions_signature(np_aaatoken_t* self) {
 
     np_ctx_memory(self);
 
-    unsigned char* hash = __np_aaatoken_get_extensions_hash(self);
-    int ret = __np_aaatoken_generate_signature(context, hash, self->issuer_token->crypto.ed25519_secret_key, self->signature_extensions);
+    unsigned char* hash = __np_aaatoken_get_attributes_hash(self);
+    int ret = __np_aaatoken_generate_signature(context, hash, self->issuer_token->crypto.ed25519_secret_key, self->attributes_signature);
 
     ASSERT(ret == 0, "Error in extended token signature creation");
 
-#ifdef DEBUG
-    char sign_hex[crypto_sign_BYTES * 2 + 1];
-    sodium_bin2hex(sign_hex, crypto_sign_BYTES * 2 + 1, self->signature_extensions, crypto_sign_BYTES);
-    log_debug_msg(LOG_DEBUG | LOG_AAATOKEN, "extension signature hash for %s is %s", self->uuid, sign_hex);
-#endif
+    _np_debug_log_bin(self->attributes_signature, crypto_sign_BYTES, LOG_AAATOKEN,"attribute signature hash for %s is %s", self->uuid)
 
     free(hash);
 }
 
-unsigned char* __np_aaatoken_get_extensions_hash(np_aaatoken_t* self) {
+unsigned char* __np_aaatoken_get_attributes_hash(np_aaatoken_t* self) {
     assert(self != NULL);
     // np_state_t* context = np_ctx_by_memory(self);
 
     unsigned char* ret = calloc(1, crypto_generichash_BYTES);
 
     crypto_generichash_state gh_state;
-    crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
+    int c_ret;
+    c_ret = crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
+    assert(c_ret==0);
 
-    unsigned char* hash = np_tree_get_hash(self->extensions);
-    ASSERT(hash != NULL, "cannot sign NULL hash");
+    //unsigned char* hash = np_tree_get_hash(self->extensions);
+    //ASSERT(hash != NULL, "cannot sign NULL hash");
+    //crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
 
-    crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
-    crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
+    // TODO: Maybewe need to validate only till np_get_data_size(self)
+    c_ret = crypto_generichash_update(&gh_state, self->attributes, sizeof(self->attributes));
+    assert(c_ret==0);
+    c_ret = crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
+    assert(c_ret==0);
 
-    crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
-
-    free(hash);
+    c_ret = crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
+    assert(c_ret==0);
+    //free(hash);
 
     return ret;
 }
@@ -727,7 +708,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
     np_ctx_memory(self);
 
     char* info_str = NULL;
-    info_str = np_str_concatAndFree(info_str, "AAATokenTrace_%s", desc);
+    info_str = np_str_concatAndFree(info_str, "%s", desc);
 
     np_tree_t* data = np_tree_create();
     _np_aaatoken_encode(data, self, false);
@@ -751,7 +732,7 @@ void _np_aaatoken_trace_info(char* desc, np_aaatoken_t* self) {
     np_tree_free(data);
     info_str = np_str_concatAndFree(info_str, "): %s", self->uuid);
 
-    log_msg(LOG_DEBUG, "%s", info_str);
+    log_debug(LOG_AAATOKEN, "AAATokenTrace_%s", info_str);
     free(info_str);
 }
 #endif
@@ -781,19 +762,12 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
 
     memcpy(dest->signature, src->signature, NP_SIGNATURE_BYTES);
 
-    // TODO: warning/error if NP_EXTENSION_BYTES < src->extensions->byte_size 
-    cmp_ctx_t cmp;
-    _np_obj_buffer_container_t buffer_container;
-    buffer_container.buffer = dest->extensions;
-    buffer_container.bufferCount = 0;
-    buffer_container.bufferMaxCount = NP_EXTENSION_BYTES;
-    buffer_container.obj = src;
-    cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
-    np_tree_serialize(context, src->extensions, &cmp);
-    dest->extension_length = src->extensions->byte_size;
-    assert(dest->extension_length <= NP_EXTENSION_BYTES);
-
-    memcpy(dest->ext_signature, src->signature_extensions, NP_SIGNATURE_BYTES);
+    size_t attr_size;
+    if(np_get_data_size(src->attributes,&attr_size) == np_ok && attr_size <= sizeof(src->attributes)) {
+        memcpy(dest->attributes, src->attributes, sizeof(src->attributes));
+    }
+    // else{ TODO: warning/error if NP_EXTENSION_BYTES < src->extensions->byte_size }
+    memcpy(dest->attributes_signature, src->attributes_signature, sizeof(dest->attributes_signature));
 
     return dest;
 }
@@ -820,17 +794,12 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
     dest->crypto.ed25519_public_key_is_set = true;
 
     memcpy(dest->signature, src->signature, NP_SIGNATURE_BYTES);
-    
-    cmp_ctx_t cmp;
-    _np_obj_buffer_container_t buffer_container;
-    buffer_container.buffer = src->extensions;
-    buffer_container.bufferCount = 0;
-    buffer_container.bufferMaxCount = NP_EXTENSION_BYTES;
-    buffer_container.obj = dest;
-    cmp_init(&cmp, &buffer_container, _np_buffer_container_reader, _np_buffer_container_skipper, _np_buffer_container_writer);
-    np_tree_deserialize(context, dest->extensions, &cmp);
 
-    memcpy(dest->signature_extensions, src->ext_signature, NP_SIGNATURE_BYTES);
+    ASSERT(sizeof(dest->attributes)==sizeof(src->attributes),"Attribute sizes need to be compatible");
+    memcpy(dest->attributes, src->attributes, sizeof(dest->attributes));
+
+    ASSERT(sizeof(dest->attributes_signature)==sizeof(src->attributes_signature),"Signature sizes need to be compatible");
+    memcpy(dest->attributes_signature, src->attributes_signature, sizeof(dest->attributes_signature));
 
     _np_aaatoken_update_scope(dest);
 

@@ -50,6 +50,7 @@
 #include "np_tree.h"
 #include "np_types.h"
 #include "np_util.h"
+#include "neuropil_data.h"
 
 
 /** message split up maths
@@ -67,12 +68,11 @@
  **/
 
 
-bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event) 
+bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
 {
     log_trace_msg(LOG_TRACE, "start: void __np_out_callback_wrapper(...){");
 
     NP_CAST(event.user_data, np_message_t, message);
-    
     np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _np_message_get_subject(message) );
     np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
     NP_CAST(sll_first(prop_key->entities)->val, np_msgproperty_t, my_property);
@@ -96,7 +96,7 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
         }
         ret = false;
     }
-    else 
+    else
     {
         log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) for subject \"%s\" has valid token", message->uuid, my_property->msg_subject);
 
@@ -110,23 +110,33 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
         }
         else
         {
-            uint16_t recv_threshold = np_tree_find_str(tmp_token->extensions_local, "max_threshold")->val.value.ui;
-            if (recv_threshold < my_property->max_threshold) {
-                log_debug_msg(LOG_WARN, "reduce max threshold for subject (%s/%u) because receiver %s has lower, otherwise MESSAGE LOSS IS GUARANTEED!", my_property->msg_subject, recv_threshold, tmp_token->issuer);
-            }
+            struct np_data_conf cfg;
+            np_data_value max_threshold;
 
-            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s/%s) with receiver token %s %s...", my_property->msg_subject, message->uuid, tmp_token->uuid, tmp_token->issuer);
-            // encrypt the relevant message part itself
-            np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
+            if (np_get_data(tmp_token->attributes, "max_threshold", &cfg, &max_threshold) == np_ok){
+                uint32_t recv_threshold = max_threshold.unsigned_integer;
 
-            _np_message_encrypt_payload(message, tmp_token);
+                if (recv_threshold < my_property->max_threshold) {
+                    log_debug_msg(LOG_WARN, "reduce max threshold for subject (%s/%u) because receiver %s has lower, otherwise MESSAGE LOSS IS GUARANTEED!", my_property->msg_subject, recv_threshold, tmp_token->issuer);
+                }
 
-            if (FLAG_CMP(my_property->ack_mode, ACK_DESTINATION))
-            {
-                np_dhkey_t redeliver_dhkey = _np_msgproperty_dhkey(OUTBOUND, my_property->msg_subject);
-                np_util_event_t redeliver_event = { .type=(evt_redeliver|evt_internal|evt_message), .context=context, .target_dhkey=redeliver_dhkey, .user_data=message };
-                _np_keycache_handle_event(context, redeliver_dhkey, redeliver_event, false);
-                _np_message_add_msg_response_handler(message);
+                log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s/%s) with receiver token %s %s...", my_property->msg_subject, message->uuid, tmp_token->uuid, tmp_token->issuer);
+                // encrypt the relevant message part itself
+                np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
+
+                _np_message_trace_info("MSG_WRAPPER", message);
+
+                _np_message_encrypt_payload(message, tmp_token);
+
+                if (FLAG_CMP(my_property->ack_mode, ACK_DESTINATION))
+                {
+                    np_dhkey_t redeliver_dhkey = _np_msgproperty_dhkey(OUTBOUND, my_property->msg_subject);
+                    np_util_event_t redeliver_event = { .type=(evt_redeliver|evt_internal|evt_message), .context=context, .target_dhkey=redeliver_dhkey, .user_data=message };
+                    _np_keycache_handle_event(context, redeliver_dhkey, redeliver_event, false);
+                    _np_message_add_msg_response_handler(message);
+                }
+            }else{
+                log_error("There is an structual error in this token %s %s. (missing key \"max_threshold\")", my_property->msg_subject, tmp_token->issuer);
             }
         }
         // decrease threshold counters
@@ -654,7 +664,9 @@ bool _np_out_update(np_state_t* context, const np_util_event_t event)
         return false;
     }
 
-    _np_message_set_to(update_msg, target->dhkey);
+    np_tree_replace_str(update_msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(target->dhkey));
+    _np_message_trace_info("MSG_OUT_UPDATE", update_msg);
+
 
     // 4: chunk the message if required
     // TODO: send two separate messages?
@@ -768,7 +780,7 @@ bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
     NP_CAST(event.user_data, np_message_t, hs_message);
 
     np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
-    
+
     np_node_t* target_node = _np_key_get_node(target_key);
     np_node_t* my_node = _np_key_get_node(context->my_node_key);
 
@@ -776,12 +788,9 @@ bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
     if (_np_node_check_address_validity(target_node))
     {
         np_tree_t* jrb_body = np_tree_create();
-        // get our node identity from the cache			
+        // get our node identity from the cache
         np_handshake_token_t* my_token = _np_token_factory_new_handshake_token(context);
 
-        np_tree_insert_str(my_token->extensions, NP_HS_PRIO, np_treeval_new_ul(my_node->handshake_priority));
-        _np_aaatoken_update_extensions_signature(my_token);
-        
         np_aaatoken_encode(jrb_body, my_token);
         _np_message_setbody(hs_message, jrb_body);
 
@@ -791,12 +800,12 @@ bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
 
         bool serialize_ok = _np_message_serialize_chunked(hs_message);
 
-        if (hs_message->no_of_chunks != 1 || serialize_ok == false) 
+        if (hs_message->no_of_chunks != 1 || serialize_ok == false)
         {
             log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
         }
         else
-        {   
+        {
             /* send data if handshake status is still just initialized or less */
             log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE | LOG_DEBUG,
                 "sending handshake message %s to %s", // (%s:%s)",
