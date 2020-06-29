@@ -25,7 +25,7 @@ According to the FAIR principle each data set has to conform to the following fo
 - Re-usable
   Data objects can be attributed with an owner and a signature, in addition to any other 
   attribute that a data owner defines. Data objects in neuropil are therefore re-usable, 
-  although technicall it will not be possible to guarantee accuracy and relevance of each 
+  although technically it will not be possible to guarantee accuracy and relevance of each 
   (sorry, that belongs into the OSI level eight !)
 
 
@@ -99,18 +99,18 @@ However, there is one fundamental difference in our approach: In addition to its
 contents, each participant will contribute a bit of search capacity for others as well.
 
     // use more than one search "subject"!
-    // "search" + shingle size + data space = dhkey for msg subject
+    // "search" + shingle size + search space = dhkey for msg subject
     // query contains target probability that is used for searching documents
     // query contains a "required" bloom filter that is used to compare and search for data objects
     // "required" bloom filter always has a target probability of 1.0
     // query contains a "optional" bloom filter that is used to compare and search for data objects
-    // "option" bloom filter will use the target probability of the query to match elements
-    // --> the target probability can be used for comparing jaccard similarity 
+    // "optional" bloom filter will use the target probability of the query to match elements
+    // --> the target probability can be used for comparing jaccard similarity of minhash results
 
     // each node can define to which shingle size it would like to respond to
-    // plus it defines attribute bloom filter:
+    // for each searchable document plus it defines an attribute bloom filter:
     // add required document attributes to the required bloom filter
-    // add minhash signature and optional document attributes to the bloom filter
+    // add minhash signature and optional document attributes to the optional bloom filter
     // --> size of optional bloom filter depends on shingle size (e.g.256 for 1 shingles, then double)
     // --> size of optional bloom filter depends on shingle size (e.g.512 for 2 shingles, then doubled)
     // --> ...
@@ -122,7 +122,7 @@ contents, each participant will contribute a bit of search capacity for others a
     // How is the membership vector of a search defined? 
     // construct the (several) dhkey from a minhash, size of minhash has to be a multiple of 8 uint32_t,
     // minimum size is one octet(= dhkey)
-    // several dhkeys can be added to get more than one point in "space", same effect as hashing concatenated rows
+    // several dhkeys can be added to get more than one point in search "space", same effect as hashing concatenated rows
     // -> entries can be added multiple times (in different hash tables) with different levels of detail
     // whether a node will add an entry to its skiplist depends on a comparison of node dhkey and the 
     // concatenated bloom filter. It is possible to take other search peers into account to further divide
