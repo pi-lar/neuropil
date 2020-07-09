@@ -516,7 +516,7 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
         // TOOD: id to dhkey
     }
     // make sure that an outbound msgproperty exists
-    np_msgproperty_t* prop = _np_msgproperty_get_or_create(ac, OUTBOUND, subject);
+    np_msgproperty_t* prop = _np_msgproperty_get_or_create(ac, INBOUND | OUTBOUND, subject);
 
     np_message_t* msg_out = NULL;
     np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
