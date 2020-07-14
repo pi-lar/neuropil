@@ -526,7 +526,7 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
             np_dhkey_t target_dhkey = {0};
 
             np_ref_obj(np_message_t, msg_out, ref_message_in_send_system); // this ref reason has been removed on first try, re-add
-            np_util_event_t send_event = { .type=(evt_userspace | evt_message), .context=context, .user_data=msg_out, .target_dhkey=target_dhkey };
+            np_util_event_t send_event = { .type=(evt_internal | evt_userspace | evt_message), .context=context, .user_data=msg_out, .target_dhkey=target_dhkey };
             _np_keycache_handle_event(context, subject_dhkey, send_event, false);
 
             np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
