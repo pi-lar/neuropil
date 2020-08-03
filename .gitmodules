@@ -4,10 +4,6 @@
 [submodule "ext_tools/parson"]
 	path = ext_tools/parson
 	url = https://github.com/kgabis/parson.git
-[submodule "ext_tools/Criterion"]
-	path = ext_tools/Criterion
-	url = https://github.com/Snaipe/Criterion.git
-	ignore=dirty
 [submodule "bindings/python_cffi/pycparser"]
 	path = bindings/python_cffi/pycparser
 	url = https://github.com/eliben/pycparser.git
@@ -19,3 +15,6 @@
 
 
 
+[submodule "ext_tools/Criterion"]
+	path = ext_tools/Criterion
+	url = https://github.com/Snaipe/Criterion
