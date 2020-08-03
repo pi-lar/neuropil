@@ -18,6 +18,7 @@ setup:
   before_script:
     - docker info
   script:
+    - sh -c '[ -z "$CI_DEPLOY_USER" ] &&  (echo "Please read CI.md for the gitlab pipeline setup." >&2) && exit 1 || exit 0'
     - echo "$CI_DEPLOY_PASSWORD" | docker login -u $CI_DEPLOY_USER $CI_REGISTRY --password-stdin
     - docker build -t $CI_REGISTRY_IMAGE/dev-enviroment:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE/dev-enviroment -f docker/dev-enviroment.Dockerfile --build-arg CI_REPOSITORY_URL=$CI_REPOSITORY_URL --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL docker/
     - docker push $CI_REGISTRY_IMAGE/dev-enviroment
