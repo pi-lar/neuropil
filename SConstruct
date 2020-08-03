@@ -11,7 +11,6 @@ import glob
 import io
 import os
 import SCons.Util
-import build_info
 
 def exec_call(target):        
     ret = subprocess.check_call(target)
@@ -52,7 +51,6 @@ build_bindings_python = bool(int(ARGUMENTS.get('python_binding', build_bindings)
 
 
 buildDir = os.path.join('build', target)
-# use clang to compile the source code
 if build_tests_enable_test_coverage:
     '''
     default_env = Environment(CC = 'gcc', tools = ['default', 'gcccov'])
@@ -63,10 +61,10 @@ if build_tests_enable_test_coverage:
     '''
     #default_env = Environment(CC = 'gcc')
     #default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage','-fprofile-arcs','-ftest-coverage'], LDFLAGS = ['--coverage'], LIBS="gcov") 
-    default_env = Environment(CC = 'clang')
+    default_env = Environment()
     default_env.Append(CCFLAGS = ['-g', '-O0'])
 else:
-    default_env = Environment(CC = 'clang')
+    default_env = Environment()
 
 
 
@@ -269,19 +267,18 @@ np_dylib = neuropil_env.SharedLibrary(os.path.join(buildDir,'lib','neuropil'), S
 
 bindings_python_build = False
 if build_bindings_lua:
-  bindings_lua_env = default_env.Clone()    
+  bindings_lua_env = default_env.Clone()
   bindings_lua_build= bindings_lua_env.Command ("build.binding_lua", None, lambda target,source,env: exec_call(['./bindings/luajit/build.sh']))
   Depends(bindings_lua_build, np_dylib)
 
 if build_bindings_python:
-  bindings_py_env = default_env.Clone()    
+  bindings_py_env = default_env.Clone()
+  import build_info
   bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build.sh', build_info.get_semver_str()]))
   Depends(bindings_python_build, np_dylib)
 
-
 test_env = default_env.Clone()
-test_env.Append(LIBS = ['criterion'] )
-test_env.Append(LIBPATH = ['./build/test/ext_tools/Criterion/build'] )
+test_env.Append(LIBPATH = ['./build/test/ext_tools/Criterion/build/src'] )
 test_env.Append(CPPPATH = ['./ext_tools/Criterion/include'] )
 conf = Configure(test_env)
 
@@ -338,8 +335,8 @@ else:
 if install:
     install_lib = neuropil_env.Command("install.sharedlib", None, lambda target,source,env: exec_call('sudo ./install.py'.split(' ')))
     Depends(install_lib, np_dylib)
-    
-    if bindings_python_build:        
+
+    if bindings_python_build:
         py_install = bindings_py_env.Command("install.binding_python", None, lambda target,source,env: exec_call('./bindings/python_cffi/setup.py install --force'.split(' ')))
         Depends(py_install, install_lib)
         Depends(py_install, bindings_python_build)
