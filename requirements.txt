@@ -6,3 +6,4 @@ sphinxcontrib-websupport==1.0.1
 cffi==1.13.2
 nose2==0.9.1
 plantuml
+meson

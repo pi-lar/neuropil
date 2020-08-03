@@ -27,16 +27,23 @@ ensure_submodules() {
 }
 
 ensure_criterion() {
-  if  [ -e ./build/test/ext_tools/Criterion/build/libcriterion.so ];
+  echo "check for existing criterion installation"
+  set +e
+  ldconfig -p | grep criterion
+  e=$?
+  set -e
+  if [ e == 0 ];
   then
+    echo "found criterion"
     return
   fi
   (
-  root="$(pwd)"
-  mkdir -p build/test/ext_tools/Criterion/build
-  cd build/test/ext_tools/Criterion/build
-  cmake "${root}/ext_tools/Criterion"
-  cmake --build .
+    echo "did not find criterion. Building now"
+    root="$(pwd)"
+    mkdir -p "build/test/ext_tools/Criterion/build"
+    cd ext_tools/Criterion
+    meson "${root}/build/test/ext_tools/Criterion/build"
+    ninja -C "${root}/build/test/ext_tools/Criterion/build"
   )
 }
 
@@ -125,6 +132,9 @@ task_build_local() {
 task_clean() {
   ensure_venv
 
+  git submodule foreach --recursive git clean -xfd
+  git submodule foreach --recursive git reset --hard
+  git submodule update --init --recursive
   rm -rf logs/*
   rm -rf bindings/python_cffi/build bindings/python_cffi/_neuropil.abi3.so bindings/python_cffi/neuropil.egg-info
   rm -rf build
@@ -165,7 +175,7 @@ task_test() {
 
   task_build "test" debug test=1
   if [[ $? == 0 ]] ; then
-    export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build:./build/test/lib
+    export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build/src:./build/test/lib:"$LD_LIBRARY_PATH"
 
     ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
     # Enable for test debugging
@@ -187,7 +197,7 @@ task_run() {
   application="$application"
   target=$(get_local_target)
 
-  export LD_LIBRARY_PATH="./build/$target/lib"
+  export LD_LIBRARY_PATH="./build/$target/lib:$LD_LIBRARY_PATH"
 
   echo "./build/$target/bin/$application" "$@"
   set +e
@@ -200,18 +210,19 @@ task_run() {
 }
 
 task_smoke() {
-  ensure_venv
-  task_install_python
-
   pwd=$(pwd)
   (
+    ensure_venv
+    task_install_python
+
     loc="$(get_local_target)"
 
-    echo "export LD_LIBRARY_PATH=$pwd/build/$loc/lib"
-    export LD_LIBRARY_PATH="$pwd/build/$loc/lib"
+    echo "export LD_LIBRARY_PATH=$pwd/build/$loc/lib:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$pwd/build/$loc/lib:$LD_LIBRARY_PATH"
     set +e
     nose2 -v
-    if [ $? == 139 ] && [ -t 0 ]; then
+    e=$?
+    if [ e == 139 ] && [ -t 0 ]; then
       read -r -p "${1:-Debug with gdb? [y/N]} " response
       case "$response" in
           [yY][eE][sS]|[yY])
@@ -222,7 +233,19 @@ task_smoke() {
       esac
     fi
     set -e
+    return $e
   )
+}
+
+task_ensure_dependencies() {
+  ensure_venv
+  ensure_submodules
+  ensure_criterion
+  (
+    cd "build/test/ext_tools/Criterion/build"
+    ninja install
+  )
+  echo "neuropil development enviroment is ready"
 }
 
 task_test_deployment() {
@@ -235,7 +258,7 @@ task_test_deployment() {
   task_smoke
 }
 usage() {
-  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un"
+  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un | ensure_dependencies"
   exit 1
 }
 
@@ -244,6 +267,11 @@ shift || true
 
 (
   cd "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+  if [ -z "${LD_LIBRARY_PATH:-}" ]
+  then
+    export LD_LIBRARY_PATH=""
+  fi
 
   case "$cmd" in
     clean) task_clean ;;
@@ -257,6 +285,7 @@ shift || true
     release) task_release ;;
     run) task_run "$@";;
     r) task_run "$@";;
+    ensure_dependencies) task_ensure_dependencies;;
 
     prepare_ci) task_prepare_ci ;;
 

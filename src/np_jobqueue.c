@@ -249,7 +249,7 @@ void _np_jobqueue_destroy(np_state_t* context)
     if (np_module_initiated(jobqueue)) {
         np_module_var(jobqueue);
         
-        _LOCK_MODULE(np_jobqueue_t)
+        //_LOCK_MODULE(np_jobqueue_t)
         {
             np_job_t head;        
             uint16_t count = _module->job_list->count;

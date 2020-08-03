@@ -1,13 +1,35 @@
+default:
+  image: $CI_REGISTRY_IMAGE/dev-enviroment
+
 cache:
   key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
   paths:
     - venv
 
 stages:
+  - enviroment
   - test
   - build
   - qa
   - release
+
+setup:
+  stage: enviroment
+  before_script:
+    - docker info
+  script:
+    - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/dev-enviroment:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE/dev-enviroment -f docker/dev-enviroment.Dockerfile --build-arg CI_REPOSITORY_URL=$CI_REPOSITORY_URL --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL docker/
+    - docker push $CI_REGISTRY_IMAGE/dev-enviroment
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    changes:
+      - docker/*
+      - requirements.txt
+      - SConstruct
+      - .gitlab-ci.yml
 
 test:
   stage: test
@@ -31,7 +53,7 @@ build:linux:
     refs:
       - neuropil_.*
       - latest_release
-    
+
 #build:freebsd:
 #  stage: build
 #  script: ./do build freebsd
@@ -58,7 +80,7 @@ build:documentation:
 
 qa:smoke_tests:
   stage: qa
-  script: 
+  script:
       - ./do smoke
   artifacts:
     reports:
@@ -70,7 +92,7 @@ qa:smoke_tests:
 
 qa:package:
   stage: qa
-  script: 
+  script:
     - ./do package
   artifacts:
     name: neuropil-release
@@ -89,7 +111,7 @@ qa:package:
 
 release:
   stage: release
-  script: 
+  script:
     - ./do release
     # auto saltstack deploy
   when: manual
@@ -109,7 +131,7 @@ pages:
   stage: release
   script:
     - mkdir -p public
-    - rsync -r build/doc/html/ public/ 
+    - rsync -r build/doc/html/ public/
   artifacts:
     paths:
     - public/
@@ -120,6 +142,6 @@ pages:
   except:
     refs:
       - neuropil_.*
-      - latest_release  
+      - latest_release
   dependencies:
     - build:documentation
