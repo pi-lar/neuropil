@@ -46,12 +46,12 @@ struct np_node_s
 
 	// state extension
 	enum np_node_status _handshake_status;
-	double handshake_send_at; 		
+	double handshake_send_at;
 	uint32_t handshake_priority;
 
-	enum np_node_status _joined_status; 
+	enum np_node_status _joined_status;
 	double join_send_at;
-	bool joined_network; 
+	bool joined_network;
 
 	np_crypto_session_t session;
 	bool session_key_is_set;
@@ -125,7 +125,7 @@ uint8_t _np_node_check_address_validity (np_node_t* np_node);
 NP_API_INTERN
 int _np_node_cmp(np_node_t* a, np_node_t* b);
 
-#ifdef DEBUG 
+#ifdef DEBUG
 #define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, FUNC, __LINE__)
 #else
 #define np_node_set_handshake(self, set_to) _np_node_set_handshake(self,set_to, NULL, 0)

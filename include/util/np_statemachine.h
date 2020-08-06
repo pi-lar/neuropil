@@ -31,7 +31,7 @@ struct np_util_statemachine_transition_s {
     np_util_statemachine_func f_action;
     np_util_statemachine_cond f_condition;
 };
-typedef struct np_utile_statemachine_transition_s np_utile_statemachine_transition_t; 
+typedef struct np_utile_statemachine_transition_s np_utile_statemachine_transition_t;
 
 struct np_util_statemachine_state_s {
     uint8_t _state_id;
@@ -43,7 +43,7 @@ struct np_util_statemachine_state_s {
     uint8_t _transitions;
     struct np_util_statemachine_transition_s* _transition_table;
 };
-typedef struct np_util_statemachine_state_s np_util_statemachine_state_t; 
+typedef struct np_util_statemachine_state_s np_util_statemachine_state_t;
 
 struct np_util_statemachine_s {
     uint8_t _start_state;
@@ -59,7 +59,7 @@ struct np_util_statemachine_s {
 struct np_util_statemachine_result_s {
     bool success;
     uint8_t error_code;
-}; 
+};
 
 // np_util_statemachine_t np_util_statemachine_init(struct np_util_statemachine_config_s transitions);
 
@@ -83,8 +83,8 @@ struct np_util_statemachine_result_s np_util_statemachine_transition(np_util_sta
     {                                                                                                     \
         ._active=true, ._source_state=SOURCE_STATE, ._target_state=TARGET_STATE,                          \
         .f_action=ACTION, .f_condition=CONDITION                                                          \
-    }) 
-    
+    })
+
 #define NP_UTIL_STATEMACHINE_STATE(MACHINE, STATE, NAME, ERROR_FUNC, ENTER_FUNC, EXIT_FUNC) \
     np_util_statemachine_add_state(MACHINE, (struct np_util_statemachine_state_s)           \
     {                                                                                       \

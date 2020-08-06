@@ -1,6 +1,6 @@
-//                                                                                                                          
-// neuropil is copyright 2016-2020 by pi-lar GmbH                                                                          
-// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details                           
+//
+// neuropil is copyright 2016-2020 by pi-lar GmbH
+// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 #include <criterion/criterion.h>
 #include <inttypes.h>
@@ -16,7 +16,7 @@ TestSuite(np_pheromone_t);
 
 Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a dhkey to the pheromone table")
 {
-	CTX() 
+	CTX()
     {
         struct np_bloom_optable_s neuropil_operations = {
             .add_cb       = _np_neuropil_bloom_add,
@@ -26,11 +26,11 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
             .intersect_cb = _np_neuropil_bloom_intersect,
         };
 
-        //  char test_string[65];    
+        //  char test_string[65];
         np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
         //  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
         np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
-        //  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);    
+        //  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
         np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
         //  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
         np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
@@ -42,7 +42,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
         np_pheromone_t t1 = { ._subject = &test1,
                               ._subj_bloom = NULL,
                               ._pos = 0,
-                              ._sender=context->my_node_key->dhkey, 
+                              ._sender=context->my_node_key->dhkey,
                               ._receiver=NULL,
                               ._attr_bloom={0} };
         t1._subj_bloom = _np_neuropil_bloom_create();
@@ -55,7 +55,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
         np_pheromone_t t2 = { ._subject = {0},
                               ._subj_bloom = NULL,
                               ._pos = 0,
-                              ._sender=context->my_node_key->dhkey, 
+                              ._sender=context->my_node_key->dhkey,
                               ._receiver=NULL,
                               ._attr_bloom={0} };
         t2._subj_bloom = _np_neuropil_bloom_create();
@@ -118,7 +118,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
         // forget about scents in our pheromone table
         for (uint16_t i = 0; i < 257; i++) _np_pheromone_exhale(context);
 
-        // then sniff again, the scent trail has weakened 
+        // then sniff again, the scent trail has weakened
         _np_pheromone_snuffle_sender(context, result_list, test1, &target_probability);
         cr_expect(1 == sll_size(result_list), "expect the list result set to have  1 entry");
         cr_expect(1.0 >  target_probability, "expect the probability to be less than 1.0");
@@ -148,7 +148,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
         // fprintf(stdout, "%f\n", old_target);
         t2._pos = -t2._pos;
         np_dhkey_t _null = {0};
-        _np_dhkey_assign(&t2._sender, &_null); 
+        _np_dhkey_assign(&t2._sender, &_null);
         t2._receiver=context->my_node_key->dhkey;
 
         _np_neuropil_bloom_age_decrement(t2._subj_bloom);
@@ -167,7 +167,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
 
 Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exhale a dhkey from the pheromone table")
 {
-	CTX() 
+	CTX()
     {
         struct np_bloom_optable_s neuropil_operations = {
             .add_cb       = _np_neuropil_bloom_add,
@@ -178,7 +178,7 @@ Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exha
         };
 
         log_debug(LOG_INFO, "--- pheromone exhale test part 1 ---");
-        for (uint16_t i = 0; i < 512; i++) 
+        for (uint16_t i = 0; i < 512; i++)
         {
             char* random_bytes[32];
             randombytes_buf(random_bytes, 32);
@@ -188,7 +188,7 @@ Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exha
             np_pheromone_t t2 = { ._subject = {0},
                                   ._subj_bloom = NULL,
                                   ._pos = 0,
-                                  ._sender=test2, 
+                                  ._sender=test2,
                                   ._receiver=NULL,
                                   ._attr_bloom={0} };
             t2._subj_bloom = _np_neuropil_bloom_create();
@@ -201,16 +201,16 @@ Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exha
 
             _np_bloom_free(t2._subj_bloom);
 
-            for (uint16_t j = 0; j < 6; j++) 
+            for (uint16_t j = 0; j < 6; j++)
                 _np_pheromone_exhale(context);
         }
 
         log_debug(LOG_INFO, "--- pheromone exhale test part 2 ---");
-        for (uint16_t j = 0; j < 8192; j++) 
+        for (uint16_t j = 0; j < 8192; j++)
             _np_pheromone_exhale(context);
 
         log_debug(LOG_INFO, "--- pheromone exhale test part 3 ---");
-        for (uint16_t i = 0; i < 8192; i++) 
+        for (uint16_t i = 0; i < 8192; i++)
         {
             char* random_bytes[32];
             randombytes_buf(random_bytes, 32);
@@ -220,7 +220,7 @@ Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exha
             np_pheromone_t t2 = { ._subject = {0},
                                   ._subj_bloom = NULL,
                                   ._pos = 0,
-                                  ._sender=test2, 
+                                  ._sender=test2,
                                   ._receiver=NULL,
                                   ._attr_bloom={0} };
             t2._subj_bloom = _np_neuropil_bloom_create();
@@ -234,7 +234,7 @@ Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exha
 
             _np_bloom_free(t2._subj_bloom);
 
-            for (uint16_t j = 0; j < 6; j++) 
+            for (uint16_t j = 0; j < 6; j++)
                 _np_pheromone_exhale(context);
         }
 

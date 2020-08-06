@@ -25,7 +25,7 @@
 
 #include "../test_macros.c"
 
- 
+
 TestSuite(np_message_t );
 
 
@@ -160,7 +160,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
 
         _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
         np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
-        
+
         // Do the serialsation
         _np_message_calculate_chunking(write_msg);
         bool write_ret = _np_message_serialize_chunked(write_msg);

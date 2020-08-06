@@ -63,14 +63,14 @@ extern "C" {
 
 #ifndef NP_KEYCACHE_DEPRECATION_INTERVAL
     #define NP_KEYCACHE_DEPRECATION_INTERVAL (31.415)
-#endif	
+#endif
 
 #ifndef _NP_KEYCACHE_ITERATION_STEPS
     #define _NP_KEYCACHE_ITERATION_STEPS (11)
-#endif	
+#endif
 
 /*
- * msgproperty default vaue definitions 
+ * msgproperty default vaue definitions
  */
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL_SEC
     #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT * 60) // 180 seconds
@@ -119,7 +119,7 @@ extern "C" {
 #define MSG_PAYLOADBIN_SIZE (15)
 
 #define MSG_CHUNK_SIZE_1024 (1024)
-#define MSG_ENCRYPTION_BYTES_40 (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)	
+#define MSG_ENCRYPTION_BYTES_40 (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
 
 #ifndef MISC_LOG_FLUSH_INTERVAL_SEC
@@ -277,7 +277,7 @@ extern "C" {
 #endif
 
 #ifndef MUTEX_WAIT_MAX_SEC
-    #define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC 
+    #define MUTEX_WAIT_MAX_SEC  MUTEX_WAIT_SEC
 #endif
 #ifndef NP_JOBQUEUE_MAX_SLEEPTIME_SEC
     #define NP_JOBQUEUE_MAX_SLEEPTIME_SEC (NP_PI/10)

@@ -53,7 +53,7 @@ extern "C" {
 
     bool _np_memory_init(np_state_t* context);
     void _np_memory_destroy(np_state_t* context);
-    
+
 
     NP_API_EXPORT
         void np_memory_register_type(
@@ -94,16 +94,16 @@ extern "C" {
     */
     NP_API_INTERN
     np_state_t* np_memory_get_context(void* item);
-    
+
     NP_API_INTERN
     bool _np_memory_rtti_check(void* item, enum np_memory_types_e type);
 
     NP_API_INTERN
     void np_memory_ref_replace_reason(void* item, const char* old_reason, const char* new_reason);
-    
+
     NP_API_INTERN
     uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason);
-    
+
     NP_API_INTERN
     void np_mem_refobj(np_state_t*context, void * item, const char* reason);
 
@@ -125,7 +125,7 @@ extern "C" {
 void _##TYPE##_new(np_state_t * context, uint8_t type, size_t size, void* data);			\
 void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);			\
 
-#define NP_CAST(OBJ, TYPE, VAR) TYPE* VAR = (TYPE*) OBJ; 
+#define NP_CAST(OBJ, TYPE, VAR) TYPE* VAR = (TYPE*) OBJ;
 
 // macro definitions to generate implementation of prototypes
 // empty by design, forces developers to write new and delete callback functions for memory types
@@ -144,7 +144,7 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 #else
     #define ref_replace_reason(TYPE, np_obj, old_reason, new_reason)
     #define _NP_REF_REASON(reason, reason_desc, new_reason)																							\
-        char new_reason[0];																										
+        char new_reason[0];
 #endif
 
 
@@ -162,7 +162,7 @@ void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);
 #define np_ref_obj2(TYPE, np_obj) np_ref_obj3(TYPE, np_obj, FUNC)
 #define np_ref_obj3(TYPE, np_obj, reason) np_ref_obj4(TYPE, np_obj, reason,"")
 #define np_ref_obj4(TYPE, np_obj, reason, reason_desc)              																									\
-    np_memory_ref_obj(context, np_obj, reason, reason_desc) 
+    np_memory_ref_obj(context, np_obj, reason, reason_desc)
 
 #define np_tryref_obj(...) VFUNC(np_tryref_obj, __VA_ARGS__)
 #define np_tryref_obj3(TYPE, np_obj, ret) np_tryref_obj4(TYPE, np_obj, ret, container_##__LINE__)
@@ -176,7 +176,7 @@ bool ret = container != NULL
 #define np_waitref_obj3(TYPE, np_obj, saveTo) np_waitref_obj4(TYPE, np_obj, saveTo, FUNC)
 #define np_waitref_obj4(TYPE, np_obj, saveTo, reason) np_waitref_obj5(TYPE, np_obj, saveTo, reason,"")
 #define np_waitref_obj5(TYPE, np_obj, saveTo, reason, reason_desc)    																				\
-    TYPE* saveTo = (TYPE*) np_memory_waitref_obj(context, np_obj, reason, reason_desc);																		
+    TYPE* saveTo = (TYPE*) np_memory_waitref_obj(context, np_obj, reason, reason_desc);
 
 
 #ifdef DEBUG
@@ -187,7 +187,7 @@ bool ret = container != NULL
 #else
 #define CHECK_MALLOC(obj)
 #endif
-    
+
 
 #define np_unref_obj(TYPE, np_obj, reason)                																							\
     if(np_memory_unref_obj(context, np_obj, reason) <= 0) np_obj = NULL

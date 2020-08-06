@@ -52,7 +52,7 @@ const double ping_pong_intervall = 0.01;
 void handle_ping_pong_receive(np_context* context, char * response, int first_low, int first_high, struct np_message* msg)
 {
 	char* text = (char*)msg->data;
-	
+
 	char tmp_from[65];
 	np_id_str(tmp_from, msg->from);
 	np_example_print(context, stdout, "Received %d/%s from %s. Sending %s\n",msg->data_length, text, tmp_from, response);
@@ -101,10 +101,10 @@ bool receive_blue_button_reset(np_context* context, struct np_message* message) 
 	return true;
 }
 
-void invoke_btn_blue(np_context* context, uint8_t value) {	
-	is_blue_pressed = true; 
+void invoke_btn_blue(np_context* context, uint8_t value) {
+	is_blue_pressed = true;
 	if(value == 0) np_send(context, "blue_button_pressed", (uint8_t*)"test", 5);
-	np_example_print(context, stdout, "Blue  button pressed %d ", value);	
+	np_example_print(context, stdout, "Blue  button pressed %d ", value);
 }
 
 void invoke_btn_green(np_context* context, uint8_t value) {
@@ -114,9 +114,9 @@ void invoke_btn_green(np_context* context, uint8_t value) {
 	is_blue_pressed = false;
 }
 
-void invoke_btn_red(np_context* context, uint8_t value) {	
+void invoke_btn_red(np_context* context, uint8_t value) {
 	if (is_blue_pressed && value == 0) np_send(context, "blue_button_reset", (uint8_t*)"test", 5);
-	np_example_print(context, stdout, "Red   button pressed %d ", value);	
+	np_example_print(context, stdout, "Red   button pressed %d ", value);
 	is_blue_pressed = false;
 }
 
@@ -136,7 +136,7 @@ void checkGPIO(np_context * context) {
 		uint8_t nvalue_red = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
 		if (nvalue_red != value_red) { value_red = nvalue_red; invoke_btn_red(context, nvalue_red); }
 
-		if (is_blue_pressed) {			
+		if (is_blue_pressed) {
 			double now = np_time_now();
 			if (led_switch_at + 1. < now) {
 				led_switch = !led_switch;
@@ -144,8 +144,8 @@ void checkGPIO(np_context * context) {
 				if (led_switch) {
 					bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
 				}
-				else {					
-					bcm2835_gpio_write(LED_GPIO_BUTTON, LOW); 
+				else {
+					bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
 				}
 			}
 		}
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 		&opt_instance_no
 	)) == NULL) {
 		exit(EXIT_FAILURE);
-	}	
+	}
 
 	is_gpio_enabled = strcmp(is_gpio_enabled_opt, "0") != 0;
 
@@ -255,14 +255,14 @@ int main(int argc, char **argv)
 	if(is_gpio_enabled == true) {
 		initGPIO(context);
 	} else {
-		// get public / local network interface id		
+		// get public / local network interface id
 		char * http_domain= calloc(1, sizeof(char) * 255);
 		CHECK_MALLOC(http_domain);
 		if (np_get_local_ip(context, http_domain, 255) == false) {
 			free(http_domain);
 			http_domain = NULL;
 		}
-		
+
 		if(false == _np_http_init(context, http_domain, NULL))
 		{
 			np_example_print(context, stderr,   "Node could not start HTTP interface\n");
@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 		np_example_print(context, stdout, "try to join bootstrap node\n");
 		np_join(context, j_key);
 	}
-	
+
 	//register the listener function to receive data from the sender
 	np_add_receive_cb(context, "ping", receive_ping);
 	struct np_mx_properties  ping_props = np_get_mx_properties(context, "ping");
@@ -311,7 +311,7 @@ int main(int argc, char **argv)
 	np_statistics_add_watch(context, "blue_button_reset");
 	np_statistics_add_watch(context, "ping");
 	np_statistics_add_watch(context, "pong");
-	
+
 
 	fprintf(stdout, "Sending initial ping.\n");
 	log_msg(LOG_INFO, "Sending initial ping");
@@ -321,7 +321,7 @@ int main(int argc, char **argv)
 	//__np_example_helper_run_loop();
 	uint32_t i = 0;
 	uint32_t now = np_time_now();
-	
+
 	last_response_or_invokation  = now;
 
 	while (true) {

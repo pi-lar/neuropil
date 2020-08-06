@@ -74,13 +74,13 @@ void __np_example_deinti_ncurse(np_context * context);
 
 void example_helper_destroy(np_context* context){
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    if(ud){        
+    if(ud){
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
             ud->_np_httpserver_active = false;
         }
         __np_example_deinti_ncurse(context);
-        
+
         np_set_userdata(context, NULL);
         _np_threads_mutex_destroy(context, ud->__log_mutex);
         free(ud->opt_http_domain);
@@ -119,10 +119,10 @@ example_user_context* example_new_usercontext() {
     user_context->__np_switch_performance= NULL;
     user_context->__np_switch_jobs= NULL;
     user_context->__np_switch_threads= NULL;
-    
+
     user_context->__np_switch_interactive= NULL;
 
-    user_context->is_in_interactive = false; 
+    user_context->is_in_interactive = false;
     user_context->__np_interactive_event_on_enter = NULL;
     user_context->__np_interactive_text = NULL;
     memset(&user_context->__np_interactive_cache, 0, __NP_INTERACTIVE_CACHE);
@@ -229,7 +229,7 @@ void __np_switchwindow_draw(np_context* context) {
 
 void __np_switchwindow_show(np_context* context, struct __np_switchwindow_scrollable *target) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    
+
     if (ud->_current == NULL)
     {
         ud->_current = target;
@@ -243,7 +243,7 @@ void __np_switchwindow_show(np_context* context, struct __np_switchwindow_scroll
 }
 
 void __np_switchwindow_scroll_check_bounds(np_context* context, struct __np_switchwindow_scrollable *target) {
-    example_user_context* ud = ((example_user_context*)np_get_userdata(context));	
+    example_user_context* ud = ((example_user_context*)np_get_userdata(context));
 
     int lines = 0;
     for (uint32_t c = 0; c < strlen(target->buffer); c++) {
@@ -277,7 +277,7 @@ void __np_switchwindow_scroll(np_context* context, struct __np_switchwindow_scro
 void __np_switchwindow_update_buffer(np_context* context, struct __np_switchwindow_scrollable * target, char* buffer, int scroll_relative) {
 
     _LOCK_ACCESS(&target->access) {
-        char* old = target->buffer;        
+        char* old = target->buffer;
         target->buffer = strdup(buffer);
         free(old);
         __np_switchwindow_scroll(context, target, scroll_relative, false);
@@ -496,7 +496,7 @@ void np_example_helper_allow_everyone(np_context* ac) {
 bool np_example_save_identity(np_context* context, char* passphrase, char* filename) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     bool  ret = false;
-    
+
     struct np_token new_token = np_new_identity(context, np_time_now() + 60 * 60 * 24 * 7, NULL);
     size_t token_size = sizeof(new_token);
 
@@ -589,8 +589,8 @@ enum np_example_load_identity_status  np_example_load_identity(np_context *conte
                 info.st_size,
                 ud->nonce,
                 ud->key)
-                ) {								
-                np_use_identity(context, buffer);				
+                ) {
+                np_use_identity(context, buffer);
                 ret = np_example_load_identity_status_success;
             }
             free(crypted_data);
@@ -798,8 +798,8 @@ example_user_context* parse_program_args(
         \code
         */
         if (*port == NULL) {
-            int port_pid = getpid();			
-            
+            int port_pid = getpid();
+
             if (port_pid > 65535) {
                 port_pid  = port_pid >> 1;
             }
@@ -815,7 +815,7 @@ example_user_context* parse_program_args(
         fprintf(stderr, "usage: %s\n", usage);
     }
     free(usage);
-    
+
     if (!ret) {
         free(user_context);
         user_context = NULL;
@@ -826,7 +826,7 @@ example_user_context* parse_program_args(
 
 void __np_example_deinti_ncurse(np_context * context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-        
+
     if (ud != NULL && ud->__np_ncurse_initiated == true) {
         delwin(ud->__np_top_left_win);
         delwin(ud->__np_top_right_win);
@@ -836,9 +836,9 @@ void __np_example_deinti_ncurse(np_context * context) {
         __np_switchwindow_del(context, ud->__np_switch_memory_ext);
         __np_switchwindow_del(context, ud->__np_switch_log);
         __np_switchwindow_del(context, ud->__np_switch_msgpartcache);
-        __np_switchwindow_del(context, ud->__np_switch_performance);        
+        __np_switchwindow_del(context, ud->__np_switch_performance);
         __np_switchwindow_del(context, ud->__np_switch_jobs);
-        __np_switchwindow_del(context, ud->__np_switch_threads);        
+        __np_switchwindow_del(context, ud->__np_switch_threads);
         __np_switchwindow_del(context, ud->__np_switch_interactive);
 
         endwin();
@@ -864,7 +864,7 @@ void __np_example_print_help(example_user_context* ud) {
     else if (ud->_current == ud->__np_switch_log) pos = 54;
     else if (ud->_current == ud->__np_switch_jobs) pos = 64;
     else if (ud->_current == ud->__np_switch_threads) pos = 71;
-    
+
     mvwchgat(ud->__np_bottom_win_help, 0, pos, 1, A_UNDERLINE, 4, NULL);
     wrefresh(ud->__np_bottom_win_help);
 
@@ -990,7 +990,7 @@ bool example_sysinfo_init(np_context* context,np_sysinfo_opt_e opt_sysinfo_mode)
 
     if (opt_sysinfo_mode != np_sysinfo_opt_disable) {
         if (opt_sysinfo_mode == np_sysinfo_opt_force_server)
-        {            
+        {
             np_example_print(context, stdout, "Enable sysinfo server option\n");
             np_sysinfo_enable_server(context);
         }
@@ -998,7 +998,7 @@ bool example_sysinfo_init(np_context* context,np_sysinfo_opt_e opt_sysinfo_mode)
             np_example_print(context, stdout, "Enable sysinfo client option\n");
             np_sysinfo_enable_client(context);
         }
-        
+
         np_example_print(context, stdout, "Watch sysinfo subjects \n");
         // If you want to you can enable the statistics modulte to view the nodes statistics (or use the prometheus interface)
         np_statistics_add_watch(context, _NP_SYSINFO_DATA);
@@ -1036,17 +1036,17 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
 }
 
 void _np_interactive_quit(np_context* context, char* buffer) {
-    
+
     if (strncmp(buffer, "1", 2) == 0 ||
         strncmp(buffer, "y", 1) == 0 ){
-        
+
         np_destroy(context, true);
-        
+
         exit(EXIT_SUCCESS);
     }else if (strncmp(buffer, "f", 2) == 0){
-        
+
         np_destroy(context, false);
-        
+
         exit(EXIT_SUCCESS);
     }
 }
@@ -1098,7 +1098,7 @@ void __np_example_helper_loop(np_state_t* context) {
         ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
         example_sysinfo_init(context,ud->opt_sysinfo_mode);
         np_statistics_set_node_description(context, ud->node_description);
-        
+
         np_example_print(context, stdout, "Watch internal subjects\n");
         np_statistics_add_watch_internals(context);
     }
@@ -1243,9 +1243,9 @@ void __np_example_helper_loop(np_state_t* context) {
             }
         }
 #ifdef DEBUG
-        if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) 
+        if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks)
         {
-            if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console)) 
+            if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console))
             {
                 memory_str = np_threads_print_locks(context, false, false);
                 if (memory_str != NULL) {
@@ -1288,10 +1288,10 @@ void __np_example_helper_loop(np_state_t* context) {
 #elif defined(RELEASE)
                             "RELEASE"
 #else
-                            "NON DEBUG and NON RELEASE"                            
+                            "NON DEBUG and NON RELEASE"
 #endif
                             " (%s)(EV:%s)(FPS: %4.0f / RT: %2.0fms)\n%s ", time, NEUROPIL_RELEASE, ev_polls, (1/ud->output_intervall_sec),ud->input_intervall_sec*1000, memory_str
-                        );                            
+                        );
                     }
                     if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
                         np_example_print(context, stdout, memory_str);
@@ -1417,7 +1417,7 @@ void __np_example_helper_loop(np_state_t* context) {
         }
     }
 }
- 
+
 void __np_example_helper_run_loop(np_context*context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     double sleep;
@@ -1432,12 +1432,12 @@ void __np_example_helper_run_loop(np_context*context) {
 
 void __np_example_helper_run_info_loop(np_context*context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    
+
     double sleep;
     while (np_get_status(context) == np_running)
     {
         if (((np_state_t*)context)->settings->n_threads == 0) np_run(context, 0.0);
-        
+
         sleep = ud->input_intervall_sec;
         np_time_sleep(sleep);
 

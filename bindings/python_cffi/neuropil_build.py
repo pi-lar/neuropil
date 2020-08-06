@@ -9,8 +9,8 @@ def get_local_target():
 ffibuilder = FFI()
 PATH = os.path.dirname(__file__)
 
-np_lib_path = os.path.join(PATH, f"../../build/{get_local_target()}/lib")
-np_include_path = os.path.join(PATH, "../../include")
+np_lib_path = os.path.join(PATH, "..","..","build",'neuropil',"lib")
+np_include_path = os.path.join(PATH, "..","..","include")
 
 # This describes the extension module "_neuropil" to produce.
 ffibuilder.set_source(
@@ -32,9 +32,7 @@ h_files = ['neuropil.h']
 
 for h_file in h_files:
     h_file_path = os.path.join(np_include_path, h_file)
-    cc = "clang"
-    if os.getenv("CC"):
-        cc = os.getenv("CC")
+    cc = os.getenv("CC",'clang')
 
     cmd =[
             cc,"-E",h_file_path,

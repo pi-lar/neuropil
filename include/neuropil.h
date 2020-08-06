@@ -368,7 +368,7 @@ Starting up
    :param address: a pointer to the address string to be written to.
    :param max: the size in bytes of *address*. Should be large enough to hold the resulting address string. The required space depends on the node’s host name (i.e., 1000 bytes should be more than enough for most uses.)
    :return:        :c:data:`np_ok` on success.
-       
+
    ===============================  ===========================================
    Status                           Meaning
    ===============================  ===========================================
@@ -732,6 +732,6 @@ Constants
 
    Constant that denotes the length in bytes of message UUID_s.
 
-.. _UUID: https://en.wikipedia.org/wiki/Universally_unique_identifier 
+.. _UUID: https://en.wikipedia.org/wiki/Universally_unique_identifier
 
 */

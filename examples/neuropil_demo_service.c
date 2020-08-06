@@ -76,8 +76,8 @@ int main(int argc, char **argv) {
 		np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 		exit(EXIT_FAILURE);
 	}
- 
-	np_add_receive_cb(context, "echo", receive_echo_message);	
+
+	np_add_receive_cb(context, "echo", receive_echo_message);
 	struct np_mx_properties  echo_props = np_get_mx_properties(context, "echo");
 	echo_props.ackmode = NP_MX_ACK_NONE;
 	echo_props.message_ttl = 20.0;
@@ -89,4 +89,4 @@ int main(int argc, char **argv) {
 	}
 
 	__np_example_helper_run_info_loop(context);
-} 
+}

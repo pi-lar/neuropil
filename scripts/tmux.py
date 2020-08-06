@@ -52,7 +52,7 @@ if args.path:
 if args.v or args.vs or args.vc:
     if args.s == 1:
         args.s = 0
-        
+
 if args.r and args.n < 0:
     args.n = 0
 if args.n < 0:
@@ -94,7 +94,7 @@ if args.k:
 else:
     if not args.r or not server.has_session("np"):
         session = server.new_session("np", True)
-        
+
     windowName  = "neuropil bootstraper"
     if start_bootstrapper and not session.find_where({ "window_name": windowName }):
         nb = session.new_window(attach=True, window_name=windowName)
@@ -108,7 +108,7 @@ else:
             time.sleep(4)
         else:
             time.sleep(0.5)
-    
+
     for i in range(count):
         windowName  = "neuropil node {0:05d}".format(i+port+start_bootstrapper)
         if not session.find_where({ "window_name": windowName }):
@@ -126,8 +126,8 @@ else:
             nn.attached_pane.send_keys("  " + ('valgrind --leak-check=full ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.bin_path +
             f'neuropil_node -b {node_port} -u {publish_domain} -t {threads} -p {port_type_client} -o {sysinfo_client} -d {loglevel} {join_client} {httpdomain} -e {node_http_port} -s {statistics} {autoclose}')
 
-    if not args.k:        
-        if args.sd_prometheus:            
+    if not args.k:
+        if args.sd_prometheus:
             with open(args.sd_prometheus,"w+") as file:
                 file.write(f'[{{"targets": ["{args.httpdomain}:31415"')
 

@@ -22,7 +22,7 @@ WORKDIR /root
 RUN \
     apt-get update && \
     apt-get -y upgrade && \
-    apt-get -y install curl build-essential unzip locate clang python3 git virtualenv cmake && \
+    apt-get -y install curl build-essential unzip locate clang python3 python3-setuptools git virtualenv cmake bash && \
     apt-get -y install python3-dev libxml2-dev libxslt-dev && \
     apt-get -y install ninja-build libgit2-dev pkg-config
 

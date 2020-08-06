@@ -25,7 +25,7 @@ extern "C" {
 /**
  * a alias component is the representation of an external physical node running on a distant os.
  * it resides in memory at the dhkey composed by using the incoming IP/Port. usually it is used as
- * an inbound channel to receive and decrypt messages. it has a np_node_t and np_network_t 
+ * an inbound channel to receive and decrypt messages. it has a np_node_t and np_network_t
  * structure which can be shared with it outound counterpart, the node component.
  */
 
@@ -41,7 +41,7 @@ void __np_alias_set_node(np_util_statemachine_t* statemachine, const np_util_eve
 
 NP_API_INTERN
 void __np_create_session(np_util_statemachine_t* statemachine, const np_util_event_t event); // create node as well and "steal" network sructure
- 
+
 NP_API_INTERN
 bool __is_join_in_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 

@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 		NULL)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
-	
+
 	/**
 	in your main program, initialize the two neuropil nodes, but this time use the a single identity on top of both
 
@@ -214,7 +214,7 @@ int main(int argc, char **argv)
 	*/
 
 	if (np_ok != np_listen(context_1, proto, publish_domain, atoi(port) )) {
-		fprintf(stdout, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);		
+		fprintf(stdout, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 		exit(EXIT_FAILURE);
 	}
 
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 	/**
 	   \endcode
 	*/
-	   
+
 
 	/**
 	start up the job queue with and check the error code if the event loop can be processed.

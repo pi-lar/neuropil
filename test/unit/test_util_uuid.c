@@ -7,7 +7,7 @@
 #include "np_event.h"
 #include "np_util.h"
 #include "np_log.h"
- 
+
 TestSuite(np_uuid_t );
 
 Test(np_uuid_t, _uuid_create, .description="test the creation of unique uuid's")

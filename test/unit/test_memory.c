@@ -43,7 +43,7 @@ typedef struct test_struct
 
 void _test_struct_t_del(np_state_t *context, uint8_t type, size_t size, void* obj)
 {
-    // printf("destructor test_struct_t_del called");	 
+    // printf("destructor test_struct_t_del called");
 }
 
 void _test_struct_t_new(np_state_t *context, uint8_t type, size_t size, void* obj)
@@ -52,7 +52,7 @@ void _test_struct_t_new(np_state_t *context, uint8_t type, size_t size, void* ob
 }
 
 TestSuite(np_memory_t );
- 
+
 // TODO: add the appropiate cr_expect() statements to really test the memory chunking
  Test(np_memory_t, _memory_create, .description="test the memory allocation routines")
  {
@@ -104,7 +104,7 @@ TestSuite(np_memory_t );
 
          np_unref_obj(test_struct_t, t_obj3, ref_obj_creation);
          cr_expect(t_obj3 == NULL, "test whether the t_obj3 has been deleted");
-         cr_expect(obj->ref_count == 0, "test whether the reference counter of former meta obj is zero");		 		 
+         cr_expect(obj->ref_count == 0, "test whether the reference counter of former meta obj is zero");
 
          // np_mem_printpool();
 
@@ -119,7 +119,7 @@ TestSuite(np_memory_t );
          // np_mem_printpool();
 
          np_unref_obj(test_struct_t, t_obj1, "ref2");
-         cr_expect(GET_CONF(t_obj1)->ref_count == 1, "test whether the reference counter  of obj 1 is equal to 1");		 
+         cr_expect(GET_CONF(t_obj1)->ref_count == 1, "test whether the reference counter  of obj 1 is equal to 1");
 
          // np_mem_printpool();
          obj = GET_CONF(t_obj1);

@@ -2,23 +2,18 @@
 
 set -eu
 
-
-log(){
-  echo  "$(date '+%H:%M:%S') $1"
-}
-
 ensure_venv() {
-  if [ ! -d venv ]; then
-    virtualenv -p $(which python3) venv
-    ./venv/bin/pip3 install -r requirements.txt
+  if [ ! -d .venv ]; then
+    virtualenv -p $(which python3) .venv
+    ./.venv/bin/pip3 install -r configs/requirements.txt
   fi
 
-  if [ requirements.txt -nt venv ]; then
-    ./venv/bin/pip3 install -r requirements.txt
-    touch ./venv
+  if [ configs/requirements.txt -nt .venv ]; then
+    ./.venv/bin/pip3 install -r configs/requirements.txt
+    touch ./.venv
   fi
   set +u
-  source ./venv/bin/activate
+  source ./.venv/bin/activate
   set -u
 }
 
@@ -40,16 +35,11 @@ ensure_criterion() {
   (
     echo "did not find criterion. Building now"
     root="$(pwd)"
-    mkdir -p "build/test/ext_tools/Criterion/build"
+    mkdir -p "build/ext_tools/Criterion/build"
     cd ext_tools/Criterion
-    meson "${root}/build/test/ext_tools/Criterion/build"
-    ninja -C "${root}/build/test/ext_tools/Criterion/build"
+    meson "${root}/build/ext_tools/Criterion/build"
+    ninja -C "${root}/build/ext_tools/Criterion/build"
   )
-}
-
-get_local_target(){
-  # TOOD: select local system
-  echo "linux"
 }
 
 task_prepare_ci(){
@@ -68,13 +58,6 @@ task_build() {
   ensure_venv
   ensure_submodules
 
-  target=${1:-"defaultvalue"}
-  if [ "$target" == "defaultvalue" ]; then
-    target=$(get_local_target)
-  else
-    shift;
-  fi
-
   type=${1:-"defaultvalue"}
   if [ "$type" == "defaultvalue" ]; then
     type="release=1"
@@ -90,8 +73,8 @@ task_build() {
   tmpfile_sorted=$(mktemp /tmp/np_sorted.log.XXXXXX)
   tmpfile_sorted2=$(mktemp /tmp/np_sorted.log.XXXXXX)
 
-  echo "executing: scons $type target=$target $@ |& tee $tmpfile_sorted"
-  (scons "$type" "target=$target" "$@" |& tee "$tmpfile_sorted")
+  echo "executing: scons -C build -f ../SConstruct $type $@ |& tee $tmpfile_sorted"
+  (scons -C build -f ../SConstruct "$type" "$@" |& tee "$tmpfile_sorted")
   ret=${PIPESTATUS[0]}
   set +e
   egrep "warning:|error:" "$tmpfile_sorted" > "$tmpfile_sorted2"
@@ -124,11 +107,6 @@ task_build() {
   return $ret
 }
 
-task_build_local() {
-  task_build $(get_local_target) "$@"
-  return $?
-}
-
 task_clean() {
   ensure_venv
 
@@ -138,7 +116,6 @@ task_clean() {
   rm -rf logs/*
   rm -rf bindings/python_cffi/build bindings/python_cffi/_neuropil.abi3.so bindings/python_cffi/neuropil.egg-info
   rm -rf build
-  scons -c
 }
 
 task_doc() {
@@ -153,19 +130,29 @@ task_doc() {
 task_package() {
   ensure_venv
 
-  ./build_info.py --package "$@"
+  ./scripts/util/build_helper.py --package "$@"
 }
 
 task_release() {
     ensure_venv
 
-  ./build_info.py --gitlab_release
+  ./scripts/util/build_helper.py --gitlab_release
 }
 
 task_install_python() {
   ensure_venv
+  task_build release "$@"
+  task_build release python_binding=1 "$@"
+  pip3 install -e bindings/python_cffi
 
-  task_build_local release python_binding=1
+  if [ "$(uname -s)" == "Mac" ]
+  then
+      echo "Trying to use name tool to link into build library in ${work_dir}/_neuropil.abi3.so"
+      sudo install_name_tool -change build/neuropil/lib/libneuropil.dylib ${base_dir}/build/neuropil/lib/libneuropil.dylib ./_neuropil.abi3.so
+      last=$?
+  fi
+
+  return $?
 }
 
 task_test() {
@@ -173,17 +160,21 @@ task_test() {
   ensure_submodules
   ensure_criterion
 
-  task_build "test" debug test=1
-  if [[ $? == 0 ]] ; then
-    export LD_LIBRARY_PATH=./build/test/ext_tools/Criterion/build/src:./build/test/lib:"$LD_LIBRARY_PATH"
+  task_build debug
 
-    ./build/test/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
-    # Enable for test debugging
-    #nohup ./build/test/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
-    #sleep 1
-    #gdb ./build/test/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
-  fi
+  (
+    cd build
+    mkdir -p logs
+    if [[ $? == 0 ]] ; then
+      export LD_LIBRARY_PATH=./ext_tools/Criterion/build/src:./neuropil/lib:"$LD_LIBRARY_PATH"
 
+      ./neuropil/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
+      # Enable for test debugging
+      #nohup ./build/neuropil/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
+      #sleep 1
+      #gdb ./build/neuropil/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+    fi
+  )
 }
 
 task_run() {
@@ -195,16 +186,15 @@ task_run() {
     shift;
   fi
   application="$application"
-  target=$(get_local_target)
 
-  export LD_LIBRARY_PATH="./build/$target/lib:$LD_LIBRARY_PATH"
+  export LD_LIBRARY_PATH="./build/neuropil/lib:$LD_LIBRARY_PATH"
 
-  echo "./build/$target/bin/$application" "$@"
+  echo "./build/neuropil/bin/$application" "$@"
   set +e
-  run=$("./build/$target/bin/$application" "$@")
+  run=$("./build/neuropil/bin/$application" "$@")
   set -e
   if [ "$run" != 0 ] ; then
-    gdb "./build/$target/bin/$application" -c core*
+    gdb "./build/neuropil/bin/$application" -c core*
   fi
 
 }
@@ -215,18 +205,19 @@ task_smoke() {
     ensure_venv
     task_install_python
 
-    loc="$(get_local_target)"
+    cd build
+    mkdir -p logs
+    echo "export LD_LIBRARY_PATH=$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
 
-    echo "export LD_LIBRARY_PATH=$pwd/build/$loc/lib:$LD_LIBRARY_PATH"
-    export LD_LIBRARY_PATH="$pwd/build/$loc/lib:$LD_LIBRARY_PATH"
     set +e
-    nose2 -v
+    nose2 -v --config ../configs/nose2.cfg
     e=$?
     if [ e == 139 ] && [ -t 0 ]; then
       read -r -p "${1:-Debug with gdb? [y/N]} " response
       case "$response" in
           [yY][eE][sS]|[yY])
-              gdb --silent -ex=r --args nose2 -v
+              gdb --silent -ex=r --args nose2 -v --config config/snose2.cfg
               ;;
           *)
               ;;
@@ -242,23 +233,30 @@ task_ensure_dependencies() {
   ensure_submodules
   ensure_criterion
   (
-    cd "build/test/ext_tools/Criterion/build"
-    ninja install
+    cd "build/ext_tools/Criterion/build"
+    #ninja install
   )
+  echo "installing git hooks"
+  ln -s ../../.git_hooks/pre-commit .git/hooks/pre-commit
   echo "neuropil development enviroment is ready"
 }
 
 task_test_deployment() {
   task_test
-  task_build linux
+  task_build release
   #task_build freebsd
   task_doc
   task_package
   task_install_python
   task_smoke
 }
+task_pre_commit(){
+  ensure_venv
+
+  python3 scripts/util/build_helper.py --update_strings
+}
 usage() {
-  echo "$0  build | lbuild | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un | ensure_dependencies"
+  echo "$0  build | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un | ensure_dependencies | pre_commit"
   exit 1
 }
 
@@ -267,6 +265,7 @@ shift || true
 
 (
   cd "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+  mkdir -p build
 
   if [ -z "${LD_LIBRARY_PATH:-}" ]
   then
@@ -275,7 +274,6 @@ shift || true
 
   case "$cmd" in
     clean) task_clean ;;
-    lbuild) task_build_local "$@";;
     build) task_build "$@";;
     doc) task_doc ;;
     test) task_test "$@";;
@@ -288,6 +286,7 @@ shift || true
     ensure_dependencies) task_ensure_dependencies;;
 
     prepare_ci) task_prepare_ci ;;
+    pre_commit) task_pre_commit ;;
 
     test_deployment) task_test_deployment ;;
     *) usage ;;

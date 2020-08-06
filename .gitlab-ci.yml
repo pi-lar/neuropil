@@ -4,12 +4,13 @@ default:
 cache:
   key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
   paths:
-    - venv
+    - .venv
 
 stages:
   - enviroment
   - test
   - build
+  - package
   - qa
   - release
 
@@ -20,52 +21,30 @@ setup:
   script:
     - sh -c '[ -z "$CI_DEPLOY_USER" ] &&  (echo "Please read CI.md for the gitlab pipeline setup." >&2) && exit 1 || exit 0'
     - echo "$CI_DEPLOY_PASSWORD" | docker login -u $CI_DEPLOY_USER $CI_REGISTRY --password-stdin
-    - docker build -t $CI_REGISTRY_IMAGE/dev-enviroment:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE/dev-enviroment -f docker/dev-enviroment.Dockerfile --build-arg CI_REPOSITORY_URL=$CI_REPOSITORY_URL --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL docker/
+    - docker build -t $CI_REGISTRY_IMAGE/dev-enviroment:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE/dev-enviroment -f configs/docker/dev-enviroment.Dockerfile --build-arg CI_REPOSITORY_URL=$CI_REPOSITORY_URL --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL configs/docker/
     - docker push $CI_REGISTRY_IMAGE/dev-enviroment
   image: docker:latest
   services:
     - docker:dind
-  only:
-    changes:
-      - docker/*
-      - requirements.txt
-      - SConstruct
-      - .gitlab-ci.yml
-
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - docker/*
+        - requirements.txt
+        - SConstruct
+        - .gitlab-ci.yml
 test:
   stage: test
   script: ./do test
   artifacts:
     reports:
-      junit: neuropil_test_suite-junit.xml
-  except:
-    refs:
-      - neuropil_.*
-      - latest_release
-
-build:linux:
-  stage: build
-  script: ./do build linux
-  artifacts:
-    name: neuropil-linux
+      junit: build/neuropil_test_suite-junit.xml
     paths:
-      - build/linux
-  except:
-    refs:
-      - neuropil_.*
-      - latest_release
-
-#build:freebsd:
-#  stage: build
-#  script: ./do build freebsd
-#  artifacts:
-#    name: neuropil-freebsd
-#    paths:
-#      - build/freebsd
-#  except:
-#    refs:
-#      - neuropil_.*
-#      - latest_release
+      - build/logs/*
+      - build/core.*
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_TAG == null'
 
 build:documentation:
   stage: build
@@ -74,10 +53,31 @@ build:documentation:
     name: neuropil-documentation
     paths:
       - build/doc/html
-  except:
-    refs:
-      - neuropil_.*
-      - latest_release
+
+build:linux:
+  stage: build
+  script: ./do build release
+  artifacts:
+    name: neuropil-linux
+    paths:
+      - build/neuropil
+
+package:linux:
+  stage: package
+  script:
+    - ./do package
+    - mkdir -p neuropil
+    - mv build/package/* neuropil/
+  artifacts:
+    name: neuropil-linux
+    paths:
+      - neuropil
+    expire_in: 2 year
+  rules:
+    - if: '$CI_COMMIT_TAG != null'
+  dependencies:
+    - build:documentation
+    - build:linux
 
 qa:smoke_tests:
   stage: qa
@@ -85,64 +85,35 @@ qa:smoke_tests:
       - ./do smoke
   artifacts:
     reports:
-      junit: smoke_test-junit.xml
-  except:
-    refs:
-      - neuropil_.*
-      - latest_release
-
-qa:package:
-  stage: qa
-  script:
-    - ./do package
-  artifacts:
-    name: neuropil-release
+      junit: build/smoke_test-junit.xml
     paths:
-      - build/package/*
-  only:
-    refs:
-      - master
-  except:
-    refs:
-      - neuropil_.*
-      - latest_release
-  dependencies:
-    - build:documentation
-    - build:linux
+      - build/logs/*
+      - build/core.*
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_TAG == null'
 
 release:
   stage: release
   script:
     - ./do release
     # auto saltstack deploy
-  when: manual
-  only:
-    refs:
-      - master
-  except:
-    refs:
-      - neuropil_.*
-      - latest_release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_TAG == null'
+      when: manual
   dependencies:
-    - qa:package
-    - build:documentation
-    - build:linux
+    - package:linux
 
 pages:
   stage: release
   script:
     - mkdir -p public
-    - rsync -r build/doc/html/ public/
+    - mv build/doc/html/* public
   artifacts:
     paths:
     - public/
-  when: manual
-  only:
-    refs:
-      - master
-  except:
-    refs:
-      - neuropil_.*
-      - latest_release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_TAG == null'
+      when: manual
   dependencies:
     - build:documentation

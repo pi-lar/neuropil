@@ -69,7 +69,7 @@ The purpose of this API is to enable the user to create and use arbitrary attrib
 
 Attributes can then be e.g. used to:
 
-  - publish searchable metadata (e.g. the location of a temperature sensor or the cost of a data sample)  
+  - publish searchable metadata (e.g. the location of a temperature sensor or the cost of a data sample)
 
   - create a `SessionID <https://en.wikipedia.org/wiki/Session_ID>`_ based authentication. (see: :c:data:`NP_ATTR_IDENTITY_AND_USER_MSG`)
 

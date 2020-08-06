@@ -24,7 +24,7 @@
 #include "np_treeval.h"
 
 #include "example_helper.c"
- 
+
 
 np_state_t* state = NULL;
 np_tree_t* authorized_tokens = NULL;
@@ -193,7 +193,7 @@ bool check_account_token(np_context* ac, struct np_token* token)
 struct np_token create_realm_identity(np_context *ac)
 {
 	struct np_token realm_identity = np_new_identity(ac, np_time_now() + 7200.0, NULL);
-	
+
 	strncpy(realm_identity.realm,   "pi-lar test realm",  sizeof realm_identity.realm);
 	strncpy(realm_identity.subject, "pi-lar realmserver", sizeof realm_identity.subject);
 	//strncpy(realm_identity.issuer,  "pi-lar realmserver", 65);
@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 	char* publish_domain = NULL;
 	int level = -2;
 	char* logpath = ".";
- 
+
 	int opt;
 	example_user_context* user_context;
 	if ((user_context = parse_program_args(
@@ -231,15 +231,15 @@ int main(int argc, char **argv)
 		&level,
 		&logpath,
 		NULL,
-		NULL		
+		NULL
 	)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
- 
+
 	/**
 	for the general initialisation of a node please look into the neuropil_node example
 	*/
-	
+
 	struct np_settings *settings = np_default_settings(NULL);
 	settings->n_threads = no_threads;
 

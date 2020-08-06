@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 		if (NULL != j_key)
 		{
 			np_example_print(context, stdout, "try to join %s\n", j_key);
-			// join previous node			
+			// join previous node
 			if (np_ok != np_join(context, j_key)) {
 				np_example_print(context, stderr, "ERROR: Node could not join");
 			}
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 		if (np_ok != np_run(context, 0.001)) {
 			np_example_print(context, stderr, "ERROR: Node could not run");
 		}
-		else { 
+		else {
 			__np_example_helper_run_info_loop(context);
 		}
 		np_example_print(context, stderr, "Closing Node");

@@ -18,7 +18,7 @@
 #define MESSAGE ((const unsigned char *) "test")
 #define MESSAGE_LEN 4
 #define CIPHERTEXT_LEN (crypto_secretbox_MACBYTES + MESSAGE_LEN)
- 
+
 TestSuite(sodium_crypt );
 
 
@@ -64,7 +64,7 @@ Test(sodium_crypt, _sodium_crypto_routines, .description="test cryptobox easy us
 
 	unsigned char decrypted[MESSAGE_LEN];
 	cr_assert(0 == crypto_secretbox_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce, node_2_shared), "could not decrypt");
-	    
+
 }
 
 
@@ -112,13 +112,13 @@ Test(sodium_crypt, _concat_hash_values, .description="test whether hashing can b
 
 }
 
- 
+
 Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworked crypto system principle")
 {
 	/*
 	Our encyrption has 3 stages
 	1. Handshake - no encryption available, dhke
-	2. Transport encryption 
+	2. Transport encryption
 	3. E2E encryption & data signatures
 	*/
 	cr_assert(sodium_init() != -1,"Could not init sodium");
@@ -144,20 +144,20 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(nodeA_secret_key, ed25519_nodeA_secret_key),"key conversion error");    // calculated token data
 	cr_assert(0 == crypto_sign_ed25519_pk_to_curve25519(nodeB_public_key, ed25519_nodeB_public_key),"key conversion error");    // calculated token data
 	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(nodeB_secret_key, ed25519_nodeB_secret_key),"key conversion error");    // calculated token data
-																											
+
 	unsigned char identA_public_key[crypto_kx_PUBLICKEYBYTES], identA_secret_key[crypto_kx_SECRETKEYBYTES];	                    // calculated token data
 	unsigned char identB_public_key[crypto_kx_PUBLICKEYBYTES], identB_secret_key[crypto_kx_SECRETKEYBYTES];	                    // calculated token data
 	cr_assert(0 == crypto_sign_ed25519_pk_to_curve25519(identA_public_key, ed25519_identA_public_key), "key conversion error"); // calculated token data
 	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(identA_secret_key, ed25519_identA_secret_key), "key conversion error"); // calculated token data
 	cr_assert(0 == crypto_sign_ed25519_pk_to_curve25519(identB_public_key, ed25519_identB_public_key), "key conversion error"); // calculated token data
 	cr_assert(0 == crypto_sign_ed25519_sk_to_curve25519(identB_secret_key, ed25519_identB_secret_key), "key conversion error"); // calculated token data
-	
+
 	// all 8 keypairs are now available 2x(sign_node/crypto_node, sign_ident/crypto_ident)
 
 	// Node-A initiates Handshake and sends nodeA_public_key to Node-B
 
 	// On Node-B
-	unsigned char nodeB_session_key_to_read[crypto_kx_SESSIONKEYBYTES], 
+	unsigned char nodeB_session_key_to_read[crypto_kx_SESSIONKEYBYTES],
 		nodeB_session_key_to_write[crypto_kx_SESSIONKEYBYTES];
 	// Node-B receives Handshake and so has to apply the role of the server
 	cr_assert(crypto_kx_server_session_keys(nodeB_session_key_to_read, nodeB_session_key_to_write,
@@ -166,7 +166,7 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 	// Node-B sends his own public key to Node-A to enable a 2way communication
 
 	// On Node-A
-	unsigned char nodeA_session_key_to_read[crypto_kx_SESSIONKEYBYTES], 
+	unsigned char nodeA_session_key_to_read[crypto_kx_SESSIONKEYBYTES],
 		nodeA_session_key_to_write[crypto_kx_SESSIONKEYBYTES];
 	// Node-A receives Handshake and so has to apply the role of the client
 	cr_assert(crypto_kx_client_session_keys(nodeA_session_key_to_read, nodeA_session_key_to_write,
@@ -182,7 +182,7 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 	// On Node-A
 	const int message_len = 1024 - crypto_secretbox_MACBYTES;
 
-	unsigned char data_from_node_a[message_len];	
+	unsigned char data_from_node_a[message_len];
 	randombytes_buf(data_from_node_a, sizeof data_from_node_a); // generate data
 
 	unsigned char nonce_from_node_a[crypto_secretbox_NONCEBYTES];
@@ -190,10 +190,10 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 	unsigned char encyrypted_data[1024] = { 0 };
 	cr_assert(0 == crypto_secretbox_easy(
 		encyrypted_data,
-		data_from_node_a, 
-		message_len, 
-		nonce_from_node_a, 
-		nodeA_session_key_to_write),		
+		data_from_node_a,
+		message_len,
+		nonce_from_node_a,
+		nodeA_session_key_to_write),
 		"Could not encypt data"
 	);
 	// Node-A now sends the encyrypted_data as well as the nonce to Node-B
@@ -202,9 +202,9 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 	cr_assert(0 == crypto_secretbox_open_easy(
 		decyrypted_data,
 		encyrypted_data,
-		1024, 
-		nonce_from_node_a, 
-		nodeB_session_key_to_read), 
+		1024,
+		nonce_from_node_a,
+		nodeB_session_key_to_read),
 		"Could not decypt data"
 	);
 	cr_assert(memcmp(decyrypted_data, data_from_node_a, message_len) == 0, "Decrypted data does not match.");
@@ -214,11 +214,11 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 	// The DataExchange is now complete, lets talk about E2E encryption :
 
 	// E2E is always over the identity of the nodes (for simplicity we use the identA on nodeA...)
-	
+
 	// If Node-B wants to send Node-A a message both need to exchange an AAAToken containing their own ident public_key
 	// As well as the actual E2E encrypted message + nonce
 	// To send the same message to multiple receipients while it is still e2e encrypted we use a intermediate key
-	// The intermediate key encrypts the actual message. the intermediate secret key is then 
+	// The intermediate key encrypts the actual message. the intermediate secret key is then
 	// encrypted with every reciepents public key and prependet to the actual message.
 	// as a downside to this the message may bloat for every recipient
 
@@ -243,7 +243,7 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 		intermediate_key,
 		sizeof intermediate_key,
 		intermediate_nonce,
-		identA_public_key, 
+		identA_public_key,
 		identB_secret_key),
 		"Could not encypt intermediate key"
 	);
@@ -268,7 +268,7 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 	// to Node-A via DataExchange
 
 	// Now Node-A needs to decrypt the message. We assume the DataExchange was already done
-	
+
 
 	unsigned char decyrypted_intermediate_key[crypto_secretbox_KEYBYTES] = { 0 };
 	cr_assert(0 == crypto_box_open_easy(
@@ -300,7 +300,7 @@ Test(sodium_crypt, check_crypto_dhke_principle, .description = "test the reworke
 		crypto_sign_detached(sig, NULL, data_from_node_a, sizeof data_from_node_a, ed25519_identA_secret_key),
 		"Signature could not be created");
 
-	cr_assert(0 == 
+	cr_assert(0 ==
 		crypto_sign_verify_detached(sig, data_from_node_a, sizeof data_from_node_a, ed25519_identA_public_key),
 		"Signature could not be verified"
 	);
@@ -327,7 +327,7 @@ Test(sodium_crypt, check_crypto_transport, .description = "test the reworked cry
 			cr_assert(NULL != np_cryptofactory_new(context2, &nodeB), "Cannot create crypto");
 			// + corresponding objects on the other node:
 			np_crypto_t nodeA_representation, nodeB_representation;
-			
+
 			// nodeA initiates session to nodeB
 			// handshake begins
 			// nodeA sends ed25519_public_key
@@ -336,18 +336,18 @@ Test(sodium_crypt, check_crypto_transport, .description = "test the reworked cry
 			cr_assert(NULL != np_cryptofactory_by_public(context2, &nodeA_representation, nodeA.ed25519_public_key));
 			cr_assert(0 == (tmp = np_crypto_session(
 				context2,
-				&nodeB, 
-				&session_on_B, 
-				&nodeA_representation, 
-				false				
+				&nodeB,
+				&session_on_B,
+				&nodeA_representation,
+				false
 			)), "Cannot exchange handshake on B %d",tmp);
 			// nodeB now sends its own ed25519_public_key
 			cr_assert(NULL != np_cryptofactory_by_public(context, &nodeB_representation, nodeB.ed25519_public_key));
 			cr_assert(0 == (tmp = np_crypto_session(
 				context,
-				&nodeA, 
-				&session_on_A, 
-				&nodeB_representation, 
+				&nodeA,
+				&session_on_A,
+				&nodeB_representation,
 				true
 			)), "Cannot exchange handshake on A %d", tmp);
 			// handshake complete
@@ -365,7 +365,7 @@ Test(sodium_crypt, check_crypto_transport, .description = "test the reworked cry
 				"Could not encrypt transport data %d", tmp
 			);
 
-			
+
 
 			// send buffer to node B
 			unsigned char buffer_on_nodeB[sizeof message_from_node_a];

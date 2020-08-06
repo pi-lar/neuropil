@@ -569,7 +569,7 @@ real macros for convenience usage
 
 //
 // SLL (single linked list) prototype generator
-//																  
+//
 #define NP_SLL_GENERATE_PROTOTYPES(TYPE)                          											\
     typedef int8_t (*TYPE##_sll_cmp_func_t) (TYPE const value_1, TYPE const value_2 );                      \
     int8_t TYPE##_sll_compare_type(TYPE const a, TYPE const b);                                             \
@@ -601,7 +601,7 @@ real macros for convenience usage
     TYPE##_sll_t* TYPE##_sll_merge(TYPE##_sll_t* sll_list_a, TYPE##_sll_t* sll_list_b, TYPE##_sll_cmp_func_t  fn_cmp);	\
     void TYPE##_sll_remove(TYPE##_sll_t* sll_list, TYPE value, TYPE##_sll_cmp_func_t fn_cmp);							\
                                                                                                             \
-                                                                                                            
+
 //
 // SLL (single linked list) implementation generator
 //

@@ -48,7 +48,7 @@ struct np_crypto_s {
 typedef struct np_crypto_transport_message_s {
 	size_t data_length;
 	void* encrypted_data;
-	unsigned char nonce[crypto_secretbox_NONCEBYTES];	
+	unsigned char nonce[crypto_secretbox_NONCEBYTES];
 }np_crypto_transport_message_t;
 
 
@@ -76,8 +76,8 @@ int np_crypto_verify_signature(np_crypto_t* self, unsigned char signature_buffer
 
 np_crypto_E2E_message_t * np_crypt_E2E_init(
 	np_crypto_E2E_message_t * buffer,
-	np_crypto_t* sender, 
-	void* data_to_encrypt, 
+	np_crypto_t* sender,
+	void* data_to_encrypt,
 	size_t data_size
 );
 void np_crypto_E2E_message_t_free(np_crypto_E2E_message_t* container);
@@ -100,12 +100,12 @@ int np_crypt_transport_deserialize(np_crypto_transport_message_t* tmessage, np_t
 void np_crypt_export(np_crypto_t* self, struct np_token *dest);
 
 
-uint32_t np_crypt_rand(); 
+uint32_t np_crypt_rand();
 uint32_t np_crypt_rand_mm(uint32_t min, uint32_t max);
 
 
 
-//TODO: rm after dhke rework 
+//TODO: rm after dhke rework
 int  __np_crypt_decrypt(np_crypto_transport_message_t* tmessage, unsigned char* secret_key, void* buffer);
 
 #endif // _NP_CRYPTO_H_

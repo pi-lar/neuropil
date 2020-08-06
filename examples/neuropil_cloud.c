@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     int level = -2;
     char* opt_cloud_size = "32";
     char* logpath = ".";
-    
+
     example_user_context* user_context_template = NULL;
     if ((user_context_template = parse_program_args(
         __FILE__,
@@ -68,22 +68,22 @@ int main(int argc, char **argv)
     if (opt_port != NULL) {
         port = atoi(opt_port);
     }
-    for (int i=0; i < cloud_size; i++) {	
+    for (int i=0; i < cloud_size; i++) {
         port += 1;
-        struct np_settings * settings = np_default_settings(NULL);		
+        struct np_settings * settings = np_default_settings(NULL);
         settings->n_threads =  no_threads;
 
         snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
         settings->log_level = level;
-        
+
         example_user_context* user_context = malloc(sizeof(example_user_context));
-        memcpy(user_context, user_context_template, sizeof(example_user_context));			
+        memcpy(user_context, user_context_template, sizeof(example_user_context));
 
         if(user_context_template->node_description[0] != 0){
             snprintf(user_context->node_description, 255, "%s_ci_%d", user_context_template->node_description, i);
         }
 
-        nodes[i] = np_new_context(settings); // use default settings		
+        nodes[i] = np_new_context(settings); // use default settings
         np_set_userdata(nodes[i], user_context);
 
 
@@ -107,12 +107,12 @@ int main(int argc, char **argv)
             np_statistics_set_node_description(nodes[i], user_context->node_description);
             char port_tmp[8]={0};
             if(user_context_template->opt_http_port != NULL){
-                sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);            
+                sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);
             }else{
-                sprintf(port_tmp,"%d", HTTP_PORT + i);            
+                sprintf(port_tmp,"%d", HTTP_PORT + i);
             }
             user_context->_np_httpserver_active = example_http_server_init(nodes[i], user_context_template->opt_http_domain,port_tmp);
-            example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);            
+            example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
         }
     }
     if (j_key != NULL) {
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
             else {
                 if (i == 0) {
                     __np_example_helper_loop(nodes[i]);
-                    
+
                     if (np_get_status(nodes[i]) != np_running) {
                         shutdown = true;
                         for (int s = 1; s < cloud_size; s++) {

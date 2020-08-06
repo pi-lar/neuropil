@@ -180,7 +180,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
     // insert / replace cache item
     _LOCK_MODULE(np_sysinfo_t)
     {
-        np_tree_elem_t* item = np_tree_find_str(np_module(sysinfo)->_cache, source_val);		
+        np_tree_elem_t* item = np_tree_find_str(np_module(sysinfo)->_cache, source_val);
         // only insert if the data is newer
         if(NULL != item && item->val.value.tree != NULL)
         {
@@ -217,7 +217,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
 }
 
 // HTTP callback functions
-np_tree_t* np_sysinfo_get_info(np_state_t* context, const char* const hash_of_target) 
+np_tree_t* np_sysinfo_get_info(np_state_t* context, const char* const hash_of_target)
 {
     log_trace_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_info(const char* const hash_of_target) {");
 
@@ -281,7 +281,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context)
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has %"PRIu32" routing table entries", sll_size(routing_table));
 
     np_tree_insert_str( ret, _NP_SYSINFO_MY_ROUTES"_count", np_treeval_new_ul(sll_size(routing_table) ) );
-    np_tree_insert_str( ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));	
+    np_tree_insert_str( ret, _NP_SYSINFO_MY_ROUTES, np_treeval_new_tree(routes));
 
     np_key_unref_list(routing_table, "_np_route_get_table");
     sll_free(np_key_ptr, routing_table);
@@ -290,7 +290,7 @@ np_tree_t* np_sysinfo_get_my_info(np_state_t* context)
     return ret;
 }
 
-np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* const hash_of_target, uint16_t max_cache_ttl) 
+np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* const hash_of_target, uint16_t max_cache_ttl)
 {
     log_trace_msg(LOG_TRACE, "start: np_tree_t* _np_sysinfo_get_from_cache(const char* const hash_of_target, uint16_t max_cache_ttl) {");
     _np_sysinfo_init_cache(context);

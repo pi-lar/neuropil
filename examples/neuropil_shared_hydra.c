@@ -37,10 +37,10 @@ NP_SLL_GENERATE_IMPLEMENTATION(int);
 
  #define NUM_HOST 120
 
- 
+
 int main(int argc, char **argv)
 {
-	
+
 	char* bootstrap_hostnode = NULL;
 	char* bootstrap_hostnode_default;
 	uint32_t required_nodes = NUM_HOST;
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 				if (shmid == -1)
 				{
 					fprintf(stdout, "No bootstrap host detected, creating a new one\n");
-				
+
 					struct np_settings *settings = np_default_settings(NULL);
 					settings->n_threads = no_threads;
 

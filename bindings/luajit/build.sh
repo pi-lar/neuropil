@@ -8,7 +8,7 @@ cd $work_dir;
 
 mkdir -p build
 
-CC=${CC:-clang} 
+CC=${CC:-clang}
 
 echo "Precompiling neuropil.h"
 CDEF=$(${CC} -E ../../include/neuropil.h | egrep -v "^#")
