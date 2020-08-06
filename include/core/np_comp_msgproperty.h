@@ -24,16 +24,16 @@ extern "C" {
 #endif
 
 /**
- * The component msgproperty is responsible to handle incoming and outgoing messages. it is used as a 
+ * The component msgproperty is responsible to handle incoming and outgoing messages. it is used as a
  * placeholder for topics and resides in two memory locations: the dhkey of the message subject concatenated
  * with INBOUND, and the dhkey of the message subject concatenated with OUTBOUND. If an event is received,
- * usually a list of registered callbacks is executed, the internal callbacks first, the user supplied callbacks 
+ * usually a list of registered callbacks is executed, the internal callbacks first, the user supplied callbacks
  * afterwards for incoming mnessages. for outgoing messages the order is reversed: user supplied callbacks first,
- * internal messages callbacks afterwards. internal message subjects are fixed because of the neuropil 
+ * internal messages callbacks afterwards. internal message subjects are fixed because of the neuropil
  * implementation and cannot be changed.
  *
  * The structure np_msgproperty_t is used to describe properties of the message exchange itself.
- * It is setup by sender and receiver independent of each other. It defines attributes like a re-send counter 
+ * It is setup by sender and receiver independent of each other. It defines attributes like a re-send counter
  * and the type of message exchange. A developer should be familiar with the main attributes and settings
  */
 
@@ -287,9 +287,9 @@ struct np_msgproperty_s
     double          last_update;
     // user settable properties share the same property, thus we have to differentiate between tx and rx
     double          last_intent_tx_update;
-    double          last_intent_rx_update;    
-    double          last_pheromone_tx_update;    
-    double          last_pheromone_rx_update;    
+    double          last_intent_rx_update;
+    double          last_pheromone_tx_update;
+    double          last_pheromone_rx_update;
 
     // dhkey of node(s)/identities/realms who are interested in message exchange
     np_dhkey_t partner_key;
@@ -435,12 +435,12 @@ np_dhkey_t _np_msgproperty_dhkey(np_msg_mode_type mode_type, const char* subject
 NP_API_INTERN
 bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+bool __is_external_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
-bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+bool __is_internal_message(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
-void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event); 
+void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_property_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN

@@ -49,7 +49,7 @@ struct np_job_s
  **/
 NP_API_INTERN
     bool _np_jobqueue_init(np_state_t* context);
-NP_API_INTERN 
+NP_API_INTERN
     void _np_jobqueue_destroy(np_state_t* context);
 
 NP_API_INTERN

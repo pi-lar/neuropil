@@ -9,7 +9,7 @@
 
     #ifdef __cplusplus
     extern "C" {
-    #endif 
+    #endif
 enum prometheus_metric_types {
     prometheus_metric_type_counter
 };

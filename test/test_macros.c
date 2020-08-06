@@ -43,7 +43,7 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port);
 #define TCTX5(ID, NAME, DESC, PORTTYPE, PORT)  													  \
     np_state_t* ID; 																			  \
     for(																						  \
-        uint8_t _CTX_i##__LINE__=0;                                                               \  
+        uint8_t _CTX_i##__LINE__=0;                                                               \
         (_CTX_i##__LINE__ < 1) && NULL != (ID = _np_test_ctx(NAME, DESC, PORTTYPE, PORT)); 		  \
         fprintf(stdout, "running test case %s\n", FUNC), fflush(stdout),                          \
         np_destroy(ID, false),																	  \

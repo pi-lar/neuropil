@@ -23,7 +23,7 @@
 
 #include "example_helper.c"
 
-  
+
 /**
 first, let's define a callback function that will be called each time
 a message is received by the node that you are currently starting
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 		NULL)) == NULL) {
 		exit(EXIT_FAILURE);
 	}
-	
+
 	/**
 	in your main program, initialize the logging of neuopil, but this time use the port for the filename
 
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 	/**
 	   \endcode
 	*/
-	   
+
 
 	/**
 	start up the job queue with 8 concurrent threads competing for job execution.

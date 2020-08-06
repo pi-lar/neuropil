@@ -26,7 +26,7 @@ enum np_message_submit_type {
 
 struct np_message_s
 {
-    char* uuid;	
+    char* uuid;
 
     np_tree_t* header;
     np_tree_t* instructions;
@@ -40,8 +40,8 @@ struct np_message_s
     np_mutex_t msg_chunks_lock;
 
     np_msgproperty_ptr msg_property;
-    double send_at;	
-    double redelivery_at;	
+    double send_at;
+    double redelivery_at;
 
     void* bin_body;
     void* bin_footer;

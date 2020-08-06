@@ -29,7 +29,7 @@ extern "C" {
 
     typedef void        (*bloom_union         )  (np_bloom_t *result, np_bloom_t *bloom_l);
     typedef bool        (*bloom_intersect     )  (np_bloom_t *result, np_bloom_t *bloom_l);
-    
+
     enum bloom_filter_type {
         standard_bf = 0,
         stable_bf,
@@ -37,7 +37,7 @@ extern "C" {
         decaying_bf,
         neuropil_bf,
     };
-    
+
     struct np_bloom_optable_s {
         bloom_clear     clear_cb;
         bloom_add       add_cb;
@@ -66,15 +66,15 @@ extern "C" {
 
     // bloom filter based on np_dhkey_t
     // we treat the np_dhkey_t as (8 * uint32_t) -> 8 distinct hash values -> pobability of false positive approx 1 in 1024
-    
+
     // _size of bit array :  256 -> max _items per bloom filter is  18
     // _size of bit array :  512 -> max _items per bloom filter is  35
     // _size of bit array : 1024 -> max _items per bloom filter is  70
     // _size of bit array : 2048 -> max _items per bloom filter is 140
-        
+
     NP_API_INTERN
     void _np_bloom_free(np_bloom_t* bloom);
-    
+
     NP_API_INTERN
     np_bloom_t* _np_standard_bloom_create(size_t bit_size);
     NP_API_INTERN
@@ -94,7 +94,7 @@ extern "C" {
     void _np_stable_bloom_add(np_bloom_t* bloom, np_dhkey_t id);
     NP_API_INTERN
     bool _np_stable_bloom_check(np_bloom_t* bloom, np_dhkey_t id);
-    
+
     NP_API_INTERN
     np_bloom_t* _np_scalable_bloom_create(size_t size);
     NP_API_INTERN

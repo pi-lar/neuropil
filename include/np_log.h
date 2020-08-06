@@ -34,14 +34,14 @@ enum np_log_e
 {
     LOG_NONE  		    = 0x00000000U, /* log nothing								 */
     LOG_NOMOD		    = 0x00000000U, /*											 */
-                                    
+
     LOG_ERROR     		= 0x00000001U, /* error messages							 */
     LOG_WARN       		= 0x00000002U, /* warning messages						 */
     LOG_INFO       		= 0x00000004U, /* info messages							 */
     LOG_DEBUG      		= 0x00000008U, /* debugging messages						 */
     LOG_TRACE           = 0x00000010U, /* tracing messages						 */
     LOG_VERBOSE         = 0x00000020U, /* verbose messages						 */
-                                    
+
     LOG_SERIALIZATION	= 0x00000100U, /* debugging the serialization methods		*/
     LOG_MUTEX      		= 0x00000200U, /* debugging messages for mutex subsystem	*/
     LOG_KEY        		= 0x00000400U, /* debugging messages for key subsystem	*/
@@ -61,11 +61,11 @@ enum np_log_e
     LOG_MISC            = 0x01000000U, /* debugging the undefined					*/
     LOG_HANDSHAKE       = 0x02000000U, /* debugging the undefined					*/
     LOG_KEYCACHE        = 0x04000000U, /* debugging the undefined					*/
-                                    
+
     LOG_GLOBAL     		= 0x80000000U, /* debugging the global system				*/
-                                    
-} NP_ENUM NP_API_EXPORT;			
-                                    
+
+} NP_ENUM NP_API_EXPORT;
+
 #define LOG_MODUL_MASK    0xFFFFFF00U /* filter the module mask */
 #define LOG_LEVEL_MASK    0x000000FFU /* filter the log level */
 
@@ -99,23 +99,23 @@ void np_log_message(np_state_t* context, enum np_log_e level,
 
 #ifndef log_info
         #define log_info(level, msg, ...) \
-                 np_log_message(context, level | LOG_INFO, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+                 np_log_message(context, level | LOG_INFO, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
 #endif
 #ifndef log_warn
         #define log_warn(level, msg, ...) \
-                 np_log_message(context, level | LOG_WARN, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+                 np_log_message(context, level | LOG_WARN, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
 #endif
 #ifndef log_error
         #define log_error(msg, ...) \
-                 np_log_message(context, LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	    
+                 np_log_message(context, LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
 #endif
 
 #ifndef log_debug_msg
-    #ifdef DEBUG	
+    #ifdef DEBUG
         #define log_debug_msg(level, msg, ...) \
-                 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	
+                 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
         #define log_debug(level, msg, ...) \
-                 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)	
+                 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
     #else
         #define log_debug_msg(level, msg, ...)
         #define log_debug(level, msg, ...)

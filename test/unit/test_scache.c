@@ -13,7 +13,7 @@
 #include "np_log.h"
 #include "../test_macros.c"
 
- 
+
 TestSuite(np_scache_t);
 
 Test(np_scache_t, np_simple_cache_insert, .description = "test the addition/retrieval of items to the scache")
@@ -62,7 +62,7 @@ Test(np_scache_t, np_simple_cache_insert, .description = "test the addition/retr
 
 Test(np_scache_t, np_simple_cache_performance, .description = "test the performance of the simple cache")
 {
-	CTX() {		
+	CTX() {
 		np_simple_cache_table_t* cache_table = np_cache_init(context);
 
 		uint32_t num_entries = 0;

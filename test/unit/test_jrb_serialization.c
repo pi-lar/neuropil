@@ -364,7 +364,7 @@ Test(test_serialization, np_tree_serialize, .description = "test the serializati
 		cr_expect(strcmp(np_treeval_to_str(tmpEle->val, NULL), "test") == 0, "Expect element value to be the same");
 */
 
-		
+
 		cr_assert(out_jrb->size == 8, "deserialized tree is: %p (size %d)", out_jrb, out_jrb->size);
 		log_msg(LOG_INFO, "deserialized tree is: %p (size %d)", out_jrb, out_jrb->size);
 

@@ -50,7 +50,7 @@ Test(np_tree_t, tree_node_insert_str, .description = "test the insertion into a 
 		cr_expect(0 == strncmp("galli", np_treeval_to_str(tmp->val, NULL), 10), "expect the value to be the string 'galli'");
 		cr_expect_np_tree_bytesize(test_tree_1, test_tree_1->rbh_root, 22, 27);
 
-		// replace the key value pair 
+		// replace the key value pair
 		np_tree_replace_str(test_tree_1, "halli", np_treeval_new_s("gallogalli"));
 		cr_expect(tmp == test_tree_1->rbh_root, "expect the key to not change (replace only replaces value)");
 		cr_expect(1 == test_tree_1->size, "expect size of tree to be 1");

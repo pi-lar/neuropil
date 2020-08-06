@@ -55,7 +55,7 @@ extern "C" {
 		fprintf(stderr, "Assert ERROR: "onfail_msg"\r\n", ##__VA_ARGS__);				\
 		fflush(NULL);																	\
 		assert((expression));															\
-	}																						 
+	}
 #else
 #define ASSERT(expression, onfail_msg, ...)												\
 	if (!(expression)) {																\

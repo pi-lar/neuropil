@@ -62,7 +62,7 @@ typedef struct example_user_context {
 
     struct __np_switchwindow_scrollable * _current ;
 
-    bool __np_ncurse_initiated;	
+    bool __np_ncurse_initiated;
 
     float input_intervall_sec;
     float output_intervall_sec;
@@ -76,10 +76,10 @@ typedef struct example_user_context {
     struct __np_switchwindow_scrollable * __np_switch_log;
     struct __np_switchwindow_scrollable * __np_switch_performance;
     struct __np_switchwindow_scrollable * __np_switch_jobs;
-    struct __np_switchwindow_scrollable * __np_switch_threads;    
+    struct __np_switchwindow_scrollable * __np_switch_threads;
     struct __np_switchwindow_scrollable * __np_switch_interactive;
 
-    bool is_in_interactive; 
+    bool is_in_interactive;
     np_interactive_fn __np_interactive_event_on_enter ;
     char* __np_interactive_text;
     char __np_interactive_cache[__NP_INTERACTIVE_CACHE];

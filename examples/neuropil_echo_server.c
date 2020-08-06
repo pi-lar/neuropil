@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
         NULL
     )) == NULL) {
         exit(EXIT_FAILURE);
-    } 
+    }
 
     /**
     for the general initialization of a node please look into the neuropil_node example

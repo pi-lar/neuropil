@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 	int retry_connection = 3;
 	bool add_id_to_msg = strcmp(message_to_send, message_to_send_org ) == 0;
 
- 
+
 	/**
 	We create our node,
 

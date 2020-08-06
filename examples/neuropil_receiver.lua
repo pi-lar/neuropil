@@ -22,6 +22,6 @@ Receiver:receive("mysubject", function (message)
    return true
 end)
 
-while true do 
+while true do
    Receiver:run(5)
 end

@@ -71,7 +71,7 @@ extern "C" {
     NP_API_INTERN
     bool __is_account_request(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
-    NP_API_INTERN 
+    NP_API_INTERN
     void __np_identity_handle_account(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 

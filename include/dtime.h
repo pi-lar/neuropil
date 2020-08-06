@@ -20,7 +20,7 @@ extern "C"
    extern double dtime ();
 
   /**
-   ** dalarm: 
+   ** dalarm:
    **  generates a SIGALRM signal in #time# seconds
    */
    extern void dalarm (double time);
@@ -32,7 +32,7 @@ extern "C"
     extern void dsleep (double time);
 
   /**
-   ** dtotv: 
+   ** dtotv:
    **  returns the struct timeval representation of double #d#
    */
     extern struct timeval dtotv (double d);

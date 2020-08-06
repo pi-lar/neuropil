@@ -30,8 +30,8 @@ int main(int argc, char **argv)
   if (argc > 3) { fprintf(stderr, usage); exit(1); }
   if (argc >= 2) port = argv[1];
   if (argc >= 3) jkey = argv[2];
-  
-  
+
+
 	struct np_settings *settings = np_default_settings(NULL);
   snprintf(settings->log_file, sizeof settings->log_file, "pilarnet-%d.log", getpid());
 
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 	}
 
 
-  // inform us of joining nodes 
+  // inform us of joining nodes
   np_set_authenticate_cb(ac, auth_callback);
 
   np_run(ac, 0);

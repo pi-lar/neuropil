@@ -13,5 +13,5 @@ Please follow those steps:
 
 After this every push to the remote git repository should result in a pipeline run.
 
-1 = https://docs.gitlab.com/ee/ci/runners/#shared-runners
+1 = https://docs.gitlab.com/ee/ci/runners/#shared-runners  
 2 = https://docs.gitlab.com/ee/user/project/deploy_tokens/index.html#gitlab-deploy-token

@@ -29,7 +29,7 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_ptr);
 
 NP_DLL_GENERATE_PROTOTYPES(np_dhkey_ptr);
 NP_DLL_GENERATE_IMPLEMENTATION(np_dhkey_ptr);
- 
+
 int8_t compare_double(double d1, double d2)
 {
 	if (d2 > d1) return 1;
@@ -420,5 +420,5 @@ Test(np_linked_lists, _test_sll_delete, .description = "test the delete implemen
 
 	cr_assert(&key_a == sll_first(my_sll_list)->val, "expect the first element to be key a");
 	cr_assert(&key_c == sll_last(my_sll_list)->val, "expect the first element to be key c");
-	cr_assert(2 == sll_size(my_sll_list), "expect the size of my list to be 2");	
+	cr_assert(2 == sll_size(my_sll_list), "expect the size of my list to be 2");
 }

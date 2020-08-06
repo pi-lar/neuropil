@@ -20,11 +20,11 @@ extern "C" {
 
 /**
  * a pheromone table is used to store a set of bloom filter in a scalable and efficient way.
- * 
- * On the first level we use a simple hash partitioning scheme (modulo 257) by simply using 
- * inserting bloom filter into the right slot. Within this slot we use an array of 32 neuropil 
+ *
+ * On the first level we use a simple hash partitioning scheme (modulo 257) by simply using
+ * inserting bloom filter into the right slot. Within this slot we use an array of 32 neuropil
  * bloom filter. The first element contains the union of the remaining 31 bloom filter. This enables
- * us to query this set of bloom filter very fast. In theory we could append more arrays, but 
+ * us to query this set of bloom filter very fast. In theory we could append more arrays, but
  * right now this is not planned. If you would like to do so, please take care of the probability
  * calculations involved).
  */
@@ -32,7 +32,7 @@ extern "C" {
     NP_SLL_GENERATE_PROTOTYPES(np_dhkey_t);
 
     // the pheromone struct defines the data we would liek to store in our table
-    typedef struct np_pheromone_s 
+    typedef struct np_pheromone_s
     {
         // the _subject should just be a bloom filter, so that we can do a "union_cb"
         np_dhkey_t *_subject;    // the subject of the intent/message

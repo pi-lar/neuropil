@@ -4,7 +4,7 @@ class TestHelper():
 
 
     @staticmethod
-    def authn_allow_all(node:NeuropilNode, token:np_token):    
+    def authn_allow_all(node:NeuropilNode, token:np_token):
         #print("{node}: {type}: {token} {id}".format(node=node.get_fingerprint(), type="authn", token=token.subject, id=token.get_fingerprint()))
         return True
 
@@ -22,6 +22,6 @@ class TestHelper():
     def disableAAA(node:NeuropilNode):
         node.set_authenticate_cb(TestHelper.authn_allow_all)
         node.set_authorize_cb(TestHelper.authz_allow_all)
-        node.set_accounting_cb(TestHelper.acc_allow_all)        
+        node.set_accounting_cb(TestHelper.acc_allow_all)
         return node
 
