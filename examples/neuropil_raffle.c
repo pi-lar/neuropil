@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include <pthread.h>
-#include <sqlite3.h> 
+#include <sqlite3.h>
 
 #include "neuropil.h"
 #include "np_legacy.h"

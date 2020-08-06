@@ -29,7 +29,7 @@ int8_t __np_cmp_np_text_exchange_ptr(np_text_exchange_ptr const te, np_text_exch
 
 bool __np_text_receiver(NP_UNUSED np_context* ac, struct np_message* message) {
 	struct np_text_exchange_s te_s = {0};
-	
+
 	memcpy(&te_s.id ,&message->subject, sizeof(te_s));
 	np_text_exchange_ptr cache = sll_find(np_text_exchange_ptr, __np_text_exchange, &te_s, __np_cmp_np_text_exchange_ptr, NULL);
 	if (cache != NULL) {

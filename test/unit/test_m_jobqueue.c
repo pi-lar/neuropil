@@ -54,7 +54,7 @@ Test(np_jobqueue, _np_jobqueue, .description = "test the jobqueue module of the 
 
 		size_t count = context->np_module_jobqueue->job_list->count;
 		cr_expect( 5 < count < 12, "jobqueue count equals default (number of jobs is %d)", count);
-		
+
 
 /*
 		_np_job_submit_msgin_event(2.0, msg_prop, &test_key, msg, test_subject);

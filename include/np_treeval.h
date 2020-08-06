@@ -86,7 +86,7 @@ typedef union val_type
     void* bin;
     np_tree_t* tree;
     np_dhkey_t dhkey;
-    
+
     int8_t sh;
     int16_t i;
     int32_t l;
@@ -95,7 +95,7 @@ typedef union val_type
 #endif
     float f;
     double d;
-	/* To access the string value please use 
+	/* To access the string value please use
 		function:np_treeval_to_str()
 	*/
     char* s;
@@ -112,7 +112,7 @@ typedef union val_type
     char carray[8];
     unsigned char ucarray[8];
 } val;
-	   
+
 struct np_treeval_s
 {
 	uint8_t  type;

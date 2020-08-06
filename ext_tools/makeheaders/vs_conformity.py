@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     my_file_loc = args.file_loc
-    
+
     content = args.source.read()
 
     #content = content.replace("\\","/")

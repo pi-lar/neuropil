@@ -20,7 +20,7 @@ in stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
-    if [ ${version} = dev ]; then 
+    if [ ${version} = dev ]; then
         scons debug=1
     else
         scons release=1

@@ -22,7 +22,7 @@
 
 #include "example_helper.c"
 
- 
+
 uint32_t _ping_count = 0;
 uint32_t _pong_count = 0;
 
@@ -48,10 +48,10 @@ bool receive_ping(np_context *context, struct np_message* msg)
 
 	sscanf ((char*) msg->data, "%s %"PRIu32, in_text, &i);
 	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);
-	
-	
-	np_time_sleep(0.01);			
-	
+
+
+	np_time_sleep(0.01);
+
 	fprintf(stdout, "SENDING: %d -> %s\n", _pong_count++, "pong");
 
 	char* out_text;
@@ -80,10 +80,10 @@ bool receive_pong(np_context *context, struct np_message* msg)
 	uint32_t i = 0;
 
 	sscanf ((char*) msg->data, "%s %"PRIu32, in_text, &i);
-	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);	
+	fprintf(stdout, "RECEIVED: %d -> %s\n", i, in_text);
 
-	np_time_sleep(0.01);			
-	
+	np_time_sleep(0.01);
+
 	fprintf(stdout, "SENDING: %d -> %s\n", _ping_count++, "ping");
 
 	char* out_text;
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 		NULL
 	)) == NULL) {
 		exit(EXIT_FAILURE);
-	} 
+	}
 
 	/**
 	in your main program, initialize the logging of neuopil, but this time use the port for the filename
@@ -242,7 +242,7 @@ int main(int argc, char **argv)
 	fprintf(stdout, "Search for pingable nodes.\n");
 	while ( np_has_receiver_for(context, "ping") == false )
 	{
-		np_run(context, 1.0);		
+		np_run(context, 1.0);
 	}
 	fprintf(stdout, "Pingable node found.\n");
 
@@ -271,7 +271,7 @@ int main(int argc, char **argv)
 	{
 		// __np_example_helper_loop(context); // for the fancy ncurse display
 		np_run(context, 1.0);
-		np_time_sleep(0.01);			
+		np_time_sleep(0.01);
 
 	}
 	/**

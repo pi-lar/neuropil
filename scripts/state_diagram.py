@@ -10,7 +10,7 @@ import plantuml
 
 r = re.compile(r'NP_UTIL_STATEMACHINE_TRANSITION\(\s*(?P<MACHINE>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<SOURCE_STATE>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<TARGET_STATE>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<ACTION>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<CONDITION>[a-zA-Z0-9\"\-_]+)\s*\)')
 
-with open("src/np_key.c","r") as f:
+with open("../src/np_key.c","r") as f:
     t = f.read()
 
 res = {}
@@ -37,14 +37,14 @@ for k,v  in res.items():
             puml += "\n"
         else:
             if ve['cond'] and ve['cond'].upper() != "NULL":
-                puml += f"{k} : {ve['cond']}\n"    
-                puml += f"{k} :  -> {ve['action']}\n"    
-        
+                puml += f"{k} : {ve['cond']}\n"
+                puml += f"{k} :  -> {ve['action']}\n"
+
 
 puml += "IN_DESTROY --> [*]\n"
 puml += "@enduml\n"
 
-path = Path("build/puml")
+path = Path("../build/puml")
 path.mkdir(parents=True, exist_ok=True)
 with open(os.path.join(path,"states.puml"),"w+") as f:
     t = f.write(puml)
@@ -56,4 +56,4 @@ svg_path = os.path.join(path,"states.svg")
 with open(svg_path,"wb+") as f:
     t = f.write(img)
 
-subprocess.run(["firefox", svg_path])  
+subprocess.run(["firefox", svg_path])

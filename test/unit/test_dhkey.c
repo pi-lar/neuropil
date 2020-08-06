@@ -51,7 +51,7 @@ Test(np_dhkey_t, _dhkey_add_sub, .description="test the addition/substraction of
 
 Test(np_dhkey_t, _np_dhkey_cmp, .description = "test the comparison of dhkeys returning -1 / 0 / 1")
 {
-	CTX() 
+	CTX()
 	{
 		char subject[] = "this.is.a.test";
 
@@ -68,7 +68,7 @@ Test(np_dhkey_t, _np_dhkey_cmp, .description = "test the comparison of dhkeys re
 }
 Test(np_dhkey_t, _dhkey_globals, .description = "test the global dhkeys max & half & min")
 {
-	CTX() 
+	CTX()
 	{
 		np_dhkey_t half = np_dhkey_half(context);
 		np_dhkey_t max = np_dhkey_max(context);

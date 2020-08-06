@@ -88,7 +88,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 
 		np_sll_t(np_key_ptr, my_keys);
 		sll_init(np_key_ptr, my_keys);
-		
+
 
 		// TODO: seems to run forever with no check for i :-/ better reduce the loglevel to save my laptop
 		np_log_setlevel(context, LOG_ERROR | LOG_WARN | LOG_ROUTING | LOG_DEBUG | LOG_INFO | LOG_MEMORY);
@@ -120,7 +120,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 				sll_append(void_ptr, insert_key->entities, new_node);
 				sll_append(np_key_ptr, my_keys, insert_key);
 			}
-			else 
+			else
 			{
 				ref_replace_reason(np_key_t, insert_key, "_np_keycache_find", "_np_keycache_find_or_create");
 			}
@@ -129,7 +129,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 			node->latency = ((double)rand()) / 1000;
 
 			np_key_t *added = NULL, *deleted = NULL;
-			_np_route_update(insert_key, true, &deleted, &added);			
+			_np_route_update(insert_key, true, &deleted, &added);
 
 			if (NULL != added)
 			{
@@ -141,7 +141,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 			{
 				cr_expect(0 != _np_dhkey_cmp(&insert_key->dhkey, &deleted->dhkey), "test whether a different key was deleted");
 				current_size--;
-			}	
+			}
 
 			if ((i % 1000) == 0)
 			{
@@ -150,17 +150,17 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 					current_size, NP_ROUTES_TABLE_SIZE, ((float)current_size / (float) NP_ROUTES_TABLE_SIZE)*100, i);
 			}
 		}
-		
+
 		cr_log_info(
 			"routing table has %"PRIu64" of %"PRIu64" (%.0f%%) keys filled by %"PRIu64" inserted keys ",
 			current_size, NP_ROUTES_TABLE_SIZE, ((float)current_size / (float) NP_ROUTES_TABLE_SIZE)*100, i);
 
 		sll_iterator(np_key_ptr) iter = sll_first(my_keys);
 		while (NULL != iter)
-		{			
+		{
 			// np_unref_obj(np_node_t, iter->val->node, ref_obj_creation);
 			np_unref_obj(np_key_t, iter->val, "_np_keycache_find_or_create");
 			sll_next(iter);
-		}			
-	}	
+		}
+	}
 }

@@ -8,7 +8,7 @@ setup.py file for neuropil library
 """
 import os
 from distutils.core import Extension
-from setuptools import setup 
+from setuptools import setup
 
 PATH = os.path.dirname(__file__)
 if PATH:

@@ -11,12 +11,12 @@
 #include "../test_macros.c"
 
 
-bool int_compare(int new_ele, int j) 
+bool int_compare(int new_ele, int j)
 {
     return new_ele < j;
-} 
+}
 
-uint16_t int_binheap_get_priority(int ele) 
+uint16_t int_binheap_get_priority(int ele)
 {
     return ele;
 }
@@ -120,10 +120,10 @@ Test(np_heap, _np_heap_job_t, .description = "test the heap of a np_job_t")
     np_job_t local_job={0};
     local_job.priority = (double) 1;
     local_job.exec_not_before_tstamp = 0.0;
-    
+
     pheap_insert(np_job_t, job_heap, local_job);
     cr_assert ( 9     == job_heap->count, "test that the current count of the job queue has increased (count is %"PRIu16")",job_heap->count);
-    
+
     local_job.priority = (double) 2;
     local_job.exec_not_before_tstamp = 0.0;
     pheap_insert(np_job_t, job_heap, local_job);
@@ -133,7 +133,7 @@ Test(np_heap, _np_heap_job_t, .description = "test the heap of a np_job_t")
     local_job.exec_not_before_tstamp = 0.0;
     pheap_insert(np_job_t, job_heap, local_job);
     cr_assert ( 11     == job_heap->count, "test that the current count of the job queue has increased (count is %"PRIu16")",job_heap->count);
-    
+
     local_job.priority = (double) 2;
     local_job.exec_not_before_tstamp = 0.0;
     pheap_insert(np_job_t, job_heap, local_job);

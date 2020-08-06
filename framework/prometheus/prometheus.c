@@ -10,12 +10,12 @@
 
 typedef struct prometheus_item_s prometheus_item;
 struct prometheus_item_s {
-     prometheus_item *next;   
+     prometheus_item *next;
     void* data;
 };
 
  struct prometheus_context_s {
-    pthread_mutex_t w_lock;    
+    pthread_mutex_t w_lock;
     pthread_mutexattr_t w_lock_attr;
 
 
@@ -25,9 +25,9 @@ struct prometheus_item_s {
 
 
 struct prometheus_metric_s {
-    
+
     char  name[255];
-    pthread_mutex_t rw_lock;    
+    pthread_mutex_t rw_lock;
     pthread_mutexattr_t rw_lock_attr;
 
     float value;
@@ -42,9 +42,9 @@ enum prometheus_sub_metric_type{
     prometheus_sub_metric_type_time
 };
 typedef struct prometheus_sub_metric_time_config_s {
-    
+
     uint64_t interval_ms;
-    uint64_t last_update;    
+    uint64_t last_update;
     float last_value;
 
 }prometheus_sub_metric_time_config;
@@ -71,8 +71,8 @@ void prometheus_destroy_label(prometheus_label* l){
 }
 void prometheus_destroy_sub_metric(prometheus_sub_metric* sm);
 void prometheus_destroy_metric(prometheus_metric* m){
-    
-    prometheus_item * item = NULL, *item_old;    
+
+    prometheus_item * item = NULL, *item_old;
     item = m->labels;
     while(item!=NULL){
         item_old = item;
@@ -92,13 +92,13 @@ void prometheus_destroy_metric(prometheus_metric* m){
     pthread_mutex_destroy(&m->rw_lock);
     free(m);
 }
-void prometheus_destroy_sub_metric(prometheus_sub_metric* sm){    
+void prometheus_destroy_sub_metric(prometheus_sub_metric* sm){
     free(sm);
 }
 
 void prometheus_destroy_context(prometheus_context * c){
     prometheus_item * item = NULL, *item_old;
-    
+
     item = c->metrics;
     while(item!=NULL){
         item_old = item;
@@ -115,7 +115,7 @@ void prometheus_destroy_context(prometheus_context * c){
 prometheus_metric* prometheus_register_metric(prometheus_context* c, char name[255]){
     prometheus_metric* ret = calloc(1,sizeof(prometheus_metric));
     strncpy(ret->name, name, 255);
-    ret->time_ms = 0;    
+    ret->time_ms = 0;
     ret->context = c;
     pthread_mutexattr_init(&ret->rw_lock_attr);
     pthread_mutexattr_settype(&ret->rw_lock_attr, PTHREAD_MUTEX_RECURSIVE);
@@ -137,7 +137,7 @@ prometheus_metric* prometheus_register_sub_metric_time(prometheus_metric* base, 
     ret->type = prometheus_sub_metric_type_time;
     ret->time.interval_ms = interval_sec*(uint64_t)1000;
     ret->time.last_value = base->value;
-    
+
     char new_name[255];
     snprintf(new_name,255,"%s_per_secs", base->name);
     new_name[254]='\0';
@@ -184,7 +184,7 @@ void prometheus_metric_replace_label(prometheus_metric* self, prometheus_label l
         prometheus_item* n_item = self->labels;
         while(n_item != NULL){
             prometheus_label* item = n_item->data;
-            if(strcmp(label.name, item->name)==0) {                
+            if(strcmp(label.name, item->name)==0) {
                 strncpy(item->value, label.value, 255);
                 replaced = true;
             }
@@ -218,11 +218,11 @@ void __prometheus_metric_update_sub_metrics(prometheus_metric* self, uint64_t no
                 sub_metric->time.last_value = self->value;
             }
         }
-        n_item = n_item->next;            
+        n_item = n_item->next;
     }
 }
 
-void prometheus_metric_inc(prometheus_metric* self, float value){    
+void prometheus_metric_inc(prometheus_metric* self, float value){
     if(pthread_mutex_lock(&self->rw_lock)==0){
         self->value += value;
         if(self->context->time != NULL) {
@@ -268,7 +268,7 @@ char* prometheus_format(prometheus_context* c) {
         prometheus_metric* metric;
         prometheus_label* label;
         metric_iterator = c->metrics;
-        
+
         while(metric_iterator != NULL){
             metric = (prometheus_metric*) metric_iterator->data;
 
@@ -276,7 +276,7 @@ char* prometheus_format(prometheus_context* c) {
             size += 21; // value size + space
 
             if(metric->time_ms != 0)
-                size += 14; // timestamp size        
+                size += 14; // timestamp size
 
             label_iterator = metric->labels;
             if(label_iterator != NULL){
@@ -292,7 +292,7 @@ char* prometheus_format(prometheus_context* c) {
                 label_iterator = label_iterator->next;
                 if(label_iterator != NULL)
                     size += 1; // ,
-            }    
+            }
             size += 1; // newline
             metric_iterator = metric_iterator->next;
         }
@@ -300,11 +300,11 @@ char* prometheus_format(prometheus_context* c) {
         uint32_t ret_pointer = 0;
 
         metric_iterator = c->metrics;
-        
+
         while(metric_iterator != NULL){
             metric = (prometheus_metric*) metric_iterator->data;
 
-            ret_pointer += sprintf(ret+ret_pointer, "%s", metric->name);        
+            ret_pointer += sprintf(ret+ret_pointer, "%s", metric->name);
 
             label_iterator = metric->labels;
             bool has_label = label_iterator != NULL;
@@ -324,16 +324,16 @@ char* prometheus_format(prometheus_context* c) {
                 ret_pointer += sprintf(ret+ret_pointer, "%s", "}");
             }
 
-            pthread_mutex_lock(&metric->rw_lock);    
-            ret_pointer += sprintf(ret+ret_pointer, " %f", metric->value);        
+            pthread_mutex_lock(&metric->rw_lock);
+            ret_pointer += sprintf(ret+ret_pointer, " %f", metric->value);
             if(metric->time_ms != 0)
-                ret_pointer += sprintf(ret+ret_pointer," %"PRIu64, metric->time_ms);        
+                ret_pointer += sprintf(ret+ret_pointer," %"PRIu64, metric->time_ms);
             pthread_mutex_unlock(&metric->rw_lock);
-            
+
             ret_pointer += sprintf(ret+ret_pointer, "%c", '\n');
             metric_iterator = metric_iterator->next;
         }
-        ret[size-1] = 0; // for sanity 
+        ret[size-1] = 0; // for sanity
         pthread_mutex_unlock(&c->w_lock);
     }
 

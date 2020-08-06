@@ -44,7 +44,7 @@ Test(np_aaatoken_t, create_node_token, .description = "test the creation of a no
 		test_token_1 = _np_token_factory_new_node_token(context, IPv4 | UDP, "localhost", "1111");
 		cr_assert(NULL != test_token_1, "expect the token to be not NULL");
 
-		// re-set the validity of this token for this test only	
+		// re-set the validity of this token for this test only
 		test_token_1->expires_at = test_token_1->not_before + 1.;
 		_np_aaatoken_set_signature(test_token_1, NULL); // self signed
 		cr_expect(true == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the token is valid");
@@ -54,7 +54,7 @@ Test(np_aaatoken_t, create_node_token, .description = "test the creation of a no
 
 		np_aaatoken_t* test_token_2 = np_token_factory_read_from_tree(context, aaa_tree);
 		//np_new_obj(np_aaatoken_t, test_token_2);
-		//np_aaatoken_decode(aaa_tree, test_token_2);	
+		//np_aaatoken_decode(aaa_tree, test_token_2);
 		cr_assert(test_token_2 != NULL, "expect a token");
 		cr_assert(true == _np_aaatoken_is_valid(test_token_1, np_aaatoken_type_node), "expect that the 1.token (%s) is valid", test_token_1->uuid);
 		cr_assert(true == _np_aaatoken_is_valid(test_token_2, np_aaatoken_type_node), "expect that the 2.token (%s) is valid", test_token_2->uuid);
@@ -109,11 +109,11 @@ Test(np_aaatoken_t, encode_decode_loop, .description = "test the encoding and de
 
 		np_new_obj(np_key_t, test_key);
 		test_key->dhkey = np_aaatoken_get_fingerprint(ref, false);
-		// np_ref_obj(np_node_t, test_node, ref_key_node); 
-		// test_key->node = test_node;		
-		// np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token); 
+		// np_ref_obj(np_node_t, test_node, ref_key_node);
+		// test_key->node = test_node;
+		// np_ref_obj(np_aaatoken_t, ref, ref_key_aaa_token);
 		// test_key->aaa_token = ref;
-		
+
 		test_token_1 = ref;
 		for (int i = 0; i < 10; ++i)
 		{

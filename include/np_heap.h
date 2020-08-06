@@ -162,7 +162,7 @@ uint16_t TYPE##_binheap_find(TYPE##_binheap_t* heap, uint16_t id)               
     for (uint16_t i = 1; i<=heap->count; i++)                                                                          \
         if (id == heap->elements[i].id) return (i);                                                                    \
     return (0);                                                                                                        \
-}                                                                                            
+}
 
 #ifdef __cplusplus
 }

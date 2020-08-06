@@ -26,9 +26,10 @@ config.log
 *perf.data*
 /release
 bindings/luajit/neuropil_ffi.lua
-/venv/
+/.venv/
 tmp/*
 bindings/python_cffi/neuropil.egg-info/
+bindings/python_cffi/dist/
 *.so
 core*
 vgcore*

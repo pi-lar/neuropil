@@ -6,6 +6,6 @@ tar -xzf LATEST.tar.gz -C ./libsodium
 rm LATEST.tar.gz
 cd libsodium/libsodium-stable
 ./configure
-make 
+make
 make check
 sudo make install

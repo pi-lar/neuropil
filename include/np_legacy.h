@@ -241,7 +241,7 @@ void np_add_receive_listener (np_context* ac, np_usercallbackfunction_t msg_hand
 */
 NP_API_EXPORT
 void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, const char* subject);
- 
+
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
 
@@ -255,7 +255,7 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
 */
 NP_API_EXPORT
 void np_send_msg (np_context*ac, const char* subject, np_tree_t *body, np_dhkey_t* target_key);
- 
+
 /**
 .. c:function:: void np_set_mx_properties(char* subject, const char* key, np_treeval_t value)
 

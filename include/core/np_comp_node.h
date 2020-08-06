@@ -27,8 +27,8 @@ extern "C" {
 
 /**
  * a node component is the representation of an external physical node running on a distant os.
- * it resides in memory at the fingerprint dhkey of its token. usually it is used as an outbound 
- * channel to send or forward messages. Is has a np_node_t and np_network_t structure attached, 
+ * it resides in memory at the fingerprint dhkey of its token. usually it is used as an outbound
+ * channel to send or forward messages. Is has a np_node_t and np_network_t structure attached,
  * which may be shared with its inbound counterpart, the alias component.
  */
 

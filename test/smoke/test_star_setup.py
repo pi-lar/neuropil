@@ -1,5 +1,5 @@
 import unittest
-import time 
+import time
 import math
 from neuropil import NeuropilNode, NeuropilCluster, _NeuropilHelper, neuropil, np_token, np_message, np_id
 from _neuropil import ffi
@@ -10,7 +10,7 @@ from ctypes import c_char, c_bool
 
 
 class StarSetupTest(unittest.TestCase):
-    
+
     # common class variables for each process
     np_0_addr = b"*:udp4:localhost:4001"
     subject   = b"urn:np:test:subject:1"
@@ -28,8 +28,8 @@ class StarSetupTest(unittest.TestCase):
         pass
 
     @staticmethod
-    def msg_received(node:NeuropilNode, message:np_message):    
-        StarSetupTest.msg_delivery_succ.value = True        
+    def msg_received(node:NeuropilNode, message:np_message):
+        StarSetupTest.msg_delivery_succ.value = True
         # print("received message complete")
         return True
 
@@ -66,15 +66,15 @@ class StarSetupTest(unittest.TestCase):
     def run_sender(self):
         np_1 = NeuropilNode(4002, log_file="logs/smoke_test_star_n1.log", auto_run=False, n_threads=5)
         # configure node 1 as sender
-        mxp = np_1.get_mx_properties(StarSetupTest.subject)        
+        mxp = np_1.get_mx_properties(StarSetupTest.subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp.max_retry = 5
         mxp.apply()
         np_1.set_authenticate_cb(StarSetupTest.authn_allow_star)
         np_1.set_authorize_cb(StarSetupTest.authz_allow_all)
         np_1.join(StarSetupTest.np_0_addr)
-        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
-        #                                           node=np_1.get_fingerprint(), 
+        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()),
+        #                                           node=np_1.get_fingerprint(),
         #                                           addr=np_1.get_address()) )
         np_1.run(math.pi/10)
         t1 = time.time()
@@ -102,15 +102,15 @@ class StarSetupTest(unittest.TestCase):
 
         np_2 = NeuropilNode(4003, log_file="logs/smoke_test_star_n2.log", auto_run=False, n_threads=5)
         # configure node 2 as receiver
-        mxp = np_2.get_mx_properties(StarSetupTest.subject)        
+        mxp = np_2.get_mx_properties(StarSetupTest.subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp.apply()
         np_2.set_receive_cb(StarSetupTest.subject, self.msg_received)
         np_2.set_authenticate_cb(StarSetupTest.authn_allow_star)
         np_2.set_authorize_cb(StarSetupTest.authz_allow_all)
         np_2.join(StarSetupTest.np_0_addr)
-        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
-        #                                           node=np_2.get_fingerprint(), 
+        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()),
+        #                                           node=np_2.get_fingerprint(),
         #                                           addr=np_2.get_address()) )
         np_2.run(math.pi/10)
 
@@ -132,8 +132,8 @@ class StarSetupTest(unittest.TestCase):
         np_0 = NeuropilNode(4001, log_file="logs/smoke_test_star_n0.log", auto_run=False, n_threads=5)
         # np_0_addr = np_0.get_address()
         StarSetupTest.np_0_fp.value   = str(np_0.get_fingerprint()).encode()
-        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()), 
-        #                                           node=StarSetupTest.np_0_fp.value, 
+        # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()),
+        #                                           node=StarSetupTest.np_0_fp.value,
         #                                           addr=StarSetupTest.np_0_addr))
         np_0.run(math.pi/10)
 
@@ -178,7 +178,7 @@ class StarSetupTest(unittest.TestCase):
         # test our results
         self.assertTrue(StarSetupTest.send.value)
         self.assertTrue(StarSetupTest.msg_delivery_succ.value)
-    
+
 if __name__ == "__main__":
     unittest.main() # run all tests
 

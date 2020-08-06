@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 	np_tree_elem_t* properties_node = np_tree_find_int(msg_out->properties, 1);
 	np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
 
- 
+
 	/** message split up maths
 	 ** message size = 1b (common header) + 40b (encryption) +
 	 **                msg (header + instructions) + msg (properties + body) + msg (footer)

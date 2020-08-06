@@ -1,9 +1,9 @@
 #! /usr/bin/env python3
 
-# 
+#
 # neuropil is copyright 2016-2020 by pi-lar GmbH
 # Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
-# 
+#
 
 import subprocess
 import platform
@@ -12,9 +12,9 @@ import io
 import os
 import SCons.Util
 
-def exec_call(target):        
+def exec_call(target):
     ret = subprocess.check_call(target)
-    if ret != 0:        
+    if ret != 0:
         print("Error: cannot execute {target}".format(**locals()))
     return ret
 
@@ -30,12 +30,8 @@ try:
 except:
     pass
 
-target = ARGUMENTS.get('target', "test")
-
 verbose = bool(ARGUMENTS.get('verbose', 1))
 analyze = ARGUMENTS.get('analyze', 0)
-build_tests = int(ARGUMENTS.get('test', 1))
-build_tests_enable_test_coverage = build_tests > 1
 debug = ARGUMENTS.get('debug', 0)
 release = ARGUMENTS.get('release', 0)
 strict = int(ARGUMENTS.get('strict', 0))
@@ -48,40 +44,26 @@ build_bindings = bool(int(ARGUMENTS.get('bindings', False)))
 build_bindings_lua = bool(int(ARGUMENTS.get('lua_binding', build_bindings)))
 build_bindings_python = bool(int(ARGUMENTS.get('python_binding', build_bindings)))
 
+import inspect
+project_root_path = os.path.join(os.path.dirname(os.path.realpath(inspect.getfile(lambda: None))))
 
-
-buildDir = os.path.join('build', target)
-if build_tests_enable_test_coverage:
-    '''
-    default_env = Environment(CC = 'gcc', tools = ['default', 'gcccov'])
-    # Generate correct dependencies of `*.gcno' and `*.gcda' files on object
-    # files being built from now on.
-    default_env.GCovInjectObjectEmitters()
-    default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage'], LDFLAGS = ['--coverage'], LIBS="gcov")
-    '''
-    #default_env = Environment(CC = 'gcc')
-    #default_env.Append(CCFLAGS = ['-g', '-O0', '--coverage','-fprofile-arcs','-ftest-coverage'], LDFLAGS = ['--coverage'], LIBS="gcov") 
-    default_env = Environment()
-    default_env.Append(CCFLAGS = ['-g', '-O0'])
-else:
-    default_env = Environment()
-
-
+buildDir = os.path.join(project_root_path, 'build', 'neuropil')
+default_env = Environment()
 
 if 'TERM' in os.environ:
   default_env['ENV']['TERM'] = os.environ['TERM']
 
-if os.getenv("CC"):
-    default_env["CC"] = os.getenv("CC")
+
+default_env["CC"] = os.getenv("CC",'clang')
 default_env["CXX"] = os.getenv("CXX")
 default_env["ENV"].update(x for x in os.environ.items() if x[0].startswith("CCC_"))
 
 variantDir = os.path.join(buildDir,'obj')
 
-default_env.VariantDir(os.path.join(variantDir, 'framework'), 'framework', duplicate=0)
-default_env.VariantDir(os.path.join(variantDir, 'src'), 'src', duplicate=0)
-default_env.VariantDir(os.path.join(variantDir, 'test'), 'test', duplicate=0)
-default_env.VariantDir(os.path.join(variantDir, 'examples'), 'examples', duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'src'),         os.path.join(project_root_path,'src'), duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'test'),        os.path.join(project_root_path,'test'), duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'examples'),    os.path.join(project_root_path,'examples'), duplicate=0)
+default_env.VariantDir(os.path.join(variantDir, 'framework'),   os.path.join(project_root_path,'framework'), duplicate=0)
 
 default_env.Decider('MD5')
 
@@ -166,7 +148,10 @@ if 'Windows' in platform.system() or 'OpenBSD' in platform.system():
 if verbose:
     default_env.Append(LINKFLAGS = ['-v']) # shows linker invokation
 
-default_env.Append(CPPPATH = ['./include','./framework'])
+default_env.Append(CPPPATH = [
+    os.path.join(project_root_path,'include'),
+    os.path.join(project_root_path,'framework')
+])
 default_env.Append(LIBPATH = [os.path.join('.', buildDir,'lib')])
 
 print ("continuing with CCFLAGS set to: {dump}".format(dump=default_env.Dump(key='CCFLAGS')) )
@@ -256,44 +241,73 @@ SOURCES += ['event/ev.c', 'json/parson.c','msgpack/cmp.c','gpio/bcm2835.c']
 
 SOURCES = [os.path.join(variantDir, "src" , s) for s in SOURCES]
 
-print ('####')
-print ('#### building neuropil libraries/testsuite/example programs:')
-print ('####')
-
 # build the neuropil library as static and shared library
-if not build_tests_enable_test_coverage:
-    np_stlib = neuropil_env.Library(os.path.join(buildDir, 'lib','neuropil'), SOURCES)
+np_stlib = neuropil_env.Library(os.path.join(buildDir, 'lib','neuropil'), SOURCES)
 np_dylib = neuropil_env.SharedLibrary(os.path.join(buildDir,'lib','neuropil'), SOURCES)
 
-bindings_python_build = False
 if build_bindings_lua:
   bindings_lua_env = default_env.Clone()
   bindings_lua_build= bindings_lua_env.Command ("build.binding_lua", None, lambda target,source,env: exec_call(['./bindings/luajit/build.sh']))
   Depends(bindings_lua_build, np_dylib)
 
 if build_bindings_python:
+  setup_py_path = os.path.join(project_root_path,'bindings','python_cffi','setup.py')
+  python_build_path = os.path.join(project_root_path,'build','bindings','python')
   bindings_py_env = default_env.Clone()
-  import build_info
-  bindings_python_build= bindings_py_env.Command ("build.binding_python", None, lambda target,source,env: exec_call(['./bindings/python_cffi/build.sh', build_info.get_semver_str()]))
+  bindings_python_build= bindings_py_env.Command (
+      "build.binding_python",
+       [setup_py_path],
+       f"ARCHFLAGS='-arch x86_64' python3 {setup_py_path} build --build-base={python_build_path}"
+    )
   Depends(bindings_python_build, np_dylib)
+  bindings_python_sdist= bindings_py_env.Command (
+      "build.binding_python.sdist",
+       [setup_py_path],
+       f"ARCHFLAGS='-arch x86_64' python3 {setup_py_path} sdist --formats=gztar,zip"
+    )
+  Depends(bindings_python_sdist, bindings_python_build)
+
+  if install:
+        py_install = bindings_py_env.Command(
+            "install.binding_python",
+            [setup_py_path],
+            f'{setup_py_path} install --force'
+        )
+        Depends(py_install, bindings_python_build)
+
+        #if 'Darwin' in platform.system():
+
+        # Trying to use name tool to link into build library in _neuropil.abi3.so
+        #sudo install_name_tool -change build/neuropil/lib/libneuropil.dylib ${base_dir}/build/neuropil/lib/libneuropil.dylib ./_neuropil.abi3.so
+        # py_install = bindings_py_env.Command(
+        #     "install.binding_python",
+        #     None,
+        #     'sudo install_name_tool -change build/neuropil/lib/libneuropil.dylib ${base_dir}/build/neuropil/lib/libneuropil.dylib ./_neuropil.abi3.so'
+        # )
 
 test_env = default_env.Clone()
-test_env.Append(LIBPATH = ['./build/test/ext_tools/Criterion/build/src'] )
-test_env.Append(CPPPATH = ['./ext_tools/Criterion/include'] )
+test_env.Append(LIBPATH = ['./ext_tools/Criterion/build/src'] )
+test_env.Append(CPPPATH = [os.path.join(project_root_path,'ext_tools','Criterion','include')])
 conf = Configure(test_env)
 
 criterion_is_available = conf.CheckLibWithHeader('criterion', 'criterion/criterion.h', 'c')
 test_env = conf.Finish()
 
+print ('####')
+print ('#### building neuropil libraries/testsuite/example programs:')
+print ('####')
+
 # build test executable
-if int(release) < 1 and int(build_tests) > 0 and criterion_is_available:
-    print ('Test cases included')
+if criterion_is_available:
     # include the neuropil build path library infos
     test_env.Append(LIBS = ['criterion', 'sodium','ncurses','neuropil'])
     test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_suite'),    os.path.join(variantDir,'test','test_suite.c'))
     Depends(test_suite, np_dylib)
+    print ('included: neuropil_test_suite')
     test_suite = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_units'),     os.path.join(variantDir,'test','test_units.c'))
     Depends(test_suite, np_dylib)
+    print ('included: neuropil_test_units')
+
     #test_prog = test_env.Program(os.path.join(buildDir,'bin','neuropil_test'),     os.path.join(variantDir,'examples','neuropil_test.c'))
     #Depends(test_prog, np_dylib)
 else:
@@ -327,19 +341,9 @@ else:
         program_env = default_env.Clone()
         program_env.Append(LIBS = libs)
         if not build_program or build_program == program:
-            print ('building neuropil_{program_name}'.format(program_name=program))
+            print ('included: neuropil_{program_name}'.format(program_name=program))
             prg_np = program_env.Program(os.path.join(buildDir, 'bin','neuropil_%s'%program), os.path.join(variantDir,'examples','neuropil_%s.c'%program))
             Depends(prg_np, np_dylib)
-
-
-if install:
-    install_lib = neuropil_env.Command("install.sharedlib", None, lambda target,source,env: exec_call('sudo ./install.py'.split(' ')))
-    Depends(install_lib, np_dylib)
-
-    if bindings_python_build:
-        py_install = bindings_py_env.Command("install.binding_python", None, lambda target,source,env: exec_call('./bindings/python_cffi/setup.py install --force'.split(' ')))
-        Depends(py_install, install_lib)
-        Depends(py_install, bindings_python_build)
 
 # clean up
 Clean('.', os.path.join('ext_tools',"Criterion","build"))
@@ -354,17 +358,3 @@ Clean('.', '.eggs')
 Clean('.', 'bin')
 Clean('.', 'warn.log')
 Clean('.', 'warn_clean.log')
-
-print ("build with:")
-print ("verbose                  =  %r" % verbose)
-print ("analyze                  =  %r" % analyze)
-print ("build_tests              =  %r" % build_tests)
-print ("debug                    =  %r" % debug)
-print ("release                  =  %r" % release)
-print ("strict                   =  %r" % strict)
-print ("build_program            =  %r" % build_program)
-print ("build_x64                =  %r" % build_x64)
-print ("enable_test_coverage     =  %r" % build_tests_enable_test_coverage)
-print ("build_bindings           =  %r" % build_bindings)
-print ("build_bindings_lua       =  %r" % build_bindings_lua)
-print ("build_bindings_python    =  %r" % build_bindings_python)
