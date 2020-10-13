@@ -2,31 +2,32 @@
 #   nix-build /path/to/this/directory
 # ... build products will be in ./result
 
-{ pkgs ? (import <nixpkgs> {}), source ? ./., version ? "dev" }:
+{ pkgs ? (import <nixpkgs> { }), source ? ../../bindings/luajit
+, neuropil ? pkgs.callPackage ./neuropil.nix { } }:
 
 with pkgs;
-
-let
-  stdenv = clangStdenv;
-  neuropil = import ./default.nix {};
+let version = neuropil.version;
 in luajitPackages.buildLuaPackage rec {
   name = "neuropil-luajit-${version}";
   src = lib.cleanSource source;
+  /* *
+     * Gnerate using:
+       $ git diff --relative=bindings/luajit \
+         bindings/luajit/build.sh >          \
+         scripts/nix/patches/build.sh.patch
+  */
+  patches = [ ./patches/build.sh.patch ];
+  buildInputs = [ clang neuropil luajit ];
+  inherit version;
+  inherit neuropil;
 
-  buildInputs = [ clang ];
-  inherit version luajit neuropil;
-
-  buildPhase = ''
-    make bindings/luajit/neuropil_ffi.lua
-  '';
+  buildPhase = "sh ./build.sh";
 
   installPhase = ''
-    install -Dt "$out/lib/lua/${luajit.luaversion}" \
-            bindings/luajit/neuropil*.lua
+    install -Dt "$out/share/lua/${luajit.luaversion}" \
+            neuropil.lua
+    install -Dt "$out/share/lua/${luajit.luaversion}" \
+            build/neuropil_ffi.lua
   '';
 
-  shellHook = ''
-     export LD_LIBRARY_PATH="${lib.makeLibraryPath [ neuropil ]}"
-     export LUA_PATH="$PWD/bindings/luajit/?.lua"
-  '';
 }
