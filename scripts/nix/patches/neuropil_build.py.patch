@@ -1,0 +1,31 @@
+diff --git a/neuropil_build.py b/neuropil_build.py
+index 36036e08..a7d79e02 100644
+--- a/neuropil_build.py
++++ b/neuropil_build.py
+@@ -9,8 +9,6 @@ def get_local_target():
+ ffibuilder = FFI()
+ PATH = os.path.dirname(__file__)
+ 
+-np_lib_path = os.path.join(PATH, "..","..","build",'neuropil',"lib")
+-np_include_path = os.path.join(PATH, "..","..","include")
+ 
+ # This describes the extension module "_neuropil" to produce.
+ ffibuilder.set_source(
+@@ -20,8 +18,6 @@ ffibuilder.set_source(
+     """,
+     libraries=['neuropil', 'sodium'],   # library name, for the linker
+     # extra_objects=[np_lib_path],
+-    library_dirs=[np_lib_path],
+-    include_dirs=[np_include_path]
+     )
+ 
+ # cdef() expects a string listing the C types, functions and
+@@ -31,7 +27,7 @@ import subprocess
+ h_files = ['neuropil.h']
+ 
+ for h_file in h_files:
+-    h_file_path = os.path.join(np_include_path, h_file)
++    h_file_path = os.path.join(os.getenv('neuropil'), 'include', h_file)
+     cc = os.getenv("CC",'clang')
+ 
+     cmd =[
