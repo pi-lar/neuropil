@@ -145,11 +145,31 @@ bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t
     bool ret = false;
     
     // NP_CAST(statemachine->_user_data, np_key_t, node_key);
-    NP_CAST(event.user_data, np_node_t, my_node);
+    //NP_CAST(event.user_data, np_node_t, my_node);
+    NP_CAST(event.user_data, np_aaatoken_t, token);
 
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_token) );
     if ( ret) ret &=  FLAG_CMP(event.type, evt_authn);
-    if ( ret) ret &= _np_memory_rtti_check(my_node, np_memory_types_np_aaatoken_t);
+    if ( ret) ret &= _np_memory_rtti_check(token, np_memory_types_np_aaatoken_t);
+
+    return ret;
+}
+
+
+bool __is_node_identity_authn(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    // { .type=(evt_internal|evt_token), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
+    np_ctx_memory(statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: bool __is_node_authn(...) {");
+
+    bool ret = false;
+
+    // NP_CAST(statemachine->_user_data, np_key_t, node_key);
+    NP_CAST(event.user_data, np_aaatoken_t, token);
+
+    if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_token) );
+    if ( ret) ret &=  FLAG_CMP(event.type, evt_authn);
+    if ( ret) ret &= _np_memory_rtti_check(token, np_memory_types_np_aaatoken_t);
 
     return ret;
 }
@@ -511,6 +531,26 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, NP_UNUSED
     }
 }
 
+void __np_node_identity_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: void __np_node_identity_upgrade(...) { %p", statemachine->_user_data);
+
+    NP_CAST(statemachine->_user_data, np_key_t, alias_or_node_key);
+    NP_CAST(event.user_data, np_aaatoken_t, token);
+
+    struct __np_node_trinity trinity = {0};
+    __np_key_to_trinity(alias_or_node_key, &trinity);
+
+    __np_node_handle_completion(&alias_or_node_key->sm, event);
+
+    if (FLAG_CMP(trinity.token->type, np_aaatoken_type_node))
+    {
+        trinity.token->state |= AAA_AUTHENTICATED;
+        trinity.node->_joined_status++;
+    }
+}
+
 void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {   
     np_ctx_memory(statemachine->_user_data);
@@ -524,7 +564,8 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
     // if this is an alias, trigger the state transition of the correpsonding node key
     if (FLAG_CMP(alias_or_node_key->type, np_key_type_alias)) 
     {
-        _np_keycache_handle_event(context, token_fp, event, false);
+        np_dhkey_t node_token_fp = alias_or_node_key->parent_key->dhkey;
+        _np_keycache_handle_event(context, node_token_fp, event, false);
 
     } else {
         // node key and alias key share the same data structures, updating once counts for both
@@ -564,7 +605,7 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
 
             // send update messages to nodes near to this fingerprint        
             np_dhkey_t update_key = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-            np_util_event_t update_event = {.type=(evt_message|evt_internal), .context=context, .user_data=msg_out, .target_dhkey=token_fp};
+            np_util_event_t update_event = {.type=(evt_message|evt_internal), .context=context, .user_data=msg_out, .target_dhkey=np_aaatoken_get_fingerprint(token, false)};
             _np_keycache_handle_event(context, update_key, update_event, false);
 
             np_tree_free(jrb_token);

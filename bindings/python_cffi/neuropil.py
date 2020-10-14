@@ -23,7 +23,7 @@ class np_mx_properties(object):
         if self._node and self.subject:
             ret = self._node.set_mx_properties(self.subject, self)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
 
         return ret
 
@@ -45,12 +45,12 @@ class np_token(object):
         self._node = node
         self.__dict__.update(entries)
 
-    def get_fingerprint(self):
+    def get_fingerprint(self, check_attributes:bool=False):
         id = ffi.new("np_id", b'\0')
-        ret = neuropil.np_token_fingerprint(self._node._context, _NeuropilHelper.convert_from_python(self), True, ffi.addressof(id))
+        ret = neuropil.np_token_fingerprint(self._node._context, _NeuropilHelper.convert_from_python(self), check_attributes, ffi.addressof(id))
 
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
 
         return np_id(id)
 
@@ -106,6 +106,9 @@ class NeuropilNode(object):
         self._settings = None
         self._context = None
         # python class variables
+        self._host = host
+        self._proto = proto
+        self._port = port
         self._userdata = None
         self._destroyed = False
         # default aaa callbacks
@@ -126,7 +129,7 @@ class NeuropilNode(object):
         self._context = neuropil.np_new_context(self._settings)
         neuropil.np_set_userdata(self._context, self._ffi_handle)
 
-        self.listen(proto, host, port)
+        self.listen(self._proto, self._host, self._port)
         if auto_run:
             self.run(0)
 
@@ -145,7 +148,7 @@ class NeuropilNode(object):
         ret = neuropil.np_node_fingerprint(self._context, ffi.addressof(id))
 
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
 
         return np_id(id)
 
@@ -186,7 +189,7 @@ class NeuropilNode(object):
             self.__callback_info_dict__[subject_id] = []
             ret = neuropil.np_add_receive_cb(self._context, subject, NeuropilNode._py_subject_callback)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         else:
             self.__callback_info_dict__[subject_id].append(recv_callback)
         return ret
@@ -205,7 +208,7 @@ class NeuropilNode(object):
 
         ret = neuropil.np_listen(self._context, protocol, hostname, port)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def join(self, connect_string:str):
@@ -216,7 +219,7 @@ class NeuropilNode(object):
 
         ret = neuropil.np_join(self._context, connect_string)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def run(self, interval:float):
@@ -224,7 +227,7 @@ class NeuropilNode(object):
             interval = float(interval)
         ret = neuropil.np_run(self._context, interval)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def send(self, subject:str, message:bytes):
@@ -236,7 +239,7 @@ class NeuropilNode(object):
         raw_bytes = ffi.from_buffer(message)
         ret = neuropil.np_send(self._context, subject, raw_bytes, len(raw_bytes))
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def new_identity(self, expires_at:float=time.time()+(60*60*24), secret_key:bytes=None):
@@ -261,7 +264,7 @@ class NeuropilNode(object):
         ret = neuropil.np_use_identity(self._context, token_dict)
 
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def get_mx_properties(self, subject:str):
@@ -273,7 +276,7 @@ class NeuropilNode(object):
         ret = neuropil.np_get_mx_properties(self._context, subject)
 
         if ret == ffi.NULL:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         else:
             ret = _NeuropilHelper.convert_to_python(self, ret)
             ret.subject = subject # currently no native part of the np_mx_property
@@ -291,7 +294,7 @@ class NeuropilNode(object):
         ret = neuropil.np_set_mx_properties(self._context, subject, _NeuropilHelper.convert_from_python(mx_property))
 
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
 
         return ret
 
@@ -316,7 +319,7 @@ class NeuropilNode(object):
         status = neuropil.np_get_address(self._context, address, 255)
         #no optional exception throwing due to the fact that the return is not the fn status
         if status is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[status])),status)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(status))),status)
 
         return ffi.string(address).decode("utf-8")
 
@@ -346,21 +349,21 @@ class NeuropilNode(object):
         self._user_authn_cb = authn_callback
         ret =  neuropil.np_set_authenticate_cb(self._context, NeuropilNode._py_authn_cb)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def set_authorize_cb(self, authz_callback):
         self._user_authz_cb = authz_callback
         ret = neuropil.np_set_authorize_cb(self._context, NeuropilNode._py_authz_cb)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def set_accounting_cb(self, acc_callback):
         self._user_accou_cb = acc_callback
         ret = neuropil.np_set_accounting_cb(self._context, NeuropilNode._py_acc_cb)
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str[ret])),ret)
+            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
 class _NeuropilHelper():

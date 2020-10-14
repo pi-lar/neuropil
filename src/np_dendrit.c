@@ -375,10 +375,10 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
             );
             goto __np_cleanup__;
         }
-
-        log_debug_msg(LOG_DEBUG, "JOIN request: identity %s would like to join", _np_key_as_str(join_node_key));
-        // everything is fine and we can continue        
-        authn_event.target_dhkey = join_ident_dhkey;
+        char tmp[65]={0};
+        log_debug_msg(LOG_DEBUG, "JOIN request: identity %s would like to join", np_id_str(tmp, &partner_of_node_dhkey));
+        // everything is fine and we can continue
+        authn_event.target_dhkey = msg_event.target_dhkey;
         authn_event.user_data = join_ident_token;
     }
     

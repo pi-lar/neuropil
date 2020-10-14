@@ -36,6 +36,8 @@ extern "C" {
 NP_API_INTERN
 bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
+bool __is_node_identity_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
 bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
@@ -56,6 +58,8 @@ NP_API_INTERN
 void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_node_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_node_identity_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN

@@ -89,7 +89,7 @@ void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
 
     prop->unique_uuids_in  = np_tree_create();
     prop->unique_uuids_out = np_tree_create();
-    prop->unique_uuids_check = true;
+    prop->unique_uuids_check = false;
 
     prop->current_sender_token = NULL;
     prop->current_receive_token = NULL;
@@ -1436,7 +1436,7 @@ void __np_property_handle_out_msg(np_util_statemachine_t* statemachine, const np
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void __np_property_handle_out_msg(...) { %p", statemachine->_user_data);
 
-    NP_CAST(statemachine->_user_data, np_key_t, my_property_key);    
+    NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, property);
 
     NP_CAST(event.user_data, np_message_t, msg_out);
