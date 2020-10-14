@@ -238,6 +238,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
     ASSERT(my_node_token->scope == np_aaatoken_scope_private, "Can only derive handshake token from private token. current token scope: %"PRIu8, my_node_token->scope);
 
     ret = __np_token_factory_derive(my_node_token, np_aaatoken_scope_private_available);
+    np_init_datablock(ret->attributes, sizeof(ret->attributes));
     ret->type = np_aaatoken_type_handshake;
 
     np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token, false);

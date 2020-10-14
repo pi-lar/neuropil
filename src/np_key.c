@@ -187,6 +187,7 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_send_direct      , __is_handshake_message); // received remote handshake message
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_send_encrypted   , __is_join_out_message ); // received authn information (eventually through identity join)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_update_token     , __is_node_token       ); // received a full node token (join)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_USE_NODE  , __np_node_identity_upgrade , __is_node_identity_authn       ); // received authn information (eventually through identity join)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_USE_NODE  , __np_node_upgrade          , __is_node_authn       ); // received authn information (eventually through identity join)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_SETUP_NODE, __np_node_shutdown         , __is_shutdown_event   ); // node is told to shutdown (i.e. authn failed)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_SETUP_NODE, IN_DESTROY   , __np_node_destroy          , __is_node_invalid     ); // node is not used anymore

@@ -211,7 +211,7 @@ task_smoke() {
     export LD_LIBRARY_PATH="$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
 
     set +e
-    nose2 -v --config ../configs/nose2.cfg
+    nose2 -v --config ../configs/nose2.cfg "$@"
     e=$?
     if [ e == 139 ] && [ -t 0 ]; then
       read -r -p "${1:-Debug with gdb? [y/N]} " response
@@ -279,7 +279,7 @@ shift || true
     test) task_test "$@";;
     package) task_package "$@";;
     install_python) task_install_python ;;
-    smoke) task_smoke ;;
+    smoke) task_smoke "$@";;
     release) task_release ;;
     run) task_run "$@";;
     r) task_run "$@";;

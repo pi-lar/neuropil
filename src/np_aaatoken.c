@@ -540,8 +540,9 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
     uint32_t r = np_set_data(self->attributes,
                                 (struct np_data_conf) {
                                     .key = "_np.partner_fp",
-                                    .type = NP_DATA_TYPE_STR
-                                }, (np_data_value){ .str = id }
+                                    .type = NP_DATA_TYPE_BIN,
+                                    .data_size = sizeof(partner_fp)
+                                }, (np_data_value){ .bin = &partner_fp }
                             );
     assert(r == np_ok);
     log_debug(LOG_AAATOKEN, "token (%s) setting \"_np.partner_fp\" result %"PRIu32" to %s", self->uuid, r, id);
@@ -549,7 +550,10 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
     _np_aaatoken_update_attributes_signature(self);
 }
 
+
+
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
+    np_state_t* context = np_ctx_by_memory(self);
 
     assert(self != NULL);
     np_dhkey_t ret = { 0 };
@@ -561,11 +565,18 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
     ASSERT(r == np_ok || r == np_key_not_found,"token (%s): \"_np.partner_fp\" extraction error %"PRIu32, self->uuid, r);
 
     if(np_ok == r){
-        ASSERT(conf.data_size == 65,"token (%s): \"_np.partner_fp\" extraction size: %"PRIu32" \n", self->uuid, conf.data_size);
+        ASSERT(conf.data_size == sizeof(np_dhkey_t),"token (%s): \"_np.partner_fp\" extraction size: %"PRIu32" \n", self->uuid, conf.data_size);
 
-        _np_str_dhkey(val.str, &ret);
+        //_np_str_dhkey(val.str, &ret);
+        memcpy(&ret, val.bin, sizeof(np_dhkey_t));
     }else{
-        _np_str_dhkey(self->issuer, &ret);
+        log_debug(LOG_AAATOKEN, "np_aaatoken_get_partner_fp issuer: %s",self->issuer);
+
+        if(self->issuer[0] == '\0'){
+            ret = np_aaatoken_get_fingerprint(self, false);
+        }else{
+            ret = np_dhkey_create_from_hash(self->issuer);
+        }
     }
 
     return ret;

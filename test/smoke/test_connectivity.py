@@ -40,6 +40,7 @@ class ConnectivityTest(unittest.TestCase):
 
                 if (np_1_joined and np_2_joined):
                     break
+                np_1.run(0.1)
 
         finally:
             np_1.shutdown()

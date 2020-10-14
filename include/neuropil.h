@@ -250,7 +250,7 @@ extern "C" {
     NP_API_EXPORT
         bool np_has_receiver_for(np_context*ac, const char * subject);
     NP_API_EXPORT
-        void np_id_str(char str[65], const np_id id);
+        char * np_id_str(char str[65], const np_id id);
     NP_API_EXPORT
         void np_str_id(np_id (*id), const char str[65]);
 

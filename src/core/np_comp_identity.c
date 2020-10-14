@@ -316,7 +316,7 @@ bool __is_authn_request(np_util_statemachine_t* statemachine, const np_util_even
     if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     if ( ret) {
         NP_CAST(event.user_data, np_aaatoken_t, token);
-        ret &= (token->type == np_aaatoken_type_identity || token->type == np_aaatoken_type_node);
+        ret &= (FLAG_CMP(token->type, np_aaatoken_type_identity) || FLAG_CMP(token->type, np_aaatoken_type_node));
         ret &= _np_aaatoken_is_valid(token, token->type);
         log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", my_identity_key, token, token->type);
     }
@@ -353,41 +353,38 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
     NP_CAST(event.user_data, np_aaatoken_t, authn_token);
 
     // transport layer encryption
-    if (authn_token->type == np_aaatoken_type_identity || 
-        authn_token->type == np_aaatoken_type_node      )
+    if ( !FLAG_CMP(authn_token->state, AAA_AUTHENTICATED) )
     {
-        if ( !FLAG_CMP(authn_token->state, AAA_AUTHENTICATED) )
+        log_debug_msg(LOG_DEBUG, "now checking (join/ident) authentication of token");
+        struct np_token tmp_user_token = { 0 };
+        bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, authn_token));
+        log_debug_msg(LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
+
+        if (true == join_allowed && context->enable_realm_client == false)
         {
-            log_debug_msg(LOG_DEBUG, "now checking (join/ident) authentication of token");
-            struct np_token tmp_user_token = { 0 };
-            bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, authn_token));
-            log_debug_msg(LOG_DEBUG, "authentication of token: %"PRIu8, join_allowed);
+            authn_token->state |= AAA_AUTHENTICATED;
+            np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(authn_token,false);
+            np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=ident_dhkey};
+            _np_keycache_handle_event(context, ident_dhkey, authn_event, false);
 
-            if (true == join_allowed && context->enable_realm_client == false)
-            {
-                authn_token->state |= AAA_AUTHENTICATED;
-                np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
-                _np_keycache_handle_event(context, event.target_dhkey, authn_event, false);
+            _np_keycache_handle_event(context, event.target_dhkey, authn_event, false);
 
-                _np_key_get_node(context->my_node_key)->joined_network = true;
-            }
-            else if (false == join_allowed && context->enable_realm_client == false) 
-            {
-                np_dhkey_t leave_dhkey = np_aaatoken_get_fingerprint(authn_token, false);
-                np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .context=context, .user_data=NULL, .target_dhkey=leave_dhkey };
-                _np_keycache_handle_event(context, leave_dhkey, shutdown_evt, true);
-                np_unref_obj(np_aaatoken_t, authn_token, "np_token_factory_read_from_tree");
-            }
+            _np_key_get_node(context->my_node_key)->joined_network = true;
         }
-        else
+        else if (false == join_allowed && context->enable_realm_client == false)
         {
+            np_dhkey_t leave_dhkey = np_aaatoken_get_fingerprint(authn_token, false);
+            np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .context=context, .user_data=NULL, .target_dhkey=leave_dhkey };
+            _np_keycache_handle_event(context, leave_dhkey, shutdown_evt, true);
             np_unref_obj(np_aaatoken_t, authn_token, "np_token_factory_read_from_tree");
         }
     }
-    else if (authn_token->type == np_aaatoken_type_message_intent) 
+    else
     {
-        // TODO: lookup hash of sending/receiving entitiy locally or in the dht
+        np_unref_obj(np_aaatoken_t, authn_token, "np_token_factory_read_from_tree");
     }
+
+    // TODO: lookup hash of sending/receiving entitiy locally or in the dht
 }
 
 void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event)
