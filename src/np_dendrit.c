@@ -335,7 +335,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
 
     if (ident_token_ele != NULL)
     {    
-    	join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
+        join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
         if (NULL == join_ident_token || 
             false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) 
         {

@@ -107,7 +107,7 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 }
 
 void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event_t event) 
-{    
+{   
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: void _np_set_identity(...){");
 
@@ -115,6 +115,8 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(event.user_data, np_aaatoken_t, identity_token);
 
     np_ref_obj(np_key_t, my_identity_key, "__np_set_identity");
+
+    bool _update_partner_fp = false;
 
     if (FLAG_CMP(identity_token->type, np_aaatoken_type_node) )
     {
@@ -130,6 +132,10 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
             my_identity_key->type |= np_key_type_ident;
             context->my_identity = my_identity_key;
         }
+        else
+        {
+            _update_partner_fp = true;
+        }
         log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, identity_token, identity_token->type);
     }
     else if(FLAG_CMP(identity_token->type, np_aaatoken_type_identity) )
@@ -137,22 +143,26 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
         np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
         sll_append(void_ptr, my_identity_key->entities, identity_token);
     
-        if (NULL == context->my_identity || context->my_identity == context->my_node_key)
+        if ((NULL == context->my_identity || context->my_identity == context->my_node_key) &&
+             identity_token->private_key_is_set)
         {
             context->my_identity = my_identity_key;
+            _update_partner_fp = true;
         }
+        
         log_debug_msg(LOG_DEBUG, "context->my_identity =  %p %p %d", context->my_identity, identity_token, identity_token->type);
     }
 
-    // to be moved
-    if (context->my_node_key != NULL &&
-        _np_key_cmp(my_identity_key, context->my_node_key) != 0) 
+    if (_update_partner_fp && context->my_node_key != NULL) 
     {
-        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(_np_key_get_token(context->my_node_key), false);
-        np_aaatoken_set_partner_fp(_np_key_get_token(context->my_identity), node_dhkey);
+        np_aaatoken_t* identity_token = _np_key_get_token(context->my_identity);
+        np_dhkey_t     identity_dhkey = np_aaatoken_get_fingerprint(identity_token, false);
 
-        np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(_np_key_get_token(context->my_identity), false);
-        np_aaatoken_set_partner_fp(_np_key_get_token(context->my_node_key), ident_dhkey);
+        np_aaatoken_t* node_token = _np_key_get_token(context->my_node_key);
+        np_dhkey_t     node_dhkey = np_aaatoken_get_fingerprint(node_token, false);
+
+        np_aaatoken_set_partner_fp(identity_token, node_dhkey);
+        np_aaatoken_set_partner_fp(node_token, identity_dhkey);
     }
     
     _np_aaatoken_update_attributes_signature(identity_token);
