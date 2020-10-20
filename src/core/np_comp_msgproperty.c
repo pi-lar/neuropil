@@ -522,7 +522,8 @@ void _np_msgproperty_check_sender_msgcache(np_msgproperty_t* send_prop)
             break;
         
         // check for more messages in cache after head/tail command
-        msg_available = sll_size(send_prop->msg_cache_out);
+        // msg_available = sll_size(send_prop->msg_cache_out);
+        msg_available--;
 
         if(NULL != msg_out) 
         {
@@ -574,7 +575,8 @@ void _np_msgproperty_check_receiver_msgcache(np_msgproperty_t* recv_prop, np_dhk
             }
         }
         // recalc number of available messages
-        msg_available = sll_size(recv_prop->msg_cache_in);
+        // msg_available = sll_size(recv_prop->msg_cache_in);
+        msg_available--;
 
         // handle selected message
         if(NULL != msg_in) 
@@ -659,7 +661,7 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop)
             np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
         }
     }
-    log_msg(LOG_AAATOKEN | LOG_DEBUG, "cleanup receiver cache for subject %s done", msg_prop->msg_subject);
+    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "cleanup receiver cache for subject %s done", msg_prop->msg_subject);
 }
 
 void _np_msgproperty_cleanup_sender_cache(np_msgproperty_t* msg_prop)
