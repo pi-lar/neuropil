@@ -415,8 +415,8 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
 
     // 1: find next hop based on fingerprint of the token
     np_sll_t(np_key_ptr, tmp) = NULL;
-    tmp = _np_route_row_lookup(context, msg_event.target_dhkey);
-    char* source_sll_of_keys = "_np_route_row_lookup";
+    tmp = _np_route_lookup(context, msg_event.target_dhkey, 0);
+    char* source_sll_of_keys = "_np_route_lookup";
     
     if (sll_size(tmp) < 1)
     {   // nothing found, send leafset to exchange some data at least
@@ -424,12 +424,13 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
         np_key_unref_list(tmp, source_sll_of_keys); // only for completion
         sll_free(np_key_ptr, tmp);
         tmp = _np_route_neighbors(context);
+        // tmp = _np_route_row_lookup(context, msg_event.target_dhkey);
         source_sll_of_keys = "_np_route_neighbors";
     }
 
     uint8_t send_counter = 0;
     sll_iterator(np_key_ptr) target_iter = sll_first(tmp);
-    while(NULL != target_iter && send_counter < NP_ROUTE_LEAFSET_SIZE/2)
+    while(NULL != target_iter && send_counter < NP_PI_INT)
     {
         if (_np_dhkey_equal(&target_iter->val->dhkey, &msg_from.value.dhkey) ||
             _np_dhkey_equal(&target_iter->val->dhkey, &context->my_node_key->dhkey) )
