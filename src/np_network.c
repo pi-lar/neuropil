@@ -631,7 +631,7 @@ void _np_network_start(np_network_t* network, bool force)
             {
                 EV_P;
                 if (FLAG_CMP(network->type , np_network_type_server)) {
-                    log_debug_msg(LOG_DEBUG, "starting server network %p", network);
+                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
                     _np_event_suspend_loop_in(context);
                     loop = _np_event_get_loop_in(context);
                     // ev_io_stop(EV_A_ &network->watcher);
@@ -642,7 +642,7 @@ void _np_network_start(np_network_t* network, bool force)
                 }
 
                 if (FLAG_CMP(network->type, np_network_type_client)) {
-                    log_debug_msg(LOG_DEBUG, "starting client network %p", network);
+                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
                     _np_event_suspend_loop_out(context);
                     loop = _np_event_get_loop_out(context);
                     // ev_io_stop(EV_A_ &network->watcher);
