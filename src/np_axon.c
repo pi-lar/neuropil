@@ -415,7 +415,7 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
 
     // 1: find next hop based on fingerprint of the token
     np_sll_t(np_key_ptr, tmp) = NULL;
-    tmp = _np_route_lookup(context, msg_event.target_dhkey, 0);
+    tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
     char* source_sll_of_keys = "_np_route_lookup";
     
     if (sll_size(tmp) < 1)
