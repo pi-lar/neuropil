@@ -160,7 +160,7 @@ bool __is_node_identity_authn(np_util_statemachine_t* statemachine, const np_uti
 {
     // { .type=(evt_internal|evt_token), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
     np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __is_node_authn(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_node_identity_authn(...) {");
 
     bool ret = false;
 

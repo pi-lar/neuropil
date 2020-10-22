@@ -661,7 +661,7 @@ void _np_msgproperty_cleanup_receiver_cache(np_msgproperty_t* msg_prop)
             np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
         }
     }
-    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "cleanup receiver cache for subject %s done", msg_prop->msg_subject);
+    log_debug_msg(LOG_MSGPROPERTY, "cleanup receiver cache for subject %s done", msg_prop->msg_subject);
 }
 
 void _np_msgproperty_cleanup_sender_cache(np_msgproperty_t* msg_prop)
