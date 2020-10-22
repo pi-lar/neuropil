@@ -622,7 +622,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         
         _np_bloom_free(_scent);
     }
-
+    
     if (forward_pheromone_update) 
     {   // forward the received pheromone
         np_message_t* msg_out = pheromone_msg_in;
@@ -642,7 +642,6 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         while (iter != NULL) 
         {
             if (!_np_dhkey_equal(&iter->val, &msg_from.value.dhkey)        &&
-                !_np_dhkey_equal(&iter->val, &_last_hop_dhkey)             &&
                 !_np_dhkey_equal(&iter->val, &context->my_node_key->dhkey) )
             {
                 pheromone_event.target_dhkey = iter->val;
