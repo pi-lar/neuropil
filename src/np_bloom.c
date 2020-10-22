@@ -145,10 +145,10 @@ void _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first)
 
 void _np_standard_bloom_clear(np_bloom_t* res)
 {
-    res->_type = standard_bf;
-    res->_d = 1;
-    res->_p = 0;
-    res->_num_blocks = 1;    
+    // res->_type = standard_bf;
+    // res->_d = 1;
+    // res->_p = 0;
+    // res->_num_blocks = 1;
     res->_bitset = calloc(1, (res->_size/8)*res->_d);
     res->_free_items = res->_size / 16;
     
@@ -163,11 +163,11 @@ np_bloom_t* _np_stable_bloom_create(size_t size, uint8_t d, uint8_t p)
     
     res->_d = d;
     res->_p = p;
+    res->_num_blocks = 1;
     
     res->_bitset = calloc(1, (size/8)*res->_d);
     // simplified max elements calculation
     res->_free_items = size / 16;
-    res->_num_blocks = 1;
     
     return res;
 }
@@ -175,7 +175,7 @@ np_bloom_t* _np_stable_bloom_create(size_t size, uint8_t d, uint8_t p)
 void _np_stable_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
 {
     uint32_t _as_number = 0;
-    static uint32_t _killed_bits = 0;
+    uint32_t _killed_bits = 0;
     
     if (bloom->_free_items == 0) abort();
     
@@ -322,12 +322,12 @@ bool _np_scalable_bloom_check(np_bloom_t* bloom, np_dhkey_t id)
     return (ret_val);
 }
 
-np_bloom_t* _np_decaying_bloom_create(size_t size, uint8_t d, uint8_t p) {
-    
+np_bloom_t* _np_decaying_bloom_create(size_t size, uint8_t d, uint8_t p) 
+{
     np_bloom_t* res = (np_bloom_t*) calloc(1, sizeof(np_bloom_t));
     res->_type = decaying_bf;
     res->_size = size;
-    
+
     res->_d = d;
     res->_p = p;
     
@@ -341,12 +341,21 @@ np_bloom_t* _np_decaying_bloom_create(size_t size, uint8_t d, uint8_t p) {
 
 void _np_decaying_bloom_decay(np_bloom_t* bloom)
 {
+    uint32_t _zero_bits = 0;
     for (uint16_t k = 0; k < bloom->_size * bloom->_d / 8; ++k)
     {
         uint8_t*  _current_val   = &bloom->_bitset[k];
         // if (*_current_val > 0) (*_current_val) = ((*_current_val) - bloom->_p);
-        (*_current_val) = ((*_current_val) >> bloom->_p);
+        if (*_current_val > 0) 
+        {
+            (*_current_val) = ((*_current_val) >> bloom->_p);
+        }
+        if (*_current_val == 0) _zero_bits++;
     }
+
+    // adjust for left over bits when calculating free items
+    bloom->_free_items =  _zero_bits / 16;
+
 // #ifdef DEBUG
 // char test_string[65];
 // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
@@ -357,7 +366,7 @@ void _np_decaying_bloom_decay(np_bloom_t* bloom)
 }
 
 void _np_decaying_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
-{    
+{   
     if (bloom->_free_items == 0) abort();
     
     for (uint8_t k = 0; k < 8; ++k)

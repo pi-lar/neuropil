@@ -45,10 +45,16 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
     // Detect from instructions if this msg was orginally chunked
     char msg_uuid[NP_UUID_BYTES+1]={0};
     strncpy(msg_uuid, np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL), NP_UUID_BYTES);
+    np_dhkey_t uuid_dhkey = np_dhkey_create_from_hostport(msg_uuid, "0");
+
+    bool _seen_before = true;
+    _LOCK_MODULE(np_message_part_cache_t)
+    {
+        _seen_before = context->msg_part_filter->op.check_cb(context->msg_part_filter, uuid_dhkey);
+    }
 
     uint16_t expected_msg_chunks = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_PARTS)->val.value.a2_ui[0];
-
-    if (1 < expected_msg_chunks)
+    if (!_seen_before && 1 < expected_msg_chunks)
     {
         _LOCK_MODULE(np_message_part_cache_t)
         {
@@ -101,6 +107,8 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                     //msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
                     np_tree_del_str(context->msg_part_cache, msg_uuid);
                     np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
+
+                    context->msg_part_filter->op.add_cb(context->msg_part_filter, uuid_dhkey);
                 }
             }
             else
@@ -117,12 +125,22 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
             }
         }
     }
-    else
+    else if (!_seen_before)
     {
         // If this is the only chunk, then return it as is
         log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                "message %s (%s) is unchunked  ", subject, msg_uuid);
+                      "message %s (%s) is unchunked  ", subject, msg_uuid);
         ret = msg_to_check;
+        _LOCK_MODULE(np_message_part_cache_t)
+        {
+            context->msg_part_filter->op.add_cb(context->msg_part_filter, uuid_dhkey);
+        }
+    }
+    else 
+    {
+        log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "discarding message %s (%s) because it was handled before", subject, msg_uuid);
+        np_unref_obj(np_message_t, msg_to_check, ref_message_in_send_system);
+        ret = NULL;
     }
     return ret;
 }
@@ -146,12 +164,13 @@ void _np_alias_cleanup_msgpart_cache(np_state_t* context)
                 }
             }
         }
+        _np_decaying_bloom_decay(context->msg_part_filter);
     }
 
     sll_iterator(np_message_ptr) iter = sll_first(to_del);
     while (NULL != iter)
     {
-        log_debug_msg(LOG_INFO, "MSG_PART_TABLE removing (left-over) message part for uuid: %s", iter->val->uuid);
+        log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE removing (left-over) message part for uuid: %s", iter->val->uuid);
         _LOCK_MODULE(np_message_part_cache_t)
         {
             np_tree_del_str(context->msg_part_cache, iter->val->uuid);
@@ -160,6 +179,34 @@ void _np_alias_cleanup_msgpart_cache(np_state_t* context)
         sll_next(iter);
     }
     sll_free(np_message_ptr, to_del);  
+
+    uint16_t _peer_nodes   = _np_route_my_key_count_routes(context); /* + 
+                             _np_route_my_key_count_neighbors(context, NULL, NULL); */
+    uint8_t _size_modifier = floor(cbrt(_peer_nodes));
+
+    _LOCK_MODULE(np_message_part_cache_t) 
+    {
+        log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE duplicate check has currently space for: %d items (s: %d / p: %d)", 
+                          context->msg_part_filter->_free_items, context->msg_part_filter->_size, context->msg_part_filter->_p);
+
+        size_t                  _size_adjustment  = 1024;
+        if (_size_modifier > 0) _size_adjustment  = _size_modifier*1024;
+        if (context->msg_part_filter->_size != _size_adjustment)
+        {
+            free(context->msg_part_filter->_bitset);
+            context->msg_part_filter->_size = _size_adjustment;
+            _np_standard_bloom_clear(context->msg_part_filter);
+            log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE duplicate check adjusted, now using size: %d", _size_adjustment);
+        }
+
+        uint8_t _prune_adjustment = 1;
+        if (_size_modifier > 1) _prune_adjustment = _size_modifier;
+        if (context->msg_part_filter->_p != _prune_adjustment)
+        {
+            context->msg_part_filter->_p = _prune_adjustment;
+            log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE duplicate check adjusted, now using bit-pruning: %d)", _prune_adjustment);
+        }
+    }
 }
 
 bool __is_alias_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -274,7 +321,7 @@ void __np_alias_set(np_util_statemachine_t* statemachine, const np_util_event_t 
 bool __is_alias_node_info(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
-    log_debug_msg(LOG_TRACE, "start: bool __is_alias_node_info(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_alias_node_info(...) {");
 
     bool ret = false;    
     NP_CAST(event.user_data, np_node_t, my_node);

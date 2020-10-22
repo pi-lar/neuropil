@@ -21,7 +21,7 @@ It should contain all required functions to send or receive messages.
 
 #include <pthread.h>
 
-
+#include "np_bloom.h"
 #include "np_constants.h"
 #include "np_settings.h"
 
@@ -111,6 +111,7 @@ struct np_state_s
     char* realm_name;
 
     np_tree_t* msg_part_cache;
+    np_bloom_t* msg_part_filter;
 
     int thread_count;
 

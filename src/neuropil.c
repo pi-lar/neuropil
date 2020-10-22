@@ -175,7 +175,14 @@ np_context* np_new_context(struct np_settings * settings_in)
         context->enable_realm_server = false;
 
         // initialize message part handling cache
-        context->msg_part_cache = np_tree_create();
+        context->msg_part_cache  = np_tree_create();
+        struct np_bloom_optable_s decaying_op = {
+            .add_cb = _np_decaying_bloom_add,
+            .check_cb = _np_decaying_bloom_check,
+            .clear_cb = _np_standard_bloom_clear,
+        };
+        context->msg_part_filter = _np_decaying_bloom_create(1024, 8, 1);
+        context->msg_part_filter->op = decaying_op;
 
         _np_log_rotate(context, true);
     }
