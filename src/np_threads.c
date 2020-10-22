@@ -709,7 +709,7 @@ void* __np_thread_status_wrapper(void* self)
 
     while ( tmp_status > np_uninitialized &&
             tmp_status < np_shutdown      )
-    {
+    {   
         if (tmp_status == np_running) 
         {            
             _LOCK_ACCESS(&thread->job_lock) 
@@ -727,6 +727,7 @@ void* __np_thread_status_wrapper(void* self)
             np_time_sleep(0.0);
         }
         tmp_status = np_get_status(context);
+        pthread_testcancel();
     }
 
     log_error("thread %p type %d stopping ...", thread->thread_id, thread->thread_type);
