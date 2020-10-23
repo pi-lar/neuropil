@@ -42,13 +42,13 @@ extern "C" {
 
 
 enum socket_type {
-    UNKNOWN_PROTO  = 0x000,
-    IPv4    	   = 0x001,
-    IPv6    	   = 0x002,
-    UDP     	   = 0x010, // UDP protocol - default
-    TCP     	   = 0x020, // TCP protocol
-    // RAW     	   = 0x040, // pure IP protocol - no ports
-    PASSIVE		   = 0x100,
+    UNKNOWN_PROTO  = 0x001,
+    IPv4           = 0x002,
+    IPv6           = 0x004,
+    UDP            = 0x010, // UDP protocol - default
+    TCP            = 0x020, // TCP protocol
+    // RAW         = 0x040, // pure IP protocol - no ports
+    PASSIVE        = 0x100,
     MASK_PROTOCOLL = 0x0FF,
     MASK_OPTION    = 0xF00,
 } NP_ENUM;
@@ -90,7 +90,7 @@ struct np_network_s
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
-
+ 
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type
 NP_API_INTERN
 enum socket_type _np_network_parse_protocol_string (const char* protocol_str);
@@ -103,7 +103,7 @@ char* _np_network_get_protocol_string (np_state_t* context, enum socket_type pro
  **
  **/
 NP_API_INTERN
-void _np_network_get_address (np_state_t* context, bool create_socket, struct addrinfo** ai, enum socket_type type, char *hostname, char* service);
+bool _np_network_get_address (np_state_t* context, bool create_socket, struct addrinfo** ai, enum socket_type type, char *hostname, char* service);
 // struct addrinfo _np_network_get_address (char *hostname);
 
 NP_API_INTERN

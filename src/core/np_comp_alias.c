@@ -32,7 +32,7 @@
 
 np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* msg_to_check)
 {
-    log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: np_message_t* _np_message_check_chunks_complete(np_message_t* msg_to_check){");
+    log_trace_msg(LOG_TRACE, "start: np_message_t* _np_alias_check_msgpart_cache(...){");
 
     np_message_t* ret= NULL;
 
@@ -128,8 +128,7 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
     else if (!_seen_before)
     {
         // If this is the only chunk, then return it as is
-        log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                      "message %s (%s) is unchunked  ", subject, msg_uuid);
+        log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message %s (%s) is unchunked", subject, msg_uuid);
         ret = msg_to_check;
         _LOCK_MODULE(np_message_part_cache_t)
         {
@@ -430,7 +429,6 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key);
 
-    bool ret = false;
     log_debug_msg(LOG_DEBUG, "/start decrypting message with alias %s", _np_key_as_str(alias_key));
 
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -460,7 +458,6 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
 
     if (crypto_result == 0)
     {
-        ret = true;
         log_debug_msg(LOG_DEBUG, "correct decryption of message send from %s", _np_key_as_str(alias_key));
 
         memset(event.user_data, 0, MSG_CHUNK_SIZE_1024);
@@ -485,7 +482,6 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
 
     } else {
         np_memory_free(context, event.user_data);
-        char tmp[255];
 
         log_msg(LOG_WARN,
             "error on decryption of message (source: %s:%s)", _np_key_get_node(alias_key)->dns_name, _np_key_get_node(alias_key)->port);

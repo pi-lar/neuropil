@@ -51,6 +51,7 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     np_node_t* entry = (np_node_t *) node;
 
     entry->dns_name = NULL;
+    entry->host_key = NULL;
     entry->protocol = 0;
     entry->port = 0;
 
@@ -67,8 +68,8 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     entry->handshake_priority = randombytes_random();
 
     entry->next_routing_table_update = 0.0;
-	entry->is_in_routing_table = false;;
-	entry->is_in_leafset = false;
+    entry->is_in_routing_table = false;;
+    entry->is_in_leafset = false;
 
     for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
         entry->success_win[i] = i%2;
@@ -83,6 +84,7 @@ void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
 {
     log_trace_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
     np_node_t* entry = (np_node_t *) node;
+    if (entry->host_key) free (entry->host_key);
     if (entry->dns_name) free (entry->dns_name);
     if (entry->port) free (entry->port);
 }
@@ -101,21 +103,24 @@ struct __node_from_string_s __get_node_details_from_string(np_state_t* context, 
 
     // search last ':'
     delimiter[2] = strrchr(str,            ':');
+    if (delimiter[2] == NULL) return ret;
+
     // search first two ':'
     delimiter[0] = strchr (str,            ':');
+    if (delimiter[0] == NULL) return ret;
     delimiter[1] = strchr (delimiter[0]+1, ':');
+    if (delimiter[1] == NULL) return ret;
+
+    if (delimiter[0] == delimiter[1] || delimiter[1] == delimiter[2])
+        return ret;
 
     // string encoded data contains dhkey, protocol, hostname and port
     // hostname could be an ip6 address (has additional ':' in it)
-    ret.s_port     = delimiter[2]+1;     *delimiter[2] = '\0';
-    if (parse_dhkey) {
-        ret.s_dhkey    = str;
-        ret.s_protocol = delimiter[0]+1; *delimiter[0] = '\0';
-        ret.s_hostname = delimiter[1]+1; *delimiter[1] = '\0';
-    } else {
-        ret.s_protocol = str;
-        ret.s_hostname = delimiter[0]+1; *delimiter[0] = '\0';
-    }
+    ret.s_dhkey    = str;
+    ret.s_protocol = delimiter[0]+1; *delimiter[0] = '\0';
+    ret.s_hostname = delimiter[1]+1; *delimiter[1] = '\0';
+    ret.s_port     = delimiter[2]+1; *delimiter[2] = '\0';
+    
     log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s / %s / %s", ret.s_dhkey, ret.s_protocol, ret.s_hostname, ret.s_port);
 
     return ret;
@@ -152,7 +157,7 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
     np_tree_insert_str(data, NP_SERIALISATION_NODE_KEY, np_treeval_new_s(_np_key_as_str(node_key)));
 
     if (true == include_stats)
-    {		
+    {
         np_tree_insert_str( data, NP_SERIALISATION_NODE_CREATED_AT,   np_treeval_new_d(node_key->created_at));
         np_tree_insert_str( data, NP_SERIALISATION_NODE_LAST_SUCCESS, np_treeval_new_d(node->last_success));
 
@@ -177,29 +182,60 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     key_dup = to_parse = strndup(key, 255);
     assert (key_dup != NULL);
 
+    log_debug_msg(LOG_DEBUG, "## now decoding node from key string: %s", key);
+
     uint16_t iLen = strlen(key);
     assert (iLen > 0);
 
     struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, true);
 
-    // string encoded data contains key, eventually plus hostname and hostport
-    // key string is mandatory !
-    log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+    if (details.s_protocol == NULL || details.s_hostname == NULL || details.s_port == NULL)
+    {
+        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+        free(to_parse);
+        return NULL;
+    }
 
-    np_node_t* new_node;
-    np_new_obj(np_node_t, new_node, FUNC);
+    if (details.s_dhkey[0] == '*' && strnlen(details.s_dhkey, 64) > 1) 
+    {
+        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+        free(to_parse);
+        return NULL;
+    }
+    else if (sscanf(details.s_dhkey, "%*64x") != 1 || strnlen(details.s_dhkey, 64) != 64) 
+    {
+        details.s_dhkey[0] = '*';
+        details.s_dhkey[1] = '\0';
+    }
 
     enum socket_type proto = PASSIVE | IPv4;
     if(details.s_protocol != NULL)
     {
         proto = _np_network_parse_protocol_string(details.s_protocol);
     }
-    _np_node_update(new_node, proto, details.s_hostname, details.s_port);
-    new_node->host_key = details.s_dhkey;
-    
-    free (key_dup);
 
-    return (new_node);
+    if (FLAG_CMP(proto, UNKNOWN_PROTO)) 
+    {
+        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+        free (key_dup);
+        return NULL;
+    }
+    else
+    {
+        // string encoded data contains key, eventually plus hostname and hostport
+        // key string is mandatory !
+        log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+
+        np_node_t* new_node;
+        np_new_obj(np_node_t, new_node, FUNC);
+        _np_node_update(new_node, proto, details.s_hostname, details.s_port);
+        new_node->host_key = strndup(details.s_dhkey, 64);
+
+        free (key_dup);
+        
+        return (new_node);
+    }
+    return NULL;
 }
 
 
@@ -230,19 +266,15 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
     if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_KEY))) {
         s_host_key = np_treeval_to_str(ele->val, NULL);
     }
+    else { return NULL; }
 
     np_node_t* new_node = NULL;
     np_new_obj(np_node_t, new_node, FUNC);
 
-    if (NULL != s_host_name &&
-        NULL == new_node->dns_name)
-    {
-        // uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
-        _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-        new_node->host_key = s_host_key; // strndup(s_host_key, 64);
-        log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %s:%d:%s:%s",
-            s_host_key, i_host_proto, s_host_name, s_host_port);
-    }
+    _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
+    new_node->host_key = strndup(s_host_key, 64);
+    log_debug_msg(LOG_DEBUG, "decoded node from jrb %s:%d:%s:%s", s_host_key, i_host_proto, s_host_name, s_host_port);
+    
     /*
     if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_LATENCY))) {
     new_node->latency = ele->val.value.d;
@@ -266,9 +298,10 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
     }
 
     char *to_free = NULL, *to_parse = NULL;
-    to_free = to_parse = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)], 255);
-    
-    log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", to_parse);
+    to_free = to_parse = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)-2], 255);
+    // -2 is an ugly hack to 
+
+    log_debug_msg(LOG_DEBUG, "## decoding node from token string: %s", to_parse);
 
     struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, false);
 
@@ -335,7 +368,8 @@ sll_return(np_node_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, 
         // bool free_s_key = false;
         // char* s_key = np_treeval_to_str(np_tree_find_str(node_data->val.value.tree, NP_SERIALISATION_NODE_KEY)->val, &free_s_key);
         np_node_t* node = _np_node_decode_from_jrb(context, node_data->val.value.tree);
-        sll_append(np_node_ptr, node_list, node);
+        if (NULL != node)
+            sll_append(np_node_ptr, node_list, node);
 
         // free(s_key);
     }
@@ -373,7 +407,7 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
 
     old = node->port; 
     node->port = strndup(port, strlen(port));
-    if(old)free(old);
+    if(old) free(old);
 
     if (FLAG_CMP(proto, PASSIVE)) 
     {

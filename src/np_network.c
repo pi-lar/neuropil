@@ -65,19 +65,20 @@ typedef struct _np_network_data_s {
 
 enum socket_type _np_network_parse_protocol_string (const char* protocol_str)
 {
-    if (0 == strncmp(protocol_str, URN_TCP_V4, 4)) return (TCP     | IPv4);
-    if (0 == strncmp(protocol_str, URN_TCP_V6, 4)) return (TCP     | IPv6);
-    if (0 == strncmp(protocol_str, URN_PAS_V4, 4)) return (PASSIVE | IPv4);
-    if (0 == strncmp(protocol_str, URN_PAS_V6, 4)) return (PASSIVE | IPv6);
-    if (0 == strncmp(protocol_str, URN_UDP_V4, 4)) return (UDP     | IPv4);
-    if (0 == strncmp(protocol_str, URN_UDP_V6, 4)) return (UDP     | IPv6);
+    if ((strnlen(protocol_str, 4) == 4) && 0 == strncmp(protocol_str, URN_TCP_V4, 4)) return (TCP     | IPv4);
+    if ((strnlen(protocol_str, 4) == 4) && 0 == strncmp(protocol_str, URN_TCP_V6, 4)) return (TCP     | IPv6);
+    if ((strnlen(protocol_str, 4) == 4) && 0 == strncmp(protocol_str, URN_PAS_V4, 4)) return (PASSIVE | IPv4);
+    if ((strnlen(protocol_str, 4) == 4) && 0 == strncmp(protocol_str, URN_PAS_V6, 4)) return (PASSIVE | IPv6);
+    if ((strnlen(protocol_str, 4) == 4) && 0 == strncmp(protocol_str, URN_UDP_V4, 4)) return (UDP     | IPv4);
+    if ((strnlen(protocol_str, 4) == 4) && 0 == strncmp(protocol_str, URN_UDP_V6, 4)) return (UDP     | IPv6);
     //if (0 == strncmp(protocol_str, URN_IP_V4, 3))  return (RAW     | IPv4);
     //if (0 == strncmp(protocol_str, URN_IP_V6, 3))  return (RAW     | IPv6);
+/*
     int proto;
-
     if(sscanf(protocol_str, "%d", &proto) == 1){
         return proto;
     }
+*/
     return (UNKNOWN_PROTO);
 }
 
@@ -93,7 +94,7 @@ char* _np_network_get_protocol_string (np_state_t* context, enum socket_type pro
     //if (protocol == (RAW     | IPv6)) return (URN_IP_V6);
     log_msg(LOG_WARN, "Protocol %d is not availabe!", protocol);
 #ifdef DEBUG
-    assert(false && "Protocol is not availabe!");
+    // assert(false && "Protocol is not availabe!");
 #endif
     return ("UNKNOWN_PROTOCOL");
 }
@@ -107,7 +108,7 @@ void __np_network_close(np_network_t* self) {
 /** network_address:
  ** returns the addrinfo structure of the hostname / service
  **/
-void _np_network_get_address(
+bool _np_network_get_address(
         np_state_t* context,
         bool create_socket,
         struct addrinfo** ai_head,
@@ -146,8 +147,9 @@ void _np_network_get_address(
         log_msg(LOG_ERROR, "error getaddrinfo: %s (%d)", gai_strerror(err), err);
         log_msg(LOG_ERROR, "error errno: %s (%d)", gai_strerror(errno), errno);
 
-        return;
+        return false;
     }
+    return true;
 /*
     struct addrinfo* ai;
     for ( ai = *ai_head; ai != NULL; ai = ai->ai_next )
@@ -767,13 +769,13 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
     int one = 1;
 
     log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
-    _np_network_get_address(context, create_server, &ng->addr_in, type, hostname, service);
+    bool res = _np_network_get_address(context, create_server, &ng->addr_in, type, hostname, service);
 
     ng->socket_type = type | passive_socket_type;
 
-    if (NULL == ng->addr_in && !FLAG_CMP(type, PASSIVE))
+    if (!res || (NULL == ng->addr_in && !FLAG_CMP(type, PASSIVE)))
     {
-        log_msg(LOG_ERROR, "could not receive network address");
+        log_msg(LOG_ERROR, "could not resolve requested network address");
         return false;
     }
 

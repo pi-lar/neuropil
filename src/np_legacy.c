@@ -413,20 +413,26 @@ void np_send_join(np_context*ac, const char* node_string)
     np_ctx_cast(ac);	
 
     np_node_t* new_node = _np_node_decode_from_str(context, node_string);
+    if (new_node == NULL) return;
 
-    // TODO: use sscanf !
+    // TODO: use sscanf ?
     // int n = sscanf("string", "%64s%*[:]%4s%*[:]%s%*[:]%d", hash_str, proto, dns/ip, port); // n == 4
     // int n = sscanf("string", "%*[*]%*[:]%4s%*[:]%s%*[:]%d", proto, dns/ip, port); // n == 3
     
     np_dhkey_t search_key = {0};
-    if (node_string[0] == '*') 
+    if (new_node->host_key[0] == '*') 
     {
         search_key = np_dhkey_create_from_hostport( "*", node_string+2);
     } 
-    else
+    else if (strnlen(new_node->host_key, 64) == 64)
     {
         search_key = np_dhkey_create_from_hash(node_string);
     }
+    else 
+    {
+        return;
+    }
+
     np_key_t* node_key = _np_keycache_find_or_create(context, search_key);
 
     np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, 
