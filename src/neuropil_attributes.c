@@ -12,6 +12,7 @@
 #include "neuropil.h"
 #include "neuropil_data.h"
 #include "neuropil_attributes.h"
+#include "np_attributes.h"
 #include "np_legacy.h"
 
 np_module_struct(attributes) {
@@ -89,6 +90,20 @@ enum np_data_return np_get_msg_attr_bin(struct np_message *msg, char key[255], s
 
     return ret;
 }
+
+enum np_data_return np_get_token_attr_bin(struct np_token * ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data){
+    enum np_data_return ret;
+
+    struct np_data_conf *conf = NULL;
+    if(out_data_config != NULL) conf = *out_data_config;
+    np_data_value val;
+    ret = np_get_data(ident->attributes, key, conf, &val);
+
+    if(out_data != NULL) *out_data = val.bin;
+
+    return ret;
+}
+
 np_attributes_t* _np_get_attributes_cache(np_state_t* context, enum np_msg_attr_type cache){
     assert(cache != NP_ATTR_NONE);
 
