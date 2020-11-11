@@ -13,6 +13,8 @@
 #include <inttypes.h>
 #include <unistd.h>
 
+#include <ctype.h>
+
 #include "np_legacy.h"
 
 #include "sodium.h"
@@ -58,16 +60,35 @@ np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
     log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_create_from_hash(const char* strOrig){");
     np_dhkey_t kResult = { 0 };
 
-	char substring[9];
-	substring[8] = '\0';
-	
-    for (uint8_t i = 0; i < 8; i++)
-	{	// log_debug_msg(LOG_KEY | LOG_DEBUG, "keystr substring to ul: %s -> %ul ", substring, k->t[i]);
-		memcpy(substring, strOrig + i*8, 8);	
-		kResult.t[i] = strtoul((const char*) substring, NULL, 16);
-	}
-    // np_str_id((np_id*)&kResult, strOrig);
-    // np_str_id(*(np_id*)&kResult, strOrig);
+    // check for correct format of dhkey string
+    bool _invalid_format = false;
+
+    if (!_invalid_format) { 
+        if (64 != strnlen(strOrig, 64)) _invalid_format = true;
+    }
+    if (!_invalid_format) { 
+        for(uint8_t i=0; i<64 && i<strnlen(strOrig, 64); i++)
+        {
+            if (!isxdigit((unsigned char) strOrig[i])) { 
+                _invalid_format = true; 
+                break;
+            }
+        }
+    }
+
+    if (_invalid_format) return kResult;
+
+    np_id new_id = {0};
+    np_str_id(&new_id, strOrig);
+    memcpy(&kResult.t[0], &new_id[ 0], 4);
+    memcpy(&kResult.t[1], &new_id[ 4], 4);
+    memcpy(&kResult.t[2], &new_id[ 8], 4);
+    memcpy(&kResult.t[3], &new_id[12], 4);
+    memcpy(&kResult.t[4], &new_id[16], 4);
+    memcpy(&kResult.t[5], &new_id[20], 4);
+    memcpy(&kResult.t[6], &new_id[24], 4);
+    memcpy(&kResult.t[7], &new_id[28], 4);
+
     return kResult;
 }
 

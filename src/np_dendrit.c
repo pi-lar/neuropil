@@ -125,8 +125,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
         // add entries in the message to our routing table
         // routing table is responsible to handle possible double entries
-        np_dhkey_t search_key = {0};
-        _np_str_dhkey(node_entry->host_key, &search_key);
+        np_dhkey_t search_key = np_dhkey_create_from_hash(node_entry->host_key);
 
         // TODO: those new entries in the piggy message must be authenticated before sending join requests
         np_key_t* piggy_key = _np_keycache_find(context, search_key);
@@ -148,22 +147,13 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
                 // log_msg(LOG_INFO, "xxxxxxx  node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
             }
 
-            if (send_join) 
-            {
-                char* connect_str = np_build_connection_string(NULL, 
-                                        _np_network_get_protocol_string(context, node_entry->protocol), 
-                                        node_entry->dns_name, 
-                                        node_entry->port, 
-                                        false);
-                np_dhkey_t search_key = np_dhkey_create_from_hostport( "*", connect_str);
+            if (send_join)
+            {   
                 piggy_key = _np_keycache_find_or_create(context, search_key);
-                
                 np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
-                _np_key_handle_event(piggy_key, new_node_evt, false);
-
+                _np_keycache_handle_event(context, search_key, new_node_evt, false);
                 log_msg(LOG_INFO, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
                 np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
-                free(connect_str);
             }
             np_key_unref_list(sll_of_keys, "_np_route_row_lookup");
             sll_free(np_key_ptr, sll_of_keys);
@@ -334,9 +324,9 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     np_tree_elem_t* ident_token_ele = np_tree_find_str(msg->body, _NP_URN_IDENTITY_PREFIX);	
 
     if (ident_token_ele != NULL)
-    {    
+    {   
         join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
-        if (NULL == join_ident_token || 
+        if (NULL  == join_ident_token || 
             false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) 
         {
             // silently exit join protocol for invalid identity token
@@ -350,7 +340,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         np_dhkey_t zero_dhkey = { 0 };
         np_dhkey_t partner_of_ident_dhkey = np_aaatoken_get_partner_fp(join_ident_token);
         if (_np_dhkey_equal(&zero_dhkey,      &partner_of_ident_dhkey) == true ||
-        	_np_dhkey_equal(&join_node_dhkey, &partner_of_ident_dhkey) == false)  
+            _np_dhkey_equal(&join_node_dhkey, &partner_of_ident_dhkey) == false)  
         {
             char fp_n[65], fp_p[65];
             _np_dhkey_str(&join_node_dhkey, fp_n);
@@ -394,7 +384,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         log_debug_msg(LOG_DEBUG, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
         authn_event.target_dhkey = msg_event.target_dhkey;
         authn_event.user_data = join_node_token;
-
+        _np_keycache_handle_event(context, join_node_key->dhkey, authn_event, false); // needed to create initial node structure
         _np_keycache_handle_event(context, context->my_identity->dhkey, authn_event, false);
     }
     else if(join_node_key != NULL && join_ident_token != NULL)
@@ -684,14 +674,13 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
                     "decoding of handshake message from %s / %s (i:%f/e:%f) complete",
                     handshake_token->subject, handshake_token->issuer, handshake_token->issued_at, handshake_token->expires_at);
     }    
-    // store the handshake data in the node cache,
-    np_dhkey_t search_dhkey = { 0 };
-    _np_str_dhkey(handshake_token->issuer, &search_dhkey);
 
+    // store the handshake data in the node cache,
+    np_dhkey_t search_dhkey = np_dhkey_create_from_hash(handshake_token->issuer);
     msg_source_key = _np_keycache_find_or_create(context, search_dhkey);
     if (NULL == msg_source_key)
     {   // should never happen
-        log_msg(LOG_ERROR, "Handshake key is NULL!");
+        log_msg(LOG_ERROR, "handshake key is NULL!");
         goto __np_cleanup__;
     }
 

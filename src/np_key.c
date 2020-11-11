@@ -170,6 +170,7 @@ void __np_key_populate_states(np_key_t* key)
     {
         NP_UTIL_STATEMACHINE_STATE(states, UNUSED, "UNUSED", __keystate_noop, __keystate_noop, __keystate_noop ); // initial unused state
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_WILDCARD , __np_wildcard_set  , __is_wildcard_key          ); // handle internal wildcard key
+            NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_NODE     , __np_node_set_node , __is_node_info             ); // handle external udp handsjake network connection info
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_ALIAS    , __np_alias_set     , __is_alias_handshake_token ); // handle internal received handsjake token to setup alias key
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, UNUSED            , __np_alias_set_node, __is_alias_node_info       ); // handle external udp handsjake network connection info
             NP_UTIL_STATEMACHINE_TRANSITION(states, UNUSED, IN_SETUP_NODE     , __np_node_set      , __is_node_handshake_token  ); // handle external handshake token (after alias key has been created)
