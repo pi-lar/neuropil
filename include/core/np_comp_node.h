@@ -41,6 +41,8 @@ NP_API_INTERN
 bool __is_node_handshake_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 bool __is_node_token(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+bool __is_node_info(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
 bool __is_node_join_nack(np_util_statemachine_t* statemachine, const np_util_event_t event);
@@ -54,6 +56,8 @@ NP_API_INTERN
 bool __is_node_authn(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_node_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_INTERN
+void __np_node_set_node(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN
 void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
 NP_API_INTERN

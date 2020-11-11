@@ -41,7 +41,6 @@
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_node_t);
 
-
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_node_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_node_ptr);
 
@@ -59,7 +58,7 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
 
     entry->last_success = np_time_now();
     entry->success_win_index = 0;
-    np_node_set_handshake(entry, np_status_Disconnected);
+    entry->_handshake_status = 0;
 
     entry->_joined_status = 0;
     entry->handshake_send_at = 0.0;
@@ -166,7 +165,6 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
     }
 }
 
-
 /** np_node_decode
  * decodes a string into a node structure. This acts as a
  * np_node_get, and should be followed eventually by a np_node_release.
@@ -189,55 +187,39 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 
     struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, true);
 
-    if (details.s_protocol == NULL || details.s_hostname == NULL || details.s_port == NULL)
-    {
-        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
-        free(to_parse);
-        return NULL;
-    }
-
-    if (details.s_dhkey[0] == '*' && strnlen(details.s_dhkey, 64) > 1) 
-    {
-        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
-        free(to_parse);
-        return NULL;
-    }
-    else if (sscanf(details.s_dhkey, "%*64x") != 1 || strnlen(details.s_dhkey, 64) != 64) 
-    {
-        details.s_dhkey[0] = '*';
-        details.s_dhkey[1] = '\0';
-    }
-
-    enum socket_type proto = PASSIVE | IPv4;
+    enum socket_type proto = UNKNOWN_PROTO;
     if(details.s_protocol != NULL)
     {
         proto = _np_network_parse_protocol_string(details.s_protocol);
     }
 
-    if (FLAG_CMP(proto, UNKNOWN_PROTO)) 
+    if (FLAG_CMP(proto, UNKNOWN_PROTO) || details.s_hostname == NULL || details.s_port == NULL)
     {
         log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
-        free (key_dup);
+        free(to_parse);
         return NULL;
     }
-    else
-    {
-        // string encoded data contains key, eventually plus hostname and hostport
-        // key string is mandatory !
-        log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
 
-        np_node_t* new_node;
-        np_new_obj(np_node_t, new_node, FUNC);
-        _np_node_update(new_node, proto, details.s_hostname, details.s_port);
-        new_node->host_key = strndup(details.s_dhkey, 64);
-
-        free (key_dup);
-        
-        return (new_node);
+    // key string is not mandatory, could be a wildcard
+    np_dhkey_t _null_dhkey = {0};
+    np_dhkey_t node_dhkey = np_dhkey_create_from_hash(details.s_dhkey);
+    if (_np_dhkey_equal(&_null_dhkey, &node_dhkey)) {
+        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+        details.s_dhkey[0] = '*';
+        details.s_dhkey[1] = '\0';
     }
-    return NULL;
-}
 
+    log_debug_msg(LOG_DEBUG, "decoding result node from token str: %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+
+    // string encoded data contains key, eventually plus hostname and hostport
+    np_node_t* new_node;
+    np_new_obj(np_node_t, new_node, FUNC);
+    _np_node_update(new_node, proto, details.s_hostname, details.s_port);
+    new_node->host_key = strndup(details.s_dhkey, 64);
+    
+    free (key_dup);
+    return (new_node);
+}
 
 np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 {
@@ -265,16 +247,22 @@ np_node_t* _np_node_decode_from_jrb(np_state_t* context,np_tree_t* data)
 
     if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_KEY))) {
         s_host_key = np_treeval_to_str(ele->val, NULL);
+    } else {
+        s_host_key = "*";
     }
-    else { return NULL; }
 
     np_node_t* new_node = NULL;
     np_new_obj(np_node_t, new_node, FUNC);
 
-    _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
-    new_node->host_key = strndup(s_host_key, 64);
-    log_debug_msg(LOG_DEBUG, "decoded node from jrb %s:%d:%s:%s", s_host_key, i_host_proto, s_host_name, s_host_port);
-    
+    if (NULL != s_host_name &&
+        NULL == new_node->dns_name)
+    {
+        // uint8_t proto = _np_network_parse_protocol_string(s_host_proto);
+        _np_node_update(new_node, i_host_proto, s_host_name, s_host_port);
+        new_node->host_key = strndup(s_host_key, 255); // strndup(s_host_key, 64);
+        log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "decoded node from jrb %s:%d:%s:%s",
+                      s_host_key, i_host_proto, s_host_name, s_host_port);
+    }
     /*
     if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_LATENCY))) {
     new_node->latency = ele->val.value.d;
@@ -299,35 +287,44 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 
     char *to_free = NULL, *to_parse = NULL;
     to_free = to_parse = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)-2], 255);
-    // -2 is an ugly hack to 
+    // "-2" is an ugly hack to have at least one character in front of the connection string
 
     log_debug_msg(LOG_DEBUG, "## decoding node from token string: %s", to_parse);
-
     struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, false);
 
     uint16_t i_host_proto = UNKNOWN_PROTO;
-    if (details.s_protocol != NULL) {
+    if (details.s_protocol != NULL) 
+    {
         i_host_proto = _np_network_parse_protocol_string(details.s_protocol);
-    } 
+    }
 
-    if (i_host_proto == UNKNOWN_PROTO || details.s_hostname == NULL || details.s_port == NULL)
+    if (FLAG_CMP(i_host_proto, UNKNOWN_PROTO) || details.s_hostname == NULL || details.s_port == NULL)
     {
         log_debug_msg(LOG_ERROR, "error decoding node from token str: %i / %p / %p", i_host_proto, details.s_hostname, details.s_port);
         free(to_parse);
         return NULL;
     }
+
+    // key string is not mandatory, could be a wildcard
+    np_dhkey_t _null_dhkey = {0};
+    np_dhkey_t node_dhkey = np_dhkey_create_from_hash(details.s_dhkey);
+    if (_np_dhkey_equal(&_null_dhkey, &node_dhkey)) {
+        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+        details.s_dhkey[0] = '*';
+        details.s_dhkey[1] = '\0';
+    }
+
+    log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s", i_host_proto, details.s_hostname, details.s_port);
     
     np_node_t* new_node = NULL;
     np_new_obj(np_node_t, new_node, FUNC);
      
     _np_node_update(new_node, i_host_proto, details.s_hostname, details.s_port);
-    log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s",
-                             i_host_proto, details.s_hostname, details.s_port);
-    free(to_free);
+    new_node->host_key = strndup(details.s_dhkey, 64);
 
+    free(to_free);
     return (new_node);
 }
-
 
 uint16_t _np_node_encode_multiple_to_jrb (np_tree_t* data, np_sll_t(np_key_ptr, node_keys), bool include_stats)
 {
@@ -427,7 +424,6 @@ char* _np_node_get_port (np_node_t* np_node)
     return (np_node->port);
 }
 
-
 uint8_t _np_node_check_address_validity (np_node_t* np_node)
 {
     assert(np_node != NULL);
@@ -439,18 +435,4 @@ uint8_t _np_node_check_address_validity (np_node_t* np_node)
 char * _np_node2str(np_node_t* self, char* buffer) {	
     snprintf(buffer, 500, "%s:%s/%s", _np_node_get_dns_name(self), _np_node_get_port(self), np_memory_get_id(self));
     return buffer;
-}
-
-void _np_node_set_handshake(np_node_t* self, enum np_node_status set_to, char* func, int line)
-{
-    np_ctx_memory(self);
-    char tmp[500];
-    log_debug_msg(LOG_HANDSHAKE, 
-        "Setting handshake of node \"%s\" from \"%s\" to \"%s\" at \"%s:%d\"", 
-        _np_node2str(self, tmp),
-        np_node_status_str[self->_handshake_status], 
-        np_node_status_str[set_to], 
-        func, line
-    );
-    self->_handshake_status = set_to;	
 }

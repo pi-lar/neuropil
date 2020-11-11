@@ -194,10 +194,12 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
         sll_append(void_ptr, my_identity_key->entities, my_node);
         ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_create_identity_network")
 
-        if (!FLAG_CMP(my_node->protocol, PASSIVE)) {
+        if (!FLAG_CMP(my_node->protocol, PASSIVE)) 
+        {
             // create incoming network
             np_network_t* my_network = NULL;
             np_new_obj(np_network_t, my_network);
+
             if (_np_network_init(my_network, true, my_node->protocol, my_node->dns_name, my_node->port, -1, UNKNOWN_PROTO) ) 
             {
                 _np_network_set_key(my_network, my_identity_key->dhkey);
@@ -208,7 +210,9 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
                 log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
 
                 _np_network_enable(my_network);
-            } else {
+            }
+            else 
+            {
                 np_unref_obj(np_network_t, my_network, ref_obj_creation);
             }
         }
@@ -372,7 +376,7 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
 
         if (true == join_allowed && context->enable_realm_client == false)
         {
-            authn_token->state |= AAA_AUTHENTICATED;
+            // authn_token->state |= AAA_AUTHENTICATED;
             np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(authn_token,false);
             np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .context=context, .user_data=authn_token, .target_dhkey=ident_dhkey};
             _np_keycache_handle_event(context, ident_dhkey, authn_event, false);
