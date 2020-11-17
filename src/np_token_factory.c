@@ -14,25 +14,30 @@
 #include "np_aaatoken.h"
 
 #include "dtime.h"
-#include "np_log.h"
-#include "np_legacy.h"
-#include "np_tree.h"
-#include "np_network.h"
-#include "np_treeval.h"
-#include "np_key.h"
-#include "np_keycache.h"
-#include "np_message.h"
-#include "core/np_comp_msgproperty.h"
-#include "core/np_comp_node.h"
-#include "np_threads.h"
-#include "np_settings.h"
-#include "np_util.h"
-#include "np_constants.h"
-#include "np_token_factory.h"
-#include "np_memory.h"
-#include "np_statistics.h"
+
 #include "neuropil_data.h"
 #include "neuropil_attributes.h"
+
+#include "core/np_comp_msgproperty.h"
+#include "core/np_comp_node.h"
+
+#include "np_attributes.h"
+#include "np_constants.h"
+#include "np_log.h"
+#include "np_legacy.h"
+#include "np_key.h"
+#include "np_keycache.h"
+#include "np_memory.h"
+#include "np_message.h"
+#include "np_network.h"
+#include "np_settings.h"
+#include "np_statistics.h"
+#include "np_threads.h"
+#include "np_tree.h"
+#include "np_treeval.h"
+#include "np_token_factory.h"
+#include "np_util.h"
+
 
 // create a new aaa token
 np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
@@ -213,9 +218,9 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
 
     ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 
-    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT));
-    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_USER_MSG));
-    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_IDENTITY));
+    np_merge_data(ret->attributes,(np_datablock_t*) _np_get_attributes_cache(context, NP_ATTR_INTENT));
+    np_merge_data(ret->attributes,(np_datablock_t*) _np_get_attributes_cache(context, NP_ATTR_INTENT_AND_USER_MSG));
+    np_merge_data(ret->attributes,(np_datablock_t*) _np_get_attributes_cache(context, NP_ATTR_INTENT_AND_IDENTITY));
 
     // fingerprinting and signing the token
     _np_aaatoken_set_signature(ret, NULL);
@@ -319,9 +324,9 @@ np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* contex
     np_aaatoken_t* ret = __np_token_factory_new(context, issuer, node_subject, expires_at, secret_key);
     ret->type = np_aaatoken_type_identity;
 
-    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY));
-    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY_AND_USER_MSG));
-    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_IDENTITY));
+    np_merge_data(ret->attributes,(np_datablock_t*) _np_get_attributes_cache(context, NP_ATTR_IDENTITY));
+    np_merge_data(ret->attributes,(np_datablock_t*) _np_get_attributes_cache(context, NP_ATTR_IDENTITY_AND_USER_MSG));
+    np_merge_data(ret->attributes,(np_datablock_t*) _np_get_attributes_cache(context, NP_ATTR_INTENT_AND_IDENTITY));
 
     _np_aaatoken_set_signature(ret, NULL);
     _np_aaatoken_update_attributes_signature(ret);
