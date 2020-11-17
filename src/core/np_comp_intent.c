@@ -251,7 +251,7 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
     property->last_update = np_time_now();
 
     if (max_threshold.unsigned_integer > 0)
-    {	// only add if there are messages to receive
+    {   // only add if there are messages to receive
         log_debug_msg(LOG_DEBUG, "adding receiver token %p threshold %"PRIu8, token, max_threshold);
 
         np_msg_mep_type receiver_mep_type = (property->mep_type & RECEIVER_MASK);
@@ -260,7 +260,7 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
         np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_replace = _np_intent_cmp_exact;
         bool allow_dups = true;
 
-        if (SINGLE_RECEIVER == (SINGLE_RECEIVER & receiver_mep_type))
+        if (FLAG_CMP(receiver_mep_type, SINGLE_RECEIVER))
         {
             cmp_aaatoken_replace   = _np_intent_cmp;
             allow_dups = false;
@@ -342,7 +342,7 @@ np_aaatoken_t* _np_intent_get_receiver(np_key_t* subject_key, const np_dhkey_t t
         {
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
                           "found valid receiver token (%s)", return_token->issuer );
-            found_return_token = true;
+            // found_return_token = true;
             np_ref_obj(np_aaatoken_t, return_token);
             break;
         }

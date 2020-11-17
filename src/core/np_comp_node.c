@@ -609,7 +609,7 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(statemachine->_user_data, np_key_t, alias_or_node_key);
     NP_CAST(event.user_data, np_aaatoken_t, token);
 
-    np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
+    // np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
 
     // if this is an alias, trigger the state transition of the correpsonding node key
     if (FLAG_CMP(alias_or_node_key->type, np_key_type_alias)) 
@@ -709,13 +709,13 @@ void __np_node_shutdown(np_util_statemachine_t* statemachine, const np_util_even
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     
-    np_tree_t* jrb_data     = np_tree_create();
-    np_tree_t* jrb_my_node  = np_tree_create();
-    np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
-    np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
-
     if (FLAG_CMP(event.type, evt_internal)) {
         // 1: create leave message
+        np_tree_t* jrb_data     = np_tree_create();
+        np_tree_t* jrb_my_node  = np_tree_create();
+        np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
+        np_tree_insert_str(jrb_data, _NP_URN_NODE_PREFIX, np_treeval_new_tree(jrb_my_node));
+
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, node_key->dhkey, context->my_node_key->dhkey, _NP_MSG_LEAVE_REQUEST, jrb_data);
