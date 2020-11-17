@@ -27,14 +27,13 @@
 
 np_module_struct(bootstrap)
 {
-    np_state_t* context;	
-    TSP(np_tree_t*, bootstrap_points);
+    np_state_t* context;
+    TSP(np_tree_t*, bootstrap_points)
 };
 
-void __np_bootstrap_on_timeout(const np_responsecontainer_t* const entry) {
-
-    np_ctx_memory(entry);
-
+void __np_bootstrap_on_timeout(const np_responsecontainer_t* const entry) 
+{
+    // np_ctx_memory(entry);
     // log_msg(LOG_WARN | LOG_ROUTING, "Bootstrap Node (%s) not reachable anymore. Try to reconnect", _np_key_as_str(entry->dest_dhkey));
     // char* reconnect = np_get_connection_string_from(entry->dest_key, true);
     // np_send_join(context, reconnect);
@@ -47,8 +46,8 @@ bool __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_util_event_t ar
         return true;
     }
 
-    TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
-
+    np_spinlock_lock(&np_module(bootstrap)->bootstrap_points_lock);
+    {
         np_tree_elem_t* iter = RB_MIN(np_tree_s, np_module(bootstrap)->bootstrap_points);
         while (iter != NULL) {
             if (iter->val.value.v != NULL) {
@@ -69,6 +68,7 @@ bool __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_util_event_t ar
             iter = RB_NEXT(np_tree_s, np_module(bootstrap)->bootstrap_points, iter);
         }
     }
+    np_spinlock_unlock(&np_module(bootstrap)->bootstrap_points_lock);
     return true;
 }
 
@@ -81,9 +81,12 @@ bool _np_bootstrap_init(np_state_t* context)
         ret = true;
 
         TSP_INIT(_module->bootstrap_points);
-        TSP_SCOPE(_module->bootstrap_points) {
+        np_spinlock_lock(&np_module(bootstrap)->bootstrap_points_lock);
+        {
             _module->bootstrap_points = np_tree_create();
         }
+        np_spinlock_unlock(&np_module(bootstrap)->bootstrap_points_lock);
+
         np_jobqueue_submit_event_periodic(context,
             PRIORITY_MOD_LOWEST, 
             NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL, NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL,
@@ -107,10 +110,11 @@ void _np_bootstrap_destroy(np_state_t* context)
 
 void np_bootstrap_add(np_state_t* context, const char* connectionstr) {
 
-    TSP_SCOPE(np_module(bootstrap)->bootstrap_points) 
+    np_spinlock_lock(&np_module(bootstrap)->bootstrap_points_lock);
     {
         np_tree_insert_str(np_module(bootstrap)->bootstrap_points, connectionstr, np_treeval_new_v(NULL));
     }
+    np_spinlock_unlock(&np_module(bootstrap)->bootstrap_points_lock);
 }
 
 void __np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed, char* connectionstr, np_key_t* replaced) {
@@ -124,7 +128,8 @@ void __np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed, char* conn
 void _np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed) {
 
     char * connectionstr = NULL;
-    TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
+    np_spinlock_lock(&np_module(bootstrap)->bootstrap_points_lock);
+    {
         connectionstr  = np_get_connection_string_from(confirmed, true);		
         np_tree_elem_t* ele = np_tree_find_str(np_module(bootstrap)->bootstrap_points, connectionstr);
         if (ele != NULL) {
@@ -141,16 +146,19 @@ void _np_bootstrap_confirm(np_state_t* context, np_key_t* confirmed) {
             }
         }
     }
+    np_spinlock_unlock(&np_module(bootstrap)->bootstrap_points_lock);
     free(connectionstr);
 }
 
 void np_bootstrap_remove(np_state_t* context, const char* connectionstr) {
 
-    TSP_SCOPE(np_module(bootstrap)->bootstrap_points) {
+    np_spinlock_lock(&np_module(bootstrap)->bootstrap_points_lock);
+    {
         np_tree_elem_t* ele = np_tree_find_str(np_module(bootstrap)->bootstrap_points, connectionstr);
         if (ele != NULL) {
             np_unref_obj(np_key_t, ele->val.value.v, ref_bootstrap_list);
             np_tree_del_str(np_module(bootstrap)->bootstrap_points, connectionstr);
         }
     }
+    np_spinlock_unlock(&np_module(bootstrap)->bootstrap_points_lock);
 }

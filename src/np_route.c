@@ -3,6 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
+
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -84,7 +85,8 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
     return (true);
 }
 
-void _np_route_destroy(np_state_t* context){
+void _np_route_destroy(np_state_t* context)
+{
     if (np_module_initiated(route)) {        
         np_module_var(route);
         
@@ -264,12 +266,10 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
             log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(deleted_from));
         }
 
-        TSP_SCOPE(np_module(route)->leafset_left_count) {
-            np_module(route)->leafset_left_count = sll_size(np_module(route)->left_leafset);
-        }
-        TSP_SCOPE(np_module(route)->leafset_right_count) {
-            np_module(route)->leafset_right_count = sll_size(np_module(route)->right_leafset);
-        }
+        TSP_SET(
+            np_module(route)->leafset_left_count, sll_size(np_module(route)->left_leafset) );
+        TSP_SET(
+            np_module(route)->leafset_right_count, sll_size(np_module(route)->right_leafset) );
     }
     log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .leafset_update");
 }
@@ -836,19 +836,16 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
             log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   routing table.", _np_key_as_str(add_to));
             np_ref_obj(np_key_t, add_to, ref_route_inroute);
             if (added != NULL) *added = add_to;
-            TSP_SCOPE(np_module(route)->route_count) 
-            {
-                np_module(route)->route_count += 1;
-            }
+            TSP_SET(
+                np_module(route)->route_count, np_module(route)->route_count + 1 );
         }
         
         if(deleted_from != NULL) {
             log_msg(LOG_ROUTING | LOG_INFO, "removed %s from routing table.", _np_key_as_str(deleted_from));
             np_unref_obj(np_key_t, deleted_from, ref_route_inroute);
             if (deleted != NULL) *deleted = deleted_from;
-            TSP_SCOPE(np_module(route)->route_count) {
-                np_module(route)->route_count -= 1;
-            }		
+            TSP_SET(
+                np_module(route)->route_count, np_module(route)->route_count - 1);
         }
 
 #ifdef DEBUG

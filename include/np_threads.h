@@ -2,15 +2,20 @@
 // neuropil is copyright 2016-2020 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-#ifndef _NP_THREADS_H_
-#define _NP_THREADS_H_
+#ifndef NP_THREADS_H_
+#define NP_THREADS_H_
 
 #include <stdlib.h>
 #include <pthread.h>
-#if defined(_WIN32) || defined(WIN32)
-#include <time.h>
+
+#ifdef __APPLE__
+    #include <os/lock.h>
+#endif
+
+#if defined(_WIN32) || defined(WIN32) 
+    #include <time.h>
 #else
-#include <sys/time.h>
+    #include <sys/time.h>
 #endif
 
 #include "np_memory.h"
@@ -27,18 +32,9 @@
 extern "C" {
 #endif
 
-// first try to decorate functions, usable ?
-#define _WRAP(return_type, func_name, arg_1, arg_2) \
-return_type func_name(arg_1 a_1, arg_2 a_2) {		\
-    return wrapped_##func_name(a_1, a_2);			\
-}													\
-return_type wrapped_##func_name(arg_1, arg_2);
+_NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t)
 
-
-_NP_GENERATE_MEMORY_PROTOTYPES(np_thread_t);
 typedef struct np_thread_stats_s np_thread_stats_t;
-
-typedef enum np_module_lock_e np_module_lock_type;
 
 enum np_module_lock_e {
     /*00*/np_memory_t_lock = 0,
@@ -62,26 +58,7 @@ enum np_module_lock_e {
     PREDEFINED_DUMMY_START,	// The following dummy entries are reserved for future mutexes for the neuropil library
 } NP_ENUM NP_API_INTERN;
 
-static char* np_module_lock_str[PREDEFINED_DUMMY_START] = {
-    "np_memory_t_lock",
-    "np_event_in_t_lock",
-    "np_event_out_t_lock",
-    "np_event_http_t_lock",
-    "np_event_file_t_lock",
-    "np_keycache_t_lock",
-    "np_message_part_cache_t_lock",
-    "np_routeglobal_t_lock",
-    "np_pheromones_t_lock",
-    "np_logsys_t_lock",
-    "np_sysinfo_t_lock",
-    "np_jobqueue_t_lock",
-    "np_node_renewal_t_lock",
-    "np_statistics_t_lock",
-    "np_threads_t_lock",
-    "np_utilstatistics_t_lock",
-    "np_aaatoken_t_lock",
-    "np_state_message_tokens_t_lock"
-};
+typedef enum np_module_lock_e np_module_lock_type;
 
 /** platform mutex/condition wrapper structures are defined here **/
 /** condition                                                    **/
@@ -107,7 +84,7 @@ enum np_thread_type_e {
     np_thread_type_eventloop,
     np_thread_type_manager,
     np_thread_type_managed,
-}NP_ENUM;
+} NP_ENUM;
 
 static const char* np_thread_type_str[] =  {
     "other",
@@ -120,7 +97,7 @@ static const char* np_thread_type_str[] =  {
 
 /** thread														**/
 struct np_thread_s
-{
+{  
     uint8_t idx;
     size_t id;
     pthread_t thread_id;
@@ -148,7 +125,7 @@ struct np_thread_s
     np_sll_t(char_ptr, has_lock);
 #endif
 
-#ifdef NP_STATISTICS_THREADS
+#ifdef NP_STATISTICS_THREADS 
     np_thread_stats_t *stats;
 #endif
 
@@ -233,14 +210,14 @@ struct timeval NAME##_tv;																					\
 struct timespec* NAME=&NAME##_ts;																			\
                                                                                                             \
 gettimeofday(&NAME##_tv, NULL);																				\
-NAME##_ts.tv_sec = NAME##_tv.tv_sec + MUTEX_WAIT_MAX_SEC - ELAPSED_TIME;
+NAME##_ts.tv_sec = NAME##_tv.tv_sec + MUTEX_WAIT_MAX_SEC - ELAPSED_TIME;													
 
 
-#define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						\
-    np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj;																		\
-    for(uint8_t TOKENPASTE2(prefix,__LINE__)=0; 																										\
-        (TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),FUNC);		\
-        _np_threads_mutex_unlock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), TOKENPASTE2(prefix,__LINE__)++										\
+#define __LOCK_ACCESS_W_PREFIX(prefix, obj, lock_type)																						           \
+    np_mutex_t* TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)) = obj;																		           \
+    for(uint8_t TOKENPASTE2(prefix,__LINE__)=0; 																							           \
+        (TOKENPASTE2(prefix,__LINE__) < 1) && 0 == _np_threads_mutex_##lock_type##lock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__)),FUNC); \
+        _np_threads_mutex_unlock(context, TOKENPASTE2(prefix,TOKENPASTE2(lock, __LINE__))), TOKENPASTE2(prefix,__LINE__)++							   \
         )
 #define _LOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_prefix_, __COUNTER__), obj,)
 #define _TRYLOCK_ACCESS(obj) __LOCK_ACCESS_W_PREFIX(TOKENPASTE2(default_try_prefix_, __COUNTER__), obj,try)
@@ -272,44 +249,61 @@ NP_API_PROTEC
 char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine, bool force);
 
 /*
-    TSP = ThreadSafeProperty
+    TSP = ThreadSafeProperty using spinlocks
 */
-#define TSP(TYPE, NAME)								\
-    TYPE NAME;										\
-    np_mutex_t NAME##_mutex;
+#ifdef __APPLE__
+    #define np_spinlock_t          os_unfair_lock
+    #define np_spinlock_init(x,y)  (*x = OS_UNFAIR_LOCK_INIT)
+    #define np_spinlock_destroy(x) 
+    #define np_spinlock_lock(x)    os_unfair_lock_lock(x)
+    #define np_spinlock_trylock(x) (true == os_unfair_lock_trylock(x))
+    #define np_spinlock_unlock(x)  os_unfair_lock_unlock(x)
+#else
+    #define np_spinlock_t          pthread_spinlock_t
+    #define np_spinlock_init(x, y) pthread_spin_init(x, y)
+    #define np_spinlock_destroy(x) pthread_spin_destroy(x)
+    #define np_spinlock_lock(x)    pthread_spin_lock(x)
+    #define np_spinlock_trylock(x) (0 == pthread_spin_trylock(x))
+    #define np_spinlock_unlock(x)  pthread_spin_unlock(x)
+#endif 
 
-#define TSP_INITD(NAME, DEFAULT_VALUE)						 \
-    _np_threads_mutex_init(context, &NAME##_mutex, #NAME);			 \
-    TSP_SET(NAME, DEFAULT_VALUE)
 
-#define TSP_INIT(NAME)										 \
-    _np_threads_mutex_init(context, &NAME##_mutex, #NAME);
+#define TSP(TYPE, NAME)                                                         \
+    TYPE NAME;                                                                  \
+    np_spinlock_t NAME##_lock;                                                  \
 
-#define TSP_DESTROY(NAME)							\
-    _np_threads_mutex_destroy(context, &NAME##_mutex);
+#define TSP_INITD(NAME, DEFAULT_VALUE)                                          \
+    TSP_INIT(NAME);                                                             \
+    TSP_SET(NAME, DEFAULT_VALUE);                                               
 
-#define TSP_GET(TYPE, NAME, RESULT)					\
-    TYPE RESULT=0;									\
-    _LOCK_ACCESS(&NAME##_mutex){					\
-        RESULT = NAME;								\
-    }
-#define TSP_SET(NAME, VALUE)						\
-    _LOCK_ACCESS(&NAME##_mutex){					\
-        NAME = VALUE;								\
-    }
-#define TSP_SCOPE(NAME)								\
-    _LOCK_ACCESS(&NAME##_mutex)
-#define TSP_TRYSCOPE(NAME)								\
-    _TRYLOCK_ACCESS(&NAME##_mutex)
+#define TSP_INIT(NAME)                                                          \
+    np_spinlock_init(&NAME##_lock, PTHREAD_PROCESS_PRIVATE);                    
+
+#define TSP_DESTROY(NAME)                                                       \
+    np_spinlock_destroy(&NAME##_lock);                                          
+
+#define TSP_GET(TYPE, NAME, RESULT)                                             \
+    TYPE RESULT=0;                                                              \
+    np_spinlock_lock(&NAME##_lock);                                             \
+    RESULT = NAME;                                                              \
+    np_spinlock_unlock(&NAME##_lock);                                           
+
+#define TSP_SET(NAME, VALUE)                                                    \
+    np_spinlock_lock(&NAME##_lock);                                             \
+    NAME = VALUE;                                                               \
+    np_spinlock_unlock(&NAME##_lock);                                           
+
+#define TSP_SCOPE(NAME)                                                         \
+    for(uint8_t _LOCK_i##__LINE__=0; np_spinlock_lock(&NAME##_lock), _LOCK_i##__LINE__ < 1; np_spinlock_unlock(&NAME##_lock), _LOCK_i##__LINE__++)
 
 
 void np_threads_busyness(np_state_t* context, np_thread_t* self, bool is_busy);
-#ifdef NP_STATISTICS_THREADS
+#ifdef NP_STATISTICS_THREADS 
     void np_threads_busyness_statistics(np_state_t* context, np_thread_t* self, double *perc_1, double *perc_5, double *perc_15);
     void np_threads_busyness_stat(np_state_t* context, np_thread_t* self) ;
 #else
-    #define np_threads_busyness_statistics(context,self,perc_1, perc_5, perc_15)
-    #define np_threads_busyness_stat(context,self)
+    #define np_threads_busyness_statistics(context,self,perc_1, perc_5, perc_15) 
+    #define np_threads_busyness_stat(context,self) 
 #endif
 
 

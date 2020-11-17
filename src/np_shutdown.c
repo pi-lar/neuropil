@@ -41,10 +41,11 @@ np_module_struct(shutdown) {
     struct sigaction sigact;
 }; 
 
-static void __np_shutdown_signal_handler(int sig) {
+static void __np_shutdown_signal_handler(int sig)
+{
     np_thread_t* self = _np_threads_get_self(NULL);
     np_ctx_memory(self);
-    log_debug(LOG_MISC, "Received signal %d", sig);
+    // log_debug(LOG_MISC, "Received signal %d", sig);
     if (FLAG_CMP(sig, __NP_SHUTDOWN_SIGNAL)) {
         np_module(shutdown)->invoke = true;
     }
@@ -55,9 +56,11 @@ void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
 
     if (np_module_not_initiated(shutdown)) return;
 
-    TSP_SCOPE(np_module(shutdown)->on_destroy) {
+    np_spinlock_lock(&np_module(shutdown)->on_destroy_lock);
+    {
         sll_append(np_destroycallback_t, np_module(shutdown)->on_destroy, clb);
     }
+    np_spinlock_unlock(&np_module(shutdown)->on_destroy_lock);
 }
 
 bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event)
@@ -104,7 +107,7 @@ void _np_shutdown_run_callbacks(np_context*ac)
 
     if (np_module_not_initiated(shutdown)) return;
 
-    TSP_SCOPE(np_module(shutdown)->on_destroy) 
+    np_spinlock_lock(&np_module(shutdown)->on_destroy_lock);
     {
         np_destroycallback_t clb;
         while ((clb = sll_head(np_destroycallback_t, np_module(shutdown)->on_destroy)) != NULL)
@@ -112,6 +115,7 @@ void _np_shutdown_run_callbacks(np_context*ac)
             clb(context);
         }
     }
+    np_spinlock_unlock(&np_module(shutdown)->on_destroy_lock);
 }
 
 void _np_shutdown_notify_others(np_context* ctx) 
