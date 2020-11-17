@@ -17,13 +17,16 @@
 #include "neuropil_data.h"
 #include "neuropil_attributes.h"
 
-#include "np_dhkey.h"
 
-#include "util/np_event.h"
+#include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
+#include "util/np_event.h"
+
 
 #include "np_aaatoken.h"
+#include "np_attributes.h"
 #include "np_bootstrap.h"
+#include "np_dhkey.h"
 #include "np_event.h"
 #include "np_jobqueue.h"
 #include "np_key.h"
@@ -45,7 +48,6 @@
 #include "np_types.h"
 #include "np_util.h"
 
-#include "core/np_comp_msgproperty.h"
 
 
 static const char *error_strings[] = {
@@ -264,7 +266,7 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
 
             np_aaatoken_t* node_token = _np_token_factory_new_node_token(context, np_proto, np_host, np_service);
             _np_set_identity(context, node_token);
-
+            
             // initialize routing table
             if (_np_route_init(context, context->my_node_key)== false)
             {
@@ -412,13 +414,13 @@ enum np_return np_use_identity(np_context* ac, struct np_token identity) {
     np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key);
     
     np_user4aaatoken(imported_token, &identity);
-	_np_aaatoken_set_signature(imported_token, NULL);
+    _np_aaatoken_set_signature(imported_token, NULL);
 
     _np_set_identity(context, imported_token);
     _np_aaatoken_update_attributes_signature(imported_token);
     char tmp [65]={0};
     np_dhkey_t imported_token_dhkey = np_aaatoken_get_fingerprint(imported_token, false);
-    log_msg(LOG_INFO, "Using ident token %s / %s", identity.uuid, np_id_str(tmp, &imported_token_dhkey));
+    log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
     return ret;
 }
 
@@ -568,7 +570,7 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         }else{
 
             np_datablock_t * dt = msg_attributes->val.value.bin;
-            size_t attr_size;
+            // size_t attr_size;
             if(sizeof(message.attributes) >= msg_attributes->val.size) {
                 memcpy(message.attributes, dt, msg_attributes->val.size);
             }
