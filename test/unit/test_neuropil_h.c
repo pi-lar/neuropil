@@ -18,6 +18,9 @@ Test(neuropil_h, np_token_fingerprint, .description = "test the retrieval of a t
     		np_id fp = {0};
     		char fp_str[NP_FINGERPRINT_BYTES*2+1] = {0};
 
+			assert(context != NULL);
+			assert(np_module(attributes) != NULL);
+
     		struct np_token token = np_new_identity(context, np_time_now()+3600, NULL);
 
     		np_token_fingerprint(context, token, true, &fp);
@@ -38,7 +41,7 @@ Test(neuropil_h, np_token_fingerprint, .description = "test the retrieval of a t
     		log_msg(LOG_INFO, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
 
 			// This seems wrong, old_fp is no string
-    		strncpy(token.issuer, old_fp, 32);
+    		strncpy(token.issuer, old_fp_str, 64);
     		np_token_fingerprint(context, token, true, &fp);
     		cr_expect(0 != memcmp(&fp, &old_fp, NP_FINGERPRINT_BYTES), "expect the fingerprint to have changed");
     		memcpy(old_fp, fp, NP_FINGERPRINT_BYTES);
