@@ -21,9 +21,9 @@ extern "C" {
 #define HEAP_PARENT(x)   ((1==x) ? 1 : x/2)            /* parent of a node         */
 #define HEAP_SWAP(TYPE, t,x,y) { TYPE##_binheap_node_t t = x ; x = y ; y = t; }
 
-#define np_pheap_t(TYPE, NAME) TYPE##_binheap_t* NAME;
+#define np_pheap_t(TYPE, NAME) TYPE##_binheap_t* NAME
 
-#define pheap_init(TYPE, heap, size) heap = TYPE##_binheap_init(size);
+#define pheap_init(TYPE, heap, size) heap = TYPE##_binheap_init(size)
 #define pheap_insert(TYPE, heap, value) TYPE##_binheap_insert(heap, value)
 #define pheap_remove(TYPE, heap, idx) TYPE##_binheap_remove(heap, idx)
 #define pheap_find(TYPE, heap, id) TYPE##_binheap_find(heap, id)

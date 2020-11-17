@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
-#ifndef _NP_DATA_H_
-#define _NP_DATA_H_
+#ifndef NP_DATA_H_
+#define NP_DATA_H_
 
 #include "neuropil.h"
 
@@ -84,7 +84,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#endif /* _NP_DATA_H_ */
+#endif /* NP_DATA_H_ */
 
 /**
 

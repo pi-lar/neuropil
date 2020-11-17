@@ -2,9 +2,9 @@
 // neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
-// original version is based on the chimera project
-#ifndef _NP_ATTR_H_
-#define _NP_ATTR_H_
+
+#ifndef NP_ATTR_H_
+#define NP_ATTR_H_
 
 #include "neuropil.h"
 #include "neuropil_data.h"
@@ -49,7 +49,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#endif /* _NP_ATTR_H_ */
+#endif /* NP_ATTR_H_ */
 
 /**
 --------------

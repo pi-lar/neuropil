@@ -10,7 +10,7 @@
 
 #include "../test_macros.c"
 
-np_state_t* context;
+np_state_t* context = NULL;
 
 void np_identity_setup() {
     struct np_settings* settings = np_default_settings(NULL);
@@ -23,7 +23,7 @@ void np_identity_setup() {
 }
 
 void np_identity_destroy() {
-	np_destroy(context, false);
+    np_destroy(context, false);
 }
 
 TestSuite(np_identity, np_identity_setup, np_identity_destroy);

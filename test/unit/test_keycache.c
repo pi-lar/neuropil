@@ -56,7 +56,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 			np_dhkey_t key = { .t[0] = i,.t[1] = i,.t[2] = i,.t[3] = i,.t[4] = i,.t[5] = i,.t[6] = i,.t[7] = i };
 
 			np_key_t* new_key = _np_keycache_find_or_create(context, key);
-			err = err || new_keys[i] == new_key;
+			err = err || (new_keys[i] == new_key);
 		}
 		cr_expect(err, "expect the key of the same dhkey to be already in the cache");
 		err = false;
@@ -66,7 +66,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 			np_dhkey_t key = { .t[0] = i,.t[1] = i,.t[2] = i,.t[3] = i,.t[4] = i,.t[5] = i,.t[6] = i,.t[7] = i };
 
 			np_key_t* new_key = _np_keycache_find_or_create(context, key);
-			err = err || new_keys[i] != new_key;
+			err = err || (new_keys[i-10] != new_key);
 		}
 		cr_expect(err, "expect the key to be different to the ones already in the cache");
 		err = false;
@@ -78,7 +78,7 @@ Test(np_keycache_t, _np_keycache_find_or_create, .description = "test the findin
 			np_dhkey_t key = { .t[0] = i,.t[1] = i,.t[2] = i,.t[3] = i,.t[4] = i,.t[5] = i,.t[6] = i,.t[7] = i };
 
 			np_key_t* new_key = _np_keycache_find_or_create(context, key);
-			err = err || NULL != new_key;
+			err = err || (NULL != new_key);
 		}
 		cr_expect(err, "expect the key to be different to the ones already in the cache");
 		err = false;
