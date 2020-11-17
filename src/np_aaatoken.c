@@ -36,12 +36,12 @@
 #include "neuropil_data.h"
 #include "np_serialization.h"
 
-_NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t);
+_NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t)
 
-NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_aaatoken_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_aaatoken_ptr)
+NP_SLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr)
 
-NP_PLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr);
+NP_PLL_GENERATE_IMPLEMENTATION(np_aaatoken_ptr)
 
 void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
@@ -101,7 +101,7 @@ void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
 {
     log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");
 
-    np_state_t* context = np_ctx_by_memory(token);
+    // np_state_t* context = np_ctx_by_memory(token);
     // if(trace) _np_aaatoken_trace_info("encode", token);
     // included into np_token_handshake
 
@@ -552,10 +552,11 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
 
 
 
-np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) {
+np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t* self) 
+{
+    assert(self != NULL);
     np_state_t* context = np_ctx_by_memory(self);
 
-    assert(self != NULL);
     np_dhkey_t ret = { 0 };
 
     struct np_data_conf conf;

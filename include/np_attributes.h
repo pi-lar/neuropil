@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
-#ifndef _NP_ATTR_INNER_H_
-#define _NP_ATTR_INNER_H_
+#ifndef NP_ATTR_INNER_H_
+#define NP_ATTR_INNER_H_
 
 #include "np_types.h"
 #include "neuropil_attributes.h"
@@ -13,17 +13,17 @@
 extern "C" {
 #endif
     // neuropil setup functions
-    NP_API_PROTEC
+    NP_API_INTERN
     bool _np_attributes_init(np_state_t* context);
-    NP_API_PROTEC
+    NP_API_INTERN
     void _np_attributes_destroy(np_state_t* context);
-    NP_API_PROTEC
+    NP_API_INTERN
     np_attributes_t* _np_get_attributes_cache(np_state_t* context, enum np_msg_attr_type cache);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* _NP_ATTR_INNER_H_ */
+#endif /* NP_ATTR_INNER_H_ */
 
 /**
 --------------
