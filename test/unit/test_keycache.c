@@ -6,7 +6,7 @@
 
 #include "event/ev.h"
 
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_dhkey.h"
 #include "np_keycache.h"
 #include "np_memory.h"

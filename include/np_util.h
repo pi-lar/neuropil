@@ -10,7 +10,7 @@
 #include "msgpack/cmp.h"
 #include "json/parson.h"
 
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_threads.h"
 #include "np_settings.h"
 

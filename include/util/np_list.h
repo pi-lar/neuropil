@@ -3,7 +3,7 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 /**
-np_list.h contains header only list implementations for the c language.
+util/np_list.h contains header only list implementations for the c language.
 
 The three supported list type are double linked, single linked and priority list.
 All functions are defined as macros and should be used as templates,
@@ -52,7 +52,7 @@ function like macros are:
 *             void pll_clear(TYPE, priolist)
 */
 
-#define np_pll_t(TYPE, NAME) TYPE##_pll_t* NAME;
+#define np_pll_t(TYPE, NAME) TYPE##_pll_t* NAME
 
 #define pll_init(TYPE, priolist) priolist = TYPE##_pll_init();
 #define pll_insert(TYPE, priolist, value, dups_ok, cmp_func) TYPE##_pll_insert(priolist, value, dups_ok, cmp_func)
@@ -510,6 +510,7 @@ function like macros are:
 // definition
 #define np_sll_type(TYPE) TYPE##_sll_t*
 #define np_sll_t(TYPE, NAME) np_sll_type(TYPE) NAME
+
 // convenience wrapper definitions
 #define sll_init_part(TYPE) TYPE##_sll_init()
 #define sll_init(TYPE, sll_list) sll_list = sll_init_part(TYPE);

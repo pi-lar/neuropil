@@ -20,7 +20,7 @@
 #include "np_types.h"
 #include "np_key.h"
 #include "np_node.h"
-#include "np_list.h"
+#include "util/np_list.h"
 
 #include "util/np_event.h"
 
@@ -33,7 +33,8 @@ extern "C" {
 // SPLAY_HEAD(st_keycache_s, np_key_s);
 // SPLAY_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
 RB_HEAD(st_keycache_s, np_key_s);
-RB_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp);
+
+RB_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp)
 
 NP_API_INTERN
 bool _np_keycache_init(np_state_t* context);

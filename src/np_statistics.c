@@ -15,13 +15,13 @@
 #include "core/np_comp_node.h"
 #include "util/np_event.h"
 
-#include "np_scache.h"
-#include "np_list.h"
+#include "util/np_scache.h"
+#include "util/np_list.h"
 #include "np_threads.h"
 #include "np_route.h"
 #include "np_util.h"
 #include "np_key.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_jobqueue.h"
 
 #include "np_statistics.h"

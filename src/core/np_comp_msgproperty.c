@@ -18,7 +18,7 @@
 
 #include "np_axon.h"
 #include "np_aaatoken.h"
-#include "np_bloom.h"
+#include "util/np_bloom.h"
 #include "np_jobqueue.h"
 #include "np_key.h"
 #include "np_keycache.h"
@@ -28,8 +28,8 @@
 #include "np_statistics.h"
 #include "np_token_factory.h"
 #include "np_responsecontainer.h"
-#include "np_tree.h"
-#include "np_treeval.h"
+#include "util/np_tree.h"
+#include "util/np_treeval.h"
 
 #include "util/np_event.h"
 #include "util/np_statemachine.h"

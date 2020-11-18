@@ -21,19 +21,18 @@ It should contain all required functions to send or receive messages.
 
 #include <pthread.h>
 
-#include "np_bloom.h"
+#include "util/np_bloom.h"
 #include "np_constants.h"
 #include "np_settings.h"
 
 #include "neuropil.h"
 
 #include "np_types.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_memory.h"
-#include "np_tree.h"
-#include "np_treeval.h"
+#include "util/np_tree.h"
+#include "util/np_treeval.h"
 #include "map.h"
-#include "np_scache.h"
 
 #include "core/np_comp_msgproperty.h"
 

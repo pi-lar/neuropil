@@ -12,7 +12,7 @@
 #include "np_types.h"
 #include "np_messagepart.h"
 #include "np_threads.h"
-#include "np_list.h"
+#include "util/np_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,7 +51,7 @@ struct np_message_s
 } NP_API_INTERN;
 
 
-_NP_GENERATE_MEMORY_PROTOTYPES(np_message_t);
+_NP_GENERATE_MEMORY_PROTOTYPES(np_message_t)
 
 
 /** message_create / free:

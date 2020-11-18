@@ -4,7 +4,7 @@
 //
 #include <criterion/criterion.h>
 
-#include "np_heap.h"
+#include "util/np_heap.h"
 #include "np_jobqueue.h"
 #include "np_types.h"
 

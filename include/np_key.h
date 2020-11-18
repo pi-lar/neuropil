@@ -14,7 +14,7 @@
 #include "tree/tree.h"
 
 #include "np_dhkey.h"
-#include "np_bloom.h"
+#include "util/np_bloom.h"
 #include "np_threads.h"
 #include "np_memory.h"
 

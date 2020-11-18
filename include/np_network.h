@@ -15,7 +15,7 @@
 
 #include "event/ev.h"
 
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_util.h"
 #include "np_memory.h"
 

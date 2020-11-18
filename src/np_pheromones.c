@@ -5,7 +5,7 @@
 
 #include "np_pheromones.h"
 
-#include "np_bloom.h"
+#include "util/np_bloom.h"
 #include "np_constants.h"
 #include "np_dhkey.h"
 #include "np_legacy.h"

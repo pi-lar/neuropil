@@ -21,7 +21,7 @@
 #include "np_constants.h"
 #include "np_dhkey.h"
 #include "np_legacy.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_log.h"
 #include "np_network.h"
 #include "np_node.h"

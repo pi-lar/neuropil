@@ -22,7 +22,7 @@
 #include "np_event.h"
 #include "np_jobqueue.h"
 #include "np_legacy.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_memory.h"
 #include "np_settings.h"
 #include "np_util.h"

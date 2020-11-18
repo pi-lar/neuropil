@@ -20,8 +20,8 @@
 #include "np_node.h"
 #include "np_types.h"
 #include "np_util.h"
-#include "np_tree.h"
-#include "np_treeval.h"
+#include "util/np_tree.h"
+#include "util/np_treeval.h"
 
 #include "example_helper.c"
 

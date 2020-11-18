@@ -9,7 +9,7 @@
 #include "np_dendrit.h"
 #include "np_axon.h"
 #include "np_glia.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_legacy.h"
 
 #ifndef DEFAULT_MSGPROPERTY_SET

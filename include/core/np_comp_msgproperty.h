@@ -12,8 +12,8 @@
 #include "np_memory.h"
 
 #include "np_util.h"
-#include "np_list.h"
 
+#include "util/np_list.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 

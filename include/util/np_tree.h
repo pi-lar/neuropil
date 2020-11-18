@@ -20,7 +20,7 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 #include "msgpack/cmp.h"
 
 #include "np_types.h"
-#include "np_treeval.h"
+#include "util/np_treeval.h"
 
 #ifdef __cplusplus
 extern "C" {

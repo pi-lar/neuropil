@@ -29,11 +29,11 @@
 #include "np_token_factory.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_dhkey.h"
 #include "np_key.h"
 #include "np_keycache.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_intent.h"
@@ -46,8 +46,8 @@
 #include "np_util.h"
 #include "np_types.h"
 #include "np_threads.h"
-#include "np_tree.h"
-#include "np_treeval.h"
+#include "util/np_tree.h"
+#include "util/np_treeval.h"
 #include "np_axon.h"
 #include "np_event.h"
 #include "np_constants.h"
@@ -354,7 +354,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
 
         np_dhkey_t partner_of_node_dhkey = np_aaatoken_get_partner_fp(join_node_token);
         if (_np_dhkey_equal(&zero_dhkey,       &partner_of_node_dhkey) == true ||
-        	_np_dhkey_equal(&join_ident_dhkey, &partner_of_node_dhkey) == false) 
+            _np_dhkey_equal(&join_ident_dhkey, &partner_of_node_dhkey) == false) 
         {
             char fp_i[65], fp_p[65];
             _np_dhkey_str(&join_ident_dhkey, fp_i);

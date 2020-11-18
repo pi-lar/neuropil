@@ -20,9 +20,9 @@
 #include "sodium.h"
 
 #include "np_log.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_util.h"
-#include "np_treeval.h"
+#include "util/np_treeval.h"
 #include "np_keycache.h"
 #include "np_aaatoken.h"
 #include "np_network.h"

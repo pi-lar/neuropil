@@ -18,8 +18,8 @@
 #include "np_memory.h"
 #include "np_route.h"
 #include "np_settings.h"
-#include "np_tree.h"
-#include "np_treeval.h"
+#include "util/np_tree.h"
+#include "util/np_treeval.h"
 #include "np_types.h"
 
 #include "util/np_event.h"

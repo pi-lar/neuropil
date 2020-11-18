@@ -12,7 +12,7 @@ extern "C" {
 
 #include "sodium.h"
 
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_threads.h"
 
 /**

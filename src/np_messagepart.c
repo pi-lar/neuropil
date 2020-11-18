@@ -16,7 +16,7 @@
 #include "np_log.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_util.h"
 #include "np_serialization.h"
 #include "np_messagepart.h"
