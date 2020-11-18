@@ -11,12 +11,12 @@
 
 #include "sodium.h"
 
-#include "np_treeval.h"
+#include "util/np_treeval.h"
 
 #include "np_log.h"
 #include "np_dhkey.h"
 #include "np_util.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {

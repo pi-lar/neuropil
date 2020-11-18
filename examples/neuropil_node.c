@@ -15,7 +15,7 @@
 #include "np_legacy.h"
 #include "np_aaatoken.h"
 #include "np_keycache.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_types.h"
 
 #include "example_helper.c"

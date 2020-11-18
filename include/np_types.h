@@ -11,7 +11,7 @@
 #include "event/ev.h"
 
 #include "neuropil.h"
-#include "np_list.h"
+#include "util/np_list.h"
 
 /*
  *  simple types / typedefs

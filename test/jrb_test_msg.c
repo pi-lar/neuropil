@@ -10,9 +10,9 @@
 #include "msgpack/cmp.h"
 
 #include "np_log.h"
-#include "np_treeval.h"
+#include "util/np_treeval.h"
 #include "np_jobqueue.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_memory.h"
 
 #include "np_message.h"

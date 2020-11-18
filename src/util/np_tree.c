@@ -20,8 +20,8 @@
 #include "sodium.h"
 
 
-#include "np_tree.h"
-#include "np_treeval.h"
+#include "util/np_tree.h"
+#include "util/np_treeval.h"
 
 #include "np_serialization.h"
 #include "np_util.h"

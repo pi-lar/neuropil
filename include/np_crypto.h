@@ -17,7 +17,8 @@ typedef struct np_crypto_encrypted_intermediate_key_s {
 }np_crypto_encrypted_intermediate_key_t;
 
 typedef np_crypto_encrypted_intermediate_key_t* np_crypto_encrypted_intermediate_key_ptr;
-NP_SLL_GENERATE_PROTOTYPES(np_crypto_encrypted_intermediate_key_ptr);
+
+NP_SLL_GENERATE_PROTOTYPES(np_crypto_encrypted_intermediate_key_ptr)
 
 struct np_crypto_session_s {
 	bool
@@ -61,7 +62,7 @@ typedef struct np_crypto_E2E_message_s {
 	unsigned char _sender_secret_key[crypto_kx_SECRETKEYBYTES];
 }np_crypto_E2E_message_t;
 
-_NP_GENERATE_MEMORY_PROTOTYPES(np_crypto_t);
+_NP_GENERATE_MEMORY_PROTOTYPES(np_crypto_t)
 
 void np_crypto_init(np_crypto_t* self);
 // generates new keypairs, buffer may be NULL

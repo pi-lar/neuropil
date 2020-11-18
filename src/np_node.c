@@ -26,7 +26,7 @@
 #include "np_aaatoken.h"
 #include "np_memory.h"
 
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
 #include "np_dhkey.h"

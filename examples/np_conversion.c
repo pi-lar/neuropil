@@ -4,7 +4,7 @@
 //
 #include "neuropil.h"
 #include "np_legacy.h"
-#include "np_list.h"
+#include "util/np_list.h"
 
 struct np_text_exchange_s {
 	np_id id;
@@ -16,9 +16,13 @@ typedef struct np_text_exchange_s* np_text_exchange_ptr;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wstrict-prototypes"
-NP_SLL_GENERATE_PROTOTYPES(np_text_exchange_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_text_exchange_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION(np_text_exchange_ptr);
+
+NP_SLL_GENERATE_PROTOTYPES(np_text_exchange_ptr)
+
+NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_text_exchange_ptr)
+
+NP_SLL_GENERATE_IMPLEMENTATION(np_text_exchange_ptr)
+
 #pragma clang diagnostic pop
 
 np_sll_t(np_text_exchange_ptr, __np_text_exchange) = NULL;

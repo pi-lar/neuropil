@@ -10,13 +10,13 @@
 
 #include <math.h>
 
-#include "np_bloom.h"
+#include "util/np_bloom.h"
 
 #include "neuropil.h"
 
 #include "np_log.h"
 #include "np_util.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 
 // bloom filter based on np_dhkey_t / np_dhkey_t
 // we treat the np_dhkey_t as (8 * uint32_t) -> 8 distinct hash values -> pobability of false positive approx 1 in 1024

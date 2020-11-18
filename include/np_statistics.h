@@ -18,8 +18,8 @@
     #include "np_legacy.h"
 
 
-    #include "np_list.h"
-    #include "np_scache.h"
+    #include "util/np_list.h"
+    #include "util/np_scache.h"
     #include "np_threads.h"
     
     #include "prometheus/prometheus.h"

@@ -10,7 +10,7 @@
 #include "np_constants.h"
 #include "np_types.h"
 #include "np_log.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_memory.h"
 #include "np_serialization.h"
 #include "np_crypto.h"

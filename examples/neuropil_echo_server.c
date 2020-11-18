@@ -13,7 +13,7 @@
 
 #include "neuropil.h"
 
-#include "np_list.h"
+#include "util/np_list.h"
 #include "example_helper.c"
 
 
@@ -83,6 +83,7 @@ int main(int argc, char **argv) {
     */
 
     np_add_receive_cb(context,  "echo", receive_echo_message);
+
     struct np_mx_properties msg_props = np_get_mx_properties(context, "echo");
     msg_props.ackmode = NP_MX_ACK_NONE;
     msg_props.message_ttl = 20.0;

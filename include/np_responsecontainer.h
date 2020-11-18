@@ -5,7 +5,7 @@
 #ifndef _NP_RESPONSECONTAINER_H_
 #define _NP_RESPONSECONTAINER_H_
 
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_memory.h"
 
 #include "np_types.h"

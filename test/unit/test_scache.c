@@ -9,7 +9,7 @@
 #include "sodium.h"
 #include "event/ev.h"
 
-#include "np_scache.h"
+#include "util/np_scache.h"
 #include "np_log.h"
 #include "../test_macros.c"
 

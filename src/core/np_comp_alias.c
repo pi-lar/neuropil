@@ -15,7 +15,7 @@
 
 #include "neuropil.h"
 #include "np_aaatoken.h"
-#include "np_bloom.h"
+#include "util/np_bloom.h"
 #include "np_key.h"
 #include "np_legacy.h"
 #include "np_log.h"
@@ -27,7 +27,7 @@
 #include "np_statistics.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "neuropil_data.h"
 
 np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* msg_to_check)

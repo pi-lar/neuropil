@@ -30,7 +30,7 @@
 #include "np_jobqueue.h"
 #include "np_key.h"
 #include "np_legacy.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_threads.h"
 #include "np_log.h"
 #include "np_event.h"

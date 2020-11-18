@@ -8,9 +8,9 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include "np_bloom.h"
+#include "util/np_bloom.h"
 #include "np_dhkey.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_types.h"
 
 

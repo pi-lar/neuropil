@@ -20,7 +20,7 @@
 #include "np_message.h"
 #include "np_responsecontainer.h"
 #include "np_settings.h"
-#include "np_tree.h"
+#include "util/np_tree.h"
 #include "np_util.h"
 #include "util/np_event.h"
 

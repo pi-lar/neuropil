@@ -7,10 +7,10 @@
 #include "stdlib.h"
 #include "inttypes.h"
 
-#include "np_scache.h"
+#include "util/np_scache.h"
 
 #include "np_legacy.h"
-#include "np_list.h"
+#include "util/np_list.h"
 #include "np_log.h"
 #include "np_threads.h"
 #include "np_util.h"
