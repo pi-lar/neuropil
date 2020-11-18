@@ -63,9 +63,10 @@ bool _np_statistics_receive_msg_on_watched(np_state_t* context, np_util_event_t 
 {
     NP_CAST(event.user_data, np_message_t, msg);
 
-    np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
-    if (item != NULL) {
-        ((np_statistics_element_t*)item->value)->total_received += 1;
+    np_statistics_element_t * value = NULL;
+    if (np_simple_cache_get(context, &np_module(statistics)->__cache, _np_message_get_subject(msg), &value) ) 
+    {
+        value->total_received += 1;
     }
     return true;
 }
@@ -74,9 +75,10 @@ bool _np_statistics_send_msg_on_watched(np_state_t* context, np_util_event_t eve
 {
     NP_CAST(event.user_data, np_message_t, msg);
 
-    np_cache_item_t* item = np_simple_cache_get(context, np_module(statistics)->__cache, _np_message_get_subject(msg));
-    if (item != NULL) {
-        ((np_statistics_element_t*)item->value)->total_send += 1;
+    np_statistics_element_t * value = NULL;
+    if (np_simple_cache_get(context, &np_module(statistics)->__cache, _np_message_get_subject(msg), &value) )
+    {
+        value->total_send += 1;
     }
 
     return true; 
@@ -102,7 +104,12 @@ bool _np_statistics_init(np_state_t* context) {
     if (!np_module_initiated(statistics)) {
         np_module_malloc(statistics);
 
-        _module->__cache = np_cache_init(context);
+        uint32_t cache_size = SIMPLE_CACHE_NR_BUCKETS;
+        char random_seed[crypto_shorthash_KEYBYTES];
+        randombytes_buf(random_seed, crypto_shorthash_KEYBYTES);
+
+        np_cache_init(context, &_module->__cache, cache_size, random_seed);
+
         sll_init(char_ptr, _module->__watched_subjects);
 
         _module->_per_subject_metrics = np_tree_create();
@@ -267,14 +274,16 @@ void _np_statistics_destroy(np_state_t* context)
         np_module_var(statistics);
                
         sll_iterator(char_ptr) __watched_subjects_item = sll_first(_module->__watched_subjects);
-        while(__watched_subjects_item != NULL) {
-            free(np_simple_cache_get(context, _module->__cache, __watched_subjects_item->val)->value);
-            // free(__watched_subjects_item->val);
+        while (__watched_subjects_item != NULL)
+        {
+            np_statistics_element_t* value = NULL;
+            if (np_simple_cache_get(context, &np_module(statistics)->__cache, __watched_subjects_item->val, &value) )
+            {
+                free(value);
+            }
             sll_next(__watched_subjects_item);
         }
-        sll_free(char_ptr, _module->__watched_subjects);
-        
-        np_cache_destroy(context, _module->__cache);
+        np_cache_destroy(context, &np_module(statistics)->__cache);
 
 #ifdef DEBUG_CALLBACKS
         sll_iterator(void_ptr) __np_debug_statistics_item = sll_first(_module->__np_debug_statistics);
@@ -284,9 +293,9 @@ void _np_statistics_destroy(np_state_t* context)
         }
         sll_free(void_ptr, _module->__np_debug_statistics);
 #endif
-        
-        NP_PERFORMANCE_POINT_DESTROY();
 
+        sll_free(char_ptr, np_module(statistics)->__watched_subjects);
+        
         prometheus_destroy_context(_module->_prometheus_context);
 
         np_tree_elem_t* tmp = NULL;
@@ -303,6 +312,7 @@ void _np_statistics_destroy(np_state_t* context)
 
          np_tree_free(_module->_per_dhkey_metrics);
          np_tree_free(_module->_per_subject_metrics);
+
 
         np_module_free(statistics);
     }
@@ -328,50 +338,35 @@ void np_statistics_add_watch(np_state_t* context, const char* subject) {
     }
 
     const char* key = (char*) subject;
+    np_statistics_element_t* value = NULL;
     if (addtolist == true) {
         // char* key_dup = strndup(subject, strlen(subject) );
         sll_append(char_ptr, np_module(statistics)->__watched_subjects, key);
-        np_simple_cache_insert(context, np_module(statistics)->__cache, key, calloc(1, sizeof(np_statistics_element_t)));
+        value = calloc(1, sizeof(np_statistics_element_t));
+        np_simple_cache_add(context, &np_module(statistics)->__cache, key, value);
     }
 
-    np_statistics_element_t* container = np_simple_cache_get(context, np_module(statistics)->__cache, key)->value;
-
-    if (addtolist == true) {
-        CHECK_MALLOC(container);
-        container->last_sec_check =
-        container->last_min_check =
-        container->first_check    = np_time_now();
-    }
-
-    if (false == container->watch_receive && _np_msgproperty_get(context, INBOUND, key) != NULL) {
-        np_msgproperty_t* prop = _np_msgproperty_get(context, INBOUND, key);
-        sll_append(np_evt_callback_t, prop->clb_inbound, _np_statistics_receive_msg_on_watched);
-        container->watch_receive = true;
-    }
-
-    if (false == container->watch_send && _np_msgproperty_get(context, OUTBOUND, key) != NULL) {
-        np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, key);
-        sll_append(np_evt_callback_t, prop->clb_outbound, _np_statistics_send_msg_on_watched);
-        container->watch_send = true;
-    }
-}
-
-bool np_statistics_destroy(np_state_t* context) 
-{
-    if (np_module_initiated(statistics)) {
-        sll_iterator(char_ptr) iter = sll_first(np_module(statistics)->__watched_subjects);
-        while (iter != NULL)
+    if (np_simple_cache_get(context, &np_module(statistics)->__cache, key, &value))
+    {
+        if (addtolist == true)
         {
-            free(np_simple_cache_get(context, np_module(statistics)->__cache, iter->val)->value);
-            // free(iter->val);
-            sll_next(iter);
+            value->last_sec_check =
+            value->last_min_check =
+            value->first_check    = np_time_now();
         }
-        sll_free(char_ptr, np_module(statistics)->__watched_subjects);
-        free(np_module(statistics)->__cache);
 
-        _np_statistics_debug_destroy(context);
+        if (false == value->watch_receive && _np_msgproperty_get(context, INBOUND, key) != NULL) {
+            np_msgproperty_t* prop = _np_msgproperty_get(context, INBOUND, key);
+            sll_append(np_evt_callback_t, prop->clb_inbound, _np_statistics_receive_msg_on_watched);
+            value->watch_receive = true;
+        }
+
+        if (false == value->watch_send && _np_msgproperty_get(context, OUTBOUND, key) != NULL) {
+            np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, key);
+            sll_append(np_evt_callback_t, prop->clb_outbound, _np_statistics_send_msg_on_watched);
+            value->watch_send = true;
+        }
     }
-    return true;
 }
 
 void np_statistics_add_watch_internals(np_state_t* context) {
@@ -437,84 +432,85 @@ char* np_statistics_print(np_state_t* context, bool asOneLine)
 
     while (iter_subjects != NULL)
     {
-        np_statistics_element_t* container = np_simple_cache_get(context, np_module(statistics)->__cache, iter_subjects->val)->value;
+        np_statistics_element_t* container = NULL;
+        if (np_simple_cache_get(context, &np_module(statistics)->__cache, iter_subjects->val, &container) )
+        {
+            sec_since_start = (now - container->first_check);
 
-        sec_since_start = (now - container->first_check);
+            // per Min calc
+            min_since_last_print = (now - container->last_min_check) / 60;
 
-        // per Min calc
-        min_since_last_print = (now - container->last_min_check) / 60;
+            if (min_since_last_print > 1) {
+                current_min_received = (container->total_received - container->last_total_min_received) / min_since_last_print;
+                current_min_send = (container->total_send - container->last_total_min_send) / min_since_last_print;
 
-        if (min_since_last_print > 1) {
-            current_min_received = (container->total_received - container->last_total_min_received) / min_since_last_print;
-            current_min_send = (container->total_send - container->last_total_min_send) / min_since_last_print;
+                container->last_mindiff_received = current_min_received - container->last_min_received;
+                container->last_mindiff_send = current_min_send - container->last_min_send;
 
-            container->last_mindiff_received = current_min_received - container->last_min_received;
-            container->last_mindiff_send = current_min_send - container->last_min_send;
+                container->last_min_received = current_min_received;
+                container->last_min_send = current_min_send;
+                container->last_min_check = now;
+                container->last_total_min_received = container->total_received;
+                container->last_total_min_send = container->total_send;
+            }
+            else if ((sec_since_start / 60) < 1) {
+                current_min_received = container->total_received;
+                current_min_send = container->total_send;
 
-            container->last_min_received = current_min_received;
-            container->last_min_send = current_min_send;
-            container->last_min_check = now;
-            container->last_total_min_received = container->total_received;
-            container->last_total_min_send = container->total_send;
+                container->last_mindiff_received = current_min_received;
+                container->last_mindiff_send = current_min_send;
+            }
+            else {
+                current_min_received = container->last_min_received;
+                current_min_send = container->last_min_send;
+            }
+            // per Min calc end
+
+            // per Sec calc
+            sec_since_last_print = (now - container->last_sec_check);
+
+            if (sec_since_last_print > 1) {
+                current_sec_received = (container->total_received - container->last_total_sec_received) / sec_since_last_print;
+                current_sec_send = (container->total_send - container->last_total_sec_send) / sec_since_last_print;
+
+                container->last_secdiff_received = current_sec_received - container->last_sec_received;
+                container->last_secdiff_send = current_sec_send - container->last_sec_send;
+
+                container->last_sec_received = current_sec_received;
+                container->last_sec_send = current_sec_send;
+                container->last_sec_check = now;
+                container->last_total_sec_received = container->total_received;
+                container->last_total_sec_send = container->total_send;
+            }
+            else {
+                current_sec_received = container->last_sec_received;
+                current_sec_send = container->last_sec_send;
+            }
+            // per Sec calc end
+
+            if (container->watch_receive) {
+                all_total_received += container->total_received;
+                ret = np_str_concatAndFree(ret,
+                    "received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+                    container->total_received,
+                    current_sec_received, container->last_secdiff_received,
+                    current_min_received, container->last_mindiff_received,
+                    iter_subjects->val, new_line);
+            }
+
+            if (container->watch_send) {
+                all_total_send += container->total_send;
+                ret = np_str_concatAndFree(ret,
+                    "send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+                    container->total_send,
+                    current_sec_send, container->last_secdiff_send,
+                    current_min_send, container->last_mindiff_send,
+                    iter_subjects->val, new_line
+                );
+            }
+            container->last_total_received = container->total_received;
+            container->last_total_send = container->total_send;
         }
-        else if ((sec_since_start / 60) < 1) {
-            current_min_received = container->total_received;
-            current_min_send = container->total_send;
-
-            container->last_mindiff_received = current_min_received;
-            container->last_mindiff_send = current_min_send;
-        }
-        else {
-            current_min_received = container->last_min_received;
-            current_min_send = container->last_min_send;
-        }
-        // per Min calc end
-
-        // per Sec calc
-        sec_since_last_print = (now - container->last_sec_check);
-
-        if (sec_since_last_print > 1) {
-            current_sec_received = (container->total_received - container->last_total_sec_received) / sec_since_last_print;
-            current_sec_send = (container->total_send - container->last_total_sec_send) / sec_since_last_print;
-
-            container->last_secdiff_received = current_sec_received - container->last_sec_received;
-            container->last_secdiff_send = current_sec_send - container->last_sec_send;
-
-            container->last_sec_received = current_sec_received;
-            container->last_sec_send = current_sec_send;
-            container->last_sec_check = now;
-            container->last_total_sec_received = container->total_received;
-            container->last_total_sec_send = container->total_send;
-        }
-        else {
-            current_sec_received = container->last_sec_received;
-            current_sec_send = container->last_sec_send;
-        }
-        // per Sec calc end
-
-        if (container->watch_receive) {
-            all_total_received += container->total_received;
-            ret = np_str_concatAndFree(ret,
-                "received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
-                container->total_received,
-                current_sec_received, container->last_secdiff_received,
-                current_min_received, container->last_mindiff_received,
-                iter_subjects->val, new_line);
-        }
-
-        if (container->watch_send) {
-            all_total_send += container->total_send;
-            ret = np_str_concatAndFree(ret,
-                "send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
-                container->total_send,
-                current_sec_send, container->last_secdiff_send,
-                current_min_send, container->last_mindiff_send,
-                iter_subjects->val, new_line
-            );
-        }
-        container->last_total_received = container->total_received;
-        container->last_total_send = container->total_send;
-
         sll_next(iter_subjects);
     }
 
@@ -619,8 +615,6 @@ void __np_statistics_add_received_bytes(np_state_t* context, uint32_t add) {
     }
 }
 #endif
-
-
 
 #ifdef DEBUG_CALLBACKS
 _np_statistics_debug_t* __np_statistics_debug_get(np_state_t * context, char* key) {

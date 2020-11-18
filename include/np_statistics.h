@@ -3,8 +3,8 @@
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 
-#ifndef _NP_STATISTICS_H_
-    #define _NP_STATISTICS_H_
+#ifndef NP_STATISTICS_H_
+#define NP_STATISTICS_H_
 
     #include <stdint.h>
     #include <inttypes.h>
@@ -21,15 +21,13 @@
     #include "np_list.h"
     #include "np_scache.h"
     #include "np_threads.h"
-
+    
     #include "prometheus/prometheus.h"
-
-
 
     #ifdef __cplusplus
     extern "C" {
-    #endif
-
+    #endif 
+    
 enum np_prometheus_exposed_metrics {
     np_prometheus_exposed_metrics_uptime,
     np_prometheus_exposed_metrics_forwarded_msgs,
@@ -59,7 +57,7 @@ char* np_statistics_prometheus_export(np_context*ac);
 
                 np_statistics_performance_point_network_start_access_lock,
                 np_statistics_performance_point_network_start_out_events_lock,
-
+                
                 np_statistics_performance_point_message_serialize_chunked,
 
                 np_statistics_performance_point_tokenfactory_new_handshake,
@@ -87,9 +85,9 @@ char* np_statistics_prometheus_export(np_context*ac);
 
                 np_statistics_performance_point_jobqueue_insert,
                 np_statistics_performance_point_jobqueue_run,
-                np_statistics_performance_point_jobqueue_manager_distribute_job,
+                np_statistics_performance_point_jobqueue_manager_distribute_job,		
 
-                np_statistics_performance_point_message_decrypt,
+                np_statistics_performance_point_message_decrypt,		
 
                 np_statistics_performance_point_END
             };
@@ -97,7 +95,7 @@ char* np_statistics_prometheus_export(np_context*ac);
 
         np_module_struct(statistics) {
             np_state_t* context;
-            np_simple_cache_table_t* __cache;
+            np_simple_cache_table_t __cache;
             np_sll_t(char_ptr, __watched_subjects);
             prometheus_context* _prometheus_context;
             prometheus_metric* _prometheus_metrics[np_prometheus_exposed_metrics_END];
@@ -147,7 +145,7 @@ char* np_statistics_prometheus_export(np_context*ac);
         NP_API_INTERN
             void __np_statistics_set_success_avg(np_state_t* context, np_dhkey_t id, float value);
 
-        #define _np_set_latency(id, value) __np_statistics_set_latency(context, id, value)
+        #define _np_set_latency(id, value) __np_statistics_set_latency(context, id, value) 
         #define _np_set_success_avg(id, value) __np_statistics_set_success_avg(context, id, value)
         #define _np_increment_forwarding_counter(subject) __np_increment_forwarding_counter(context, subject)
         #define _np_increment_received_msgs_counter(subject) __np_increment_received_msgs_counter(context, subject)
@@ -155,13 +153,13 @@ char* np_statistics_prometheus_export(np_context*ac);
         #define _np_statistics_add_send_bytes(add) __np_statistics_add_send_bytes(context, add)
         #define _np_statistics_add_received_bytes(add) __np_statistics_add_received_bytes(context, add)
     #else
-        #define _np_set_latency(id, value)
-        #define _np_set_success_avg(id, value)
-        #define _np_increment_forwarding_counter(subject)
+        #define _np_set_latency(id, value) 
+        #define _np_set_success_avg(id, value) 
+        #define _np_increment_forwarding_counter(subject) 
         #define _np_increment_received_msgs_counter(subject)
-        #define _np_increment_send_msgs_counter(subject)
-        #define _np_statistics_add_send_bytes(add)
-        #define _np_statistics_add_received_bytes(add)
+        #define _np_increment_send_msgs_counter(subject) 
+        #define _np_statistics_add_send_bytes(add) 
+        #define _np_statistics_add_received_bytes(add) 
     #endif // DEBUG
 
 
@@ -202,7 +200,7 @@ char* np_statistics_prometheus_export(np_context*ac);
                 char mutex_str[64];                                                                         \
                 snprintf(mutex_str, 63, "urn:np:statistics:%s:%s", "perfpoint", #NAME);                     \
                 _np_threads_mutex_init(context, &container->access, mutex_str);	                            \
-            }
+            }																														
 
     #define NP_PERFORMANCE_POINT_DESTROY()											                        \
         for(int i=0; i < np_statistics_performance_point_END; i++) {                                        \
@@ -245,11 +243,11 @@ char* np_statistics_prometheus_export(np_context*ac);
                 }																													\
             }
 
-    #ifdef DEBUG_CALLBACKS
+    #ifdef DEBUG_CALLBACKS																											
     #define ___NP_PERFORMANCE_GET_POINTS_STR(STR)																				\
         char * stats = __np_statistics_debug_print(context);																\
         STR = np_str_concatAndFree(STR, stats);																					\
-        free(stats);
+        free(stats);																											
     #else
     #define ___NP_PERFORMANCE_GET_POINTS_STR(STR) ;
     #endif
@@ -265,16 +263,16 @@ char* np_statistics_prometheus_export(np_context*ac);
                 __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container);															\
             }																														\
             ___NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
-        }
-    #else
-    #define NP_PERFORMANCE_POINT_DESTROY()
+        }																															
+    #else																														
+    #define NP_PERFORMANCE_POINT_DESTROY()											                    
     #define NP_PERFORMANCE_POINT_START(name)
     #define NP_PERFORMANCE_POINT_END(name)
     #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\
-        char* STR = NULL;
+        char* STR = NULL;	
     #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
-            double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;
-    #endif
+            double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               
+    #endif     
 
 
 
@@ -299,7 +297,7 @@ NP_API_INTERN
 void  _np_statistics_debug_destroy(np_state_t * context);
 NP_API_INTERN
 void _np_statistics_debug_ele_destroy(np_state_t* context, void* item) ;
-#else
+#else 
 	#define _np_statistics_debug_destroy(context) ;
 	#define _np_statistics_debug_ele_destroy(context, item) ;
 #endif
