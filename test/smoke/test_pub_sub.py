@@ -37,22 +37,21 @@ class PubSubTest(unittest.TestCase):
         ret = neuropil.np_token_fingerprint(node._context, _NeuropilHelper.convert_from_python(token), False, ffi.addressof(id))
         if ret is not neuropil.np_ok:
             return False
-        # print ("{time:.3f} / {node}: 1 authorization granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id) ))
+        # print ("{time:.3f} / {node}: 1 authorization granted to token {fp} / {issuer}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id), issuer=token.issuer ))
         return True
 
     @staticmethod
     def msg_received(node:NeuropilNode, message:np_message):
         # print ("{time:.3f} / {node}: 2 msg received from {sender}".format(time=float(time.time()), node=node.get_fingerprint(), sender=np_id(message.__getattribute__('from')) ))
-        PubSubTest.received[np_id(message.__getattribute__('from'))] = True
-        PubSubTest.msg_delivery_succ = len(PubSubTest.received)
+        PubSubTest.received[str(node.get_fingerprint())] = True
+        PubSubTest.msg_delivery_succ = len(PubSubTest.received.keys())
         return True
 
     def test_pub_sub(self):
-
-        np_c  = NeuropilCluster(    3, port_range=5500, auto_run=False, log_file_prefix="logs/smoke_pubsub_cl_", no_threads=3)
-        np_r1 = NeuropilNode(5505, log_file="logs/smoke_test_pubsub_r1.log", auto_run=False, no_threads=3)
-        np_r2 = NeuropilNode(5506, log_file="logs/smoke_test_pubsub_r2.log", auto_run=False, no_threads=3)
-        np_s1 = NeuropilNode(5507, log_file="logs/smoke_test_pubsub_s1.log", auto_run=False, no_threads=3)
+        np_c  = NeuropilCluster( 7, port_range=5500, auto_run=False, log_file_prefix="logs/smoke_test_pubsub_cl_", no_threads=4)
+        np_r1 = NeuropilNode(5510, log_file="logs/smoke_test_pubsub_r1.log", auto_run=False, no_threads=4)
+        np_r2 = NeuropilNode(5511, log_file="logs/smoke_test_pubsub_r2.log", auto_run=False, no_threads=4)
+        np_s1 = NeuropilNode(5512, log_file="logs/smoke_test_pubsub_s1.log", auto_run=False, no_threads=4)
 
         subject = b"NP.TEST.pubsub.1"
         
@@ -103,22 +102,25 @@ class PubSubTest(unittest.TestCase):
 
         t1 = time.time()
         timeout = 150 #sec
-        send = False
         try:
             while True:
                 elapsed = float(time.time() - t1)
                 # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
-                if np_s1.np_has_receiver_for(subject) and elapsed > 90 and not send :
+                if np_s1.np_has_receiver_for(subject) and elapsed > 45 and not PubSubTest.send :
+                    # print ("{time:.3f} / {node}: 2 sending message".format(time=float(time.time()), node=np_s1.get_fingerprint() ) )
                     np_s1.send(subject, b'test')
                     PubSubTest.send = True
 
-                if PubSubTest.msg_delivery_succ >= 2 or elapsed > timeout:
+                if PubSubTest.msg_delivery_succ >= 2:
                     break
 
-                np_s1.run(math.pi/100)
-                np_r2.run(math.pi/100)
-                np_r1.run(math.pi/100)
-                np_c.run(math.pi/100)
+                if elapsed > timeout:
+                    raise TimeoutError
+
+                np_s1.run(math.pi/10)
+                np_r2.run(math.pi/10)
+                np_r1.run(math.pi/10)
+                np_c.run(math.pi/10)
 
         finally:
             np_s1.shutdown()
