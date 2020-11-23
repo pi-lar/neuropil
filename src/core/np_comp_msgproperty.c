@@ -1335,18 +1335,16 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
         _np_msgproperty_cleanup_response_handler(property);
     }
 
-    if ( FLAG_CMP(property->mode_type, OUTBOUND ) ) {
-        // _np_msgproperty_check_sender_msgcache(property);
-        _np_msgproperty_cleanup_sender_cache(property);
-    }
-
-    if ( FLAG_CMP(property->mode_type, INBOUND ) ) {
-        _np_msgproperty_cleanup_receiver_cache(property);
-    }
-
-    double now = _np_time_now(context);
     if (property->is_internal == false) 
     {
+        if ( FLAG_CMP(property->mode_type, OUTBOUND ) ) {
+            _np_msgproperty_cleanup_sender_cache(property);
+        }
+
+        if ( FLAG_CMP(property->mode_type, INBOUND ) ) {
+            _np_msgproperty_cleanup_receiver_cache(property);
+        }
+
         _np_msgproperty_upsert_token(statemachine, event);
 
         __np_msgproperty_send_pheromone_messages(statemachine, event);
@@ -1355,7 +1353,8 @@ void __np_property_check(np_util_statemachine_t* statemachine, const np_util_eve
         __np_intent_check(statemachine, event);
     }
 
-    property->last_update = now;
+    property->last_update = _np_time_now(context);
+    
     _np_msgproperty_job_msg_uniquety(property);
 }
 
