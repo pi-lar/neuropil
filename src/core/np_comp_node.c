@@ -51,17 +51,17 @@ bool __is_shutdown_event(np_util_statemachine_t* statemachine, const np_util_eve
 
     bool ret = false;
     
-    if (!ret) ret  = FLAG_CMP(event.type, evt_shutdown);
+    if (!ret) ret = FLAG_CMP(event.type, evt_shutdown);
 
-    if (ret && 
-        FLAG_CMP(event.type, evt_external)) {
-        
+    if (ret && FLAG_CMP(event.type, evt_external)) 
+    {   
         NP_CAST(event.user_data, np_aaatoken_t, remote_token);
         NP_CAST(statemachine->_user_data, np_key_t, key);
+
         np_aaatoken_t* local_token = _np_key_get_token(key);
 
-        if ( ret) ret &= _np_aaatoken_is_valid(remote_token, np_aaatoken_type_node);
-        if ( ret) ret &= (0 == memcmp(remote_token->crypto.ed25519_public_key, local_token->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES) );
+        ret &= _np_aaatoken_is_valid(remote_token, np_aaatoken_type_node);
+        if (NULL != local_token && ret) ret &= (0 == memcmp(remote_token->crypto.ed25519_public_key, local_token->crypto.ed25519_public_key, crypto_sign_ed25519_PUBLICKEYBYTES) );
     }
     // if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
     return ret;

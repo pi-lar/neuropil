@@ -83,7 +83,7 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
-    struct __np_node_trinity trinity;
+    struct __np_node_trinity trinity = {0};
     __np_key_to_trinity(my_identity_key, &trinity);
 
     if (FLAG_CMP(my_identity_key->type, np_key_type_node))
