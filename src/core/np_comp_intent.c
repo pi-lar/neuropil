@@ -154,7 +154,7 @@ np_aaatoken_t* _np_intent_get_sender_token(np_key_t* subject_key, const np_dhkey
     np_ctx_memory(subject_key);
     log_debug_msg(LOG_DEBUG, "lookup in global sender msg token structures (%p)...", subject_key);
 
-    static np_dhkey_t empty_dhkey = {0};
+    // static np_dhkey_t empty_dhkey = {0};
     NP_CAST(sll_first(subject_key->entities)->val, np_msgproperty_t, property);
     NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
 
@@ -367,11 +367,11 @@ np_aaatoken_t* _np_intent_get_receiver(np_key_t* subject_key, const np_dhkey_t t
  ** TODO extend this function with a key and an amount of messages
  ** TODO use a different function for mitm and leaf nodes ?
  **/
-sll_return(np_aaatoken_ptr) _np_intent_get_all_sender(np_key_t* subject_key, const char* const audience)
+void _np_intent_get_all_sender(np_key_t* subject_key, np_dhkey_t audience, np_sll_t(np_aaatoken_ptr, *tmp_token_list))
 {
     np_ctx_memory(subject_key);
 
-    sll_init_full(np_aaatoken_ptr, return_list);
+    np_sll_t(np_aaatoken_ptr, result_list = *tmp_token_list);
     NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
 
     pll_iterator(np_aaatoken_ptr) tmp = pll_first(ledger->send_tokens);
@@ -384,20 +384,21 @@ sll_return(np_aaatoken_ptr) _np_intent_get_all_sender(np_key_t* subject_key, con
         else
         {
             bool include_token = true;
-            
-            if (audience != NULL && strlen(audience) > 0) {
-                include_token =
-                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) ||
-                        (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0)   ;
-            }
+            np_dhkey_t null_dhkey = {0};
+            np_dhkey_t issuer = np_dhkey_create_from_hash(tmp->val->issuer);
 
-            if (include_token==true) {
+            include_token =
+                    _np_dhkey_equal(&audience, &issuer)     ||
+                    _np_dhkey_equal(&audience, &null_dhkey) ;
+
+            if (include_token==true) 
+            {
                 log_debug_msg(LOG_DEBUG, "found valid sender token (%s)", tmp->val->issuer );
                 // only pick key from a list if the subject msg_treshold is bigger than zero
                 // and the sending threshold is bigger than zero as well
                 // and we actually have a receiver node in the list
                 np_ref_obj(np_aaatoken_t, tmp->val);
-                sll_append(np_aaatoken_ptr, return_list, tmp->val);
+                sll_append(np_aaatoken_ptr, result_list, tmp->val);
             } 
             else
             {
@@ -408,14 +409,14 @@ sll_return(np_aaatoken_ptr) _np_intent_get_all_sender(np_key_t* subject_key, con
     }
     log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_sender %d", pll_size(ledger->send_tokens));
 
-    return (return_list);
+    // return (return_list);
 }
 
-sll_return(np_aaatoken_ptr) _np_intent_get_all_receiver(np_key_t* subject_key, const char* const audience)
+void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_sll_t(np_aaatoken_ptr, *tmp_token_list))
 {
     np_ctx_memory(subject_key);
 
-    sll_init_full(np_aaatoken_ptr, return_list);
+    np_sll_t(np_aaatoken_ptr, result_list = *tmp_token_list);
     NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
 
     pll_iterator(np_aaatoken_ptr) tmp = pll_first(ledger->recv_tokens);
@@ -427,20 +428,22 @@ sll_return(np_aaatoken_ptr) _np_intent_get_all_receiver(np_key_t* subject_key, c
         }
         else
         {
+            np_dhkey_t null_dhkey = {0};
+            np_dhkey_t issuer = np_dhkey_create_from_hash(tmp->val->issuer);
             bool include_token = true;
-            if (audience != NULL && strlen(audience) > 0) {
-                include_token =
-                        (strncmp(audience, tmp->val->issuer, strlen(tmp->val->issuer)) == 0) ||
-                        (strncmp(audience, tmp->val->realm, strlen(tmp->val->realm)) == 0) ;
-            }
 
-            if (include_token==true) {
+            include_token =
+                    _np_dhkey_equal(&audience, &issuer)     ||
+                    _np_dhkey_equal(&audience, &null_dhkey) ;
+
+            if (include_token==true) 
+            {
                 log_debug_msg(LOG_DEBUG, "found valid receiver token (%s)", tmp->val->issuer );
                 np_ref_obj(np_aaatoken_t, tmp->val);
                 // only pick key from a list if the subject msg_treshold is bigger than zero
                 // and the sending threshold is bigger than zero as well
                 // and we actually have a receiver node in the list
-                sll_append(np_aaatoken_ptr, return_list, tmp->val);
+                sll_append(np_aaatoken_ptr, result_list, tmp->val);
             } else {
                 log_debug_msg(LOG_DEBUG, "ignoring receiver token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
             }
@@ -449,9 +452,8 @@ sll_return(np_aaatoken_ptr) _np_intent_get_all_receiver(np_key_t* subject_key, c
     }
     log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_receiver %d", pll_size(ledger->recv_tokens));
 
-    return (return_list);
+    // return (return_list);
 }
-
 
 bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
@@ -459,7 +461,7 @@ bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event
     log_trace_msg(LOG_TRACE, "start: void __is_intent_authz(...){");
 
     bool ret = false;
-    NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+    // NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_authz);
     if ( ret) ret &= (FLAG_CMP(event.type, evt_external) && FLAG_CMP(event.type, evt_token) );
@@ -472,7 +474,7 @@ bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event
     return ret;
 }
 
-void __np_intent_check(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+void __np_intent_check(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
 

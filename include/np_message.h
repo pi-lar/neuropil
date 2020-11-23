@@ -63,7 +63,7 @@ NP_API_INTERN
 void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data);
 
 NP_API_INTERN
-void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
+void _np_message_encrypt_payload(np_message_t* msg, np_sll_t(np_aaatoken_ptr,tmp_token) );
 NP_API_INTERN
 bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token);
 

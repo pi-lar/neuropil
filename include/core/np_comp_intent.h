@@ -44,10 +44,10 @@ NP_API_INTERN
 np_aaatoken_t* _np_intent_get_receiver(np_key_t* subject_key, const np_dhkey_t target);
 
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_intent_get_all_sender(np_key_t* subject_key, const char* const audience);
+void _np_intent_get_all_sender(np_key_t* subject_key, np_dhkey_t audience, np_sll_t(np_aaatoken_ptr, *tmp_token_list) );
 
 NP_API_INTERN
-sll_return(np_aaatoken_ptr) _np_intent_get_all_receiver(np_key_t* subject_key, const char* const audience);
+void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_sll_t(np_aaatoken_ptr, *tmp_token_list) );
 
 
 #ifdef __cplusplus
