@@ -68,39 +68,43 @@
  **/
 
 
-bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
+bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event) 
 {
     log_trace_msg(LOG_TRACE, "start: void __np_out_callback_wrapper(...){");
 
     NP_CAST(event.user_data, np_message_t, message);
+    
     np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _np_message_get_subject(message) );
     np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
     NP_CAST(sll_first(prop_key->entities)->val, np_msgproperty_t, my_property);
 
     bool ret = false;
 
-    np_message_intent_public_token_t* tmp_token = _np_intent_get_receiver(prop_key, event.target_dhkey);
+    np_sll_t(np_aaatoken_ptr, tmp_token_list);
+    sll_init(np_aaatoken_ptr, tmp_token_list);
+    
+    _np_intent_get_all_receiver(prop_key, event.target_dhkey, &tmp_token_list);
 
     // TODO: refactor breach check as single callback
-    if (_np_msgproperty_threshold_breached(my_property) || NULL == tmp_token )
+    if (_np_msgproperty_threshold_breached(my_property) || sll_size(tmp_token_list) == 0)
     {
         _np_msgproperty_add_msg_to_send_cache(my_property, message);
-        if (tmp_token == NULL)
+        if (sll_size(tmp_token_list) == 0)
         {
             log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) for subject \"%s\" has NO valid token / %p", message->uuid, my_property->msg_subject, my_property);
         }
         else
         {
             log_msg(LOG_INFO, "(msg: %s) for subject \"%s\" treshold breached!", message->uuid, my_property->msg_subject);
-            np_unref_obj(np_aaatoken_t, tmp_token,"_np_intent_get_receiver");
+            np_aaatoken_unref_list(tmp_token_list, "_np_intent_get_all_receiver");
         }
         ret = false;
     }
-    else
+    else 
     {
         log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "(msg: %s) for subject \"%s\" has valid token", message->uuid, my_property->msg_subject);
 
-        np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
+        /* np_dhkey_t receiver_dhkey = np_aaatoken_get_partner_fp(tmp_token);
 
         if (_np_dhkey_equal(&context->my_node_key->dhkey, &receiver_dhkey))
         {
@@ -110,41 +114,44 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
         }
         else
         {
-            struct np_data_conf cfg;
-            np_data_value max_threshold;
+        */
+            np_dhkey_t _computed_to = {0};
+            sll_iterator(np_aaatoken_ptr) iter = tmp_token_list->first;
+            while (NULL != iter) 
+            {
+                struct np_data_conf cfg;
+                np_data_value recv_threshold;
 
-            if (np_get_data(tmp_token->attributes, "max_threshold", &cfg, &max_threshold) == np_ok){
-                uint32_t recv_threshold = max_threshold.unsigned_integer;
-
-                if (recv_threshold < my_property->max_threshold) {
-                    log_debug_msg(LOG_WARN, "reduce max threshold for subject (%s/%u) because receiver %s has lower, otherwise MESSAGE LOSS IS GUARANTEED!", my_property->msg_subject, recv_threshold, tmp_token->issuer);
+                if (np_get_data(iter->val->attributes, "max_threshold", &cfg, &recv_threshold) == np_ok) {
+                    if (recv_threshold.unsigned_integer < my_property->max_threshold) {
+                        log_debug_msg(LOG_WARN, "reduce max threshold for subject (%s/%u) because receiver %s has lower, otherwise MESSAGE LOSS IS GUARANTEED!", my_property->msg_subject, recv_threshold, iter->val->issuer);
+                    }
                 }
-
-                log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s/%s) with receiver token %s %s...", my_property->msg_subject, message->uuid, tmp_token->uuid, tmp_token->issuer);
-                // encrypt the relevant message part itself
-                np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(receiver_dhkey));
-
-                _np_message_trace_info("MSG_WRAPPER", message);
-
-                _np_message_encrypt_payload(message, tmp_token);
-
-                if (FLAG_CMP(my_property->ack_mode, ACK_DESTINATION))
-                {
-                    np_dhkey_t redeliver_dhkey = _np_msgproperty_dhkey(OUTBOUND, my_property->msg_subject);
-                    np_util_event_t redeliver_event = { .type=(evt_redeliver|evt_internal|evt_message), .context=context, .target_dhkey=redeliver_dhkey, .user_data=message };
-                    _np_keycache_handle_event(context, redeliver_dhkey, redeliver_event, false);
-                    _np_message_add_msg_response_handler(message);
-                }
-            }else{
-                log_error("There is an structual error in this token %s %s. (missing key \"max_threshold\")", my_property->msg_subject, tmp_token->issuer);
+                np_dhkey_t _issuer_dhkey = np_dhkey_create_from_hash(iter->val->issuer);
+                _np_dhkey_add(&_computed_to, &_computed_to, &_issuer_dhkey);
+                sll_next(iter);
             }
-        }
+
+            np_tree_replace_str(message->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(_computed_to));
+
+            // encrypt the relevant message part itself
+            _np_message_encrypt_payload(message, tmp_token_list);
+
+            if (FLAG_CMP(my_property->ack_mode, ACK_DESTINATION))
+            {
+                np_dhkey_t redeliver_dhkey = _np_msgproperty_dhkey(OUTBOUND, my_property->msg_subject);
+                np_util_event_t redeliver_event = { .type=(evt_redeliver|evt_internal|evt_message), .context=context, .target_dhkey=redeliver_dhkey, .user_data=message };
+                _np_keycache_handle_event(context, redeliver_dhkey, redeliver_event, false);
+                _np_message_add_msg_response_handler(message);
+            }
+        // }
         // decrease threshold counters
-        np_unref_obj(np_aaatoken_t, tmp_token, "_np_intent_get_receiver");
+        np_aaatoken_unref_list(tmp_token_list, "_np_intent_get_all_receiver");
+        // np_unref_obj(np_aaatoken_t, tmp_token, "_np_intent_get_all_receiver");
         ret = true;
     }
     np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
-
+    sll_free(np_aaatoken_ptr, tmp_token_list);
     return ret;
 }
 

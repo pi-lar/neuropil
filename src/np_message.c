@@ -802,7 +802,7 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
     np_tree_free(old);
 };
 
-void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
+void _np_message_encrypt_payload(np_message_t* msg, np_sll_t(np_aaatoken_ptr,tmp_token) )
 {
     np_ctx_memory(msg);
 
@@ -813,7 +813,6 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     randombytes_buf((void*) nonce, crypto_box_NONCEBYTES);
     randombytes_buf((void*) sym_key, crypto_secretbox_KEYBYTES);
 
-    int crypto = 0;
     _np_messagepart_encrypt(context, msg->body, nonce, sym_key, NULL);
 
     // now encrypt the encryption key using public key crypto stuff
@@ -823,27 +822,10 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     // convert our own sign key to an encryption key
     // crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
     //                                                context->my_identity->aaa_token->crypto.ed25519_secret_key);
-
     // convert our partner key to an encryption key
     // unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
     // crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key, tmp_token->crypto.ed25519_public_key);
 
-#ifdef DEBUG
-    char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1];
-    char partner_key[crypto_scalarmult_curve25519_BYTES*2+1];
-    sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, _np_key_get_token(context->my_identity)->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
-    sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, tmp_token->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
-    log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) encrypt: pa pk: %s ### my pk: %s\n", msg->uuid, partner_key, curve25519_pk);
-#endif
-
-    // finally encrypt
-    crypto += crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
-    		                      tmp_token->crypto.derived_kx_public_key, _np_key_get_token(context->my_identity)->crypto.derived_kx_secret_key);
-    if (0 > crypto)
-    {
-        log_msg(LOG_ERROR, "encryption of message payload failed");
-        return;
-    }
 /*
     log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "ciphertext: %s", ciphertext);
     log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);
@@ -851,16 +833,41 @@ void _np_message_encrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
 */
 
     np_tree_t* encryption_details = np_tree_create();
-    // insert the public-key encrypted encryption key for each receiver of the message
-    np_tree_insert_str( encryption_details, NP_NONCE,
-                   np_treeval_new_bin(nonce, crypto_box_NONCEBYTES));
-    np_tree_insert_str( encryption_details, tmp_token->issuer,
-                   np_treeval_new_bin(ciphertext,
+
+    sll_iterator(np_aaatoken_ptr) iter = tmp_token->first;
+
+    while (NULL != iter) 
+    {   // finally encrypt
+        #ifdef DEBUG
+            char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1];
+            char partner_key[crypto_scalarmult_curve25519_BYTES*2+1];
+            sodium_bin2hex(curve25519_pk, crypto_scalarmult_curve25519_BYTES*2+1, _np_key_get_token(context->my_identity)->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+            sodium_bin2hex(partner_key, crypto_scalarmult_curve25519_BYTES*2+1, iter->val->crypto.derived_kx_public_key, crypto_scalarmult_curve25519_BYTES);
+            log_debug_msg(LOG_DEBUG | LOG_MESSAGE, "message (%s) encrypt: pa pk: %s ### my pk: %s\n", msg->uuid, partner_key, curve25519_pk);
+        #endif
+        int crypto = crypto_box_easy(ciphertext, sym_key, crypto_secretbox_KEYBYTES, nonce,
+                                     iter->val->crypto.derived_kx_public_key, _np_key_get_token(context->my_identity)->crypto.derived_kx_secret_key);
+        if (0 > crypto)
+        {
+            log_msg(LOG_ERROR, "encryption of message payload failed for receiver %s", iter->val->issuer);
+            // return;
+        }
+        else
+        {
+            log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "encrypting message (%s) with receiver token %s %s...", msg->uuid, iter->val->uuid, iter->val->issuer);
+            // insert the public-key encrypted encryption key for each receiver of the message
+            np_tree_insert_str( encryption_details, iter->val->issuer,
+                                np_treeval_new_bin(ciphertext,
                                 crypto_box_MACBYTES + crypto_secretbox_KEYBYTES));
+        }
+        sll_next(iter);
+    }
+    np_tree_insert_str( encryption_details, NP_NONCE,
+                        np_treeval_new_bin(nonce, crypto_box_NONCEBYTES));
     // add encryption details to the message
     np_tree_insert_str( msg->body, NP_SYMKEY, np_treeval_new_tree(encryption_details));
-    np_tree_free(encryption_details);
 
+    np_tree_free(encryption_details);
 }
 
 bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)

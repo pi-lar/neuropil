@@ -659,7 +659,7 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
             np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
             NP_PERFORMANCE_POINT_END(is_usr_in_message);
         }
-
+/*
         if (ret) 
         {
             CHECK_STR_FIELD_BOOL(usr_message->header, _NP_MSG_HEADER_TO, str_msg_to, "NO TO IN MESSAGE") 
@@ -667,6 +667,8 @@ bool __is_usr_in_message(np_util_statemachine_t* statemachine, const np_util_eve
                 ret &= _np_dhkey_equal(&context->my_node_key->dhkey, &str_msg_to->val.value.dhkey);
             }
         }
+*/
+
     }
     return ret;
 }
