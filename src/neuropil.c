@@ -463,9 +463,25 @@ bool np_has_receiver_for(np_context*ac, const char * subject)
 
     np_ctx_cast(ac);
     bool ret = false;
-    if (_np_route_my_key_has_connection(context)) {
-        ret = true;
-    }
+
+    np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, subject);
+    np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
+
+    np_sll_t(np_aaatoken_ptr, receiver_list);
+    sll_init(np_aaatoken_ptr, receiver_list);
+
+    np_dhkey_t null_dhkey = {0};
+    _np_intent_get_all_receiver(prop_key, null_dhkey, &receiver_list);
+
+    if (sll_size(receiver_list) > 0) ret = true;
+
+    np_aaatoken_unref_list(receiver_list, "_np_intent_get_all_receiver");
+    sll_free(np_aaatoken_ptr, receiver_list);
+    np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
+
+    // if (_np_route_my_key_has_connection(context)) {
+    // ret = true;
+    // }
     return ret;
 }
 
