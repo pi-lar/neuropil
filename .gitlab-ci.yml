@@ -2,7 +2,7 @@ default:
   image: $CI_REGISTRY_IMAGE/dev-enviroment
 
 cache:
-  key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
+  key: "${CI_COMMIT_SHA}"
   paths:
     - .venv
 
@@ -62,23 +62,6 @@ build:linux:
     paths:
       - build/neuropil
 
-package:linux:
-  stage: package
-  script:
-    - ./do package
-    - mkdir -p neuropil
-    - mv build/package/* neuropil/
-  artifacts:
-    name: neuropil-linux
-    paths:
-      - neuropil
-    expire_in: 2 year
-  rules:
-    - if: '$CI_COMMIT_TAG != null'
-  dependencies:
-    - build:documentation
-    - build:linux
-
 qa:smoke_tests:
   stage: qa
   script:
@@ -93,27 +76,11 @@ qa:smoke_tests:
   rules:
     - if: '$CI_COMMIT_TAG == null'
 
-release:
+request:
   stage: release
-  script:
-    - ./do release
-    # auto saltstack deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_TAG == null'
-      when: manual
-  dependencies:
-    - package:linux
-
-pages:
-  stage: release
-  script:
-    - mkdir -p public
-    - mv build/doc/html/* public
-  artifacts:
-    paths:
-    - public/
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_TAG == null'
-      when: manual
-  dependencies:
-    - build:documentation
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: '$CI_COMMIT_REF_PROTECTED'
+  trigger:
+    include: .gitlab-ci-deployment.yml
