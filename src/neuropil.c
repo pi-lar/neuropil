@@ -20,6 +20,7 @@
 
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
+#include "core/np_comp_intent.h"
 #include "util/np_event.h"
 
 
@@ -479,9 +480,6 @@ bool np_has_receiver_for(np_context*ac, const char * subject)
     sll_free(np_aaatoken_ptr, receiver_list);
     np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
 
-    // if (_np_route_my_key_has_connection(context)) {
-    // ret = true;
-    // }
     return ret;
 }
 

@@ -1,5 +1,5 @@
 import unittest
-import time  
+import time
 import math
 from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message, np_id, _NeuropilHelper
 from _neuropil import ffi
@@ -16,27 +16,19 @@ class PubSubTest(unittest.TestCase):
 
     @staticmethod
     def authn_allow_cluster(node:NeuropilNode, token:np_token):
-        id = ffi.new("np_id", b'\0')
-        ret = neuropil.np_token_fingerprint(node._context, _NeuropilHelper.convert_from_python(token), False, ffi.addressof(id))
-        if ret is not neuropil.np_ok:
-            return False
-
-        for node_obj, node_fp in PubSubTest.np_c_fp: 
-            if str(np_id(id)) == str(node_fp):
+        token_id = token.get_fingerprint(False)
+        for node_obj, node_fp in PubSubTest.np_c_fp:
+            if str(token_id) == str(node_fp):
                 # print ("{time:.3f} / {node}: 1 authentication granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id) ))
                 return True
             if str(node.get_fingerprint()) == str(node_fp):
                 # print ("{time:.3f} / {node}: 2 authentication granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id) ))
                 return True
-
+        #print ("{time:.3f} / {node}: 3 authentication NOT granted to {fp}".format(time=float(time.time()), node=node.get_fingerprint(), fp=token_id ))
         return False
 
     @staticmethod
     def authz_allow_all(node:NeuropilNode, token:np_token):
-        id = ffi.new("np_id", b'\0')
-        ret = neuropil.np_token_fingerprint(node._context, _NeuropilHelper.convert_from_python(token), False, ffi.addressof(id))
-        if ret is not neuropil.np_ok:
-            return False
         # print ("{time:.3f} / {node}: 1 authorization granted to token {fp} / {issuer}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id), issuer=token.issuer ))
         return True
 
@@ -54,7 +46,7 @@ class PubSubTest(unittest.TestCase):
         np_s1 = NeuropilNode(5512, log_file="logs/smoke_test_pubsub_s1.log", auto_run=False, no_threads=4)
 
         subject = b"NP.TEST.pubsub.1"
-        
+
         mxp = np_r1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp.max_retry = 5
@@ -74,21 +66,21 @@ class PubSubTest(unittest.TestCase):
         np_c.set_authorize_cb(TestHelper.authz_allow_all)
         np_c.set_accounting_cb(TestHelper.acc_allow_all)
         np_c.run(0)
-        
+
         np_r1.set_authenticate_cb(PubSubTest.authn_allow_cluster)
         np_r1.set_authorize_cb(TestHelper.authz_allow_all)
         np_r1.set_accounting_cb(TestHelper.acc_allow_all)
         np_r1.run(0)
-        
+
         np_r2.set_authenticate_cb(PubSubTest.authn_allow_cluster)
         np_r2.set_authorize_cb(TestHelper.authz_allow_all)
         np_r2.set_accounting_cb(TestHelper.acc_allow_all)
-        np_r2.run(0)        
+        np_r2.run(0)
 
         np_s1.set_authenticate_cb(PubSubTest.authn_allow_cluster)
         np_s1.set_authorize_cb(PubSubTest.authz_allow_all)
         np_s1.set_accounting_cb(TestHelper.acc_allow_all)
-        np_s1.run(0)        
+        np_s1.run(0)
 
         PubSubTest.np_c_fp  = np_c.get_fingerprint()
 
@@ -101,26 +93,24 @@ class PubSubTest(unittest.TestCase):
         np_c.join(nps1_addr)
 
         t1 = time.time()
+        receiver_available = None
         timeout = 150 #sec
         try:
-            while True:
+            while PubSubTest.msg_delivery_succ < 2:
                 elapsed = float(time.time() - t1)
-                # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
-                if np_s1.np_has_receiver_for(subject) and elapsed > 45 and not PubSubTest.send :
-                    # print ("{time:.3f} / {node}: 2 sending message".format(time=float(time.time()), node=np_s1.get_fingerprint() ) )
-                    np_s1.send(subject, b'test')
-                    PubSubTest.send = True
-
-                if PubSubTest.msg_delivery_succ >= 2:
-                    break
+                if receiver_available == None:
+                    if np_s1.np_has_receiver_for(subject):
+                        receiver_available = elapsed
+                else:
+                    if elapsed > receiver_available+5 and not PubSubTest.send:
+                        # print ("{time:.3f} / {node}: 2 sending message".format(time=float(time.time()), node=np_s1.get_fingerprint() ) )
+                        np_s1.send(subject, b'test')
+                        PubSubTest.send = True
 
                 if elapsed > timeout:
                     raise TimeoutError
 
-                np_s1.run(math.pi/10)
-                np_r2.run(math.pi/10)
                 np_r1.run(math.pi/10)
-                np_c.run(math.pi/10)
 
         finally:
             np_s1.shutdown()
@@ -129,5 +119,5 @@ class PubSubTest(unittest.TestCase):
             np_c.shutdown()
 
     def tearDown(self):
-        self.assertTrue(True == PubSubTest.send)       
+        self.assertTrue(True == PubSubTest.send)
         self.assertTrue(2 == PubSubTest.msg_delivery_succ)
