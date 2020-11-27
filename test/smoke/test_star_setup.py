@@ -79,7 +79,7 @@ class StarSetupTest(unittest.TestCase):
         np_1.run(math.pi/10)
         t1 = time.time()
         timeout = 120 #sec
-        while True:
+        while not self.isOK():
             elapsed = float(time.time() - t1)
             # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
             if elapsed % 2 == 0:
@@ -116,7 +116,7 @@ class StarSetupTest(unittest.TestCase):
 
         t1 = time.time()
         timeout = 120 #sec
-        while True:
+        while not self.isOK():
             elapsed = float(time.time() - t1)
             # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
             if elapsed % 2 == 0:
@@ -139,7 +139,7 @@ class StarSetupTest(unittest.TestCase):
 
         t1 = time.time()
         timeout = 120 #sec
-        while True:
+        while not self.isOK():
             elapsed = float(time.time() - t1)
             # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
             if elapsed % 2 == 0:
@@ -151,6 +151,8 @@ class StarSetupTest(unittest.TestCase):
             np_0.run(math.pi/10)
         np_0.shutdown()
 
+    def isOK(self):
+        return StarSetupTest.send.value and  StarSetupTest.msg_delivery_succ.value
     def test_star_setup_delivery(self):
 
         send = Value('i', 0)

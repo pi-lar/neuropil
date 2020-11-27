@@ -1,18 +1,20 @@
 import unittest
 import time
+import math
 from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
 from misc import TestHelper
+from multiprocessing import Value
+from ctypes import c_char, c_bool
 
-msg_delivery_succ = False
 class MsgDeliveryTest(unittest.TestCase):
+    msg_delivery_succ = Value(c_bool, False)
+
     @staticmethod
     def msg_received(node:NeuropilNode, message:np_message):
-        global msg_delivery_succ
-        msg_delivery_succ = True
+        MsgDeliveryTest.msg_delivery_succ.value = True
         return True
 
     def test_msg_delivery(self):
-        global msg_delivery_succ
 
         np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_msg_delivery_cl_")
         np_1 = NeuropilNode(4001, log_file="logs/smoke_test_msg_delivery_nl1.log", auto_run=False, no_threads=6)
@@ -45,18 +47,15 @@ class MsgDeliveryTest(unittest.TestCase):
         elapsed = 0.
         send = False
         try:
-            while elapsed < timeout:
+            while elapsed < timeout and not MsgDeliveryTest.msg_delivery_succ.value:
                 elapsed = float(time.time() - t1)
                 # TODO: remove elapsed > X condition after reimplementation of np_has_receiver_for or a corresponding cache system
-                if np_1.np_has_receiver_for(subject) and elapsed > mxp1.message_ttl and not send :
+                if np_1.np_has_receiver_for(subject) and (elapsed > mxp1.message_ttl or not send) :
                     if np_1.send(subject, b'test') != neuropil.np_ok:
                         print("ERROR sending Data")
                     else:
-                        print("sending Data")
                         send = True
-
-                if msg_delivery_succ:
-                    break
+                np_1.run(math.pi/10)
 
         finally:
             np_1.shutdown()
@@ -64,4 +63,4 @@ class MsgDeliveryTest(unittest.TestCase):
             np_c.shutdown()
 
         self.assertTrue(send)
-        self.assertTrue(msg_delivery_succ)
+        self.assertTrue(MsgDeliveryTest.msg_delivery_succ.value)
