@@ -138,7 +138,7 @@ if __name__ == "__main__":
             project_id = os.getenv("CI_PROJECT_ID","14096230")
             base_url = os.environ.get("CI_SERVER_URL","https://gitlab.com")
             api_url = os.environ.get("CI_API_V4_URL",f"{base_url}/api/v4")
-            project_path_slug = os.environ.get("CI_PROJECT_PATH_SLUG", "pi-lar/neuropil")
+            project_path_slug = os.environ.get("CI_PROJECT_PATH", "pi-lar/neuropil")
 
             print(f"tag_ref: {tag_ref}")
             print(f"CI_PIPELINE_IID: {CI_PIPELINE_IID}")
