@@ -16,7 +16,7 @@ class MsgDeliveryTest(unittest.TestCase):
 
     def test_msg_delivery(self):
 
-        np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_msg_delivery_cl_")
+        np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_test_msg_delivery_cl_")
         np_1 = NeuropilNode(4001, log_file="logs/smoke_test_msg_delivery_nl1.log", auto_run=False, no_threads=6)
         np_2 = NeuropilNode(4002, log_file="logs/smoke_test_msg_delivery_nl2.log",auto_run=False)
 
@@ -49,8 +49,8 @@ class MsgDeliveryTest(unittest.TestCase):
         try:
             while elapsed < timeout and not MsgDeliveryTest.msg_delivery_succ.value:
                 elapsed = float(time.time() - t1)
-                # TODO: remove elapsed > X condition after reimplementation of np_has_receiver_for or a corresponding cache system
-                if np_1.np_has_receiver_for(subject) and (elapsed > mxp1.message_ttl or not send) :
+
+                if np_1.np_has_receiver_for(subject) and not send:
                     if np_1.send(subject, b'test') != neuropil.np_ok:
                         print("ERROR sending Data")
                     else:

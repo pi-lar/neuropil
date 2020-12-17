@@ -121,6 +121,15 @@ np_context* np_new_context(struct np_settings * settings_in)
         log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
         status = np_startup;
     }
+    else if (_np_statistics_init(context) == false)
+    {
+        log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
+        status = np_startup;
+    }
+    else if (_np_threads_init(context) == false) {
+        log_msg(LOG_ERROR, "neuropil_init: could not init threading mutexes");
+        status = np_startup;
+    }
     else if (_np_event_init(context) == false)
     {
         log_msg(LOG_ERROR, "neuropil_init: could not init event system");
@@ -129,10 +138,6 @@ np_context* np_new_context(struct np_settings * settings_in)
     else if (_np_log_init(context, settings->log_file, settings->log_level) == false) {
         log_msg(LOG_ERROR, "neuropil_init: could not init logging");
         status = np_startup;       
-    }
-    else if (_np_threads_init(context) == false) {
-        log_msg(LOG_ERROR, "neuropil_init: could not init threading mutexes");
-        status = np_startup;
     }
     else if (_np_memory_init(context) == false) {
         log_msg(LOG_ERROR, "neuropil_init: could not init memory");
@@ -283,10 +288,10 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
             {
                 log_msg(LOG_ERROR, "neuropil_init: _np_bootstrap_init failed: %s", strerror(errno));
                 ret = np_startup;
-            }				                    
-            else if (_np_statistics_init(context) == false) 
+            }
+            else if (!_np_statistics_enable(context))
             {
-                log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
+                log_msg(LOG_ERROR, "neuropil_init: could not enable statistics");
                 ret = np_startup;
             }
             else 

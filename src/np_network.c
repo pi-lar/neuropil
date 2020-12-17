@@ -626,36 +626,44 @@ void _np_network_start(np_network_t* network, bool force)
 
     TSP_GET(bool, network->can_be_enabled, can_be_enabled);
     if (can_be_enabled) {
-        NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
-        _LOCK_ACCESS(&network->access_lock) {
-            NP_PERFORMANCE_POINT_END(network_start_out_events_lock);
-            if (network->is_running == false)
-            {
-                EV_P;
-                if (FLAG_CMP(network->type , np_network_type_server)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
-                    _np_event_suspend_loop_in(context);
-                    loop = _np_event_get_loop_in(context);
-                    // ev_io_stop(EV_A_ &network->watcher);
-                    // ev_io_set(&network->watcher, network->socket, EV_READ);
-                    ev_io_start(EV_A_ &network->watcher_in);
-                    _np_event_reconfigure_loop_in(context);
-                    _np_event_resume_loop_in(context);
+        EV_P;
+        if (FLAG_CMP(network->type , np_network_type_server)) {
+            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
+            _np_event_suspend_loop_in(context);
+            loop = _np_event_get_loop_in(context);
+            NP_PERFORMANCE_POINT_START(network_start_in_events_lock);
+            _LOCK_ACCESS(&network->access_lock) {
+                NP_PERFORMANCE_POINT_END(network_start_in_events_lock);
+                if (network->is_running == false)
+                {
+                        // ev_io_stop(EV_A_ &network->watcher);
+                        // ev_io_set(&network->watcher, network->socket, EV_READ);
+                        ev_io_start(EV_A_ &network->watcher_in);
+                        _np_event_reconfigure_loop_in(context);
                 }
-
-                if (FLAG_CMP(network->type, np_network_type_client)) {
-                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
-                    _np_event_suspend_loop_out(context);
-                    loop = _np_event_get_loop_out(context);
-                    // ev_io_stop(EV_A_ &network->watcher);
-                    // ev_io_set(&network->watcher, network->socket, EV_WRITE);
-                    ev_io_start(EV_A_ &network->watcher_out);
-                    _np_event_reconfigure_loop_out(context);
-                    _np_event_resume_loop_out(context);
-                }
-                network->is_running = true;
             }
+            _np_event_resume_loop_in(context);
         }
+
+        if (FLAG_CMP(network->type, np_network_type_client)) {
+            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
+            _np_event_suspend_loop_out(context);
+            loop = _np_event_get_loop_out(context);
+
+            NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
+            _LOCK_ACCESS(&network->access_lock) {
+                NP_PERFORMANCE_POINT_END(network_start_out_events_lock);
+                if (network->is_running == false)
+                {
+                        // ev_io_stop(EV_A_ &network->watcher);
+                        // ev_io_set(&network->watcher, network->socket, EV_WRITE);
+                        ev_io_start(EV_A_ &network->watcher_out);
+                }
+            }
+            _np_event_reconfigure_loop_out(context);
+            _np_event_resume_loop_out(context);
+        }
+        network->is_running = true;
     }
 }
 
@@ -808,6 +816,12 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                 return false;
             }
             /* attach socket to #port#. */
+            if (-1 == setsockopt(ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one)))
+            {
+                log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror(errno));
+                __np_network_close(ng);
+                return false;
+            }
             if (0 > bind(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen))
             {
                 // UDP note: not using a connected socket for sending messages to a different target_node
@@ -816,12 +830,6 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                 log_msg(LOG_ERROR, "bind failed for %s:%s: %s", hostname, service, strerror(errno));
                 __np_network_close(ng);
                 // listening port could not be opened
-                return false;
-            }
-            if (-1 == setsockopt(ng->socket, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one)))
-            {
-                log_msg(LOG_ERROR, "setsockopt (SO_REUSEADDR): %s: ", strerror(errno));
-                __np_network_close(ng);
                 return false;
             }
             if (FLAG_CMP(type, TCP) && 0 > listen(ng->socket, 10) ) {

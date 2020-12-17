@@ -72,6 +72,15 @@ class IPTransportTest(unittest.TestCase):
             IPTransportTest.pas4_connections.value >= 2 and
             IPTransportTest.pas6_connections.value >= 2
         )
+    def isOKAssert(self):
+
+        self.assertGreaterEqual(IPTransportTest.udp4_connections.value, 4)
+        self.assertGreaterEqual(IPTransportTest.udp6_connections.value, 4)
+        self.assertGreaterEqual(IPTransportTest.tcp4_connections.value, 4)
+        self.assertGreaterEqual(IPTransportTest.tcp6_connections.value, 4)
+        self.assertGreaterEqual(IPTransportTest.pas4_connections.value, 2)
+        self.assertGreaterEqual(IPTransportTest.pas6_connections.value, 2)
+
     def test_ip_transports(self):
 
         processes = []
@@ -105,5 +114,5 @@ class IPTransportTest(unittest.TestCase):
             p.join()
 
         # test targets
-        self.assertTrue(self.isOK())
+        self.isOKAssert()
 

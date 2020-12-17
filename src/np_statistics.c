@@ -95,7 +95,7 @@ bool __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_util_even
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_uptime], get_timestamp()-((uint64_t)_module->startup_time*1000));
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_neighbor_count], _np_route_my_key_count_neighbors(context, NULL, NULL));        
     prometheus_metric_set(_module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_route_count], _np_route_my_key_count_routes(context));
-    
+
     return true;
 }
 
@@ -146,16 +146,31 @@ bool _np_statistics_init(np_state_t* context) {
 #ifdef DEBUG_CALLBACKS
         sll_init(void_ptr, _module->__np_debug_statistics);
 #endif
+#ifdef NP_BENCHMARKING
+        for(int container_idx = 0; container_idx < np_statistics_performance_point_END; container_idx++){
+            np_statistics_performance_point_t container = _module->performance_points[container_idx];
+            container.durations_idx = 0;
+            container.durations_count = 0;
+            container.hit_count = 0;
+            char mutex_str[64];
+            snprintf(mutex_str, 63, "urn:np:statistics:%s:%s", "perfpoint", np_statistics_performance_point_str[container_idx]);
+            _np_threads_mutex_init(context, &container.access, mutex_str);
+            container.name = np_statistics_performance_point_str[container_idx];
+        }
+#endif
+
+    }
+    return true;
+}
+bool _np_statistics_enable(np_state_t* context) {
 
         np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,0.,
                                           NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL,
                                           __np_statistics_gather_data_clb,
                                           "__np_statistics_gather_data_clb");
 
-    }
     return true;
 }
-
 typedef struct np_statistics_per_subject_metrics_s {
     prometheus_metric* received_msgs;
     prometheus_metric* send_msgs;
@@ -642,9 +657,9 @@ char* __np_statistics_debug_print(np_state_t * context) {
 
         ret = np_str_concatAndFree(ret, "%85s --> %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "hits");
         while (iter != NULL) {
-            _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;			
+            _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;
             ret = np_str_concatAndFree(ret, "%85s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
-                item->key, item->min, item->avg, item->max, item->count);								
+                item->key, item->min, item->avg, item->max, item->count);
             sll_next(iter);
         }
     }
@@ -656,20 +671,21 @@ void _np_statistics_debug_ele_destroy(np_state_t* context, void* item) {
     free(ele);
 }
 _np_statistics_debug_t* _np_statistics_debug_add(np_state_t * context, char* key, double value) {
-    _np_statistics_debug_t* item = __np_statistics_debug_get(context, key);
-    if (item == NULL) {
-        item = (_np_statistics_debug_t*)calloc(1, sizeof(_np_statistics_debug_t));
-        item->min = DBL_MAX;
-        item->max = 0;
-        item->avg = 0;
-        memcpy(item->key, key, strnlen(key, 254));
-        char mutex_str[64];
-        snprintf(mutex_str, 63, "%s", "urn:np:statistics:access");
-        _np_threads_mutex_init(context, &item->lock, mutex_str);
+    _np_statistics_debug_t* item;
+    _LOCK_MODULE(np_utilstatistics_t) {
+        item = __np_statistics_debug_get(context, key);
+        if (item == NULL) {
+            item = (_np_statistics_debug_t*)calloc(1, sizeof(_np_statistics_debug_t));
+            item->min = DBL_MAX;
+            item->max = 0;
+            item->avg = 0;
+            memcpy(item->key, key, strnlen(key, 254));
+            char mutex_str[64];
+            snprintf(mutex_str, 63, "%s", "urn:np:statistics:access");
+            _np_threads_mutex_init(context, &item->lock, mutex_str);
 
-        _LOCK_MODULE(np_utilstatistics_t) {
-            sll_append(void_ptr, np_module(statistics)->__np_debug_statistics, (void_ptr)item);
-        }
+                sll_append(void_ptr, np_module(statistics)->__np_debug_statistics, (void_ptr)item);
+            }
     }
 
     _LOCK_ACCESS(&item->lock)
@@ -684,12 +700,14 @@ _np_statistics_debug_t* _np_statistics_debug_add(np_state_t * context, char* key
     return item;
 }
 void  _np_statistics_debug_destroy(np_state_t * context) {
-    sll_iterator(void_ptr) iter_np_debug_statistics = sll_first(np_module(statistics)->__np_debug_statistics);
-    while (iter_np_debug_statistics != NULL)
-    {
-        _np_statistics_debug_ele_destroy(context, (void*)iter_np_debug_statistics->val);
-        sll_next(iter_np_debug_statistics);
+    _LOCK_MODULE(np_utilstatistics_t) {
+        sll_iterator(void_ptr) iter_np_debug_statistics = sll_first(np_module(statistics)->__np_debug_statistics);
+        while (iter_np_debug_statistics != NULL)
+        {
+            _np_statistics_debug_ele_destroy(context, (void*)iter_np_debug_statistics->val);
+            sll_next(iter_np_debug_statistics);
+        }
+        sll_free(void_ptr, np_module(statistics)->__np_debug_statistics);
     }
-    sll_free(void_ptr, np_module(statistics)->__np_debug_statistics);
 }
 #endif

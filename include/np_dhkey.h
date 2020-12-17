@@ -18,6 +18,7 @@ extern "C" {
 		uint32_t t[8];
 	} NP_PACKED;
 
+static const np_dhkey_t dhkey_zero = {0};
 /* key_comp: k1, k2
  * returns > 0 if k1>k2, < 0 if k1<k2, and 0 if k1==k2
  */

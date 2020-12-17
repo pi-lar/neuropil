@@ -141,8 +141,6 @@ task_release() {
 
 task_install_python() {
   ensure_venv
-  task_build release "$@"
-  task_build release python_binding=1 "$@"
   pip3 install -e bindings/python_cffi
 
   if [ "$(uname -s)" == "Mac" ]
@@ -217,13 +215,33 @@ task_smoke() {
       read -r -p "${1:-Debug with gdb? [y/N]} " response
       case "$response" in
           [yY][eE][sS]|[yY])
-              gdb --silent -ex=r --args nose2 -v --config config/snose2.cfg
+              gdb --silent -ex=r --args nose2 -v --config configs/nose2.cfg
               ;;
           *)
               ;;
       esac
     fi
     set -e
+    return $e
+  )
+}
+task_helgrind() {
+  pwd=$(pwd)
+  (
+    ensure_venv
+    task_install_python
+
+    cd build
+    mkdir -p logs
+    echo "export LD_LIBRARY_PATH=$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
+
+    date > helgrind.out
+    set +e
+    valgrind --gen-suppressions=all --tool=helgrind --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" >> helgrind.out 2>&1;
+    e=$?
+    set -e
+    echo "retcode: $e"
     return $e
   )
 }
@@ -243,10 +261,11 @@ task_ensure_dependencies() {
 
 task_test_deployment() {
   task_test
-  task_build release
+  task_build release python_binding=1
   #task_build freebsd
   task_doc
   task_package
+
   task_install_python
   task_smoke
 }
@@ -256,7 +275,7 @@ task_pre_commit(){
   python3 scripts/util/build_helper.py --update_strings
 }
 usage() {
-  echo "$0  build | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un | ensure_dependencies | pre_commit"
+  echo "$0  build | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un | ensure_dependencies | pre_commit | helgrind"
   exit 1
 }
 
@@ -287,6 +306,8 @@ shift || true
 
     prepare_ci) task_prepare_ci ;;
     pre_commit) task_pre_commit ;;
+
+    helgrind) task_helgrind "$@";;
 
     test_deployment) task_test_deployment ;;
     *) usage ;;

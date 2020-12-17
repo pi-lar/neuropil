@@ -54,7 +54,7 @@ struct np_key_s
 
     // np_mutex_t key_lock;
     np_dhkey_t dhkey;
-    char*      dhkey_str;
+    char      dhkey_str[65];
     np_bloom_t* bloom_scent;
 
     double created_at;

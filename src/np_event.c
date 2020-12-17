@@ -18,7 +18,7 @@
 #include "tree/tree.h"
 
 #include "np_constants.h"
-#include "np_settings.h" 
+#include "np_settings.h"
 #include "np_log.h"
 
 #include "np_key.h"
@@ -150,8 +150,8 @@
 
 
 np_module_struct(events) {
-    np_state_t* context;    
-    
+    np_state_t* context;
+
     __NP_EVENT_EVLOOP_STRUCTS(in);
     __NP_EVENT_EVLOOP_STRUCTS(out);
     __NP_EVENT_EVLOOP_STRUCTS(http);

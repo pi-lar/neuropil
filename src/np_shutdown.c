@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "np_legacy.h"
 #include "np_shutdown.h"
@@ -34,20 +35,30 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
 
 #define __NP_SHUTDOWN_SIGNAL SIGINT
 
+NP_SLL_GENERATE_IMPLEMENTATION(np_state_ptr);
+np_sll_t(np_state_ptr, context_list) = NULL;
+
 np_module_struct(shutdown) {
     np_state_t* context;
     TSP(sll_return(np_destroycallback_t), on_destroy);
     bool invoke;
     struct sigaction sigact;
-}; 
+};
 
 static void __np_shutdown_signal_handler(int sig)
 {
-    np_thread_t* self = _np_threads_get_self(NULL);
-    np_ctx_memory(self);
-    // log_debug(LOG_MISC, "Received signal %d", sig);
-    if (FLAG_CMP(sig, __NP_SHUTDOWN_SIGNAL)) {
-        np_module(shutdown)->invoke = true;
+    sll_iterator(np_state_ptr) iter = NULL;
+
+    if(context_list!=NULL){
+        if (FLAG_CMP(sig, __NP_SHUTDOWN_SIGNAL)) {
+            for (iter = sll_first(context_list);iter != NULL;sll_next(iter))
+            {
+                np_thread_t* self = _np_threads_get_self((np_state_t*)iter->val);
+                np_ctx_memory(self);
+                log_debug(LOG_MISC, "Received shutdown signal");
+                np_module(shutdown)->invoke = true;
+            }
+        }
     }
 }
 
@@ -65,9 +76,9 @@ void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
 
 bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event)
 {
-    if (np_module(shutdown)->invoke) {     
+    if (np_module(shutdown)->invoke) {
         log_warn(LOG_MISC, "Received terminating process signal. Shutdown in progress.");
-        np_destroy(context, false);   
+        np_destroy(context, false);
     }
     return true;
 }
@@ -75,6 +86,10 @@ bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event)
 void _np_shutdown_init(np_state_t* context) {
 
     if (np_module_not_initiated(shutdown)) {
+        if(context_list == NULL){
+            sll_init(np_state_ptr, context_list);
+        }
+        sll_append(np_state_ptr, context_list, (np_state_ptr)context);
         np_module_malloc(shutdown);
         TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));
         _module->invoke = false;
@@ -82,7 +97,7 @@ void _np_shutdown_init(np_state_t* context) {
         memset(&_module->sigact, 0, sizeof(_module->sigact));
         _module->sigact.sa_handler = __np_shutdown_signal_handler;
         sigemptyset(&_module->sigact.sa_mask);
-        _module->sigact.sa_flags = 0;            
+        _module->sigact.sa_flags = 0;
         int res = sigaction(__NP_SHUTDOWN_SIGNAL, &_module->sigact, NULL);
         log_debug(LOG_MISC, "Init signal %d", res);
 
