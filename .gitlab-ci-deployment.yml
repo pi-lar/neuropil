@@ -7,29 +7,8 @@ cache:
     - .venv
 
 stages:
-  - package
   - distribute
 
-package:linux:
-  stage: package
-  script:
-    - echo "Download links https://gitlab.com/$CI_PROJECT_PATH/-/jobs/artifacts/$CI_COMMIT_SHA/download?job=build:documentation"
-    - wget "https://gitlab.com/$CI_PROJECT_PATH/-/jobs/artifacts/$CI_COMMIT_SHA/download?job=build:documentation" -O "/tmp/$CI_COMMIT_SHA.zip"
-    - unzip "/tmp/$CI_COMMIT_SHA.zip"
-    - rm "/tmp/$CI_COMMIT_SHA.zip"
-    - wget "https://gitlab.com/$CI_PROJECT_PATH/-/jobs/artifacts/$CI_COMMIT_SHA/download?job=build:linux" -O "/tmp/$CI_COMMIT_SHA.zip"
-    - unzip "/tmp/$CI_COMMIT_SHA.zip"
-    - rm "/tmp/$CI_COMMIT_SHA.zip"
-    - ./do package
-    - mkdir -p neuropil
-    - mv build/package/* neuropil/
-  artifacts:
-    name: neuropil-linux
-    paths:
-      - neuropil
-    expire_in: 2 year
-  rules:
-    - if: '$CI_COMMIT_TAG != null && $CI_COMMIT_REF_PROTECTED'
 
 gitlab-release:
   stage: distribute
