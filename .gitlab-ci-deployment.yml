@@ -13,7 +13,7 @@ stages:
 package:linux:
   stage: package
   script:
-    - echo "Download links: https://gitlab.com/$CI_PROJECT_PATH/-/jobs/artifacts/$CI_COMMIT_SHA/download?job=build:documentation"
+    - echo "Download links https://gitlab.com/$CI_PROJECT_PATH/-/jobs/artifacts/$CI_COMMIT_SHA/download?job=build:documentation"
     - wget "https://gitlab.com/$CI_PROJECT_PATH/-/jobs/artifacts/$CI_COMMIT_SHA/download?job=build:documentation" -O "/tmp/$CI_COMMIT_SHA.zip"
     - unzip "/tmp/$CI_COMMIT_SHA.zip"
     - rm "/tmp/$CI_COMMIT_SHA.zip"
