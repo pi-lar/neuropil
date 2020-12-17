@@ -71,7 +71,7 @@ qa:smoke_tests:
       - ./do smoke
   retry:
     max: 2
-  timeout: 5m
+  timeout: 10m
   artifacts:
     reports:
       junit: build/smoke_test-junit.xml
