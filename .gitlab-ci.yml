@@ -68,7 +68,7 @@ build:linux:
 qa:smoke_tests:
   stage: qa
   script:
-      - ./do smoke
+      - ./do smoke --fail-fast
   retry:
     max: 2
   timeout: 10m
