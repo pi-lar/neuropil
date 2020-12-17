@@ -30,7 +30,7 @@ setup:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       changes:
-        - docker/*
+        - configs/docker/*
         - requirements.txt
         - SConstruct
         - .gitlab-ci.yml
