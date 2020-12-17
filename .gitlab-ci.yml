@@ -37,6 +37,8 @@ setup:
 test:
   stage: test
   script: ./do test
+  retry:
+    max: 2
   artifacts:
     reports:
       junit: build/neuropil_test_suite-junit.xml
@@ -67,6 +69,8 @@ qa:smoke_tests:
   stage: qa
   script:
       - ./do smoke
+  retry:
+    max: 5
   artifacts:
     reports:
       junit: build/smoke_test-junit.xml
