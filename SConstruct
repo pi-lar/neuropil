@@ -50,6 +50,8 @@ project_root_path = os.path.join(os.path.dirname(os.path.realpath(inspect.getfil
 buildDir = os.path.join(project_root_path, 'build', 'neuropil')
 default_env = Environment()
 
+if 'IN_NIX_SHELL' in os.environ or 'NIX_CC' in os.environ:
+    default_env['ENV'] = os.environ
 if 'TERM' in os.environ:
   default_env['ENV']['TERM'] = os.environ['TERM']
 

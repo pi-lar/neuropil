@@ -1,5 +1,8 @@
-{ pkgs ? (import <nixpkgs> { }), version ? "dev", withLuajit ? true
-, withPython ? true }:
+{ pkgs ? (import <nixpkgs> {})
+, version ? "dev"
+, withLuajit ? true
+, withPython ? true
+}:
 
 with pkgs;
 
@@ -9,13 +12,22 @@ let
     callPackage ./neuropil-luajit.nix { inherit neuropil pkgs; };
   neuropil_python =
     callPackage ./neuropil-python.nix { inherit neuropil pkgs; };
-in mkShell rec {
+in
+mkShell rec {
   name = "neuropil-shell";
 
   buildInputs = [ clang neuropil ]
-    ++ lib.optionals withLuajit [ neuropil_luajit luajit ]
-    ++ lib.optionals withPython
-    [ (python3.withPackages (ps: [ neuropil_python ])) ];
+  ++ lib.optionals withLuajit [ neuropil_luajit luajit ]
+  ++ lib.optionals withPython
+    [
+      (
+        python3.withPackages (
+          ps: with ps; [
+            neuropil_python
+          ]
+        )
+      )
+    ];
 
   shellHook = ''
     export LD_LIBRARY_PATH="${lib.makeLibraryPath [ neuropil ]}"

@@ -2,22 +2,29 @@
 #   nix-build /path/to/this/directory
 # ... build products will be in ./result
 
-{ pkgs ? (import <nixpkgs> { }), source ? ../../., version ? "dev" }:
+{ pkgs ? (import <nixpkgs> {}), source ? ../../., version ? "dev" }:
 
 with pkgs;
 
-let stdenv = clangStdenv;
-in stdenv.mkDerivation rec {
+let
+  stdenv = clangStdenv;
+in
+stdenv.mkDerivation rec {
   name = "neuropil-${version}";
-  src = lib.cleanSource source;
+  src = builtins.filterSource (
+    path: type:
+      let
+        relPath = (lib.removePrefix (toString source + "/") path);
+      in
+        lib.any (prefix: lib.hasPrefix prefix relPath) [ "include" "framework" "src" "SConstruct" "examples" ]
+  )
+    source;
 
-  buildInputs = [ scons ncurses python3Packages.requests sqlite libsodium ];
-  nativeBuildInputs = [ ]
-    ++ stdenv.lib.optional stdenv.isDarwin fixDarwinDylibNames;
+  buildInputs = [ git scons ncurses python3Packages.requests sqlite libsodium ];
+  nativeBuildInputs = []
+  ++ stdenv.lib.optional stdenv.isDarwin fixDarwinDylibNames;
 
   inherit version;
-
-  patches = [ ./SConstruct.patch ];
 
   buildPhase = ''
     if [ ${version} = dev ]; then
