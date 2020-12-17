@@ -146,7 +146,8 @@ if __name__ == "__main__":
                   'PRIVATE-TOKEN': GITLAB_API_TOKEN
             }
             project_config = requests.get(f"{api_url}/projects/{project_id}", headers=headers).json()
-
+            print(f"project_config: {project_config.text}")
+            project_config = project_config.json()
             release_url = f"{api_url}/projects/{project_id}/releases"
 
             release_payload = collections.OrderedDict({
@@ -162,10 +163,11 @@ if __name__ == "__main__":
             targets = ['linux']
             # targets should contain all the build stages of the gitlab-ci build stage
             for target in targets:
-                print(f"adding asset link for target {target}")
+                target_url = f"{base_url}/{project_config['path_with_namespace']}/-/jobs/artifacts/{version}/download?job=package%3A{target}"
+                print(f"adding asset link for target {target} via {target_url")
                 release_payload["assets"]["links"].append({
                     "name": f"{target}.zip",
-                    "url": f"{base_url}/{project_config['path_with_namespace']}/-/jobs/artifacts/{version}/download?job=package%3A{target}"
+                    "url": target_url
                 })
 
             print(f"Create release")
