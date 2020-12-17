@@ -108,7 +108,7 @@ if __name__ == "__main__":
                 args.pw = getpass.getpass("Please insert key password: ")
 
             pathlib.Path(root_path).mkdir(parents=True, exist_ok=True)
-
+            print(f"try to package with key file {args.sign_file}")
             if not os.path.isfile(args.sign_file):
                 print("Creating DEV sign key. DO NOT USE FOR TEST OR PRODUCTION!")
                 #subprocess.check_call(("openssl genpkey -algorithm RSA -out "+args.sign_file+" -pkeyopt rsa_keygen_bits:4096 -des3 -pass pass:"+args.pw).split(" "))
