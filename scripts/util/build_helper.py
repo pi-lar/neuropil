@@ -164,7 +164,7 @@ if __name__ == "__main__":
             # targets should contain all the build stages of the gitlab-ci build stage
             for target in targets:
                 target_url = f"{base_url}/{project_config['path_with_namespace']}/-/jobs/artifacts/{version}/download?job=package%3A{target}"
-                print(f"adding asset link for target {target} via {target_url")
+                print(f"adding asset link for target {target} via {target_url}")
                 release_payload["assets"]["links"].append({
                     "name": f"{target}.zip",
                     "url": target_url
