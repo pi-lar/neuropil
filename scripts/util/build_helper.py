@@ -123,7 +123,7 @@ if __name__ == "__main__":
                 shutil.copy(os.path.join("include","neuropil.h"),           os.path.join('build', 'package', "include","neuropil.h"))
                 shutil.copy(os.path.join("include","neuropil_attributes.h"),os.path.join('build', 'package', "include","neuropil_attributes.h"))
                 shutil.copy(os.path.join("include","neuropil_data.h"),      os.path.join('build', 'package', "include","neuropil_data.h"))
-                shutil.copy(os.path.join("README"),                         os.path.join('build', 'package', "README"))
+                shutil.copy(os.path.join("README.md"),                         os.path.join('build', 'package', "README.md"))
                 shutil.copy(os.path.join("LICENSE"),                        os.path.join('build', 'package', "LICENSE"))
 
                 for (dirpath, dirnames, filenames) in os.walk(os.path.join('build', 'package', "lib")):
