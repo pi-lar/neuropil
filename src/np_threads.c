@@ -35,7 +35,8 @@
 #include "np_types.h"
 #include "np_util.h"
 
-pthread_key_t  __pthread_thread_ptr_key;
+static pthread_key_t  __pthread_thread_ptr_key;
+static pthread_once_t __pthread_thread_ptr_key_once = PTHREAD_ONCE_INIT;
 
 static char* np_module_lock_str[PREDEFINED_DUMMY_START] = {
     "np_memory_t_lock",
@@ -80,14 +81,18 @@ NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_thread_ptr)
 NP_SLL_GENERATE_IMPLEMENTATION(np_thread_ptr)
 
 
+static void __create_pthread_thread_ptr_key()
+{
+    pthread_key_create(&__pthread_thread_ptr_key, NULL);
+}
+
 bool _np_threads_init(np_state_t* context)
 {
     if (!np_module_initiated(threads))
     {
-        np_module_malloc(threads);		
+        np_module_malloc(threads);
         _module->__np_threads_initiated = false;
-        
-        pthread_key_create(&__pthread_thread_ptr_key, NULL);
+        pthread_once(&__pthread_thread_ptr_key_once, __create_pthread_thread_ptr_key);
 
         // init module mutexes
         int t, c;
@@ -106,7 +111,6 @@ bool _np_threads_init(np_state_t* context)
             assert(c==0);
 
             strncpy(_module->__mutexes[module_id].desc, np_module_lock_str[module_id], 63);
-            log_debug_msg(LOG_DEBUG | LOG_MUTEX, "created module mutex %d / %p / %p", module_id, &_module, &_module->__mutexes[module_id]);
         }
         _module->threads = sll_init_part(np_thread_ptr);
         TSP_INIT(_module->threads);
@@ -145,13 +149,9 @@ void _np_threads_destroy(np_state_t* context)
     }
 }
 
-int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, const char *where ) {       
-    //log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int _np_threads_lock_module(np_module_lock_type module_id) {");
-
+int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, const char *where ) {
     log_debug_msg(LOG_MUTEX | LOG_DEBUG, "Locking module mutex %d/%s.", module_id, np_module_lock_str[module_id]);
 
-    if (!np_module_initiated(threads)) _np_threads_init(context);
-    
     int ret =  1;
 
 #ifdef NP_THREADS_CHECK_THREADING
@@ -171,15 +171,15 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
 #if !defined(NP_THREADS_CHECK_THREADING) || !defined(NP_THREADS_PTHREAD_HAS_MUTEX_TIMEDLOCK)
 
     ret = pthread_mutex_lock(&np_module(threads)->__mutexes[module_id].lock);
-
+    ASSERT(ret == 0,"could not get MUTEX %s",np_module(threads)->__mutexes[module_id].desc)
 #else
-    double start = np_time_now();   
+    double start = np_time_now();
     double diff = 0;
     while(ret != 0){
         diff = np_time_now() - start;
             if(diff >MUTEX_WAIT_MAX_SEC) {
                 log_msg(LOG_ERROR, "Thread %lu waits too long for module mutex %s (%f sec)", self_thread->id, np_module_lock_str[module_id], diff);
-                log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false, true));                
+                log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false, true));
                 abort();
             }
         ret = _np_threads_mutex_timedlock(context, &np_module(threads)->__mutexes[module_id], MUTEX_WAIT_MAX_SEC);
@@ -465,6 +465,7 @@ int _np_threads_module_condition_timedwait(np_state_t* context, np_module_lock_t
 
     int ret = pthread_cond_timedwait(&np_module(threads)->__mutexes[module_id].condition.cond, 
                                      &np_module(threads)->__mutexes[module_id].lock, &waittime);
+    ASSERT(ret == 0 || ret == ETIMEDOUT, "pthread_cond_timedwait for %s was not successful", np_module(threads)->__mutexes[module_id].desc);
 
     return ret;
 }
@@ -735,6 +736,7 @@ void* __np_thread_status_wrapper(void* self)
     np_ctx_memory(self);
 
     np_thread_t* thread = self;
+    thread->id = (size_t)pthread_self();
     log_debug_msg(LOG_DEBUG, "thread %d type %d starting", thread->id, thread->thread_type);
     
     _np_threads_set_self(self);
@@ -769,11 +771,10 @@ void* __np_thread_status_wrapper(void* self)
     return NULL;
 }
 
-void _np_thread_run(np_thread_t * thread) 
+void _np_thread_run(np_thread_t * thread)
 {
-    np_ctx_memory(thread);    
+    np_ctx_memory(thread);
     pthread_create(&thread->thread_id, &np_module(threads)->__attributes, __np_thread_status_wrapper, (void *)thread);
-    thread->id = (size_t)thread->thread_id;    
 }
 
 np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number, np_threads_worker_run fn, bool auto_run, enum np_thread_type_e type)
@@ -956,9 +957,11 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         strncpy(special_thread->job.ident, "__np_jobqueue_run_manager",255);
 #endif
 
-    } else { 
+    } else {
+        special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_jobs, true, np_thread_type_manager);
+
         // just a bunch of threads trying to get the first element from a priority queue
-        for (int8_t i=0; i < pool_size; i++)
+        for (int8_t i=1; i < pool_size; i++)
         {
             special_thread = __np_createThread(context, pool_size, __np_jobqueue_run_jobs, true, np_thread_type_worker);
             _np_jobqueue_add_worker_thread(special_thread);

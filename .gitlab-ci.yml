@@ -5,6 +5,7 @@ cache:
   key: "${CI_COMMIT_SHA}"
   paths:
     - .venv
+    - build
 
 stages:
   - enviroment
@@ -56,7 +57,7 @@ build:documentation:
 
 build:linux:
   stage: build
-  script: ./do build release
+  script: ./do build release bindings=1
   artifacts:
     name: neuropil-linux
     paths:

@@ -310,7 +310,7 @@ void np_msgproperty_register(np_msgproperty_t* msg_property)
             np_unref_obj(np_key_t, my_property_key_tx, "_np_keycache_find_or_create");
             log_debug_msg(LOG_DEBUG, "register handler: %s", _np_key_as_str(my_property_key_tx));
         }
-    }            
+    }
 }
 
 np_dhkey_t _np_msgproperty_dhkey(np_msg_mode_type mode_type, const char* subject) 
@@ -990,7 +990,7 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src)
     else {
         memset(dest->reply_subject, 0, sizeof(dest->reply_subject));
     }
-    
+
     // ackmode conversion
     switch (src->ack_mode)
     {
@@ -1012,7 +1012,7 @@ void np_msgproperty4user(struct np_mx_properties* dest, np_msgproperty_t* src)
         }
         else {
             dest->cache_policy = NP_MX_FIFO_PURGE;
-        }			
+        }
     }
     else {
         if (FLAG_CMP(src->cache_policy, OVERFLOW_REJECT)) {
@@ -1046,7 +1046,7 @@ void np_msgproperty_from_user(np_state_t* context, np_msgproperty_t* dest, struc
     }
     if (src->max_retry > 0) {
         dest->retry = src->max_retry;
-    }    
+    }
 
     if (src->cache_size > 0) {
         dest->cache_size = src->cache_size;

@@ -53,6 +53,7 @@ typedef struct np_node_s np_node_t;
 typedef np_node_t* np_node_ptr;
 
 typedef struct np_state_s np_state_t;
+typedef struct np_state_t* np_state_ptr;
 
 
 typedef struct np_tree_conf_s np_tree_conf_t;
@@ -102,6 +103,7 @@ NP_PLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 
 NP_SLL_GENERATE_PROTOTYPES(void_ptr);
 NP_SLL_GENERATE_PROTOTYPES(char_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_state_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);

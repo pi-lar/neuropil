@@ -254,13 +254,6 @@ char* _np_key_as_str(np_key_t* key)
     assert(key != NULL);
     np_ctx_memory(key);
 
-    if (NULL == key->dhkey_str){
-        key->dhkey_str = (char*) malloc(65);
-        CHECK_MALLOC(key->dhkey_str);
-    }
-    _np_dhkey_str(&key->dhkey, key->dhkey_str);
-    log_debug_msg(LOG_KEY | LOG_DEBUG, "dhkey_str = %lu (%s)", strlen(key->dhkey_str), key->dhkey_str);
-
     return (key->dhkey_str);
 }
 
@@ -304,15 +297,13 @@ void _np_key_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
     new_key->created_at  = np_time_now();
     new_key->last_update = np_time_now();
 
-    new_key->dhkey_str = NULL;
-    
     sll_init(void_ptr, new_key->entities); // link to components attached to this key id
 
     new_key->parent_key  = NULL;
     new_key->bloom_scent = NULL;
 
-    char mutex_str[64];      
-    snprintf(mutex_str, 63, "urn:np:key:%s", "access");              
+    char mutex_str[64];
+    snprintf(mutex_str, 63, "urn:np:key:%s", "access");
     _np_threads_mutex_init(context, &new_key->key_lock, "key_lock");
 }
 
@@ -329,12 +320,6 @@ void _np_key_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t
 
     _np_threads_mutex_destroy(context, &old_key->key_lock);
 
-    // delete string presentation of key
-    if (NULL != old_key->dhkey_str)
-    {
-        free (old_key->dhkey_str);
-        old_key->dhkey_str = NULL;
-    }
 }
 
 void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
@@ -343,17 +328,16 @@ void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
     np_ctx_memory(key);
 
     // TODO: add per obj event queue
-    log_debug(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
     // if (force) 
     // {
-        
         _LOCK_ACCESS(&key->key_lock)
-        {   // push down all event from queue and execute this event
+        {
+            log_debug(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
+            // push down all event from queue and execute this event
             if(!np_util_statemachine_invoke_auto_transition(&key->sm, event)){
                 log_debug(LOG_DEBUG,"no transition done");
             }
         }
-        
     /*}
     else
     {

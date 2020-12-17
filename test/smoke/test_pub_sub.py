@@ -102,7 +102,7 @@ class PubSubTest(unittest.TestCase):
                     if np_s1.np_has_receiver_for(subject):
                         receiver_available = elapsed
                 else:
-                    if elapsed > receiver_available+5 and not PubSubTest.send:
+                    if receiver_available != None and elapsed > receiver_available+5 and not PubSubTest.send:
                         # print ("{time:.3f} / {node}: 2 sending message".format(time=float(time.time()), node=np_s1.get_fingerprint() ) )
                         np_s1.send(subject, b'test')
                         PubSubTest.send = True

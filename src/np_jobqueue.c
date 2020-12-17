@@ -157,7 +157,7 @@ void np_jobqueue_submit_event_callbacks(np_state_t* context, double delay, np_dh
 #endif
 
     if (!_np_jobqueue_insert(context, new_job)) {
-        _np_job_free(context, &new_job);        
+        _np_job_free(context, &new_job);
     }
 }
 
@@ -343,7 +343,7 @@ void np_jobqueue_run_jobs_for(np_state_t * context, np_thread_t* thread, double 
     } while (end > now && np_runtime_status > np_uninitialized && np_runtime_status < np_shutdown);
 }
 
-/** 
+/**
  * runs a thread which is competing for jobs in the job queue
  */
 void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
@@ -356,20 +356,16 @@ void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread)
         np_threads_busyness(context, my_thread, false);
         _LOCK_MODULE(np_jobqueue_t)
         {
-            np_spinlock_lock(&np_module(jobqueue)->available_workers_lock);
-            bool timed_wait = (my_thread == sll_first(np_module(jobqueue)->available_workers)->val);
-            np_spinlock_unlock(&np_module(jobqueue)->available_workers_lock);
-            
-            if (true == timed_wait)
+            if (my_thread->thread_type == np_thread_type_manager)
                 _np_threads_module_condition_timedwait(context, np_jobqueue_t_lock, sleep);
-            else 
+            else
                 _np_threads_module_condition_wait(context, np_jobqueue_t_lock);
         }
         np_threads_busyness(context, my_thread, true);
     }
 }
 
-/** 
+/**
  * runs a managed thread which is getting notified if jobs have to executed
  */
 void __np_jobqueue_run_worker(np_state_t* context, np_thread_t* my_thread)

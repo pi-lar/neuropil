@@ -62,15 +62,14 @@ void _np_log_evflush(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) 
     }
 }
 
-void __np_log_close_file(np_log_t* logger){  
-    
+void __np_log_close_file(np_log_t* logger){
     if(close(logger->fp) != 0) {
         fprintf(stderr,"Could not close old logfile. Error: %s (%d)", strerror(errno), errno);
         fflush(NULL);
     }
 }
 
-void log_rotation(np_state_t* context)
+void log_rotation(np_state_t* context, bool first_init)
 {
     np_log_t* logger = np_module(log)->__logger;
 
@@ -82,33 +81,33 @@ void log_rotation(np_state_t* context)
     ev_io_stop(EV_A_ &logger->watcher);
 
     // Closing old file
-    if(logger->log_count > 1) {      
-        log_msg(LOG_INFO, "Continuing log in file %s now.", logger->filename);        
+    if(!first_init) {
+        log_msg(LOG_INFO, "Continuing log in file %s now.", logger->filename);
         _np_log_fflush(context, true);
         __np_log_close_file(logger);
     }
 
-    np_spinlock_lock(&np_module(log)->__log_lock);
-    int log_id = (logger->log_count % LOG_ROTATE_COUNT) ;
-    if(log_id == 0) {
-        log_id = LOG_ROTATE_COUNT;
-    }
     char* old_filename = strdup(logger->filename);
+    np_spinlock_lock(&np_module(log)->__log_lock);
+    {
+        int log_id = (logger->log_count % LOG_ROTATE_COUNT) ;
+        if(log_id == 0) {
+            log_id = LOG_ROTATE_COUNT;
+        }
 
-    // create new filename
-    if(logger->log_rotate) {
-         snprintf (logger->filename, 255, "%s_%d%s", logger->original_filename, log_id, logger->filename_ext );
-    } else {
-         snprintf (logger->filename, 255, "%s%s", logger->original_filename, logger->filename_ext );
+        // create new filename
+        if(logger->log_rotate) {
+            snprintf (logger->filename, 255, "%s_%d%s", logger->original_filename, log_id, logger->filename_ext );
+        } else {
+            snprintf (logger->filename, 255, "%s%s", logger->original_filename, logger->filename_ext );
+        }
+        // setting up new file
+        if(logger->log_rotate)
+        {   // remove old file if it is already present
+            unlink(logger->filename);
+        }
+        logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
     }
-    // setting up new file
-    if(logger->log_rotate)
-    {   // remove old file if it is already present
-        unlink(logger->filename);
-    }
-    logger->fp = open(logger->filename, O_WRONLY | O_APPEND | O_CREAT, S_IREAD | S_IWRITE | S_IRGRP);
-    free(old_filename);
-
     np_spinlock_unlock(&np_module(log)->__log_lock);
 
     if(logger->fp < 0) {
@@ -125,15 +124,16 @@ void log_rotation(np_state_t* context)
         _np_event_reconfigure_loop_file(context);
     }
 
-    if (logger->log_count > LOG_ROTATE_COUNT) {
+    if (!first_init) {
         log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
     }
+    free(old_filename);
 }
 
 void _np_log_rotate(np_state_t* context, bool force)
 {
     if(np_module(log)->__logger->log_size >= LOG_ROTATE_AFTER_BYTES || force == true) {
-        log_rotation(context);
+        log_rotation(context, false);
     }
 }
 /*
@@ -326,10 +326,11 @@ void np_log_setlevel(np_state_t* context, uint32_t level)
 
 bool _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 {
-    if (!np_module_initiated(log)) 
+    if (!np_module_initiated(log))
     {
         np_module_malloc(log);
         TSP_INIT(np_module(log)->__log);
+        np_spinlock_init(&np_module(log)->__log_lock, PTHREAD_PROCESS_PRIVATE);
 
         np_log_t* __logger = (np_log_t *)calloc(1, sizeof(np_log_t));
         CHECK_MALLOC(__logger);
@@ -362,9 +363,9 @@ bool _np_log_init(np_state_t* context, const char* filename, uint32_t level)
         snprintf(__logger->filename, 255, "%s%s", parsed_filename, __logger->filename_ext);
         free(parsed_filename);
 
-        sll_init(char_ptr, __logger->logentries_l);        
+        sll_init(char_ptr, __logger->logentries_l);
         _module->__logger = __logger;
-        log_rotation(context);
+        log_rotation(context, true);
         log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
     }
     return true;
@@ -373,13 +374,13 @@ bool _np_log_init(np_state_t* context, const char* filename, uint32_t level)
 void _np_log_destroy(np_state_t* context)
 {
     if (np_module_initiated(log)) {
-        np_module_var(log);		 
+        np_module_var(log);
 
         _np_log_fflush(context, true);
-        
+
         __np_log_close_file(np_module(log)->__logger);
         TSP_DESTROY(np_module(log)->__log);
-
+        np_spinlock_destroy(&np_module(log)->__log_lock);
         sll_iterator(char_ptr) logentries_l_item = sll_first(_module->__logger->logentries_l);
         while(logentries_l_item != NULL){
             free(logentries_l_item->val);
@@ -389,7 +390,7 @@ void _np_log_destroy(np_state_t* context)
         sll_free(char_ptr, _module->__logger->logentries_l);
         free(_module->__logger);
 
-        np_module_free(log);		 
+        np_module_free(log);
     }
 } 
 

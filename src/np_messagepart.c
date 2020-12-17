@@ -84,8 +84,8 @@ bool _np_messagepart_decrypt(np_state_t* context,
 		return (false);
 	}
 
-	// Allow deserialisation as the encryption may 	
-	cmp_ctx_t cmp;
+	// Allow deserialisation as the encryption may
+	cmp_ctx_t cmp = {0};
 	cmp_init(&cmp, dec_part, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 	if(np_tree_deserialize( context, target, &cmp) == false) {
 		log_debug_msg(LOG_ERROR, "couldn't deserialize msg part after decryption");
@@ -93,18 +93,17 @@ bool _np_messagepart_decrypt(np_state_t* context,
 	}
 	// TODO: check if the complete buffer was read (byte count match)
 
-	
 	return (true);
 }
 
-bool _np_messagepart_encrypt(np_state_t* context, 
+bool _np_messagepart_encrypt(np_state_t* context,
 							np_tree_t* msg_part,
 							unsigned char* nonce,
 							unsigned char* public_key,
 							NP_UNUSED unsigned char* secret_key)
 {
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: bool _np_messagepart_encrypt(context, np_tree_t* msg_part,							unsigned char* nonce,							unsigned char* public_key,							NP_UNUSED unsigned char* secret_key){");
-	cmp_ctx_t cmp;
+	cmp_ctx_t cmp = {0};
 
 	unsigned char msg_part_buffer[msg_part->byte_size*2];
 	void* msg_part_buf_ptr = msg_part_buffer;
@@ -173,7 +172,6 @@ char* np_messagepart_printcache(np_state_t* context, bool asOneLine)
 	_LOCK_MODULE(np_message_part_cache_t)
 	{
 		np_tree_elem_t* tmp = NULL;
-		
 
 		RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
 		{
