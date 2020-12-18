@@ -190,6 +190,9 @@ if __name__ == "__main__":
                 print("")
                 raise
 
+            print(f"remove latest_release tag protection")
+            requests.delete(f"{api_url}/projects/{project_id}/protected_tags/latest_release", headers=headers)
+
             print(f"remove latest_release tag")
             tags_url = f"{api_url}/projects/{project_id}/repository/tags"
 
@@ -203,6 +206,13 @@ if __name__ == "__main__":
             release_payload["ref"] = release_payload["tag_name"]
             release_payload["tag_name"] = "latest_release"
             release_payload["name"] = "Latest"
+
+            print(f"recreate latest_release tag protection")
+            requests.post(f"{api_url}/projects/{project_id}/protected_tags", headers=headers,json=json.dumps(
+                {
+                    "name": "latest_release",
+                }
+            ))
 
             print(f"recreate latest_release tag")
             r = requests.post(release_url, json=release_payload, headers=headers)
