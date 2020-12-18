@@ -59,7 +59,9 @@ build:documentation:
 
 build:linux:
   stage: build
-  script: ./do build release bindings=1
+  script:
+    - ./do build release
+    - ./do build release bindings=1
   artifacts:
     name: neuropil-linux
     paths:
