@@ -68,6 +68,8 @@ build:linux:
 package:linux:
   stage: package
   script:
+    - ls build
+    - ls build/neuropil
     - ./do package
     - mkdir -p neuropil
     - mv build/package/* neuropil/
