@@ -24,12 +24,14 @@ Contents:
    core_concepts
    ngizerodiscovery
    ngizerosearch
+   security
    compared_to
    tutorial
    api
    protocol
    license
    knowhow
+   contributers
    trademark
    faq
    glossary

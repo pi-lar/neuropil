@@ -120,7 +120,7 @@ contents, each participant will contribute a bit of search capacity for others a
     // we do not need to use dhkeys, but the bloom filter structure as the ordering element
     // additionaly we keep/maintain a skipgraph that matches "closer" search entries.
     // How is the membership vector of a search defined? 
-    // construct the (several) dhkey from a minhash, size of minhash has to be a multiple of 8 uint32_t,
+    // construct the (several) dhkey from a minhash, size of minhash has to be a multiple of 8*uint32_t,
     // minimum size is one octet(= dhkey)
     // several dhkeys can be added to get more than one point in search "space", same effect as hashing concatenated rows
     // -> entries can be added multiple times (in different hash tables) with different levels of detail
@@ -137,7 +137,7 @@ contents, each participant will contribute a bit of search capacity for others a
 
     // even a query only node could keep a local skiplist with cached results.
     // each query node can select one or more of the different query subjects and initiate searches.
-    // most probably it will make sense to only choose some to the bands, and certainly it doesn't make
+    // most probably it will make sense to only choose some of the bands, and certainly it doesn't make
     // sense to use the 9-shingle space when only a single search item has been entered.
     // a user could be able to define a set of required attributes. These attributes can be extracted
     // from common search objects or standards like A5.
@@ -177,7 +177,6 @@ l3:    - -- - -- - -- x -- - -- - -- x -- - -- - -- - -- -
 skip graph:
 each x can be a skip list on its own
 definition into which lists an element has to be: membership vector (x)
-
 
 prefix trie:  a --> ab --> ab4 ...
               a --> a0 --> a0d ...
