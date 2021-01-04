@@ -7,6 +7,7 @@
 #define _NP_DHKEY_H_
 
 #include "np_types.h"
+#include "util/np_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +18,8 @@ extern "C" {
 	{
 		uint32_t t[8];
 	} NP_PACKED;
+
+NP_SLL_GENERATE_PROTOTYPES(np_dhkey_t);
 
 static const np_dhkey_t dhkey_zero = {0};
 /* key_comp: k1, k2

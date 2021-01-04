@@ -29,8 +29,6 @@ extern "C" {
  * calculations involved).
  */
 
-    NP_SLL_GENERATE_PROTOTYPES(np_dhkey_t);
-
     // the pheromone struct defines the data we would liek to store in our table
     typedef struct np_pheromone_s
     {

@@ -32,6 +32,7 @@ static np_dhkey_t __dhkey_min;
 static np_dhkey_t __dhkey_half;
 static np_dhkey_t __dhkey_max;
 
+NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_t)
 
 char* _np_dhkey_generate_hash (const char* key_in)
 {

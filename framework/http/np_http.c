@@ -574,7 +574,9 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
             ev_io_init(&new_client->client_watcher_out, _np_http_write_callback,
                 new_client->client_fd, EV_WRITE);
 
+            if (new_client->client_watcher_in.data) free(new_client->client_watcher_in.data);
             new_client->client_watcher_in.data = new_client;
+            if (new_client->client_watcher_out.data) free(new_client->client_watcher_out.data);
             new_client->client_watcher_out.data = new_client;
 
             ev_io_start(EV_A_&new_client->client_watcher_in);
@@ -643,6 +645,8 @@ bool _np_http_init(np_state_t* context, char* domain, char* port)
         EV_P = _np_event_get_loop_http(context);
         ev_io_stop(EV_A_&_module->network->watcher_in);
         ev_io_init(&_module->network->watcher_in, _np_http_accept, _module->network->socket, EV_READ);
+
+        if (_module->network->watcher_in.data) free(_module->network->watcher_in.data);
         _module->network->watcher_in.data = _module;
         ev_io_start(EV_A_&_module->network->watcher_in);
         _np_event_resume_loop_http(context);
@@ -693,9 +697,9 @@ void _np_http_destroy(np_state_t* context)
 
         free(np_module(http)->hooks);
 
-        np_module(http)->network->watcher_in.data = NULL;
         // _np_network_disable(np_module(http)->network);
         np_unref_obj(np_network_t, np_module(http)->network, ref_obj_creation);
+        // np_module(http)->network->watcher_in.data = NULL;
 
         np_module_free(http);
     }

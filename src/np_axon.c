@@ -189,7 +189,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
         log_debug_msg(LOG_DEBUG, "pheromone lookup failed, looking up routing table", forward_msg->uuid, sll_size(tmp));
         CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_TO, msg_to_ele);    
         np_sll_t(np_key_ptr, route_tmp) = NULL;
-        uint8_t i = 1;
+        i = 1;
         do {
             route_tmp = _np_route_lookup(context, msg_to_ele.value.dhkey, i);
             i++;

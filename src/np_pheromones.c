@@ -17,8 +17,6 @@
 int8_t np_dhkey_t_sll_compare_type(np_dhkey_t const a, np_dhkey_t const b)
 { return _np_dhkey_cmp(&a, &b); }
 
-NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_t);
-
 
 typedef struct np_pheromone_entry_s
 {
