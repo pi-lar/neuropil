@@ -7,32 +7,37 @@ welcome to neuropil
 #### required installations
 
 **mandatory:**
+- clang - our preferred C compiler (you can also use gcc)
 - libsodium - crypto library
 
 **optional:**
 - criterion - test suite framework
+- python 3 - python runtime, version 3 is required
 - sphinx - python documentation building
 - scons - python build tool
-- clang - our preferred C compiler
 - ncurses - for the displays in the example programs
+
 
 #### building the library and example programs
 
-clone the repository from https://neuropil.org/repo/neuropil/ with mercurial.
+This example assumes that you have installed python 3 and recent version of scons. It is also possible to build our library without
+the scons by using the Makefile. As scons is our own main build tool, we describe the scons approach here.
+
+clone the repository from https://gitlab.com/pi-lar/neuropil (development version) or https://github.com/pi-lar/neuropil (mirror) with git.
 
 cd into the folder and build the code with scons.
 
 build in debug mode:
 
-	scons debug=1
+    scons debug=1
 
 build in release mode:
 
-	scons release=1
+    scons release=1
 
 build the documentation (sphinx installation required):
 
-	scons doc=1
+    scons doc=1
 
 build the tests (criterion installation required):
 
@@ -40,12 +45,16 @@ build the tests (criterion installation required):
 
 clean the project:
 
-	scons -c
+    scons -c
 
-there is also a Makefile available, but some path infos are hard coded, sorry.
-the Makefile is mainly used to run the llvm scan-build tooling for a static code analysis
 
-no autoconf or cmake available until now, to be done
+There is also a Makefile available, but some path infos are hard coded and need to be adapted to your environment.
+The Makefile is mainly used to run the llvm scan-build tooling for a static code analysis and for fuzzing the library.
+
+The CMake files are a first initial draft and are able to build the library, but not the example programs.
+
+No autoconf available until now, to be done.
+
 
 ### building with Nix
 
@@ -105,27 +114,27 @@ input directories:
  - doc - sphinx documentation source files
 
 output directories:
- - build - library, object files and documentation
+ - build - library, object files and documentation (each in a seperate environment)
  - bin - example executables and test suite
 
-4) running the programs
 
-you can run the executables just as any executable, please have a look at the parameters
-of each program:
+## running the example programs
+
+You can run the executables just as any executable, please have a look at the parameters of each program:
 
 example 1: run the controller on port 1111
 
-	./bin/neuropil_controller -b 1111
+	./build/neuropil/bin/neuropil_controller -b 1111
 
 example 2: run a node on port 2222 and send a join message to another node:
 
-	./bin/neuropil_node -b 2222 -j b3b680a867849efe5886a5db751392e9d3079779e3f3c240ed849c11f4ba7d4a:udp6:test.local:3141
+	./build/neuropil/bin/neuropil_node -b 2222 -j b3b680a867849efe5886a5db751392e9d3079779e3f3c240ed849c11f4ba7d4a:udp6:test.local:3141
 
 example 3: run a node on port 2222 and send a wildcard join message to another node:
 
-	./bin/neuropil_node -b 2222 -j *:udp6:test.local:3141
+	./build/neuropil/bin/neuropil_node -b 2222 -j *:udp6:test.local:3141
 
 to run the test suites please us the parameter "-j1" to limit parallel execution.
 usually we use the following command:
 
-	./bin/neuropil_test_suite --tap -j1
+	./build/neuropil/bin/neuropil_test_suite --tap -j1

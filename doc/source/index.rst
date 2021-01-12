@@ -21,7 +21,9 @@ Contents:
    :maxdepth: 2
 
    intro
+   whatis
    core_concepts
+   identities
    ngizerodiscovery
    ngizerosearch
    security

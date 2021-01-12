@@ -171,7 +171,7 @@ int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 
 void _np_dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
 {
-    // we dont care about buffer overflow, since we are adding hashes
+    // we dont care about unsigned integer overflow, since we are adding hashes
     // as we are using uint32_t we always stay in valid data
     for (uint8_t i = 0; i < 8 ; i++)
     {
