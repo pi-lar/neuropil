@@ -82,12 +82,18 @@ int main(int argc, char **argv) {
        \code
     */
 
-    np_add_receive_cb(context,  "echo", receive_echo_message);
-
     struct np_mx_properties msg_props = np_get_mx_properties(context, "echo");
     msg_props.ackmode = NP_MX_ACK_NONE;
     msg_props.message_ttl = 20.0;
     np_set_mx_properties(context,  "echo", msg_props);
+    np_add_receive_cb(context,  "echo", receive_echo_message);
+
+
+   fprintf(stdout, "%s\n", np_get_startup_str(context));
+
+   np_example_helper_allow_everyone(context);
+   np_shutdown_add_callback(context, example_helper_destroy);
+
 
     /**
        \endcode
