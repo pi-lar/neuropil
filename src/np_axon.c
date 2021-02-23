@@ -230,8 +230,7 @@ bool _np_out_forward(np_state_t* context, np_util_event_t event)
         while (key_iter != NULL) 
         {
             if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey)        &&
-                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) &&
-                !_np_dhkey_equal(&key_iter->val, &event.target_dhkey)  )
+                !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey)  )
             {
                 memcpy(part_iter->val->uuid, forward_msg->uuid, NP_UUID_BYTES);
                 log_debug_msg(LOG_DEBUG, "sending    message (%s) to next hop", forward_msg->uuid, key_iter->val);
@@ -384,8 +383,7 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
         sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
         while (key_iter != NULL) 
         {
-            if (!_np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey)        &&
-                !_np_dhkey_equal(&key_iter->val, &last_hop)                    &&
+            if (!_np_dhkey_equal(&key_iter->val, &last_hop)                    &&
                 !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) )
             {
                 memcpy(part_iter->val->uuid, available_msg->uuid, NP_UUID_BYTES);
@@ -485,7 +483,6 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
     
     return true;
 }
-
 
 /**
  ** _np_network_append_msg_to_out_queue: host, data, size
