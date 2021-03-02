@@ -176,7 +176,7 @@ double _np_message_get_expiery(const np_message_t* const self)
         // this is not possible and may indecate
         // a faulty date/time setup on the client
         log_msg(LOG_WARN, "Detected faulty timestamp for message. Setting to now. (timestamp: %f, now: %f, diff: %f sec)", tstamp, now, tstamp - now);
-        msg_tstamp.value.d = tstamp = now;
+        // msg_tstamp.value.d = tstamp = now;
     }
     ret = (tstamp + msg_ttl.value.d);	
 
