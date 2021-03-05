@@ -440,6 +440,7 @@ bool _np_out_pheromone(np_state_t* context, np_util_event_t msg_event)
         if (_np_dhkey_equal(&target_iter->val->dhkey, &msg_from.value.dhkey) ||
             _np_dhkey_equal(&target_iter->val->dhkey, &context->my_node_key->dhkey) )
         {
+            log_debug_msg(LOG_DEBUG, "discarding pheromone request to next hop %s", _np_key_as_str(target_iter->val));
             sll_next(target_iter);
             continue;
         }

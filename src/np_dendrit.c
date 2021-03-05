@@ -569,7 +569,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         double _now = np_time_now();
         while (_delay < _now) {
             _np_neuropil_bloom_age_decrement(_scent);
-            _delay += NP_PI / 100;
+            _delay += NP_PI / 314;
         }
 
         float _in_age = _np_neuropil_bloom_intersect_age(_scent, _scent);
@@ -608,7 +608,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         }
 
         log_msg(LOG_DEBUG, "update of pheromone trail: age in : %f, but have age : %f / %d", _pheromone._pos, _in_age, _old_age);
-        forward_pheromone_update = _np_pheromone_inhale(context, _pheromone);
+        forward_pheromone_update |= _np_pheromone_inhale(context, _pheromone);
         
         _np_bloom_free(_scent);
     }
