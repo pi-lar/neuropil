@@ -41,8 +41,6 @@ extern "C" {
 
     NP_API_EXPORT
     enum np_data_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
-    //NP_API_EXPORT
-    //enum np_data_return np_get_attr_bin(np_mx_properties * prop, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
     NP_API_EXPORT
     enum np_data_return np_get_token_attr_bin(struct np_token* ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
 

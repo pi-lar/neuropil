@@ -7,8 +7,11 @@
 
 #include <assert.h>
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
-#include "json/parson.h"
+#include "parson/parson.h"
 
 #include "util/np_tree.h"
 #include "np_threads.h"
@@ -60,7 +63,8 @@ extern "C" {
 #define ASSERT(expression, onfail_msg, ...)												\
 	if (!(expression)) {																\
 			log_debug_msg(LOG_ERROR, onfail_msg, ##__VA_ARGS__);						\
-	}
+	}                                                                                   \
+	assert(expression);
 #endif
 
 #ifndef MAX

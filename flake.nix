@@ -2,9 +2,18 @@
   description =
     "neuropil is a secure messaging library for IoT, robotics and more.";
 
-  inputs.nixpkgs.url = "github:nixos/nixpkgs?release-20.09";
-
-  outputs = { self, nixpkgs, ... }:
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs?release-20.09";
+    msgpack-cmp = {
+      url = "github:camgunz/cmp/9fc01ddf";
+      flake = false;
+    };
+    parson = {
+      url = "github:kgabis/parson/302fba9";
+      flake = false;
+    };  # default = true
+  };
+  outputs = { self, nixpkgs, msgpack-cmp, parson, ... }:
 
     let
       # Generate a user-friendly version numer.
@@ -30,6 +39,7 @@
           libneuropil = callPackage ./scripts/nix/neuropil.nix {
             pkgs = final;
             version = "prod";
+            ext = { inherit msgpack-cmp parson; };
           };
           neuropil_luajit = callPackage ./scripts/nix/neuropil-luajit.nix {
             neuropil = libneuropil;
@@ -79,23 +89,26 @@
 
         test-import-lua = with nixpkgsFor.${system};
           pkgs.runCommand "test-import-lua" {
-            buildInputs = [ neuropil_lua ];
+            buildInputs = [ neuropil_luajit libneuropil ];
           } ''
+            export LD_LIBRARY_PATH="${lib.makeLibraryPath [ libneuropil ]}"
             echo 'try importing lua module'
-            luajit  <(echo 'require "neuropil"')
+            luajit  <(echo 'require("neuropil")')
             touch $out
           '';
 
-        test-scons = with nixpkgsFor.${system};
-          stdenv.mkDerivation {
-            name = "test-scons";
-            src = libneuropil.src;
-            buildInputs = [ scons libsodium sqlite ncurses ];
-            buildPhase = ''
-              scons test=1
-            '';
-            installPhase = "touch $out";
-          };
+        # test-scons = with nixpkgsFor.${system};
+        #   stdenv.mkDerivation {
+        #     name = "test-scons";
+        #     src = libneuropil.src;
+        #     buildInputs = [ scons libsodium sqlite ncurses criterion (python3.withPackages (p: [p.requests])) ];
+        #     buildPhase = ''
+        #     ln -s ${msgpack-cmp} ext_tools/msgpack
+        #     ln -s ${parson} ext_tools/parson
+        #       scons --RELEASE tests
+        #     '';
+        #     installPhase = "touch $out";
+        #   };
       });
 
     };

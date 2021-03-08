@@ -7,6 +7,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 
 #include "neuropil.h"
@@ -260,6 +263,8 @@ enum np_data_return np_set_data(np_datablock_t *block, struct np_data_conf data_
 
         if (ret == np_data_ok)
         {
+            assert(tmp.start_of_object != NULL);
+            assert(tmp.end_of_object != NULL);
             //  key is already in datablock
             // overwrite data (as in: delete old object und add anew)
             memmove(tmp.start_of_object, tmp.end_of_object, end_of_datablock - tmp.end_of_object);

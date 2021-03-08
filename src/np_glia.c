@@ -30,6 +30,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "util/np_list.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_message.h"
 #include "np_memory.h"

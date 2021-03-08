@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "msgpack-cmp": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1533400718,
+        "narHash": "sha256-SKWhyUsPnpk+lERBpoi7OHbA5+TY/j1GbKDHy3BNKQU=",
+        "owner": "camgunz",
+        "repo": "cmp",
+        "rev": "9fc01ddf4fd41d87267267a3221c92225c383e07",
+        "type": "github"
+      },
+      "original": {
+        "owner": "camgunz",
+        "ref": "9fc01ddf",
+        "repo": "cmp",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1605830903,
@@ -15,9 +32,28 @@
         "type": "github"
       }
     },
+    "parson": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1543259536,
+        "narHash": "sha256-ovJsdJDZncPu9pVU5IRQrHjX94uMuivyfyVzKH4R2b4=",
+        "owner": "kgabis",
+        "repo": "parson",
+        "rev": "302fba9cbb31ffc523bf10a1ce705040194c289d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kgabis",
+        "ref": "302fba9",
+        "repo": "parson",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "msgpack-cmp": "msgpack-cmp",
+        "nixpkgs": "nixpkgs",
+        "parson": "parson"
       }
     }
   },

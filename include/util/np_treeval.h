@@ -43,6 +43,9 @@ Fax: 865-974-4404
 
 #include "stdint.h"
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 
 #include "np_dhkey.h"

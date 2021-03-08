@@ -24,6 +24,7 @@
 #include "np_keycache.h"
 #include "np_legacy.h"
 #include "util/np_list.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_network.h"
@@ -35,7 +36,7 @@
 #include "util/np_treeval.h"
 #include "np_util.h"
 
-#include "json/parson.h"
+#include "parson/parson.h"
 #include "../framework/http/htparse.h"
 #include "../framework/http/htparse.c"
 #include "../framework/sysinfo/np_sysinfo.h"

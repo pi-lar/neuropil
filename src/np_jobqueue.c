@@ -28,6 +28,7 @@
 #include "util/np_event.h"
 #include "core/np_comp_msgproperty.h"
 #include "np_message.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_list.h"
 #include "np_threads.h"

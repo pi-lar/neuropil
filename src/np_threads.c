@@ -28,6 +28,7 @@
 #include "np_keycache.h"
 #include "np_legacy.h"
 #include "util/np_list.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "core/np_comp_msgproperty.h"
 #include "np_network.h"

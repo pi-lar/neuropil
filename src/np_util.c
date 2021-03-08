@@ -21,7 +21,10 @@
 
 #include "sodium.h"
 #include "event/ev.h"
-#include "json/parson.h"
+#include "parson/parson.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 #include "tree/tree.h"
 
@@ -32,6 +35,7 @@
 #include "np_keycache.h"
 #include "np_legacy.h"
 #include "util/np_list.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_message.h"
 #include "np_node.h"

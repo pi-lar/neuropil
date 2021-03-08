@@ -15,7 +15,9 @@
 
 #include "neuropil.h"
 #include "neuropil_data.h"
+#include "np_data.h"
 #include "neuropil_attributes.h"
+#include "np_attributes.h"
 
 
 #include "core/np_comp_msgproperty.h"
@@ -33,6 +35,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_legacy.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_message.h"
@@ -53,7 +56,7 @@
 
 static const char *error_strings[] = {
     "",
-    "unknown error",
+    "unknown error cause",
     "operation is not implemented",
     "could not init network",
     "argument is invalid",
@@ -155,7 +158,7 @@ np_context* np_new_context(struct np_settings * settings_in)
     }
     else if (_np_keycache_init(context) == false)
     {
-        log_msg(LOG_ERROR, "neuropil_init: could not init keycache");
+        log_msg(LOG_ERROR, "neuropil_init: _np_keycache_init failed");
         status = np_startup;
     }
     else if (_np_msgproperty_init(context) == false)
@@ -294,10 +297,10 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
                 log_msg(LOG_ERROR, "neuropil_init: could not enable statistics");
                 ret = np_startup;
             }
-            else 
+            else
             {
                 _np_shutdown_init(context);
-                np_threads_start_workers(context, context->settings->n_threads);                
+                np_threads_start_workers(context, context->settings->n_threads);
                 TSP_SET(context->status, np_stopped);
 
                 log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
@@ -305,8 +308,7 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
                 _np_log_fflush(context, true);
             }
         }
-        
-        if (ret != np_ok) 
+        if (ret != np_ok)
         {
             TSP_SET(context->status, np_error);
         }
@@ -408,26 +410,22 @@ enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bo
 }
 
 enum np_return np_use_identity(np_context* ac, struct np_token identity) {
-    np_ctx_cast(ac); 
+    np_ctx_cast(ac);
 
     TSP_GET(enum np_status, context->status, state);
     if (state == np_running) return np_invalid_operation;
 
     log_debug_msg(LOG_AAATOKEN, "importing ident token %s", identity.uuid);
 
-    enum np_return ret = np_ok;
-
     np_ident_private_token_t* imported_token = np_token_factory_new_identity_token(ac,  identity.expires_at, &identity.secret_key);
-    
+
     np_user4aaatoken(imported_token, &identity);
     _np_aaatoken_set_signature(imported_token, NULL);
 
     _np_set_identity(context, imported_token);
     _np_aaatoken_update_attributes_signature(imported_token);
-    char tmp [65]={0};
-    np_dhkey_t imported_token_dhkey = np_aaatoken_get_fingerprint(imported_token, false);
     log_msg(LOG_INFO, "neuropil successfully initialized: id:   %s", _np_key_as_str(context->my_identity));
-    return ret;
+    return np_ok;
 }
 
 enum np_return np_get_address(np_context* ac, char* address, uint32_t max) {

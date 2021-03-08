@@ -2,7 +2,7 @@
 #   nix-build /path/to/this/directory
 # ... build products will be in ./result
 
-{ pkgs ? (import <nixpkgs> {}), source ? ../../., version ? "dev" }:
+{ pkgs ? (import <nixpkgs> {}), source ? ../../., version ? "dev", ext }:
 
 with pkgs;
 
@@ -16,21 +16,26 @@ stdenv.mkDerivation rec {
       let
         relPath = (lib.removePrefix (toString source + "/") path);
       in
-        lib.any (prefix: lib.hasPrefix prefix relPath) [ "include" "framework" "src" "SConstruct" "examples" ]
+        lib.any (prefix: lib.hasPrefix prefix relPath) [ "include" "framework" "src" "SConstruct" "examples" "ext_tools" "scripts" "test" ]
   )
-    source;
+  source;
 
-  buildInputs = [ git scons ncurses python3Packages.requests sqlite libsodium ];
+  buildInputs = [ git  ncurses scons (python3.withPackages (p: [p.requests])) sqlite libsodium ];
   nativeBuildInputs = []
   ++ stdenv.lib.optional stdenv.isDarwin fixDarwinDylibNames;
 
   inherit version;
 
   buildPhase = ''
+    rm -rf ext_tools/msgpack
+    rm -rf ext_tools/parson
+    ln -s ${ext.msgpack-cmp} ext_tools/msgpack
+    ln -s ${ext.parson} ext_tools/parson
+    ls -la ext_tools/msgpack
     if [ ${version} = dev ]; then
-        scons debug=1 program=lib_only
+        scons --DEBUG shared_neuropil
     elif [ ${version} = prod ]; then
-        scons release=1 program=lib_only
+        scons --RELEASE shared_neuropil
     fi
   '';
 

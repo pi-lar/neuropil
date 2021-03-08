@@ -11,6 +11,7 @@
 #include "np_aaatoken.h"
 #include "np_glia.h"
 #include "np_keycache.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_token_factory.h"
 #include "np_memory.h"

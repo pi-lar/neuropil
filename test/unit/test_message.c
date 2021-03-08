@@ -8,10 +8,14 @@
 #include "pthread.h"
 #include <criterion/criterion.h>
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 
 #include "np_types.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_tree.h"
 #include "np_dhkey.h"

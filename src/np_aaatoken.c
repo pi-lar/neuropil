@@ -19,6 +19,7 @@
 #include "util/np_event.h"
 
 #include "dtime.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_legacy.h"
 #include "util/np_tree.h"
@@ -34,6 +35,7 @@
 #include "np_constants.h"
 #include "neuropil.h"
 #include "neuropil_data.h"
+#include "np_data.h"
 #include "np_serialization.h"
 
 _NP_GENERATE_MEMORY_IMPLEMENTATION(np_aaatoken_t)
@@ -256,19 +258,19 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensi
     np_dhkey_t ret;
 
 	// build a hash to find a place in the dhkey table, not for signing !
-	unsigned char* hash_attributes = _np_aaatoken_get_hash(self);
-	ASSERT(hash_attributes != NULL, "cannot sign NULL hash");
+	unsigned char* hash_fields = _np_aaatoken_get_hash(self);
+	ASSERT(hash_fields != NULL, "cannot sign NULL hash");
 
 	unsigned char hash[crypto_generichash_BYTES] = { 0 };
 	crypto_generichash_state gh_state;
 	crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
-	crypto_generichash_update(&gh_state, hash_attributes, crypto_generichash_BYTES);
+	crypto_generichash_update(&gh_state, hash_fields, crypto_generichash_BYTES);
 	crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);
 
 	if (true == include_extensions) {
-		unsigned char* hash = __np_aaatoken_get_attributes_hash(self);
-		crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
-		free(hash);
+		unsigned char* hash_attr = __np_aaatoken_get_attributes_hash(self);
+		crypto_generichash_update(&gh_state, hash_attr, crypto_generichash_BYTES);
+		free(hash_attr);
 	}
 	// TODO: generichash_final already produces the dhkey value, just memcpy it.
 	crypto_generichash_final(&gh_state, hash, crypto_generichash_BYTES);
@@ -277,7 +279,7 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensi
 	sodium_bin2hex(key, crypto_generichash_BYTES * 2 + 1, hash, crypto_generichash_BYTES);
 	ret = np_dhkey_create_from_hash(key);
 
-	free(hash_attributes);
+	free(hash_fields);
     // }
     return ret;
 }

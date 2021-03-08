@@ -33,6 +33,7 @@
 #include "core/np_comp_node.h"
 
 #include "dtime.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_legacy.h"
 #include "np_dhkey.h"

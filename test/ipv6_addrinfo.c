@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_network.h"
 

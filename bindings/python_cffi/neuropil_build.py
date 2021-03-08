@@ -1,49 +1,51 @@
 #!/usr/bin/env python3
 import os, sys, platform
+from sysconfig import get_paths
 from cffi import FFI
 
-def get_local_target():
-    return "linux"
-
-
 ffibuilder = FFI()
-PATH = os.path.dirname(__file__)
+PATH = os.path.dirname(os.path.abspath(__file__))
 
-np_lib_path = os.path.join(PATH, "..","..","build",'neuropil',"lib")
-np_include_path = os.path.join(PATH, "..","..","include")
+library_dirs = [
+    os.path.join(PATH, "..","..","build",'neuropil',"lib"), #dev build
+    os.getenv("LD_LIBRARY_PATH",""),
+    os.getenv("DYLD_LIBRARY_PATH",""),
+    os.path.join("/usr", "lib"),
+    os.path.join("/usr", "lib", "neuropil"),
+]
 
-# This describes the extension module "_neuropil" to produce.
+include_dirs = [
+    os.path.join(PATH, "..", "..", "include"), # dev build
+    os.path.join("/usr","include", "neuropil"),
+    os.path.join("/usr","local","include", "neuropil"),
+]
+
+
+
+with open(os.path.join(PATH,"include", "neuropil_comb.h"),"r") as f:
+    ffibuilder.cdef(f.read(), packed=True, override=True)
+
+ffibuilder.cdef('''
+    extern "Python" bool _py_subject_callback(np_context* context, struct np_message*);
+    extern "Python" bool _py_authn_cb(np_context* context, struct np_token*);
+    extern "Python" bool _py_authz_cb(np_context* context, struct np_token*);
+    extern "Python" bool _py_acc_cb(np_context* context, struct np_token*);
+''', packed=True, override=True)
+
 ffibuilder.set_source(
     "_neuropil",
-    r"""
-        #include "neuropil.h"   // the C header of the library
+    """
+        #include "neuropil.h"
+        #include "neuropil_data.h"
+        #include "neuropil_attributes.h"
+        #include "neuropil_log.h"
     """,
-    libraries=['neuropil', 'sodium'],   # library name, for the linker
-    # extra_objects=[np_lib_path],
-    library_dirs=[np_lib_path],
-    include_dirs=[np_include_path]
-    )
+    libraries=['neuropil'],   # library name, for the linker
+    library_dirs=library_dirs,
+    include_dirs=include_dirs
 
-# cdef() expects a string listing the C types, functions and
-# globals needed from Python. The string follows the C syntax.
-import subprocess
+)
 
-h_files = ['neuropil.h']
 
-for h_file in h_files:
-    h_file_path = os.path.join(np_include_path, h_file)
-    cc = os.getenv("CC",'clang')
-
-    cmd =[
-            cc,"-E",h_file_path,
-            "-D__CLANG_MAX_ALIGN_T_DEFINED",
-            # "-Ipycparser/utils/fake_libc_include"
-            "-DNP_PACKED(x)=","-DNP_API_EXPORT=", "-DNP_ENUM=", "-DNP_CONST_ENUM="
-            ]
-    if platform.system() == 'Darwin':
-        cmd += ["-D__signed=", "-D__builtin_va_list=void*"]
-    h_file = subprocess.run(cmd, stdout=subprocess.PIPE).stdout.decode('utf-8')
-    ffibuilder.cdef(h_file, packed=True)
-
-if __name__ == "__main__":
-    ffibuilder.compile(verbose=True)
+#if __name__ == "__main__":
+ffibuilder.compile(verbose=True)

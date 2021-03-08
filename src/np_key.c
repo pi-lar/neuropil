@@ -17,6 +17,7 @@
 #include "event/ev.h"
 #include "sodium.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_tree.h"
 #include "np_types.h"

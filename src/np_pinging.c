@@ -18,6 +18,7 @@
 
 #include "np_node.h"
 #include "np_key.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"

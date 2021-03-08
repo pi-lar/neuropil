@@ -14,6 +14,7 @@
 
 #include "neuropil.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_util.h"
 #include "util/np_tree.h"

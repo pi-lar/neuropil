@@ -1,19 +1,25 @@
 default:
-  image: $CI_REGISTRY_IMAGE/dev-enviroment
-
+  image: $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
 cache:
-  key: "${CI_COMMIT_SHA}"
+  key: "${CI_PIPELINE_IID}${CI_COMMIT_SHA}${CI_RUNNER_TAGS}"
   paths:
     - .venv
-    - build
 
 stages:
   - enviroment
-  - test
+  - prepare
   - build
-  - package
+  - test
   - qa
   - release
+
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_TITLE =~ /WIP:/ || $CI_MERGE_REQUEST_TITLE =~ /Draft:/
+      when: never
+    - if: $CI_COMMIT_TAG == "latest_release"
+      when: never
+    - when: always
 
 setup:
   stage: enviroment
@@ -22,17 +28,78 @@ setup:
   script:
     - sh -c '[ -z "$CI_DEPLOY_USER" ] &&  (echo "Please read CI.md for the gitlab pipeline setup." >&2) && exit 1 || exit 0'
     - echo "$CI_DEPLOY_PASSWORD" | docker login -u $CI_DEPLOY_USER $CI_REGISTRY --password-stdin
-    - docker build -t $CI_REGISTRY_IMAGE/dev-enviroment:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE/dev-enviroment -f configs/docker/dev-enviroment.Dockerfile --build-arg CI_REPOSITORY_URL=$CI_REPOSITORY_URL --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL configs/docker/
-    - docker push $CI_REGISTRY_IMAGE/dev-enviroment
+    - |
+        docker build \
+          --cache-from "$CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID" \
+          -t $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_SHA \
+          -t $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID \
+          -f configs/docker/ci-enviroment.Dockerfile \
+          --build-arg CI_REPOSITORY_URL=$CI_REPOSITORY_URL \
+          --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL \
+          ./
+    - docker push $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
   image: docker:latest
   services:
     - docker:dind
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      changes:
-        - configs/docker/*
+    - if: $CI_JOB_MANUAL
+    - if: $CI_COMMIT_TAG != null
+    - if: $CI_MERGE_REQUEST_ID != null
+    - changes:
+        - configs/docker/ci-enviroment.Dockerfile
         - requirements.txt
-        - SConstruct
+
+ci_configuration:
+  stage: prepare
+  script: ./do script util/build_helper.py --prepare_ci
+  artifacts:
+    paths:
+      - .gitlab-ci-build.yml
+      - .gitlab-ci-deployment.yml
+  rules:
+    - if: $DYNAMIC_BUILDERS != null
+
+crossbuild:
+  stage: build
+  trigger:
+    include:
+      - artifact: .gitlab-ci-build.yml
+        job: ci_configuration
+    strategy: depend
+  rules:
+    - if: $DYNAMIC_BUILDERS != null
+  needs:
+    - ci_configuration
+
+documentation:
+  stage: build
+  script: ./do doc
+  artifacts:
+    name: neuropil-documentation
+    paths:
+      - build/doc/html
+
+docker_test_enviroment:
+  stage: build
+  script:
+    - ./do ensure_dependencies
+    - ./do build --DEBUG all
+  artifacts:
+    paths:
+      - build
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+
+docker_production_enviroment:
+  stage: build
+  script:
+    - ./do ensure_dependencies
+    - ./do build --RELEASE all
+  artifacts:
+    paths:
+      - build
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null
 
 test:
   stage: test
@@ -47,54 +114,20 @@ test:
       - build/core.*
     expire_in: 1 week
   rules:
-    - if: '$CI_COMMIT_TAG == null'
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+  needs:
+    - docker_test_enviroment
 
-build:documentation:
-  stage: build
-  script: ./do doc
-  artifacts:
-    name: neuropil-documentation
-    paths:
-      - build/doc/html
-
-build:linux:
-  stage: build
-  script:
-    - ./do build release
-    - ./do build release bindings=1
-  artifacts:
-    name: neuropil-linux
-    paths:
-      - build/neuropil
-
-package:linux:
-  stage: package
-  script:
-    - ls build
-    - ls build/neuropil
-    - ./do package
-    - mkdir -p neuropil
-    - mv build/package/* neuropil/
-  artifacts:
-    name: neuropil-linux
-    paths:
-      - neuropil
-    expire_in: 2 year
-  rules:
-    - if: '$CI_COMMIT_TAG != null && $CI_COMMIT_REF_PROTECTED'
-  dependencies:
-    - build:linux
-    - build:documentation
-
-qa:smoke_tests:
+smoke_tests:
   stage: qa
   script:
       - ./do smoke --fail-fast
   retry:
     max: 2
-  allow_failure: true
+  allow_failure: false
   timeout: 10m
   artifacts:
+    when: always
     reports:
       junit: build/smoke_test-junit.xml
     paths:
@@ -102,13 +135,112 @@ qa:smoke_tests:
       - build/core.*
     expire_in: 1 week
   rules:
-    - if: '$CI_COMMIT_TAG == null'
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+  needs:
+    - docker_test_enviroment
+    - job: test
+      artifacts: false
 
-request:
+nixos_tests:
+  stage: qa
+  script:
+      - nix-env -iA nixpkgs.git && nix-shell --command exit
+  allow_failure: true
+  image: nixos/nix
+  needs: []
+
+helgrind_tests:
+  stage: qa
+  script:
+      - ./do helgrind
+  allow_failure: true
+  timeout: 15m
+  artifacts:
+    when: always
+    name: helgrind
+    paths:
+      - build/helgrind.log
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+  needs:
+    - docker_test_enviroment
+    - job: test
+      artifacts: false
+
+code_analyze:
+  stage: qa
+  script:
+      - ./do analyze
+  allow_failure: true
+  artifacts:
+    when: always
+    name: scan-build
+    paths:
+      - build/analyze
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_TAG == null'
+  needs:
+    - docker_test_enviroment
+    - job: test
+      artifacts: false
+
+pages:
+  stage: release
+  script:
+    - mkdir -p public
+    - mv build/doc/html/* public
+  artifacts:
+    paths:
+    - public/
+  needs:
+    - documentation
+  rules:
+    - if: $CI_MERGE_REQUEST_ID != null
+      when: never
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null
+
+publish:
   stage: release
   rules:
-    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_MERGE_REQUEST_ID != null
       when: never
-    - if: '$CI_COMMIT_REF_PROTECTED'
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+      when: always
   trigger:
-    include: .gitlab-ci-deployment.yml
+    include:
+      - artifact: .gitlab-ci-deployment.yml
+        job: ci_configuration
+
+update_latest_tag:
+  stage: release
+  script:
+      - ./do script util/build_helper.py --gitlab_latest_release
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null
+
+gitlab-pypi:
+  stage: release
+  script:
+    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token ./.venv/bin/python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi build/bindings/python/dist/*
+  rules:
+    - if: $CI_MERGE_REQUEST_ID != null
+      when: never
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null
+      when: always
+  needs:
+    - docker_production_enviroment
+
+#pypi:
+#  stage: release
+#  script:
+#    - ls build/bindings/python/dist/
+#    - TWINE_PASSWORD=${PYPI_TOKEN} TWINE_USERNAME=__token__ ./.venv/bin/python -m twine upload build/bindings/python/dist/*
+#  rules:
+#    - if: $CI_MERGE_REQUEST_ID != null
+#      when: never
+#    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null && $PYPI_TOKEN
+#      when: always
+#  needs:
+#    - docker_production_enviroment

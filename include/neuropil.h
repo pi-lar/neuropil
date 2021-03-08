@@ -8,9 +8,11 @@
 #ifndef _NP_INTERFACE_H_
 #define _NP_INTERFACE_H_
 
+#ifndef _NP_DO_NOT_USE_DEFAULT_H_FILES
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

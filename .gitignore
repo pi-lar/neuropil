@@ -28,8 +28,10 @@ config.log
 bindings/luajit/neuropil_ffi.lua
 /.venv/
 tmp/*
+bindings/python_cffi/_neuropil.c
 bindings/python_cffi/neuropil.egg-info/
 bindings/python_cffi/dist/
+*.tmp
 *.so
 core*
 vgcore*
@@ -52,3 +54,7 @@ _deps
 ### CMake Patch ###
 # External projects
 *-prefix/
+
+### Project specifics ###
+.gitlab-ci-build.yml
+.gitlab-ci-deployment.yml

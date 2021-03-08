@@ -7,8 +7,12 @@
 #include <stdlib.h>
 #include "pthread.h"
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_treeval.h"
 #include "np_jobqueue.h"

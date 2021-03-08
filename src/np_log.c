@@ -17,6 +17,7 @@
 #include "event/ev.h"
 #include "pthread.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 
 #include "np_event.h"

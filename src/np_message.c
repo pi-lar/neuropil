@@ -13,11 +13,15 @@
 
 #include "event/ev.h"
 #include "sodium.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 #include "tree/tree.h"
 
 #include "np_message.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_legacy.h"
 #include "np_aaatoken.h"
@@ -150,11 +154,13 @@ void _np_message_calculate_chunking(np_message_t* msg)
     uint32_t chunks =
             ((uint32_t) (payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
 
-    log_debug(LOG_SERIALIZATION, "Message has payload of %"PRIu32"(%"PRIu32"/%"PRIu32") and %"PRIu32"(%"PRIu32"/%"PRIu32") header data, so we send %"PRIu32" chunks for %"PRIu32" bytes"
-        , payload_size, body_size, footer_size, 
-        fixed_size, header_size, instructions_size, 
-        chunks, 
-        (payload_size+ fixed_size)*chunks);
+    log_debug(LOG_SERIALIZATION, "Message has payload of %"PRIu32"(%"PRIu32"/%"PRIu32") and %"PRIu32"(%"PRIu32"/%"PRIu32") header data (%"PRIu32" bytes), so we send %"PRIu32" chunks for %"PRIu32" bytes"
+        , payload_size, body_size, footer_size,
+        fixed_size, header_size, instructions_size,
+        payload_size + fixed_size,
+        chunks,
+        (payload_size+ fixed_size)*chunks
+    );
 
 
     msg->no_of_chunks = chunks;

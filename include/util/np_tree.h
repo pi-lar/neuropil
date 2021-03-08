@@ -17,6 +17,9 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 #include <stdint.h>
 
 #include "tree/tree.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 
 #include "np_types.h"

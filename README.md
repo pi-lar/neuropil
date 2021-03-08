@@ -29,11 +29,11 @@ cd into the folder and build the code with scons.
 
 build in debug mode:
 
-    scons debug=1
+    scons --DEBUG
 
 build in release mode:
 
-    scons release=1
+    scons --RELEASE
 
 build the documentation (sphinx installation required):
 
@@ -41,7 +41,7 @@ build the documentation (sphinx installation required):
 
 build the tests (criterion installation required):
 
-    scons test=1
+    scons tests
 
 clean the project:
 
@@ -75,7 +75,7 @@ Although this is probably **not** what you want to do (see next section), buildi
 | `nix build ./`                                                             | Build library and header files                                                                                                                                        |
 | `nix build ./#packages.x86_64-{darwin,linux}.neuropil_{python,luajit}` | builds python module or lua module respectively                                                                                                                         |
 | `nix develop` or `nix-shell -A devShell.x86_64-{darwin,linux}`             | opens a shell with libneuropil on `LDPATH` and lua/python bindings available. Use this to build C sources manually (e.g. `$CC examples/neuropil_sender.c -lneuropil`)       |
-| `nix shell ./#packages.x86_64-{darwin,linux}.libneuropil`                  | opens a shell with neuropil's dependencies available, allows the common workflow using `scons debug=1` and `scons release=1`.                                               |
+| `nix shell ./#packages.x86_64-{darwin,linux}.libneuropil`                  | opens a shell with neuropil's dependencies available, allows the common workflow using `scons --DEBUG` and `scons --RELEASE`.                                               |
 
 To open the shell/build the library without cloning the repository, using nix flakes replace `./` by `git+<url to repo>` or `gitlab:pi-lar/neuropil` for the latest branch.
 

@@ -15,6 +15,9 @@
 
 #include "np_axon.h"
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 #include "event/ev.h"
 #include "sodium.h"
@@ -33,6 +36,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_legacy.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_list.h"
 #include "np_memory.h"
@@ -747,7 +751,7 @@ bool _np_out_join(np_state_t* context, const np_util_event_t event)
 
     if(_np_key_cmp(context->my_identity, context->my_node_key) != 0) {
         jrb_my_ident = np_tree_create();
-        np_aaatoken_encode(jrb_my_ident, _np_key_get_token(context->my_identity));
+        np_aaatoken_encode(jrb_my_ident, np_token_factory_get_public_ident_token(_np_key_get_token(context->my_identity)));
         np_tree_insert_str(jrb_data, _NP_URN_IDENTITY_PREFIX, np_treeval_new_tree(jrb_my_ident));
     }
     // 2. set it as body of message
@@ -809,6 +813,7 @@ bool _np_out_handshake(np_state_t* context, const np_util_event_t event)
         if (hs_message->no_of_chunks != 1 || serialize_ok == false)
         {
             log_msg(LOG_ERROR, "HANDSHAKE MESSAGE IS NOT 1024 BYTES IN SIZE! Message will not be send");
+            log_debug(LOG_HANDSHAKE, "HANDSHAKE MESSAGE: no_of_chunks:%"PRIu32", serialize: %"PRIu8, hs_message->no_of_chunks, serialize_ok);
         }
         else
         {

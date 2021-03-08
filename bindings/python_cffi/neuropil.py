@@ -9,10 +9,10 @@ class NeuropilException(Exception):
 
 class np_mx_properties(object):
 
-    def __init__(self, node, **entries):
-        self._ignore_at_conversion = ["subject","_node"]
+    def __init__(self, raw, **entries):
+        self._ignore_at_conversion = ["subject","_raw"]
         self.subject = None
-        self._node = node
+        self._raw = raw
         self.__dict__.update(entries)
 
     def apply(self):
@@ -20,12 +20,23 @@ class np_mx_properties(object):
 
     def set_mx_properties(self):
         ret = neuropil.np_invalid_argument
-        if self._node and self.subject:
-            ret = self._node.set_mx_properties(self.subject, self)
+        if self._raw and self.subject:
+            ret = self._raw.set_mx_properties(self.subject, self)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
 
         return ret
+
+    # enum np_data_return np_set_mxp_attr_bin(np_context *ac,   char * subject,         enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
+    def set_attr_bin(self, key:bytes, data:bytes):
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        data_return = neuropil.np_set_mxp_attr_bin(self._raw._context, self.subject, neuropil.NP_ATTR_NONE, key, data, len(data))
+
+        if data_return != neuropil.np_data_ok:
+            raise NeuropilException(f'Could not set attribute. Error code: {data_return}. Please review neuropil_data.h for details',data_return)
 
 class np_id(object):
 
@@ -40,8 +51,9 @@ class np_id(object):
 
 
 class np_token(object):
-    def __init__(self, node,  **entries):
-        self._ignore_at_conversion = ["_node"]
+    def __init__(self, node, raw,  **entries):
+        self._ignore_at_conversion = ["_raw","_node"]
+        self._raw = raw
         self._node = node
         self.__dict__.update(entries)
 
@@ -54,14 +66,69 @@ class np_token(object):
 
         return np_id(id)
 
+    def get_attr_bin(self, key:bytes):
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        out_data_config = ffi.new("struct np_data_conf[1]")
+        out_data_config_ptr = ffi.new("struct np_data_conf *[1]")
+        out_data_config_ptr[0] = ffi.addressof(out_data_config[0])
+        out_data = ffi.new("unsigned char *[1]")
+        out_data[0] = ffi.NULL
+
+        data_return = neuropil.np_get_token_attr_bin(ffi.addressof(self._raw), key, out_data_config_ptr, out_data)
+
+        data = None
+        if data_return == neuropil.np_data_ok:
+            data = bytearray(out_data_config[0].data_size)
+            ffi.memmove(data, out_data[0], out_data_config[0].data_size)
+        else:
+            raise NeuropilException(f'Could not receive attribute \"{str(key)}\". Error code: {data_return}. Please review neuropil_data.h for details',data_return)
+
+        return data
+
+    #enum np_data_return np_set_ident_attr_bin(np_context *ac, struct np_token* ident, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
+    def set_attr_bin(self, key:bytes, data:bytes):
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        data_return = neuropil.np_set_ident_attr_bin(self._node._context, ffi.addressof(self._raw), neuropil.NP_ATTR_NONE, key, data, len(data))
+
+        if data_return != neuropil.np_data_ok:
+            raise NeuropilException(f'Could not set attribute. Error code: {data_return}. Please review neuropil_data.h for details',data_return)
+
 class np_message(object):
-    def __init__(self, _raw, **entries):
+    def __init__(self, _data, _raw, **entries):
         self.data_length = 0
         self.__dict__.update(entries)
-        self._raw = bytes(ffi.buffer(_raw['data'], self.data_length))
+        self._raw = _raw
+        self._data = bytes(ffi.buffer(_data['data'], self.data_length))
 
     def raw(self):
-        return self._raw
+        return self._data
+
+    #enum np_data_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
+    def get_attr_bin(self, key:bytes):
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        out_data_config = ffi.new("struct np_data_conf[1]")
+        out_data_config_ptr = ffi.new("struct np_data_conf *[1]")
+        out_data_config_ptr[0] = ffi.addressof(out_data_config[0])
+        out_data = ffi.new("unsigned char *[1]")
+        out_data[0] = ffi.NULL
+
+        data_return = neuropil.np_get_msg_attr_bin(ffi.addressof(self._raw), key, out_data_config_ptr, out_data)
+
+        data = None
+        if data_return == neuropil.np_data_ok:
+            data = bytearray(out_data_config[0].data_size)
+            ffi.memmove(data, out_data[0], out_data_config[0].data_size)
+        else:
+            raise NeuropilException(f'Could not receive attribute \"{key}\". Error code: {data_return}. Please review neuropil_data.h for details',data_return)
+
+        return data
+
+
 
 class NeuropilCluster(object):
 
@@ -152,25 +219,7 @@ class NeuropilNode(object):
 
         return np_id(id)
 
-    @staticmethod
-    @ffi.callback("bool(np_context* context, struct np_message*)")
-    def _py_subject_callback(context, message):
-        ret = True
-        myself = _NeuropilHelper.from_context(context)
-        msg = _NeuropilHelper.convert_to_python(myself, message)
-
-        subject_id = ffi.new("char[65]",b'\0')
-        neuropil.np_id_str(subject_id, msg.subject)
-        subject_id = _NeuropilHelper.convert_to_python(myself, subject_id)
-        if myself.__callback_info_dict__[subject_id]:
-            for user_fn in myself.__callback_info_dict__[subject_id]:
-                if len(inspect.signature(user_fn).parameters) == 2:
-                    ret = bool(user_fn(myself, msg)) and ret
-                else:
-                    ret = bool(user_fn(msg)) and ret
-        return ret
-
-    def set_receive_cb(self, subject:str, recv_callback):
+    def set_receive_cb(self, subject:bytes, recv_callback):
         if isinstance( subject, str):
              subject =  subject.encode("utf-8")
 
@@ -187,7 +236,7 @@ class NeuropilNode(object):
 
         if subject_id not in self.__callback_info_dict__:
             self.__callback_info_dict__[subject_id] = []
-            ret = neuropil.np_add_receive_cb(self._context, subject, NeuropilNode._py_subject_callback)
+            ret = neuropil.np_add_receive_cb(self._context, subject, neuropil._py_subject_callback)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         else:
@@ -233,6 +282,8 @@ class NeuropilNode(object):
     def send(self, subject:str, message:bytes):
         if isinstance(subject, str):
             subject = subject.encode("utf-8")
+        if isinstance(message, str):
+            message = message.encode("utf-8")
         if not isinstance(subject, bytes):
             raise ValueError(f"subject needs to be of type `bytes` or `str`")
 
@@ -261,13 +312,13 @@ class NeuropilNode(object):
         token_dict =  _NeuropilHelper.convert_from_python(identity)
         #ffi_token = ffi.new("struct np_token", token_dict)
 
-        ret = neuropil.np_use_identity(self._context, token_dict)
+        ret = neuropil.np_use_identity(self._context, identity._raw)
 
         if ret is not neuropil.np_ok:
-            raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
+            raise NeuropilException('Could not use identity. Error: {error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
-    def get_mx_properties(self, subject:str):
+    def get_mx_properties(self, subject:bytes):
         if isinstance(subject, str):
             subject = subject.encode("utf-8")
         if not isinstance(subject, bytes):
@@ -283,7 +334,7 @@ class NeuropilNode(object):
 
         return ret
 
-    def set_mx_properties(self, subject:str, mx_property:np_mx_properties):
+    def set_mx_properties(self, subject:bytes, mx_property:np_mx_properties):
         subject = _NeuropilHelper.convert_from_python(subject)
 
         if not isinstance(subject, bytes):
@@ -327,41 +378,33 @@ class NeuropilNode(object):
         ret = neuropil.np_get_status(self._context)
         return ret
 
-    @staticmethod
-    @ffi.callback("bool(np_context* context, struct np_token*)")
-    def _py_authn_cb(context, token):
-        myself = _NeuropilHelper.from_context(context)
-        return bool(myself._user_authn_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))
+    def set_attr_bin(self, key:bytes, data:bytes, inheritance=neuropil.NP_ATTR_IDENTITY):
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        data_return = neuropil.np_set_ident_attr_bin(self._context, ffi.NULL, inheritance, key, data, len(data))
 
-    @staticmethod
-    @ffi.callback("bool(np_context* context, struct np_token*)")
-    def _py_authz_cb(context, token):
-        myself = _NeuropilHelper.from_context(context)
-        return bool(myself._user_authz_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))
-
-    @staticmethod
-    @ffi.callback("bool(np_context* context, struct np_token*)")
-    def _py_acc_cb(context, token):
-        myself = _NeuropilHelper.from_context(context)
-        return bool(myself._user_accou_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))
+        if data_return != neuropil.np_data_ok:
+            raise NeuropilException(f'Could not set attribute. Error code: {data_return}. Please review neuropil_data.h for details',data_return)
 
     def set_authenticate_cb(self, authn_callback):
         self._user_authn_cb = authn_callback
-        ret =  neuropil.np_set_authenticate_cb(self._context, NeuropilNode._py_authn_cb)
+        ret =  neuropil.np_set_authenticate_cb(self._context, neuropil._py_authn_cb)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def set_authorize_cb(self, authz_callback):
         self._user_authz_cb = authz_callback
-        ret = neuropil.np_set_authorize_cb(self._context, NeuropilNode._py_authz_cb)
+        ret = neuropil.np_set_authorize_cb(self._context, neuropil._py_authz_cb)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
     def set_accounting_cb(self, acc_callback):
         self._user_accou_cb = acc_callback
-        ret = neuropil.np_set_accounting_cb(self._context, NeuropilNode._py_acc_cb)
+        ret = neuropil.np_set_accounting_cb(self._context, neuropil._py_acc_cb)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
@@ -396,9 +439,9 @@ class _NeuropilHelper():
         elif type.kind == 'struct':
             ret = dict(_NeuropilHelper.__convert_struct_field(node,  s, type.fields))
             if type.cname == 'struct np_message':
-                ret = np_message(ret, **ret)
+                ret = np_message(ret, s, **ret)
             elif  type.cname == 'struct np_token':
-                ret = np_token(node, **ret)
+                ret = np_token(node, s, **ret)
             elif  type.cname == 'struct np_mx_properties':
                 ret = np_mx_properties(node, **ret)
         elif type.kind == 'array':
@@ -445,3 +488,34 @@ class _NeuropilHelper():
         else:
             return _NeuropilHelper.__convert_value_from_python(s)
 
+@ffi.def_extern()
+def _py_subject_callback(context, message):
+    ret = True
+    myself = _NeuropilHelper.from_context(context)
+    msg = _NeuropilHelper.convert_to_python(myself, message)
+
+    subject_id = ffi.new("char[65]",b'\0')
+    neuropil.np_id_str(subject_id, msg.subject)
+    subject_id = _NeuropilHelper.convert_to_python(myself, subject_id)
+    if myself.__callback_info_dict__[subject_id]:
+        for user_fn in myself.__callback_info_dict__[subject_id]:
+            if len(inspect.signature(user_fn).parameters) == 2:
+                ret = bool(user_fn(myself, msg)) and ret
+            else:
+                ret = bool(user_fn(msg)) and ret
+    return ret
+
+@ffi.def_extern()
+def _py_authn_cb(context, token):
+    myself = _NeuropilHelper.from_context(context)
+    return bool(myself._user_authn_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))
+
+@ffi.def_extern()
+def _py_authz_cb(context, token):
+    myself = _NeuropilHelper.from_context(context)
+    return bool(myself._user_authz_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))
+
+@ffi.def_extern()
+def _py_acc_cb(context, token):
+    myself = _NeuropilHelper.from_context(context)
+    return bool(myself._user_accou_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))

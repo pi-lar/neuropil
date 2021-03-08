@@ -45,6 +45,8 @@ class IPTransportTest(unittest.TestCase):
         return True
 
     def run_node(self, port, proto, join_to=None):
+        timeout = 180 #sec
+
         node = NeuropilNode(port, log_file="logs/smoke_test_ip_transport_tcp4.log", proto=proto, auto_run=True, n_threads=5)
         node.set_authenticate_cb(IPTransportTest.authn_allow_all)
         if join_to:
@@ -52,11 +54,9 @@ class IPTransportTest(unittest.TestCase):
         node.run(math.pi/10)
 
         t1 = time.time()
-        timeout = 120 #sec
         while not self.isOK():
             elapsed = float(time.time() - t1)
-            if elapsed % 2 == 0:
-                self.assertTrue(node.get_status() == neuropil.np_running)
+            self.assertTrue(node.get_status() == neuropil.np_running)
             if elapsed > timeout:
                 break
             node.run(math.pi/10)

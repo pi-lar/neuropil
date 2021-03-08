@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 
+# colorcodes https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+RED='\033[0;31m'
+ORANGE='\033[0;33m'
+NC='\033[0m' # No Color
+
 set -eu
 
 ensure_venv() {
   if [ ! -d .venv ]; then
-    virtualenv -p $(which python3) .venv
+    python3 -m venv .venv
+    ./.venv/bin/pip3 install --upgrade pip
+    ./.venv/bin/pip3 install --upgrade setuptools wheel
     ./.venv/bin/pip3 install -r configs/requirements.txt
   fi
 
   if [ configs/requirements.txt -nt .venv ]; then
+    ./.venv/bin/pip3 install --upgrade pip
+    ./.venv/bin/pip3 install --upgrade setuptools wheel
     ./.venv/bin/pip3 install -r configs/requirements.txt
     touch ./.venv
   fi
@@ -17,67 +26,18 @@ ensure_venv() {
   set -u
 }
 
-ensure_submodules() {
-  git submodule update --init --recursive
-}
-
-ensure_criterion() {
-  echo "check for existing criterion installation"
-  set +e
-  ldconfig -p | grep criterion
-  e=$?
-  set -e
-  if [ e == 0 ];
-  then
-    echo "found criterion"
-    return
-  fi
-  (
-    echo "did not find criterion. Building now"
-    root="$(pwd)"
-    mkdir -p "build/ext_tools/Criterion/build"
-    cd ext_tools/Criterion
-    meson "${root}/build/ext_tools/Criterion/build"
-    ninja -C "${root}/build/ext_tools/Criterion/build"
-  )
-}
-
-task_prepare_ci(){
-  eval $(ssh-agent -s)
-
-  ##
-  ## Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
-  ## We're using tr to fix line endings which makes ed25519 keys work
-  ## without extra base64 encoding.
-  ## https://gitlab.com/gitlab-examples/ssh-private-key/issues/1#note_48526556
-  ##
-  echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
-}
-
 task_build() {
   ensure_venv
-  ensure_submodules
-
-  type=${1:-"defaultvalue"}
-  if [ "$type" == "defaultvalue" ]; then
-    type="release=1"
-  else
-    shift;
-    if [ "$type" == "release" ]; then
-      type="release=1"
-    else
-      type="debug=1"
-    fi
-  fi
 
   tmpfile_sorted=$(mktemp /tmp/np_sorted.log.XXXXXX)
   tmpfile_sorted2=$(mktemp /tmp/np_sorted.log.XXXXXX)
-
-  echo "executing: scons -C build -f ../SConstruct $type $@ |& tee $tmpfile_sorted"
-  (scons -C build -f ../SConstruct "$type" "$@" |& tee "$tmpfile_sorted")
+  tmpfile_errors=$(mktemp /tmp/np_errors.log.XXXXXX)
+  tmpfile_warnings=$(mktemp /tmp/np_warnings.log.XXXXXX)
+  echo "executing: scons -C build -f ../SConstruct $@ |& tee $tmpfile_sorted"
+  scons -C build -f ../SConstruct "$@" |& tee "$tmpfile_sorted"
   ret=${PIPESTATUS[0]}
   set +e
-  egrep "warning:|error:" "$tmpfile_sorted" > "$tmpfile_sorted2"
+  egrep "warning:|error:|scons: building terminated because of errors" "$tmpfile_sorted" > "$tmpfile_sorted2"
   filterd=$(cat "$tmpfile_sorted2")
   if [ "$?" == "0" ]; then
     filterd=$(echo "$filterd" | sort)
@@ -85,24 +45,41 @@ task_build() {
     filterd=$(echo "$filterd" | uniq)
     echo "$filterd"
 
-    warnings=$(echo "$filterd" | grep "warning:")
-    if [ "$?" != "0" ]; then
-      warn="0"
-    else
-      warn=$(echo "$warnings" | wc -l)
+    echo "$filterd" | grep "warning:" > $tmpfile_warnings
+
+    echo "$filterd" | grep 'error:\|scons: building terminated because of errors' > $tmpfile_errors
+    warn=$(cat $tmpfile_warnings | wc -l)
+    err=$(cat $tmpfile_errors | wc -l)
+
+    if [ $warn != "0" ]; then
+      echo -e "${ORANGE}Custom warning listing ($tmpfile_warnings):${NC}"
+      cat $tmpfile_warnings
     fi
-    errors=$(echo "$filterd" | grep "error:")
-    if [ "$?" != "0" ]; then
-      err="0"
-    else
-      err=$(echo "$errors" | wc -l)
+    if [ $err != "0" ]; then
+      echo -e "${RED}Custom error listing ($tmpfile_errors):${NC}"
+      cat $tmpfile_errors
     fi
-    echo "$warnings"
-    echo "$errors"
     printf "Warnings:\t%s\n" "$warn"
     printf "Errors:\t\t%s\n" "$err"
   fi
   set -e
+
+  return $ret
+}
+
+task_analyze() {
+  ensure_venv
+  ret=-1
+
+  (
+    cd build
+
+    rm -rf neuropil/*
+    set +e
+    scan-build -o analyze -stats --status-bugs scons -C build -f ../SConstruct "$@"
+    ret=$?
+    set -e
+  )
 
   return $ret
 }
@@ -112,10 +89,10 @@ task_clean() {
 
   git submodule foreach --recursive git clean -xfd
   git submodule foreach --recursive git reset --hard
-  git submodule update --init --recursive
   rm -rf logs/*
-  rm -rf bindings/python_cffi/build bindings/python_cffi/_neuropil.abi3.so bindings/python_cffi/neuropil.egg-info
+  rm -rf bindings/python_cffi/build bindings/python_cffi/_neuropil.abi3.so bindings/python_cffi/neuropil.egg-info bindings/python_cffi/dist/*
   rm -rf build
+  scons -f ./SConstruct -c
 }
 
 task_doc() {
@@ -123,7 +100,13 @@ task_doc() {
   (
     rm -rf build/doc
     mkdir -p build/doc
-    make html -C doc BUILDDIR='../build/doc'
+
+    make='make'
+    unamestr=$(uname)
+    if [ "$unamestr" = 'FreeBSD' ]; then
+      make='gmake'
+    fi
+    $make html -C doc BUILDDIR='../build/doc'
   )
 }
 
@@ -131,12 +114,6 @@ task_package() {
   ensure_venv
 
   ./scripts/util/build_helper.py --package "$@"
-}
-
-task_release() {
-    ensure_venv
-
-  ./scripts/util/build_helper.py --gitlab_release
 }
 
 task_install_python() {
@@ -153,19 +130,38 @@ task_install_python() {
   return $?
 }
 
-task_test() {
+task_coverage() {
   ensure_venv
-  ensure_submodules
-  ensure_criterion
 
-  task_build debug
+  task_build --DEBUG --CODE_COVERAGE tests
 
   (
     cd build
     mkdir -p logs
     if [[ $? == 0 ]] ; then
-      export LD_LIBRARY_PATH=./ext_tools/Criterion/build/src:./neuropil/lib:"$LD_LIBRARY_PATH"
+      echo "$(pwd)/neuropil_test_suite.profraw"
+      LLVM_PROFILE_FILE="$(pwd)/neuropil_test_suite.profraw" ./neuropil/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
 
+      llvm-profdata merge -sparse "$(pwd)/neuropil_test_suite.profraw" -o "$(pwd)/neuropil_test_suite.profdata"
+      llvm-cov show ./neuropil/bin/neuropil_test_suite -instr-profile="$(pwd)/neuropil_test_suite.profdata"
+
+      # Enable for test debugging
+      #nohup ./build/neuropil/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
+      #sleep 1
+      #gdb ./build/neuropil/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+    fi
+  )
+}
+
+task_test() {
+  ensure_venv
+
+  task_build --DEBUG tests
+
+  (
+    cd build
+    mkdir -p logs
+    if [[ $? == 0 ]] ; then
       ./neuropil/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
       # Enable for test debugging
       #nohup ./build/neuropil/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
@@ -185,8 +181,6 @@ task_run() {
   fi
   application="$application"
 
-  export LD_LIBRARY_PATH="./build/neuropil/lib:$LD_LIBRARY_PATH"
-
   echo "./build/neuropil/bin/$application" "$@"
   set +e
   run=$("./build/neuropil/bin/$application" "$@")
@@ -198,15 +192,12 @@ task_run() {
 }
 
 task_smoke() {
-  pwd=$(pwd)
   (
     ensure_venv
     task_install_python
 
     cd build
     mkdir -p logs
-    echo "export LD_LIBRARY_PATH=$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
-    export LD_LIBRARY_PATH="$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
 
     set +e
     nose2 -v --config ../configs/nose2.cfg "$@"
@@ -215,7 +206,7 @@ task_smoke() {
       read -r -p "${1:-Debug with gdb? [y/N]} " response
       case "$response" in
           [yY][eE][sS]|[yY])
-              gdb --silent -ex=r --args nose2 -v --config configs/nose2.cfg
+              gdb --silent -ex=r --args nose2 -v --config ../configs/nose2.cfg
               ;;
           *)
               ;;
@@ -226,56 +217,56 @@ task_smoke() {
   )
 }
 task_helgrind() {
-  pwd=$(pwd)
   (
     ensure_venv
     task_install_python
 
     cd build
     mkdir -p logs
-    echo "export LD_LIBRARY_PATH=$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
-    export LD_LIBRARY_PATH="$pwd/build/neuropil/lib:$LD_LIBRARY_PATH"
 
-    date > helgrind.out
+    date > helgrind.log
     set +e
-    valgrind --gen-suppressions=all --tool=helgrind --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" >> helgrind.out 2>&1;
-    e=$?
+    valgrind --gen-suppressions=all --tool=helgrind --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" |& tee helgrind.log;
+    ret=${PIPESTATUS[0]}
     set -e
-    echo "retcode: $e"
-    return $e
+    return $ret
   )
 }
 
 task_ensure_dependencies() {
   ensure_venv
-  ensure_submodules
-  ensure_criterion
-  (
-    cd "build/ext_tools/Criterion/build"
-    #ninja install
-  )
+
+  git submodule update --init --recursive --force
+  root="$(pwd)"
+  (task_build --RELEASE dependencies)
   echo "installing git hooks"
-  ln -s ../../.git_hooks/pre-commit .git/hooks/pre-commit
+  mkdir -p .git/hooks
+  rm -f .git/hooks/pre-commit
+  ln -s .git_hooks/pre-commit .git/hooks/pre-commit
+
   echo "neuropil development enviroment is ready"
 }
 
-task_test_deployment() {
-  task_test
-  task_build release python_binding=1
-  #task_build freebsd
-  task_doc
-  task_package
-
-  task_install_python
-  task_smoke
+task_run_script(){
+  ensure_venv
+  (
+    script=$1
+    shift;
+    python "scripts/$script" "$@"
+  )
+}
+task_uninstall(){
+  sudo rm -rf /usr/local/lib/neuropil*
+  sudo rm -rf /usr/local/include/neuropil*
 }
 task_pre_commit(){
   ensure_venv
 
+  task_build release python
   python3 scripts/util/build_helper.py --update_strings
 }
 usage() {
-  echo "$0  build | test | clean | package | release | deploy | smoke | doc | prepare_ci | (r)un | ensure_dependencies | pre_commit | helgrind"
+  echo "$0  build | test | clean | package | coverage | script | deploy | smoke | doc | (r)un | ensure_dependencies | pre_commit | helgrind | analyze"
   exit 1
 }
 
@@ -290,26 +281,31 @@ shift || true
   then
     export LD_LIBRARY_PATH=""
   fi
+  pwd=$(pwd)
+  criterion_path=($pwd/build/ext_tools/Criterion/usr/local/lib/*/)
+  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$pwd/build/neuropil/lib:$pwd/build/ext_tools/libsodium/lib:$criterion_path"
 
   case "$cmd" in
     clean) task_clean ;;
     build) task_build "$@";;
     doc) task_doc ;;
+    coverage) task_coverage "$@";;
     test) task_test "$@";;
     package) task_package "$@";;
     install_python) task_install_python ;;
     smoke) task_smoke "$@";;
-    release) task_release ;;
     run) task_run "$@";;
     r) task_run "$@";;
     ensure_dependencies) task_ensure_dependencies;;
 
-    prepare_ci) task_prepare_ci ;;
     pre_commit) task_pre_commit ;;
 
     helgrind) task_helgrind "$@";;
+    analyze) task_analyze "$@";;
+    script) task_run_script "$@";;
+    uninstall) task_uninstall "$@";;
 
-    test_deployment) task_test_deployment ;;
     *) usage ;;
   esac
+  exit $?
 )

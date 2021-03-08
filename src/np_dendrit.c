@@ -17,12 +17,16 @@
 
 #include "sodium.h"
 #include "event/ev.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 
 #include "np_dendrit.h"
 
 #include "np_statistics.h"
 #include "np_axon.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_legacy.h"
 #include "np_aaatoken.h"
@@ -371,8 +375,8 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         authn_event.target_dhkey = msg_event.target_dhkey;
         authn_event.user_data = join_ident_token;
     }
-    
-    join_node_key = _np_keycache_find(context, join_node_dhkey);
+
+        join_node_key = _np_keycache_find(context, join_node_dhkey);
     if (join_node_key == NULL) 
     {
         // no handshake before join ? exit join protocol ...

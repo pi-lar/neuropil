@@ -9,6 +9,7 @@
 
 #include "np_constants.h"
 #include "np_types.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_tree.h"
 #include "np_memory.h"

@@ -73,9 +73,6 @@ extern "C" {
     NP_API_EXPORT
     enum np_data_return np_get_data(np_datablock_t * block, char key[255], struct np_data_conf * out_data_config, np_data_value * out_data);
 
-    // Internal methods
-    NP_API_PROTEC
-    enum np_data_return np_get_data_size(np_datablock_t * block, size_t * out_block_size);
     NP_API_EXPORT
     /**
      * @brief merges src datablock into dest datablock. overwrites existing keys

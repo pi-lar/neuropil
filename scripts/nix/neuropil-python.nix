@@ -4,11 +4,11 @@
 }:
 
 with pkgs;
-python37Packages.buildPythonPackage rec {
+python3Packages.buildPythonPackage rec {
   name = "neuropil-python";
   src = lib.cleanSource source;
-  patches = [ ./patches/neuropil_build.py.patch ];
+  # patches = [ ./patches/neuropil_build.py.patch ];
   buildInputs = [ clang libsodium neuropil ];
-  propagatedBuildInputs = [ python37Packages.cffi ];
+  propagatedBuildInputs = [ python3Packages.cffi ];
   inherit neuropil;
 }

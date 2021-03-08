@@ -133,7 +133,7 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
         }
 
         // update #1 key specific data
-        np_ref_obj(np_aaatoken_t, token, "send_tokens");
+        np_ref_obj(np_aaatoken_t, token, ref_aaatoken_local_mx_tokens);
         ret = pll_replace(np_aaatoken_ptr, ledger->send_tokens, token, cmp_aaatoken_replace);
         if (NULL == ret)
         {
@@ -267,7 +267,7 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
         }
 
         // update #1 key specific data
-        np_ref_obj(np_aaatoken_t, token, "recv_tokens");
+        np_ref_obj(np_aaatoken_t, token, ref_aaatoken_local_mx_tokens);
         ret = pll_replace(np_aaatoken_ptr, ledger->recv_tokens, token, cmp_aaatoken_replace);
         if (NULL == ret)
         {
@@ -504,7 +504,7 @@ void __np_intent_check(np_util_statemachine_t* statemachine, NP_UNUSED const np_
         {
             log_debug_msg(LOG_DEBUG, "deleting old / invalid sender msg tokens %p", tmp_token);
             pll_remove(np_aaatoken_ptr, ledger->send_tokens, tmp_token, _np_intent_cmp_exact);
-            np_unref_obj(np_aaatoken_t, tmp_token, "send_tokens");
+            np_unref_obj(np_aaatoken_t, tmp_token, ref_aaatoken_local_mx_tokens);
             break;
         }
     }    
@@ -521,7 +521,7 @@ void __np_intent_check(np_util_statemachine_t* statemachine, NP_UNUSED const np_
         {
             log_debug_msg(LOG_DEBUG, "deleting old / invalid receiver msg token %p", tmp_token);
             pll_remove(np_aaatoken_ptr, ledger->recv_tokens, tmp_token, _np_intent_cmp_exact);
-            np_unref_obj(np_aaatoken_t, tmp_token, "recv_tokens");
+            np_unref_obj(np_aaatoken_t, tmp_token, ref_aaatoken_local_mx_tokens);
             break;
         }
     }

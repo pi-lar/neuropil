@@ -22,6 +22,7 @@
 #include "np_dhkey.h"
 #include "np_legacy.h"
 #include "util/np_list.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_network.h"
 #include "np_node.h"

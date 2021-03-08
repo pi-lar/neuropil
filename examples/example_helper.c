@@ -32,6 +32,7 @@
 #include "np_legacy.h"
 #include "util/np_list.h"
 #include "np_threads.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_event.h"
 #include "np_memory.h"

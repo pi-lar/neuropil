@@ -7,6 +7,7 @@
 #include <criterion/logging.h>
 #include "event/ev.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_treeval.h"
 #include "util/np_tree.h"
@@ -18,7 +19,11 @@
 #include "np_jobqueue.h"
 #include "np_serialization.h"
 
-#include "../src/msgpack/cmp.c"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "msgpack/cmp.c"
+
 #include "../src/np_util.c"
 
 #include "../test_macros.c"

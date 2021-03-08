@@ -1,3 +1,6 @@
+
+setuptools
+wheel
 libtmux==0.8.0
 scons==3.0.1
 Sphinx==1.7.3
@@ -7,3 +10,6 @@ cffi==1.13.2
 nose2==0.9.1
 plantuml
 meson
+Jinja2
+requests
+twine

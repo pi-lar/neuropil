@@ -18,6 +18,7 @@
 #include "util/np_bloom.h"
 #include "np_key.h"
 #include "np_legacy.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_keycache.h"
 #include "np_memory.h"

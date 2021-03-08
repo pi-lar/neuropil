@@ -11,6 +11,7 @@
 
 #include "util/np_list.h"
 #include "np_dhkey.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_types.h"
 

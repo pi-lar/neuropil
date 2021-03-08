@@ -15,6 +15,7 @@
 
 #include "neuropil.h"
 #include "np_constants.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 
 #include "example_helper.c"

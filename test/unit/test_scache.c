@@ -10,10 +10,11 @@
 #include "event/ev.h"
 
 #include "util/np_scache.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "../test_macros.c"
 
- 
+
 TestSuite(np_scache_t);
 
 Test(np_scache_t, np_simple_cache_insert, .description = "test the addition/retrieval of items to the scache")

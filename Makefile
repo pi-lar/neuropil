@@ -15,8 +15,8 @@ CFLAGS += -c -Wall -Wextra -g -gdwarf-2 -std=c99 -O1 -DDEBUG -DEV_STANDALONE -DH
 LDFLAGS=-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib -fPIC
 
 CLANG_SANITIZER=-fno-omit-frame-pointer -fsanitize-address-use-after-scope -fsanitize-coverage=edge,indirect-calls,trace-cmp,trace-div,trace-gep -fcoverage-mapping -fprofile-instr-generate
-CLANG_SANITIZER_COMPILE=-fsanitize=fuzzer-no-link,address $(CLANG_SANITIZER)
-CLANG_SANITIZER_LINK=-fsanitize=fuzzer,address $(CLANG_SANITIZER) 
+CLANG_SANITIZER_COMPILE=$(CLANG_SANITIZER) -fsanitize=address,fuzzer-no-link
+CLANG_SANITIZER_LINK=$(CLANG_SANITIZER) -fsanitize=address,fuzzer
 
 ifneq (,$(findstring FreeBSD, $(PLATFORM)))
   override LDFLAGS+=-lutil
@@ -38,7 +38,7 @@ endif
 endif
 
 # adjust these settings to your location of libsodium and libcriterion
-INCLUDES=-I./framework -I./include -I./ext_tools/Criterion/include  -I/usr/include -I/usr/local/opt/llvm/include 
+INCLUDES=-I./framework -I./include -I./ext_tools/Criterion/include  -I/usr/include -I/usr/local/opt/llvm/include
 
 SODIUM_LIBRARIES=-L/usr/local/lib -lsodium
 CRITERION_LIBRARIES=-L/usr/local/lib -lcriterion
@@ -57,8 +57,8 @@ SOURCES_LIB += src/event/ev.c src/gpio/bcm2835.c  src/json/parson.c src/msgpack/
 
 SOURCES_FWLIB = framework/prometheus/prometheus.c framework/http/np_http.c framework/sysinfo/np_sysinfo.c
 
-SOURCES_PRG  = examples/neuropil_hydra.c examples/neuropil_controller.c examples/neuropil_node.c examples/neuropil_sender.c examples/neuropil_cloud.c 
-SOURCES_PRG += examples/neuropil_receiver.c examples/neuropil_demo_service.c 
+SOURCES_PRG  = examples/neuropil_hydra.c examples/neuropil_controller.c examples/neuropil_node.c examples/neuropil_sender.c examples/neuropil_cloud.c
+SOURCES_PRG += examples/neuropil_receiver.c examples/neuropil_demo_service.c
 SOURCES_PRG += examples/neuropil_pingpong.c examples/neuropil_raspberry.c
 
 SOURCES_TST = test/test_suite.c test/test_fuzzing.c
@@ -118,7 +118,7 @@ build/test/lib/libneuropil.dylib: $(OBJECTS) $(FWOBJECTS)
 	$(CC) -g -Dx64 -target $(TARGET) $(LDFLAGS) $(CLANG_SANITIZER_COMPILE) -dynamiclib -std=c99 $(SODIUM_LIBRARIES) $(FWOBJECTS) $(OBJECTS) -o ./build/test/lib/libneuropil.dylib
 	# dsymutil build/lib/libneuropil.$(TARGET).dylib -o build/lib/libneuropil.dylib.dSYM
 
-bindings/luajit/build/neuropil_ffi.lua: 
+bindings/luajit/build/neuropil_ffi.lua:
 	./bindings/luajit/build.sh
 
 build/test/obj/%.o: framework/%.c

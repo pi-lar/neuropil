@@ -10,3 +10,6 @@
 [submodule "ext_tools/Criterion"]
 	path = ext_tools/Criterion
 	url = https://github.com/Snaipe/Criterion
+[submodule "ext_tools/libsodium"]
+	path = ext_tools/libsodium
+	url = https://github.com/jedisct1/libsodium.git

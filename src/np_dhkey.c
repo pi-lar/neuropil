@@ -19,6 +19,7 @@
 
 #include "sodium.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_tree.h"
 #include "np_util.h"

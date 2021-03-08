@@ -12,6 +12,7 @@
 #include "neuropil.h"
 
 #include "np_constants.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_key.h"
 #include "np_node.h"
@@ -24,7 +25,7 @@
 
 #include "util/np_event.h"
 
-#include "json/parson.h"
+#include "parson/parson.h"
 
 #define  _NP_SYSINFO_MY_NODE "node"
 #define  _NP_SYSINFO_MY_NODE_TIMESTAMP "timestamp"

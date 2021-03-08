@@ -90,7 +90,7 @@ struct np_network_s
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
- 
+
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type
 NP_API_INTERN
 enum socket_type _np_network_parse_protocol_string (const char* protocol_str);

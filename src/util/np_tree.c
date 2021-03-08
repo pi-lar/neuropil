@@ -25,6 +25,7 @@
 
 #include "np_serialization.h"
 #include "np_util.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_dhkey.h"
 

@@ -11,6 +11,7 @@
 #include "np_dhkey.h"
 #include "np_memory.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 
 #include "../test_macros.c"

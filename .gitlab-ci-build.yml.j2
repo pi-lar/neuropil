@@ -1,0 +1,123 @@
+default:
+  image: $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
+
+cache:
+  key: "${CI_COMMIT_SHA}"
+  paths:
+    - .venv
+
+stages:
+  - build
+  - package
+  - release
+  - publish
+
+{% for tag, triple in tags%}
+{{triple}}:build:
+  stage: build
+  script:
+    - ./do clean
+    - ./do ensure_dependencies
+    - ./do doc
+    - ./do build --RELEASE
+  tags:
+    - '{{tag}}'
+  artifacts:
+    paths:
+      - build/neuropil
+      - build/doc/html
+  rules:
+    - when: always
+
+{{triple}}:package:
+  stage: package
+  script:
+    - ./do package
+    - mkdir -p neuropil
+    - rsync -r build/package/ neuropil/
+  artifacts:
+    name: neuropil-$CI_COMMIT_BRANCH$CI_COMMIT_TAG-{{triple}}
+    paths:
+      - neuropil
+    expire_in: 1 year
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_MERGE_REQUEST_ID == null
+  needs:
+    - "{{triple}}:build"
+#    - documentation # currently not possible as gitlab connot infer dependencies from parent pipeline
+
+cleanup_packages:
+  stage: package
+  allow_failure: true
+  script:
+    - 'echo "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages?package_name=testing_${CI_COMMIT_BRANCH}"'
+    - 'curl --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" -s "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages?package_name=testing_${CI_COMMIT_BRANCH}" | jq -r ".[0].id"'
+    - 'echo ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/$(curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" -s "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages?package_name=testing_${CI_COMMIT_BRANCH}" | jq -r ".[0]id")'
+    - 'curl --request DELETE --verbose --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/$(curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" -s "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages?package_name=testing_${CI_COMMIT_BRANCH}" | jq -r ".[0].id")'
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null && $GITLAB_API_TOKEN != null && $CI_MERGE_REQUEST_ID == null
+
+
+{{triple}}:upload_testing:
+  stage: release
+  script:
+    - 'zip -r "neuropil_{{triple}}.zip" neuropil'
+    - 'curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "neuropil_{{triple}}.zip" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/testing_${CI_COMMIT_BRANCH}/{{version.major}}.{{version.minor}}.{{version.patch}}/neuropil_{{triple}}.zip"'
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null && $GITLAB_API_TOKEN != null && $CI_MERGE_REQUEST_ID == null
+  needs:
+    - "cleanup_packages"
+    - "{{triple}}:package"
+
+{{triple}}:upload_stable:
+  stage: release
+  script:
+    - 'zip -r "neuropil_{{triple}}.zip" neuropil'
+    - 'curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "neuropil_{{triple}}.zip" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/neuropil/{{version.major}}.{{version.minor}}.{{version.patch}}/neuropil_{{triple}}.zip"'
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null && $CI_MERGE_REQUEST_ID == null
+  needs:
+    - "{{triple}}:package"
+
+{% if triple == "x86_64-pc-linux-gnu" %}
+
+prod_docker:
+  stage: release
+  before_script:
+    - docker info
+  script:
+    - sh -c '[ -z "$CI_DEPLOY_USER" ] &&  (echo "Please read CI.md for the gitlab pipeline setup." >&2) && exit 1 || exit 0'
+    - echo "$CI_DEPLOY_PASSWORD" | docker login -u $CI_DEPLOY_USER $CI_REGISTRY --password-stdin
+    - ls neuropil
+    - |
+        docker build \
+          -t $CI_REGISTRY_IMAGE/prod-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
+          -f configs/docker/prod-enviroment.Dockerfile \
+          --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL \
+          ./
+    - docker push $CI_REGISTRY_IMAGE/prod-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG
+  image: docker:latest
+  services:
+    - docker:dind
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_MERGE_REQUEST_ID == null
+  needs:
+    - "{{triple}}:package"
+
+
+
+  {% endif %}
+
+{% endfor %}
+
+update_gitlab_release:
+  stage: publish
+  script:
+    - ./do script util/build_helper.py --gitlab_release_asset
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null && $CI_MERGE_REQUEST_ID == null
+  needs:
+    - prod_docker
+  {% for tag, triple in tags %}
+    - {{triple}}:upload_stable
+  {% endfor %}

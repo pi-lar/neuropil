@@ -9,6 +9,7 @@
 #include "np_constants.h"
 #include "np_dhkey.h"
 #include "np_legacy.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_settings.h"

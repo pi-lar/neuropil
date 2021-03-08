@@ -16,6 +16,7 @@
 
 #include "neuropil.h"
 #include "np_legacy.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_list.h"
 

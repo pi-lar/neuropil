@@ -200,7 +200,7 @@ bool __is_node_identity_authn(np_util_statemachine_t* statemachine, const np_uti
 {
     // { .type=(evt_internal|evt_token), .context=context, .user_data=authn_token, .target_dhkey=event.target_dhkey};
     np_ctx_memory(statemachine->_user_data);
-    log_trace_msg(LOG_TRACE, "start: bool __is_node_identity_authn(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool __is_node_authn(...) {");
 
     bool ret = false;
 
@@ -209,6 +209,7 @@ bool __is_node_identity_authn(np_util_statemachine_t* statemachine, const np_uti
 
     if (!ret) ret  = (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_token) );
     if ( ret) ret &=  FLAG_CMP(event.type, evt_authn);
+    if ( ret) ret &= _np_memory_rtti_check(token, np_memory_types_np_aaatoken_t);
 
     if ( ret) ret &= _np_memory_rtti_check(token, np_memory_types_np_aaatoken_t);
     if ( ret) ret &= FLAG_CMP(token->type, np_aaatoken_type_identity);
@@ -609,7 +610,6 @@ void __np_node_upgrade(np_util_statemachine_t* statemachine, const np_util_event
     NP_CAST(statemachine->_user_data, np_key_t, alias_or_node_key);
     NP_CAST(event.user_data, np_aaatoken_t, token);
 
-    // np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
 
     // if this is an alias, trigger the state transition of the correpsonding node key
     if (FLAG_CMP(alias_or_node_key->type, np_key_type_alias)) 

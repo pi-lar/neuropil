@@ -9,6 +9,7 @@
 #include <criterion/logging.h>
 
 #include "np_keycache.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_memory.h"
 

@@ -1,4 +1,5 @@
 import unittest
+import os
 import time
 from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
 from misc import TestHelper
@@ -6,8 +7,8 @@ from misc import TestHelper
 class ConnectivityTest(unittest.TestCase):
     def test_connectivity(self):
         np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_test_connectivity_cl_")
-        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_connectivity_nl1.log", auto_run=False, no_threads=6)
-        np_2 = NeuropilNode(4002, log_file="logs/smoke_test_connectivity_nl2.log",auto_run=False)
+        np_1 = NeuropilNode(4001, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl1.log", auto_run=False, no_threads=6)
+        np_2 = NeuropilNode(4002, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl2.log", auto_run=False)
 
         TestHelper.disableAAA(np_c).run(0)
         TestHelper.disableAAA(np_1).run(0)

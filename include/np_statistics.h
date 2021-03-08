@@ -272,7 +272,7 @@ NP_API_INTERN
 void  _np_statistics_debug_destroy(np_state_t * context);
 NP_API_INTERN
 void _np_statistics_debug_ele_destroy(np_state_t* context, void* item) ;
-#else 
+#else
 	#define _np_statistics_debug_destroy(context) ;
 	#define _np_statistics_debug_ele_destroy(context, item) ;
 #endif

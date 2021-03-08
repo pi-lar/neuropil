@@ -23,6 +23,7 @@
 
 #include "np_attributes.h"
 #include "np_constants.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_legacy.h"
 #include "np_key.h"
@@ -38,6 +39,9 @@
 #include "np_token_factory.h"
 #include "np_util.h"
 
+#include "neuropil_data.h"
+#include "neuropil_attributes.h"
+#include "np_attributes.h"
 
 // create a new aaa token
 np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char node_subject[255], double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES] )
@@ -75,6 +79,8 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
 {
     np_ctx_memory(source);
     np_aaatoken_t* ret = NULL;
+
+    log_debug(LOG_AAATOKEN, "Deriving from token: %s", source->uuid);
 
     /// contract begin
     ASSERT(source != NULL, "source token cannot be NULL");
@@ -147,8 +153,16 @@ np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* 
 
     ASSERT(FLAG_CMP(source->type, np_aaatoken_type_identity), "Can only directly derive ident token from ident token. current token type: %"PRIu8, source->type);
 
-    ret = __np_token_factory_derive(source, np_aaatoken_scope_public);
+    ret = __np_token_factory_derive(source, np_aaatoken_scope_private_available);
+    strncpy(ret->uuid, source->uuid, 255);
+
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY));
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY_AND_USER_MSG));
+    np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_INTENT_AND_IDENTITY));
     _np_aaatoken_set_signature(ret, NULL);
+    _np_aaatoken_update_attributes_signature(ret);
+
+    log_debug(LOG_AAATOKEN, "generating public ident token (%s)", ret->uuid);
 
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
     return ret;
@@ -180,6 +194,7 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     ret = __np_token_factory_derive(identity_token, np_aaatoken_scope_private_available);
     ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
     ret->type = np_aaatoken_type_message_intent;
+    np_init_datablock(ret->attributes, sizeof(ret->attributes));
 
     // fill in token metadata for message identification
     char msg_id_subject[255];

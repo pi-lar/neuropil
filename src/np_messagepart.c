@@ -5,6 +5,9 @@
 
 #include "inttypes.h"
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "msgpack/cmp.h"
 #include "sodium.h"
 #include "tree/tree.h"
@@ -13,6 +16,7 @@
 #include "np_types.h"
 #include "np_memory.h"
 
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "np_message.h"
 #include "core/np_comp_msgproperty.h"

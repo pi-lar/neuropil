@@ -5,6 +5,7 @@
 #include <criterion/criterion.h>
 
 #include "event/ev.h"
+#include "neuropil_log.h"
 #include "np_log.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
@@ -131,7 +132,7 @@ Test(np_tree_t, tree_node_insert_tree, .description = "test the insertion of a t
 #endif
 
 		np_tree_insert_str(test_tree_2, "tree_1", np_treeval_new_tree(test_tree_1));
-		cr_expect(7 == test_tree_2->size, "expect size of tree to be 7");
+		cr_expect(7 == test_tree_2->size, "expect size of tree to be 7 not %"PRIu16,test_tree_2->size);
 
 		/*
 		log_msg(LOG_INFO, "id: %d", tree_find_str(out_jrb, "id")->val.value.i);
@@ -253,23 +254,23 @@ Test(np_tree_t, tree_node_del_tree, .description = "test deletion of data in a t
 #endif
 		np_tree_insert_str(test_tree_2, "tree_1", np_treeval_new_tree(test_tree_1));
 
-		cr_expect(2 == test_tree_1->size, "expect the size of teh subtree to be 2");
+		cr_expect(2 == test_tree_1->size, "expect the size of the subtree to be 2 not %"PRIu16, test_tree_1->size);
 		cr_expect(NULL != np_tree_find_str(test_tree_1, "halli"), "expect element to be present");
 
 		np_tree_del_str(test_tree_1, "halli");
-		cr_expect(1 == test_tree_1->size, "expect the size of the subtree to be 1");
+		cr_expect(1 == test_tree_1->size, "expect the size of the subtree to be 1 not %"PRIu16, test_tree_1->size);
 		cr_expect(NULL == np_tree_find_str(test_tree_1, "halli"), "expect element to be absent");
 
 		np_tree_clear(test_tree_1);
-		cr_expect(0 == test_tree_1->size, "expect the size of the subtree to be 0");
+		cr_expect(0 == test_tree_1->size, "expect the size of the subtree to be 0 not %"PRIu16, test_tree_1->size);
 
 
-		cr_expect(7 == test_tree_2->size, "expect the size of teh subtree to be 2");
+		cr_expect(7 == test_tree_2->size, "expect the size of the subtree to be 7 not %"PRIu16, test_tree_2->size);
 		cr_expect(NULL != np_tree_find_str(test_tree_2, "tree_1"), "expect element to be present");
 
 		np_tree_del_str(test_tree_2, "tree_1");
 
-		cr_expect(6 == test_tree_2->size, "expect the size of teh subtree to be 6");
+		cr_expect(6 == test_tree_2->size, "expect the size of the subtree to be 6 not %"PRIu16, test_tree_2->size);
 		cr_expect(NULL == np_tree_find_str(test_tree_2, "tree_1"), "expect element to be absent");
 
 		np_tree_free(test_tree_2);

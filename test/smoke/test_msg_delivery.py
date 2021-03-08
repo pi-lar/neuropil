@@ -55,6 +55,9 @@ class MsgDeliveryTest(unittest.TestCase):
                         print("ERROR sending Data")
                     else:
                         send = True
+
+                if MsgDeliveryTest.msg_delivery_succ.value:
+                    break
                 np_1.run(math.pi/10)
 
         finally:

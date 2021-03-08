@@ -1,10 +1,10 @@
 //
-// neuropil is copyright 2016-2021 by pi-lar GmbH
+// neuropil is copyright 2016-2019 by pi-lar GmbH
 // Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 //
 // original version is based on the chimera project
-#ifndef NP_ATTR_INNER_H_
-#define NP_ATTR_INNER_H_
+#ifndef _NP_ATTR_INNER_H_
+#define _NP_ATTR_INNER_H_
 
 #include "np_types.h"
 #include "neuropil_attributes.h"
@@ -13,17 +13,17 @@
 extern "C" {
 #endif
     // neuropil setup functions
-    NP_API_INTERN
+    NP_API_PROTEC
     bool _np_attributes_init(np_state_t* context);
-    NP_API_INTERN
+    NP_API_PROTEC
     void _np_attributes_destroy(np_state_t* context);
-    NP_API_INTERN
+    NP_API_PROTEC
     np_attributes_t* _np_get_attributes_cache(np_state_t* context, enum np_msg_attr_type cache);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* NP_ATTR_INNER_H_ */
+#endif /* _NP_ATTR_INNER_H_ */
 
 /**
 --------------
