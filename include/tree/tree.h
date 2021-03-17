@@ -3,9 +3,9 @@
 /* $FreeBSD: src/sys/sys/tree.h,v 1.7 2007/12/28 07:03:26 jasone Exp $ */
 
 /**
-   Copyright 2002 Niels Provos <provos@citi.umich.edu>
-   All rights reserved.
-
+   SPDX-FileCopyrightText: 2002 Niels Provos <provos@citi.umich.edu>
+   SPDX-License-Identifier: BSD-2-Clause
+ 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
    are met:

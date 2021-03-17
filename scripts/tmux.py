@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
+
 from __future__ import print_function
 import libtmux
 import argparse

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
+
 import abc
 from pydantic import BaseModel, Field, UUID5
 from typing import Dict, FrozenSet, List, Optional, Sequence, Set, Tuple, Union, Any

@@ -1,8 +1,8 @@
 /*
  * libev win32 compatibility cruft (_not_ a backend)
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
- * All rights reserved.
+ * SPDX-FileCopyrightText: 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
  *
  * Redistribution and use in source and binary forms, with or without modifica-
  * tion, are permitted provided that the following conditions are met:

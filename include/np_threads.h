@@ -1,6 +1,6 @@
 //
-// neuropil is copyright 2016-2021 by pi-lar GmbH
-// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-License-Identifier: OSL-3.0
 //
 #ifndef NP_THREADS_H_
 #define NP_THREADS_H_

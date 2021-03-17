@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
+
 {
   description =
     "neuropil is a secure messaging library for IoT, robotics and more.";

@@ -1,6 +1,6 @@
 //
-// neuropil is copyright 2016-2021 by pi-lar GmbH
-// Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
+// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-License-Identifier: OSL-3.0
 //
 #include <criterion/criterion.h>
 #include <inttypes.h>
@@ -16,7 +16,7 @@ TestSuite(np_pheromone_t);
 
 Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a dhkey to the pheromone table")
 {
-	CTX()
+    CTX()
     {
         struct np_bloom_optable_s neuropil_operations = {
             .add_cb       = _np_neuropil_bloom_add,
@@ -167,7 +167,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
 
 Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exhale a dhkey from the pheromone table")
 {
-	CTX()
+    CTX()
     {
         struct np_bloom_optable_s neuropil_operations = {
             .add_cb       = _np_neuropil_bloom_add,

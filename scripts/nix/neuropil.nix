@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
+
 # Run like this:
 #   nix-build /path/to/this/directory
 # ... build products will be in ./result

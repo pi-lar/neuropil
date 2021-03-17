@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
+
 { pkgs ? (import <nixpkgs> {})
 , version ? "dev"
 , withLuajit ? true

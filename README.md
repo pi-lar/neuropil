@@ -138,3 +138,8 @@ to run the test suites please us the parameter "-j1" to limit parallel execution
 usually we use the following command:
 
 	./build/neuropil/bin/neuropil_test_suite --tap -j1
+	
+	
+## Licensing information 
+
+This project is available as open source under the terms of the Open Software License version 3.0. However, some files in e.g. ext_tools are licensed under BSD2 OR GPL-2.0-orlater and X11, so please for accurate information, check individual files.

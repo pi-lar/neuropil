@@ -1,3 +1,7 @@
+//
+// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-License-Identifier: OSL-3.0
+//
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>

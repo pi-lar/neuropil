@@ -3,7 +3,7 @@
    C and C++ support for Broadcom BCM 2835 as used in Raspberry Pi
   
    Author: Mike McCauley
-   Copyright (C) 2011-2013 Mike McCauley
+   SPDX-FileCopyrightText: 2011-2013 Mike McCauley
    $Id: bcm2835.h,v 1.21 2017/02/05 02:08:07 mikem Exp mikem $
 */
 

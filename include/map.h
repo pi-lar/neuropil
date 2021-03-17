@@ -1,5 +1,6 @@
 /*https://github.com/swansontec/map-macro
-* Copyright (C) 2012 William Swanson
+* SPDX-FileCopyrightText: 2012 William Swanson
+* SPDX-License-Identifier: X11
 *
 * Permission is hereby granted, free of charge, to any person
 * obtaining a copy of this software and associated documentation

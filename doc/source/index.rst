@@ -1,3 +1,8 @@
+..
+  SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+..
+  SPDX-License-Identifier: OSL-3.0
+
 .. neuropil documentation main file, created by sphinx-quickstart on Tue Dec 15 20:54:08 2015.
 
 .. meta::

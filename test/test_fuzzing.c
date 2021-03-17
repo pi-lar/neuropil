@@ -1,3 +1,8 @@
+//
+// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-License-Identifier: OSL-3.0
+//
+
 // test_fuzzing.c
 #include "neuropil.h"
 #include "np_legacy.h"

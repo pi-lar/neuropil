@@ -4,7 +4,7 @@
 // http://www.raspberrypi.org/wp-content/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
 //
 // Author: Mike McCauley
-// Copyright (C) 2011-2013 Mike McCauley
+// SPDX-FileCopyrightText: 2011-2013 Mike McCauley
 // $Id: bcm2835.c,v 1.24 2017/02/05 02:08:07 mikem Exp mikem $
 */
 

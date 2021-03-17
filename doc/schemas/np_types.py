@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
+
 from pydantic import UUID5
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union, cast
 from pydantic.utils import Representation, almost_equal_floats
