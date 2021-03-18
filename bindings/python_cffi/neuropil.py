@@ -58,6 +58,7 @@ class np_token(object):
         self._raw = raw
         self._node = node
         self.__dict__.update(entries)
+        self.issuer = np_id(self.issuer)
 
     def get_fingerprint(self, check_attributes:bool=False):
         id = ffi.new("np_id", b'\0')
@@ -103,8 +104,10 @@ class np_message(object):
     def __init__(self, _data, _raw, **entries):
         self.data_length = 0
         self.__dict__.update(entries)
+        setattr(self,'from',np_id(getattr(self,'from')))
         self._raw = _raw
         self._data = bytes(ffi.buffer(_data['data'], self.data_length))
+        self.subject = np_id(self.subject)
 
     def raw(self):
         return self._data
@@ -207,10 +210,10 @@ class NeuropilNode(object):
             self._destroyed = True
             neuropil.np_destroy(self._context, False)
 
-    def shutdown(self):
+    def shutdown(self, grace=True):
         if not self._destroyed:
             self._destroyed = True
-            neuropil.np_destroy(self._context, True)
+            neuropil.np_destroy(self._context, grace)
 
     def get_fingerprint(self):
         id = ffi.new("np_id", b'\0')
@@ -444,12 +447,18 @@ class _NeuropilHelper():
                 ret = np_message(ret, s, **ret)
             elif  type.cname == 'struct np_token':
                 ret = np_token(node, s, **ret)
+            elif  type.cname == 'struct np_id':
+                ret = np_id(s)
             elif  type.cname == 'struct np_mx_properties':
                 ret = np_mx_properties(node, **ret)
         elif type.kind == 'array':
             if type.item.kind == 'primitive':
                 if type.item.cname == 'char':
-                    ret = ffi.string(s).decode("utf-8")
+                    ret = ffi.string(s)
+                    try:
+                        ret = ret.decode("utf-8")
+                    except UnicodeDecodeError:
+                        pass
                 else:
                     ret = [ s[i] for i in range(type.length) ]
             else:
@@ -467,6 +476,8 @@ class _NeuropilHelper():
         ret = value
         if isinstance(value, str):
             ret = value.encode("utf-8")
+        if isinstance(value, np_id):
+            ret = value._cdata
         return ret
 
     @staticmethod
@@ -496,9 +507,7 @@ def _py_subject_callback(context, message):
     myself = _NeuropilHelper.from_context(context)
     msg = _NeuropilHelper.convert_to_python(myself, message)
 
-    subject_id = ffi.new("char[65]",b'\0')
-    neuropil.np_id_str(subject_id, msg.subject)
-    subject_id = _NeuropilHelper.convert_to_python(myself, subject_id)
+    subject_id = str(msg.subject)
     if myself.__callback_info_dict__[subject_id]:
         for user_fn in myself.__callback_info_dict__[subject_id]:
             if len(inspect.signature(user_fn).parameters) == 2:
@@ -521,3 +530,13 @@ def _py_authz_cb(context, token):
 def _py_acc_cb(context, token):
     myself = _NeuropilHelper.from_context(context)
     return bool(myself._user_accou_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))
+
+def np_get_id(to_id:str)->np_id:
+    if isinstance(to_id, str):
+        to_id = to_id.encode("utf-8")
+    if not isinstance(to_id, bytes):
+        raise ValueError(f"to_id needs to be of type `bytes` or `str`")
+    npid = ffi.new("np_id")
+    neuropil.np_get_id(ffi.addressof(npid), to_id, len(to_id))
+
+    return np_id(npid)

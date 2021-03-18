@@ -36,7 +36,7 @@
     struct np_token {
         char uuid[NP_UUID_BYTES];
         char subject[255];
-        char issuer[65];
+        np_id issuer;
         char realm[255];
         char audience[255];
         double issued_at, not_before, expires_at;

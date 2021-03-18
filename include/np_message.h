@@ -48,6 +48,7 @@ struct np_message_s
     np_messagepart_t* bin_static;
 
     enum np_message_submit_type submit_type;
+    np_aaatoken_t * decryption_token;
 } NP_API_INTERN;
 
 

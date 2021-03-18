@@ -32,16 +32,26 @@ AddOption('--list',          help='List target aliase',          default=False, 
 AddOption('--strict',        help='Enable strict build',         default=False,  action="store_true")
 AddOption('--noverbose',     help='Disable verbose output',      default=True,   action="store_false")
 
-AddOption('--DEBUG',         help='Build in debug optimisation level', default=False, action="store_true",)
+AddOption('--DEBUG',         help='Build in debug optimisation level',   default=False, action="store_true",)
 AddOption('--RELEASE',       help='Build in release optimisation level', default=False, action="store_true",)
-AddOption('--CODE_COVERAGE', help='Build with code coverage flags', default=False, action="store_true",)
+AddOption('--CODE_COVERAGE', help='Build with code coverage flags',      default=False, action="store_true",)
+AddOption('--INSTALL',       help='install files',                       default=False, action="store_true",)
 
 import inspect
 project_root_path = os.path.join(os.path.dirname(os.path.realpath(inspect.getfile(lambda: None))))
 
 version = get_semver()
 buildDir = os.path.join(project_root_path, 'build', 'neuropil')
-default_env = Environment()
+default_env = Environment(
+    LIBPATH=[
+        os.path.join(os.sep ,"usr","lib"),
+        os.path.join(os.sep , "usr","local","lib")
+    ],
+    CPPPATH = [
+        os.path.join(os.sep ,"usr","include"),
+        os.path.join(os.sep , "usr","local","include")
+    ],
+)
 all_aliases_targets=[]
 
 if 'IN_NIX_SHELL' in os.environ or 'NIX_CC' in os.environ:
@@ -225,10 +235,11 @@ np_dylib = neuropil_env.SharedLibrary(os.path.join(buildDir,'lib','neuropil'), S
 np_dylib_alias = neuropil_env.Alias(f'shared_neuropil', [np_dylib])
 Default(np_dylib_alias)
 all_aliases_targets+=[np_dylib_alias]
-neuropil_env.Alias('install', [
-        neuropil_env.Install(os.path.join("/","usr","local","lib"), np_dylib),
-    ]+ [ neuropil_env.Install(os.path.join("/","usr","local","include"), inc) for inc in glob.glob(os.path.join("..","include","neuropil*.h"))]
-)
+
+if GetOption("INSTALL"):
+    install_env = Environment()
+    Default(install_env.InstallVersionedLib(os.path.join(os.sep,"usr","local","lib"), np_dylib))
+    [ Default(install_env.Install(os.path.join(os.sep,"usr","local","include"), inc)) for inc in glob.glob(os.path.join("..","include","neuropil*.h"))]
 
 bindings_lua_env = default_env.Clone()
 bindings_lua_build= bindings_lua_env.Command ("build.binding_lua", None, lambda target,source,env: exec_call([os.path.join(project_root_path,'bindings','luajit','build.sh')]))

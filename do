@@ -28,42 +28,37 @@ ensure_venv() {
 
 task_build() {
   ensure_venv
-
+  ret=100
   tmpfile_sorted=$(mktemp /tmp/np_sorted.log.XXXXXX)
-  tmpfile_sorted2=$(mktemp /tmp/np_sorted.log.XXXXXX)
-  tmpfile_errors=$(mktemp /tmp/np_errors.log.XXXXXX)
-  tmpfile_warnings=$(mktemp /tmp/np_warnings.log.XXXXXX)
-  echo "executing: scons -C build -f ../SConstruct $@ |& tee $tmpfile_sorted"
-  scons -C build -f ../SConstruct "$@" |& tee "$tmpfile_sorted"
-  ret=${PIPESTATUS[0]}
+  echo "executing: scons -C build -f ../SConstruct $@"
   set +e
-  egrep "warning:|error:|scons: building terminated because of errors" "$tmpfile_sorted" > "$tmpfile_sorted2"
-  filterd=$(cat "$tmpfile_sorted2")
-  if [ "$?" == "0" ]; then
-    filterd=$(echo "$filterd" | sort)
-    filterd=$(echo "$filterd" | grep -v "/event/")
-    filterd=$(echo "$filterd" | uniq)
-    echo "$filterd"
+  scons -C build -f ../SConstruct "$@" 2>&1 | tee "$tmpfile_sorted"
+  ret=${PIPESTATUS[0]}
 
-    echo "$filterd" | grep "warning:" > $tmpfile_warnings
+  unsorted=$(cat "$tmpfile_sorted")
+  rm "$tmpfile_sorted"
 
-    echo "$filterd" | grep 'error:\|scons: building terminated because of errors' > $tmpfile_errors
-    warn=$(cat $tmpfile_warnings | wc -l)
-    err=$(cat $tmpfile_errors | wc -l)
+  warnings=$( echo "$unsorted" | grep 'warning:'                                                                     |sort|grep -v "/event/"|uniq)
+    errors=$( echo "$unsorted" | grep 'error:\|scons: building terminated because of errors\|undefined reference to' |sort|grep -v "/event/"|uniq)
 
-    if [ $warn != "0" ]; then
-      echo -e "${ORANGE}Custom warning listing ($tmpfile_warnings):${NC}"
-      cat $tmpfile_warnings
-    fi
-    if [ $err != "0" ]; then
-      echo -e "${RED}Custom error listing ($tmpfile_errors):${NC}"
-      cat $tmpfile_errors
-    fi
-    printf "Warnings:\t%s\n" "$warn"
-    printf "Errors:\t\t%s\n" "$err"
+  warn_no=$( echo "$warnings" | wc -l)
+  err_no=$( echo "$errors" | wc -l)
+
+  if [ "$warnings" != "" ]; then
+    echo -e "${ORANGE}Custom warning listing (${warn_no}):${NC}"
+    echo "$warnings"
+  else
+    warn_no=0
   fi
+  if [ "$errors" != "" ]; then
+    echo -e "${RED}Custom error listing (${err_no}):${NC}"
+    echo "$errors"
+  else
+    err_no=0
+  fi
+  printf "Warnings:\t%s\n" "$warn_no"
+  printf "Errors:\t\t%s\n" "$err_no"
   set -e
-
   return $ret
 }
 

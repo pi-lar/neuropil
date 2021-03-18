@@ -91,7 +91,7 @@ Test(np_identity, np_identity_signing, .description = "test the identity usage/i
 	// set obfuscated issuer
 	char my_token_fp_str[65];
 	np_id_str(my_token_fp_str, my_token_fp);
-	strncpy(my_token_2.issuer, my_token_fp_str, 64);
+	memcpy(&my_token_2.issuer, &my_token_fp, sizeof(np_id));
 
 	// update 1: own signature to match changed issuer and subject field (add own signature)
 	np_sign_identity(context, &my_token_2, true);

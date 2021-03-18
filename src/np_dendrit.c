@@ -235,6 +235,10 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     {
         log_msg(LOG_INFO, "decrypting message(%s/%s) from sender %s", msg_prop->msg_subject, msg_in->uuid, sender_token->issuer);
         ret = _np_message_decrypt_payload(msg_in, sender_token);
+        if(ret && msg_in->decryption_token == NULL){
+            np_ref_obj(np_aaatoken_t, sender_token,"np_message_t.decryption_token");
+            msg_in->decryption_token = sender_token;
+        }
         np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token"); // _np_aaatoken_get_sender_token
     }
 

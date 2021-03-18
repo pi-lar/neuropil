@@ -764,10 +764,18 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
     strncpy(dest->uuid, src->uuid, NP_UUID_BYTES);
 
     // TODO: convert to np_id
-    strncpy(dest->issuer, src->issuer, 65);
+    //strncpy(dest->issuer, src->issuer, 65);
     strncpy(dest->realm, src->realm, 255);
     strncpy(dest->audience, src->audience, 255);
     strncpy(dest->subject, src->subject, 255);
+
+    if(src->issuer[0] != NULL){
+        np_str_id(&dest->issuer, src->issuer);
+        char tst[65] = {0};
+        np_id_str(tst, &dest->issuer);
+    }
+    else
+        memcpy(&dest->issuer, &dhkey_zero,sizeof(np_dhkey_t));
 
     assert(crypto_sign_PUBLICKEYBYTES == NP_PUBLIC_KEY_BYTES);
     memcpy(dest->public_key, src->crypto.ed25519_public_key, NP_PUBLIC_KEY_BYTES);
@@ -797,8 +805,14 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
 
     strncpy(dest->uuid, src->uuid, NP_UUID_BYTES);
 
+    if(memcmp(&src->issuer, &dhkey_zero,sizeof(np_dhkey_t)) == 0){
+        dest->issuer[0] = NULL;
+    } else {
+        np_id_str(dest->issuer, &src->issuer);
+    }
+
     //TODO: convert to np_id
-    strncpy(dest->issuer, src->issuer, 65);
+    //strncpy(dest->issuer, src->issuer, 65);
     strncpy(dest->realm, src->realm, 255);
     strncpy(dest->audience, src->audience, 255);
     strncpy(dest->subject, src->subject, 255);

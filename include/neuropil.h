@@ -133,7 +133,7 @@ extern "C" {
     struct np_token {
         char uuid[NP_UUID_BYTES];
         char subject[255]; // todo: has to be np_id
-        char issuer[65]; // todo: has to be np_id
+        np_id issuer;
         char realm[255]; // todo: has to be np_id
         char audience[255]; // todo: has to be np_id
         double  issued_at, not_before, expires_at;

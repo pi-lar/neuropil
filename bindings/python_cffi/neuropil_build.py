@@ -11,16 +11,23 @@ PATH = os.path.dirname(os.path.abspath(__file__))
 
 library_dirs = [
     os.path.join(PATH, "..","..","build",'neuropil',"lib"), #dev build
-    os.getenv("LD_LIBRARY_PATH",""),
-    os.getenv("DYLD_LIBRARY_PATH",""),
-    os.path.join("/usr", "lib"),
-    os.path.join("/usr", "lib", "neuropil"),
+    os.path.join(os.sep,"usr", "lib"),
+    os.path.join(os.sep,"usr", "local","lib"),
+    os.path.join(os.sep,"usr", "lib", "neuropil"),
+    os.path.join(os.sep,"usr", "local","lib", "neuropil"),
 ]
-
+LD_LIBRARY_PATH = os.getenv("LD_LIBRARY_PATH","")
+if LD_LIBRARY_PATH:
+    library_dirs = [LD_LIBRARY_PATH]+library_dirs
+DYLD_LIBRARY_PATH = os.getenv("DYLD_LIBRARY_PATH","")
+if DYLD_LIBRARY_PATH:
+    library_dirs = [DYLD_LIBRARY_PATH]+library_dirs
 include_dirs = [
     os.path.join(PATH, "..", "..", "include"), # dev build
-    os.path.join("/usr","include", "neuropil"),
-    os.path.join("/usr","local","include", "neuropil"),
+    os.path.join(os.sep,"usr", "include"),
+    os.path.join(os.sep,"usr", "local","include"),
+    os.path.join(os.sep,"usr", "include", "neuropil"),
+    os.path.join(os.sep,"usr", "local","include", "neuropil"),
 ]
 
 

@@ -78,6 +78,7 @@ void _np_message_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     msg_tmp->bin_static = NULL;
 
     msg_tmp->submit_type = np_message_submit_type_ROUTE;
+    msg_tmp->decryption_token = NULL;
 }
 
 /*
@@ -102,7 +103,9 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
     log_debug_msg(LOG_MEMORY | LOG_DEBUG, "msg (%s) freeing memory", msg->uuid);
 
     np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
-    
+
+    np_unref_obj(np_aaatoken_t, msg->decryption_token,"np_message_t.decryption_token");
+
     np_tree_free( msg->header);
     np_tree_free( msg->instructions);
     np_tree_free( msg->body);

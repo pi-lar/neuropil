@@ -574,12 +574,16 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
         np_get_id(&message.subject, _np_message_get_subject(msg), strlen(_np_message_get_subject(msg)));
 
-        memcpy(&message.from, _np_message_get_sender(msg), NP_FINGERPRINT_BYTES);
+        ASSERT(msg->decryption_token != NULL,"The decryption token should never be empty in this stage");
+        np_dhkey_t _t ;
+        np_str_id(&_t,msg->decryption_token->issuer);
+        memcpy(&message.from, &_t, NP_FINGERPRINT_BYTES);
 
         message.received_at = np_time_now(); // todo get from network
         //message.send_at = msg.             // todo get from msg
         message.data = userdata->val.value.bin;
         message.data_length = userdata->val.size;
+
 
         np_tree_elem_t* msg_attributes = np_tree_find_str(body, NP_SERIALISATION_ATTRIBUTES);
         if(msg_attributes == NULL){
@@ -720,7 +724,7 @@ char * np_id_str(char str[65], const np_id id)
     return str;
 }
 
-void np_str_id(np_id (*id), const char str[64])
+void np_str_id(np_id (*id), const char str[65])
 {
     // TODO: this is dangerous, encoding could be different between systems,
     // encoding has to be send over the wire to be sure ...
