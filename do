@@ -255,7 +255,7 @@ task_uninstall(){
 task_pre_commit(){
   ensure_venv
 
-  task_build release python
+  task_build --RELEASE python
   python3 scripts/util/build_helper.py --update_strings
 }
 usage() {
