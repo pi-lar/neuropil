@@ -16,7 +16,7 @@ RUN apt-get update && \
     apt-get install -y \
         rsync zip unzip bash wget curl jq\
         build-essential locate clang clang-tools git cmake valgrind \
-        python3 python3-dev python3-pip python3-venv \
+        python3 python3-dev python3-pip python3-venv python3-cryptography \
         libxml2-dev libxslt-dev \
         ninja-build libgit2-dev pkg-config automake libtool \
         libncurses5-dev libncursesw5-dev libsqlite3-dev
