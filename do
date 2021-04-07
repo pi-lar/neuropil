@@ -12,12 +12,14 @@ ensure_venv() {
     $(which python3) -m venv .venv
     ./.venv/bin/pip3 install --upgrade pip
     ./.venv/bin/pip3 install --upgrade setuptools
+    ./.venv/bin/pip3 install --upgrade wheel
     ./.venv/bin/pip3 install -r configs/requirements.txt
   fi
 
   if [ configs/requirements.txt -nt .venv ]; then
     ./.venv/bin/pip3 install --upgrade pip
-    ./.venv/bin/pip3 install --upgrade setuptools wheel
+    ./.venv/bin/pip3 install --upgrade setuptools
+    ./.venv/bin/pip3 install --upgrade wheel
     ./.venv/bin/pip3 install -r configs/requirements.txt
     touch ./.venv
   fi
