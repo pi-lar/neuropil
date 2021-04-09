@@ -75,6 +75,7 @@ class StarSetupTest(unittest.TestCase):
         mxp.apply()
         np_1.set_authenticate_cb(StarSetupTest.authn_allow_star)
         np_1.set_authorize_cb(StarSetupTest.authz_allow_all)
+        np_1.run(0)
         np_1.join(StarSetupTest.np_0_addr)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()),
         #                                           node=np_1.get_fingerprint(),
@@ -111,6 +112,7 @@ class StarSetupTest(unittest.TestCase):
         np_2.set_receive_cb(StarSetupTest.subject, self.msg_received)
         np_2.set_authenticate_cb(StarSetupTest.authn_allow_star)
         np_2.set_authorize_cb(StarSetupTest.authz_allow_all)
+        np_2.run(0)
         np_2.join(StarSetupTest.np_0_addr)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()),
         #                                           node=np_2.get_fingerprint(),

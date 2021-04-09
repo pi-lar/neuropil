@@ -203,7 +203,7 @@ SOURCES += ['dtime.c',                 'np_time.c',                  'np_aaatoke
 SOURCES += ['np_glia.c',               'np_jobqueue.c',              'np_dhkey.c',             'np_key.c',            'np_keycache.c',       'np_bootstrap.c'        ]
 SOURCES += ['np_threads.c',            'np_log.c',                   'np_memory.c',            'np_message.c',        'np_network.c',        'np_node.c'             ]
 SOURCES += ['np_util.c',               'util/np_scache.c',           'util/np_statemachine.c', 'util/np_tree.c',      'util/np_treeval.c',   'util/np_bloom.c'       ]
-SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_comp_intent.c',  'core/np_comp_node.c', 'core/np_comp_alias.c'                         ]
+SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_comp_intent.c',  'core/np_comp_node.c', 'core/np_comp_alias.c', 'util/np_minhash.c'    ]
 SOURCES += ['np_pheromones.c',         'np_route.c',                 'np_event.c',             'np_messagepart.c',    'np_statistics.c',     'np_responsecontainer.c']
 SOURCES += ['np_legacy.c',             'np_serialization.c',         'np_shutdown.c',          'np_token_factory.c',  'np_crypto.c' ]
 
