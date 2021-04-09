@@ -149,7 +149,7 @@ html_context = {
     "display_gitlab": True, # Integrate Gitlab
     "gitlab_user": "pi-lar", # Username
     "gitlab_repo": "neuropil", # Repo name
-    "gitlab_version": "master", # Version
+    "gitlab_version": "main", # Version
     "conf_py_path": "/doc/source/", # Path in the checkout to the docs root
 }
 

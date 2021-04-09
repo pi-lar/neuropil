@@ -21,4 +21,6 @@ RUN apt-get update && \
         ninja-build libgit2-dev pkg-config automake libtool \
         libncurses5-dev libncursesw5-dev libsqlite3-dev
 
+ENV LANG C.UTF-8
+
 CMD ["bash"]

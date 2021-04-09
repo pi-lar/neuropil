@@ -84,6 +84,7 @@ if __name__ == "__main__":
     parser.add_argument('--gitlab_release',help='Creates a gitlab release',action="store_true")
     parser.add_argument('--gitlab_release_asset',help='Updates a gitlab release asset collection',action="store_true")
     parser.add_argument('--gitlab_latest_release',help='Updates the gitlab latest_release',action="store_true")
+    parser.add_argument('--gitlab_pipeline_cleanup',help='Removes failed pipeline runs',action="store_true")
     parser.add_argument('--pw',help='provide the password in the build process')
     parser.add_argument('--sign_file', help='provide the key file used in the build process')
     parser.add_argument('--version',help='prints the current version',action="store_true")
@@ -143,7 +144,7 @@ if __name__ == "__main__":
             for filename in filenames:
                 sign_file(os.path.join(dirpath,filename), args.sign_file,  args.pw)
 
-    elif args.gitlab_release or args.gitlab_release_asset or args.gitlab_latest_release:
+    elif args.gitlab_release or args.gitlab_release_asset or args.gitlab_latest_release or args.gitlab_pipeline_cleanup:
         tag_ref = subprocess.check_output(['git','rev-parse','HEAD']).decode("utf-8")[:-1]
         CI_JOB_TOKEN = os.environ.get("CI_JOB_TOKEN")
         GITLAB_API_TOKEN = os.environ.get("GITLAB_API_TOKEN")
@@ -162,7 +163,20 @@ if __name__ == "__main__":
         else:
             headers = {'JOB-TOKEN': CI_JOB_TOKEN}
 
-        if args.gitlab_release_asset:
+        if args.gitlab_pipeline_cleanup:
+            pipeline_infos = requests.get(f"{CI_API_V4_URL}/projects/{CI_PROJECT_ID}/pipelines", headers=headers).json()
+
+            for pipeline_info in pipeline_infos:
+                if pipeline_info['ref'] in ['main','master'] and pipeline_info['status'] in ['failed','cancelled']:
+                    del_res = requests.delete(f"{CI_API_V4_URL}/projects/{CI_PROJECT_ID}/pipelines/{pipeline_info['id']}", headers=headers)
+                    if del_res.status_code >=200 and del_res.status_code <300:
+                        print(f"Deletion of Pipeline {pipeline_info['id']} Status: OK")
+                    else:
+                        print(f"Deletion of Pipeline {pipeline_info['id']} Status: NOK -> {del_res.status_code}/{del_res.text}")
+                        break
+
+
+        elif args.gitlab_release_asset:
             print(f"start gitlab release asset process")
             packages_infos = requests.get(f"{CI_API_V4_URL}/projects/{CI_PROJECT_ID}/packages?package_name=neuropil&&package_type=generic", headers=headers).json()
 
