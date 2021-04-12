@@ -26,23 +26,23 @@ Contents:
    :maxdepth: 2
 
    intro
-   whatis
    core_concepts
+   tutorial
+   security
+   whatis
    identities
+   realms
    ngizerodiscovery
    ngizerosearch
-   security
-   compared_to
-   tutorial
    api
    protocol
-   license
    knowhow
    contributers
+   license
    trademark
    faq
+   compared_to
    glossary
-
 
 
 Indices and tables
