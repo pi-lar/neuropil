@@ -284,7 +284,7 @@ bool _np_message_serialize_chunked(np_message_t* msg)
     // TODO: optimize, more streaming
     // target is an array of 1024 byte size target buffers
     cmp_ctx_t cmp;
-    uint16_t i = 0;
+    uint32_t i = 0;
 
     cmp_ctx_t cmp_header;
     void* bin_header = NULL;
@@ -381,12 +381,12 @@ bool _np_message_serialize_chunked(np_message_t* msg)
         }
 
         // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "before body: space left in chunk: %hd / %hd",
-        // 		(max_chunk_size - current_chunk_size), current_chunk_size );
+        // (max_chunk_size - current_chunk_size), current_chunk_size );
 
         if (10 < (max_chunk_size - current_chunk_size) && false == body_done)
         {
-            uint16_t left_body_size = msg->body->byte_size - (bin_body_ptr - bin_body);
-            uint16_t possible_size = max_chunk_size - 10 - current_chunk_size;
+            uint32_t left_body_size = msg->body->byte_size - (bin_body_ptr - bin_body);
+            uint32_t possible_size = max_chunk_size - 10 - current_chunk_size;
             if (possible_size >= left_body_size)
             {
                 // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "writing last body part (size %hd)", left_body_size);
@@ -429,8 +429,8 @@ bool _np_message_serialize_chunked(np_message_t* msg)
 
         if (5 < (max_chunk_size - current_chunk_size) && false == footer_done)
         {
-            uint16_t left_footer_size = msg->footer->byte_size - (bin_footer_ptr - bin_footer);
-            uint16_t possible_size = max_chunk_size - 5 - current_chunk_size;
+            uint32_t left_footer_size = msg->footer->byte_size - (bin_footer_ptr - bin_footer);
+            uint32_t possible_size = max_chunk_size - 5 - current_chunk_size;
             if (possible_size >= left_footer_size)
             {
                 // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "writing last footer part (size %hd)", left_footer_size);
