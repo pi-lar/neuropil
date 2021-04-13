@@ -402,7 +402,8 @@ void _np_intent_get_all_sender(np_key_t* subject_key, np_dhkey_t audience, np_sl
             } 
             else
             {
-                log_debug_msg(LOG_DEBUG, "ignoring sender token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
+                char buf[65] = {0};
+                log_debug_msg(LOG_DEBUG, "ignoring sender token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, np_id_str(buf, *(np_id*)&audience));
             }
         }
         pll_next(tmp);
@@ -445,7 +446,8 @@ void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_
                 // and we actually have a receiver node in the list
                 sll_append(np_aaatoken_ptr, result_list, tmp->val);
             } else {
-                log_debug_msg(LOG_DEBUG, "ignoring receiver token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, audience);
+                char buf[65] = {0};
+                log_debug_msg(LOG_DEBUG, "ignoring receiver token for issuer %s as it is not in audience \"%s\"", tmp->val->issuer, np_id_str(buf, *(np_id*)&audience));
             }
         }
         pll_next(tmp);
