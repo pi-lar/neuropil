@@ -165,12 +165,11 @@ if __name__ == "__main__":
 
         if args.gitlab_pipeline_cleanup:
             pipeline_infos = requests.get(f"{CI_API_V4_URL}/projects/{CI_PROJECT_ID}/pipelines", headers=headers).json()
-
             for pipeline_info in pipeline_infos:
-                if pipeline_info['ref'] in ['main','master'] and pipeline_info['status'] in ['failed','cancelled']:
-                    del_res = requests.delete(f"{CI_API_V4_URL}/projects/{CI_PROJECT_ID}/pipelines/{pipeline_info['id']}", headers=headers)
+                if pipeline_info['status'] in ['failed','canceled']: #and pipeline_info['ref'] in ['main','master']:
+                    del_res = requests.delete(f"{CI_API_V4_URL}/projects/{pipeline_info['project_id']}/pipelines/{pipeline_info['id']}", headers=headers)
                     if del_res.status_code >=200 and del_res.status_code <300:
-                        print(f"Deletion of Pipeline {pipeline_info['id']} Status: OK")
+                        print(f"Deletion of Pipeline {pipeline_info['id']} Status: OK -> {del_res.status_code}/{del_res.text}")
                     else:
                         print(f"Deletion of Pipeline {pipeline_info['id']} Status: NOK -> {del_res.status_code}/{del_res.text}")
                         break
