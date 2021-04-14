@@ -151,6 +151,8 @@ nixos_tests:
   allow_failure: true
   image: nixos/nix
   needs: []
+  rules:
+    - if: $CI_COMMIT_TAG == null
 
 helgrind_tests:
   stage: qa
