@@ -35,7 +35,7 @@ tree.h (splay/red-black trees)     N. Provos  `BSD`_
 `libevhtp`_ (parts only)           M. Ellzey  `BSD`_
 ================================== ========== =======
 
-in addition we are using the following libraries / packages to build / test our coude:
+in addition we are using the following libraries / packages to build / test our code:
 
 ================================== ========== =======
 name                               author     license
