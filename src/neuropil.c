@@ -681,6 +681,9 @@ enum np_return np_run(np_context* ac, double duration) {
         ret = np_listen(ac, _np_network_get_protocol_string(context, PASSIVE | IPv4), "localhost", 31415);
     }
 
+    TSP_GET(enum np_status, context->status, context_status);
+    if (context_status == np_shutdown) ret = np_invalid_operation;
+
     if(ret == np_ok) 
     {
         TSP_SET(context->status, np_running);
