@@ -54,11 +54,11 @@ np_cache_destroy(np_state_t* context, np_simple_cache_table_t* cache)
             sll_next(iter_bucket_item);
         }
         sll_clear(np_cache_item_t, &cache->_bucket[i]);
-        np_spinlock_destroy(cache->_bucket_guard[i]);
+        np_spinlock_destroy(&cache->_bucket_guard[i]);
     }
 
     free(cache->_bucket);
-    free(cache->_bucket_guard);
+    free((void*) cache->_bucket_guard);
 }
 
 bool 
