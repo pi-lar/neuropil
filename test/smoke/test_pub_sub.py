@@ -43,10 +43,10 @@ class PubSubTest(unittest.TestCase):
         return True
 
     def test_pub_sub(self):
-        np_c  = NeuropilCluster( 7, port_range=5500, auto_run=False, log_file_prefix="logs/smoke_test_pubsub_cl_", no_threads=4)
-        np_r1 = NeuropilNode(5510, log_file="logs/smoke_test_pubsub_r1.log", auto_run=False, no_threads=4)
-        np_r2 = NeuropilNode(5511, log_file="logs/smoke_test_pubsub_r2.log", auto_run=False, no_threads=4)
-        np_s1 = NeuropilNode(5512, log_file="logs/smoke_test_pubsub_s1.log", auto_run=False, no_threads=4)
+        np_c  = NeuropilCluster( 7, port_range=5500, auto_run=False, log_file_prefix="logs/smoke_test_pubsub_cl_", n_threads=4)
+        np_r1 = NeuropilNode(5510, log_file="logs/smoke_test_pubsub_r1.log", auto_run=False, n_threads=4)
+        np_r2 = NeuropilNode(5511, log_file="logs/smoke_test_pubsub_r2.log", auto_run=False, n_threads=4)
+        np_s1 = NeuropilNode(5512, log_file="logs/smoke_test_pubsub_s1.log", auto_run=False, n_threads=4)
 
         subject = b"NP.TEST.pubsub.1"
 

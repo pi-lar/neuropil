@@ -25,7 +25,7 @@ class MsgDeliveryTest(unittest.TestCase):
         self.target_size = size
 
         np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_test_msg_delivery_cl_")
-        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_msg_delivery_nl1.log", auto_run=False, no_threads=6)
+        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_msg_delivery_nl1.log", auto_run=False, n_threads=6)
         np_2 = NeuropilNode(4002, log_file="logs/smoke_test_msg_delivery_nl2.log",auto_run=False)
 
         subject = b"NP.TEST.msg_delivery"
