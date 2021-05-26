@@ -59,6 +59,8 @@ int main (void)
 	   \endcode
 	*/
 
+	assert(np_ok == np_run(ac, 0.0));
+
 	/**
 	   To join a neuropil network, we have to connect with our initial
 	   bootstrap node using :c:func:`np_join`. Other nodes in the network

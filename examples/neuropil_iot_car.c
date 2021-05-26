@@ -165,6 +165,7 @@ int main(int argc , char *argv[])
     struct np_mx_properties set_ownership_mx = np_get_mx_properties(app, SET_OWNER);
     np_add_receive_cb(app, SET_OWNER, receive_set_owner);
 
+    np_run(app, 0.0);
     np_join(app, "*:udp4:demo.neuropil.io:3400");
 
     np_id _null = {0};

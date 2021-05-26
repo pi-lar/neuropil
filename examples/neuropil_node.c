@@ -78,11 +78,20 @@ int main(int argc, char **argv)
 		np_enable_realm_client(context);
 	}
 
-	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+	if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) 
+	{
 		np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 	}
-	else {
+	else 
+	{
+		if (np_ok != np_run(context, 0.001)) 
+		{
+			np_example_print(context, stderr, "ERROR: Node could not run");
+		}
+
 		__np_example_helper_loop(context); // for the fancy ncurse display
+
+		log_debug_msg(LOG_DEBUG, "starting job queue");
 
 		if (NULL != j_key)
 		{
@@ -92,8 +101,6 @@ int main(int argc, char **argv)
 				np_example_print(context, stderr, "ERROR: Node could not join");
 			}
 		}
-
-		log_debug_msg(LOG_DEBUG, "starting job queue");
 
 		if (np_ok != np_run(context, 0.001)) {
 			np_example_print(context, stderr, "ERROR: Node could not run");

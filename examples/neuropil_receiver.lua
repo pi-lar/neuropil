@@ -15,6 +15,8 @@ end)
 
 Receiver:listen("udp4", "localhost", 3456)
 
+Receiver:run(0.0)
+
 Receiver:join("*:udp4:localhost:2345")
 
 Receiver:receive("mysubject", function (message)

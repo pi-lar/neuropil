@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 
 
 					fprintf(stdout, "getting connection string\n");
-					bootstrap_hostnode = np_get_connection_string();
+					bootstrap_hostnode = np_get_connection_string(context);
 
 					shmid = shmget(key, 256, 0644 | IPC_CREAT);
 					char* data = shmat(shmid, (void *)0, 0);
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 					}					// send join message
 					log_debug_msg(LOG_DEBUG, "creating welcome message");
 
-					np_send_join(data);
+					np_join(context, data);
 
 					int timeout = 200;
 					while (timeout > 0 && false == child_status->my_node_key->node->joined_network) {

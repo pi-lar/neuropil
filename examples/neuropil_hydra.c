@@ -331,7 +331,7 @@ int main(int argc, char **argv)
 
 				bool firstConnectionTry = true;
 				do {
-					np_send_join(context, j_key);
+					np_join(context, j_key);
 					firstConnectionTry = false;
 					int timeout = 100;
 					while (timeout > 0 && np_run(context, 0.01) && false == np_has_joined(context)) {

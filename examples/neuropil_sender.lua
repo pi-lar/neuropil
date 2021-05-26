@@ -14,6 +14,8 @@ end)
 
 Sender:listen("udp4", "localhost", 1234)
 
+Sender:run(0)
+
 Sender:join("*:udp4:localhost:2345")
 
 while true do

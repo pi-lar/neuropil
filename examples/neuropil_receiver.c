@@ -26,6 +26,8 @@ int main (void)
 
 	assert(np_ok == np_listen(ac, "udp4", "localhost", 3456));
 
+	assert(np_ok == np_run(ac, 0.0));
+
 	assert(np_ok == np_join(ac, "*:udp4:localhost:2345"));
 
 	assert(np_ok == np_set_authorize_cb(ac, authorize));
