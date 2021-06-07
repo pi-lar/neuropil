@@ -102,7 +102,7 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np_
     if (!ret && (node_key->created_at + BAD_LINK_REMOVE_GRACETIME) < np_time_now() ) 
     {
         np_node_t* node = _np_key_get_node(node_key);
-        ret  = (!node->is_in_leafset && !node->is_in_routing_table);
+        ret  = (node->success_avg < BAD_LINK);
         log_trace_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
                         ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
@@ -117,7 +117,6 @@ bool __is_node_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np_
         log_trace_msg(LOG_TRACE, "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)", 
                         ret, node->is_in_leafset, node->is_in_routing_table, (node_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
-
 
     return ret;
 }
@@ -389,7 +388,7 @@ void __np_node_update(np_util_statemachine_t* statemachine, NP_UNUSED const np_u
 
     // follow up actions
     if ( 
-        (  node->success_avg                                                         > BAD_LINK)     &&
+        (  node->success_avg                                             > BAD_LINK)     &&
         ( (node->last_success + MISC_SEND_PINGS_SEC*node->success_avg)  <= np_time_now()  )
        )
     {
