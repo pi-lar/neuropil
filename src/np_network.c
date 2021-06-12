@@ -63,6 +63,11 @@ typedef struct _np_network_data_s {
     np_dhkey_t owner_dhkey;
 } _np_network_data_t;
 
+typedef enum _np_network_runtime_status {
+    np_network_stopped = 0,
+    np_network_server_started, 
+    np_network_client_started,
+};
 
 enum socket_type _np_network_parse_protocol_string (const char* protocol_str)
 {
@@ -588,7 +593,7 @@ void _np_network_stop(np_network_t* network, bool force)
     _LOCK_ACCESS(&network->access_lock) 
     {
         EV_P;
-        if (network->is_running == true)
+        if (FLAG_CMP(network->is_running, np_network_server_started))
         {
             if (FLAG_CMP(network->type , np_network_type_server)) 
             {
@@ -600,8 +605,12 @@ void _np_network_stop(np_network_t* network, bool force)
                 // ev_io_start(EV_A_ &network->watcher);
                 _np_event_reconfigure_loop_in(context);
                 _np_event_resume_loop_in(context);
+                network->is_running &= np_network_client_started;
             }
+        }
 
+        if (FLAG_CMP(network->is_running, np_network_client_started))
+        {
             if (FLAG_CMP(network->type, np_network_type_client))
             {
                 log_debug_msg(LOG_NETWORK | LOG_DEBUG, "stopping client network %p", network);
@@ -612,8 +621,8 @@ void _np_network_stop(np_network_t* network, bool force)
                 // ev_io_start(EV_A_ &network->watcher);
                 _np_event_reconfigure_loop_out(context);
                 _np_event_resume_loop_out(context);
+                network->is_running &= np_network_server_started;
             }
-            network->is_running = false;
         }
     }
 }
@@ -626,45 +635,43 @@ void _np_network_start(np_network_t* network, bool force)
     log_debug_msg(LOG_TRACE, "start: void _np_network_start(...){");
 
     TSP_GET(bool, network->can_be_enabled, can_be_enabled);
-    if (can_be_enabled) {
-        EV_P;
-        if (FLAG_CMP(network->type , np_network_type_server)) {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
-            _np_event_suspend_loop_in(context);
-            loop = _np_event_get_loop_in(context);
-            NP_PERFORMANCE_POINT_START(network_start_in_events_lock);
-            _LOCK_ACCESS(&network->access_lock) {
-                NP_PERFORMANCE_POINT_END(network_start_in_events_lock);
-                if (network->is_running == false)
+    if (can_be_enabled) 
+    {
+        _LOCK_ACCESS(&network->access_lock) 
+        {
+            EV_P;
+            if (!FLAG_CMP(network->is_running, np_network_server_started))
+            {
+                if (FLAG_CMP(network->type , np_network_type_server)) 
                 {
-                        // ev_io_stop(EV_A_ &network->watcher);
-                        // ev_io_set(&network->watcher, network->socket, EV_READ);
-                        ev_io_start(EV_A_ &network->watcher_in);
-                        _np_event_reconfigure_loop_in(context);
+                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting server network %p", network);
+                    loop = _np_event_get_loop_in(context);
+                    _np_event_suspend_loop_in(context);
+                    ev_io_start(EV_A_ &network->watcher_in);
+                    // ev_io_set(&network->watcher, network->socket, EV_NONE);
+                    // ev_io_start(EV_A_ &network->watcher);
+                    _np_event_reconfigure_loop_in(context);
+                    _np_event_resume_loop_in(context);
+                    network->is_running |= np_network_server_started;
                 }
             }
-            _np_event_resume_loop_in(context);
-        }
 
-        if (FLAG_CMP(network->type, np_network_type_client)) {
-            log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
-            _np_event_suspend_loop_out(context);
-            loop = _np_event_get_loop_out(context);
-
-            NP_PERFORMANCE_POINT_START(network_start_out_events_lock);
-            _LOCK_ACCESS(&network->access_lock) {
-                NP_PERFORMANCE_POINT_END(network_start_out_events_lock);
-                if (network->is_running == false)
+            if (!FLAG_CMP(network->is_running, np_network_client_started))
+            {
+                if (FLAG_CMP(network->type, np_network_type_client))
                 {
-                        // ev_io_stop(EV_A_ &network->watcher);
-                        // ev_io_set(&network->watcher, network->socket, EV_WRITE);
-                        ev_io_start(EV_A_ &network->watcher_out);
+                    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "starting client network %p", network);
+                    loop = _np_event_get_loop_out(context);
+                    _np_event_suspend_loop_out(context);
+                    ev_io_start(EV_A_ &network->watcher_out);
+                    // ev_io_set(&network->watcher, network->socket, EV_NONE);
+                    // ev_io_start(EV_A_ &network->watcher);
+                    _np_event_reconfigure_loop_out(context);
+                    _np_event_resume_loop_out(context);
+                    network->is_running |= np_network_client_started;
                 }
             }
-            _np_event_reconfigure_loop_out(context);
-            _np_event_resume_loop_out(context);
         }
-        network->is_running = true;
     }
 }
 
@@ -716,7 +723,7 @@ void _np_network_t_new(np_state_t * context, NP_UNUSED uint8_t type, NP_UNUSED s
     ng->addr_in = NULL;
     ng->out_events 	= NULL;
     ng->initialized = false;
-    ng->is_running = false;
+    ng->is_running = np_network_stopped;
     ng->watcher_in.data = NULL;
     ng->watcher_out.data = NULL;
     ng->type = np_network_type_none;

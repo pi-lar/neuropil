@@ -65,7 +65,7 @@ struct np_network_s
     int socket;
     ev_io watcher_in;
     ev_io watcher_out;
-    bool is_running;
+    uint8_t is_running;
     np_network_type_e type;
 
     enum socket_type socket_type;

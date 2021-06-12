@@ -824,6 +824,7 @@ void __np_create_client_network (np_util_statemachine_t* statemachine, NP_UNUSED
                 sll_append(void_ptr, node_key->entities, new_network);
                 ref_replace_reason(np_network_t, new_network, ref_obj_creation, "__np_create_client_network");            
             }
+            _np_network_enable(new_network);
         }
         else
         if (_np_network_init(new_network, false, trinity.node->protocol, trinity.node->dns_name, trinity.node->port, -1, UNKNOWN_PROTO))
