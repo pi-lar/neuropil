@@ -35,26 +35,22 @@ static np_dhkey_t __dhkey_max;
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_t)
 
-char* _np_dhkey_generate_hash (const char* key_in)
+np_dhkey_t _np_dhkey_generate_hash (const unsigned char * data, size_t data_size)
 {
-    unsigned char md_value[32]; //  = (unsigned char *) malloc (32);
+    unsigned char md_value[32] = {0};
+    crypto_hash_sha256(md_value, data, data_size);
 
-    // TODO: move it to KECCAK because of possible length extension attack ???
-    crypto_hash_sha256(md_value, (unsigned char*) key_in, strlen(key_in));
+    np_dhkey_t kResult = { 0 };
+    memcpy(&kResult.t[0], &md_value[ 0], 4);
+    memcpy(&kResult.t[1], &md_value[ 4], 4);
+    memcpy(&kResult.t[2], &md_value[ 8], 4);
+    memcpy(&kResult.t[3], &md_value[12], 4);
+    memcpy(&kResult.t[4], &md_value[16], 4);
+    memcpy(&kResult.t[5], &md_value[20], 4);
+    memcpy(&kResult.t[6], &md_value[24], 4);
+    memcpy(&kResult.t[7], &md_value[28], 4);
 
-    // log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, md_value);
-    // long form - could be used to add addiitonal configuration parameter
-    //    crypto_hash_sha256_state state;
-    //    crypto_hash_sha256_init(&state);
-    //    crypto_hash_sha256_update(&state, key_in, sizeof(key_in));
-    //    crypto_hash_sha256_final(&state, tmp);
-    //    log_msg (LOG_KEYDEBUG, "md value (%s) now: [%s]", key_in, tmp);
-    char* digest_out = (char *) malloc (65);
-    CHECK_MALLOC(digest_out);
-
-    sodium_bin2hex(digest_out, 65, md_value, 32);
-
-    return digest_out;
+    return kResult;
 }
 
 np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
@@ -99,20 +95,7 @@ np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
     char name[256] = {0};
     snprintf (name, 255, "%s:%s", strOrig, port);
 
-    unsigned char md_value[32] = {0};
-    crypto_hash_sha256(md_value, (unsigned char*) name, strnlen(name, 255));
-
-    np_dhkey_t kResult = { 0 };
-    memcpy(&kResult.t[0], &md_value[ 0], 4);
-    memcpy(&kResult.t[1], &md_value[ 4], 4);
-    memcpy(&kResult.t[2], &md_value[ 8], 4);
-    memcpy(&kResult.t[3], &md_value[12], 4);
-    memcpy(&kResult.t[4], &md_value[16], 4);
-    memcpy(&kResult.t[5], &md_value[20], 4);
-    memcpy(&kResult.t[6], &md_value[24], 4);
-    memcpy(&kResult.t[7], &md_value[28], 4);
-
-    return kResult;
+    return _np_dhkey_generate_hash(name,strnlen(name, 255));
 }
 
 void _np_dhkey_encode(NP_UNUSED np_state_t* context, np_tree_t* jrb, np_dhkey_t* key)

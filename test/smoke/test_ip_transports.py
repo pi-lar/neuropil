@@ -57,9 +57,9 @@ class IPTransportTest(unittest.TestCase):
         node.run(0.0)
 
         t1 = time.time()
-        while not self.isOK():
+        self.assertTrue(node.get_status() == neuropil.np_running)
+        while not self.isOK() and node.get_status() == neuropil.np_running:
             elapsed = float(time.time() - t1)
-            self.assertTrue(node.get_status() == neuropil.np_running)
             if elapsed > timeout:
                 break
             node.run(0.0)

@@ -16,6 +16,7 @@
 #include "util/np_list.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
+#include "util/np_bloom.h"
 
 #include "neuropil.h"
 
@@ -319,6 +320,7 @@ struct np_msgproperty_s
     np_message_intent_public_token_t* current_receive_token;
 
     np_attributes_t attributes;
+    np_bloom_t * required_attributes_policy;
 
 } NP_API_EXPORT;
 

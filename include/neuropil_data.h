@@ -37,11 +37,10 @@ extern "C" {
     } NP_CONST_ENUM;
 
     enum np_data_type {
-        NP_DATA_TYPE_MASK                     = 0xFFF000,
-        NP_DATA_TYPE_BIN                      = 0x001000,
-        NP_DATA_TYPE_INT                      = 0x002000,
-        NP_DATA_TYPE_UNSIGNED_INT             = 0x003000,
-        NP_DATA_TYPE_STR                      = 0x004000,
+        NP_DATA_TYPE_BIN,
+        NP_DATA_TYPE_INT,
+        NP_DATA_TYPE_UNSIGNED_INT,
+        NP_DATA_TYPE_STR
     } NP_CONST_ENUM;
 
     struct np_data_conf {
@@ -78,6 +77,12 @@ extern "C" {
      * @brief merges src datablock into dest datablock. overwrites existing keys
      */
     enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src);
+
+    NP_API_EXPORT
+    typedef bool (*np_iterate_data_cb)(struct np_data_conf * out_data_config, np_data_value * out_data, void * userdata);
+    NP_API_EXPORT
+    enum np_data_return np_iterate_data(np_datablock_t * block, np_iterate_data_cb callback, void * userdata);
+
 #ifdef __cplusplus
 }
 #endif
@@ -113,5 +118,13 @@ extern "C" {
    :c:data:`NP_DATA_TYPE_INT`                        Define the key to hold an integer in its value container
    :c:data:`NP_DATA_TYPE_STR`                        Define the key to hold a string in its value container (Uses ASCII encoding)
    ================================================  ===========================================
+
+.. c:type:: typedef bool (*np_data_iterate_cb)(struct np_data_conf * out_data_config, np_data_value * out_data, void * userdata)
+
+   Callback definition for the :c:function:`np_iterate_data` function
+
+.. c:function:: enum np_data_return np_iterate_data(np_datablock_t * block, np_data_iterate_cb callback, void * userdata)
+
+   Iterates over every :c:type:`np_datablock_t` key/value elements
 
 **/

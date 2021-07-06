@@ -474,15 +474,15 @@ void _np_neuropil_bloom_clear(np_bloom_t* res)
     res->_type = neuropil_bf;
     res->_size = SCALE3D_X*SCALE3D_Y*SCALE3D_Z; // size of each block
     res->_d    = 16; // size of counting and aging bit field (1byte aging and 1byte counting)
-    res->_p    =  0; // 
+    res->_p    =  0;
     res->_num_blocks = 4;
-    
+
     memset(res->_bitset, 0, res->_num_blocks*res->_size*res->_d/8);
     res->_free_items = SCALE3D_FREE_ITEMS;
 }
 
 void _np_neuropil_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
-{    
+{
     if (bloom->_free_items == 0) abort();
 
     uint8_t block_index = 1;
@@ -494,9 +494,9 @@ void _np_neuropil_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
         uint32_t _local_pos     = (block_index-1)*block_size + (_bit_array_pos-1)*2;
         uint8_t* _current_age   = &bloom->_bitset[_local_pos  ];
         uint8_t* _current_count = &bloom->_bitset[_local_pos+1];
-        (*_current_age) |=  (1 << (bloom->_d/2 - 1) );
+        (*_current_age) |=  (1 << (bloom->_d/2 - 1) ); // 0000000000000000000000000000001 => 0000000000000000000000010000000 => 10000000 könnten wir hier nicht einfach eine Konstante setzen? (um genau zu sein 0b10000000 oder ((uint8_t)128)
         (*_current_count)++;
-        
+
 #ifdef DEBUG
         /*char test_string[65];
         for (uint16_t i = (block_index-1)*block_size; i < block_index*block_size; i+=32 ) {
@@ -722,6 +722,29 @@ float _np_neuropil_bloom_intersect_age(np_bloom_t* result, np_bloom_t* to_inters
     return ret;
 }
 
+bool _np_neuropil_bloom_intersect_ignore_age(np_bloom_t* result, np_bloom_t* to_intersect)
+{
+    assert(result->_type == neuropil_bf);
+    assert(result->_type == to_intersect->_type);
+    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
+    assert(result->_size == to_intersect->_size);
+    assert(result->_d    == to_intersect->_d);
+    assert(result->_num_blocks == to_intersect->_num_blocks);    
+    assert(to_intersect->_free_items + result->_free_items >= SCALE3D_FREE_ITEMS);
+
+    result->_free_items = 0; // an intersection cannot be used for further data addition
+    uint16_t i = 0;
+    for (uint16_t k = 0; k < result->_num_blocks*result->_size*result->_d/8; k+=2)
+    {
+            if(result->_bitset[k+1] > 0 && to_intersect->_bitset[k+1] > 0)
+                result->_bitset[k+1] += to_intersect->_bitset[k+1];
+            else
+                result->_bitset[k+1] = 0;
+            i++;
+    }
+    return (i > 0) ? true : false;
+}
+
 void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* to_add)
 {
     assert(result->_type == neuropil_bf);
@@ -732,7 +755,7 @@ void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* to_add)
     assert(result->_num_blocks == to_add->_num_blocks);
     assert(result->_free_items + to_add->_free_items >= SCALE3D_FREE_ITEMS);
 
-    result->_free_items = result->_free_items - SCALE3D_FREE_ITEMS + to_add->_free_items;
+    result->_free_items = result->_free_items + to_add->_free_items - SCALE3D_FREE_ITEMS;
 
     for (uint16_t k = 0; k < result->_num_blocks*result->_size*result->_d/8; k+=2)
     {   
@@ -789,4 +812,26 @@ void _np_neuropil_bloom_deserialize(np_bloom_t* filter, unsigned char * from, ui
         iter = RB_NEXT(np_tree_s, data, iter);
     }
     np_tree_free(data);
+}
+
+int _np_neuropil_bloom_cmp(np_bloom_t* a, np_bloom_t* b){
+    int ret = 0;
+
+    assert(a->_type == neuropil_bf);
+    assert(a->_type == b->_type);
+    assert(a->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
+    assert(a->_size == b->_size);
+    assert(a->_d    == b->_d);
+    assert(a->_num_blocks == b->_num_blocks);
+
+    for (uint16_t k = 0; k < a->_num_blocks*a->_size*a->_d/8; k+=2)
+    {
+        if ((a->_bitset[k+1] == 0 && b->_bitset[k+1] > 0) ||
+            (b->_bitset[k+1] == 0 && a->_bitset[k+1] > 0)
+        ) {
+            ret = -1;
+            break;
+        }
+    }
+    return ret;
 }

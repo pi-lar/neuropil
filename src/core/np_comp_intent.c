@@ -380,6 +380,9 @@ void _np_intent_get_all_sender(np_key_t* subject_key, np_dhkey_t audience, np_sl
         if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
         {
             log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "ignoring invalid sender token for issuer %s", tmp->val->issuer);
+        } else if (IS_NOT_AUTHORIZED(tmp->val->state))
+        {
+            log_debug_msg(LOG_DEBUG, "ignoring receiver msg token %s as it is not authorized",tmp->val->uuid );
         }
         else
         {
@@ -426,6 +429,10 @@ void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_
         if (false == _np_aaatoken_is_valid(tmp->val, np_aaatoken_type_message_intent))
         {
             log_debug_msg(LOG_DEBUG, "ignoring receiver msg token as it is invalid" );
+        }
+        else if (IS_NOT_AUTHORIZED(tmp->val->state))
+        {
+            log_debug_msg(LOG_DEBUG, "ignoring receiver msg token %s as it is not authorized",tmp->val->uuid );
         }
         else
         {

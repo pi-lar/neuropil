@@ -8,6 +8,7 @@
 
 #include "np_types.h"
 #include "neuropil_attributes.h"
+#include "util/np_bloom.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,16 @@ extern "C" {
     void _np_attributes_destroy(np_state_t* context);
     NP_API_PROTEC
     np_attributes_t* _np_get_attributes_cache(np_state_t* context, enum np_msg_attr_type cache);
+    NP_API_INTERN
+    void _np_policy_set_key(np_bloom_t * bloom, char key[255]);
+    NP_API_INTERN
+    void _np_policy_set_bin(np_bloom_t * bloom, char key[255], unsigned char * value, size_t value_size);
+    NP_API_INTERN
+    bool _np_policy_check_compliance(np_bloom_t * policy, np_attributes_t * attributes);
+    NP_API_INTERN
+    bool _np_attribute_build_bloom(np_bloom_t *target, np_attributes_t *attributes);
+    NP_API_INTERN
+    np_bloom_t * _np_attribute_bloom();
 
 #ifdef __cplusplus
 }

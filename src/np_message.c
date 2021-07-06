@@ -907,7 +907,7 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
             np_tree_elem_t* encryption_details_elem = np_tree_find_str(encryption_details, (char*)_np_key_as_str(context->my_identity));
             if (NULL == encryption_details_elem)
             {
-                log_msg(LOG_ERROR, "decryption of message payload failed. no identity information in encryption_details for %s", _np_key_as_str(context->my_identity));
+                log_msg(LOG_ERROR, "decryption of message (%s) payload failed. no identity information in encryption_details for %s", msg->uuid, _np_key_as_str(context->my_identity));
                 ret = false;
             }
             else
@@ -947,7 +947,7 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
                     if (_np_messagepart_decrypt(context, msg->body, nonce, sym_key, NULL, encrypted_body) == false)
                     {
                         np_tree_free(encrypted_body);
-                        log_msg(LOG_ERROR, "decryption of message payloads body failed");
+                        log_msg(LOG_ERROR, "decryption of message (%s) payloads body failed", msg->uuid);
                         ret = false;
                     }
                     else

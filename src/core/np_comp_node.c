@@ -304,17 +304,29 @@ void __np_wildcard_set(np_util_statemachine_t* statemachine, const np_util_event
 
 void __np_filter_remove_passive_nodes(np_state_t* context, np_sll_t(np_key_ptr, sll_of_keys), const char* ref_source)
 {
+    np_sll_t(np_key_ptr, to_remove_keys);
+    sll_init(np_key_ptr, to_remove_keys);
+
     sll_iterator(np_key_ptr) iter = sll_first(sll_of_keys);
-    while (iter != NULL) 
+    while (iter != NULL)
     {
-        if (_np_key_get_node(iter->val) != NULL && 
-            FLAG_CMP(_np_key_get_node(iter->val)->protocol, PASSIVE) ) 
+        np_node_t * node = _np_key_get_node(iter->val);
+        if (node != NULL &&
+            FLAG_CMP(node->protocol, PASSIVE) )
         {
-            np_unref_obj(np_key_t, (iter->val), ref_source);
-            sll_remove(np_key_ptr, sll_of_keys, iter->val, np_key_ptr_sll_compare_type);
+            sll_append(np_key_ptr,to_remove_keys, iter->val);
         }
         sll_next(iter);
     }
+    iter = sll_first(to_remove_keys);
+    while (iter != NULL)
+    {
+        np_key_ptr current = iter->val;
+        sll_remove(np_key_ptr, sll_of_keys, current, np_key_ptr_sll_compare_type);
+        np_unref_obj(np_key_t, current, ref_source);
+        sll_next(iter);
+    }
+    sll_free(np_key_ptr, to_remove_keys)
 }
 
 void __np_node_update(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
@@ -974,7 +986,7 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
         trinity.node->session.session_key_to_write
     );
 
-    log_debug_msg(LOG_DEBUG | LOG_HANDSHAKE,
+    log_debug_msg(LOG_HANDSHAKE,
         "HANDSHAKE SECRET: using shared secret from target %s on system %s to encrypt data (msg: %s)",
         _np_key_as_str(node_key), _np_key_as_str(context->my_node_key), part->uuid);
 
@@ -1001,7 +1013,7 @@ void __np_node_send_encrypted(np_util_statemachine_t* statemachine, const np_uti
             char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
             sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer, MSG_CHUNK_SIZE_1024);
             log_debug(LOG_MESSAGE,
-                "(msg: %s) appending to eventqueue (part: %"PRIu16"/%p) %p (%d bytes) to queue for %s:%s, hex: %.5s...%s",
+                "(msg: %s) appending to eventqueue (part: %"PRIu16"/%p) %p (%d bytes) to queue for %s:%s, hex: 0x%.5s...%s",
                 part->uuid, part->part+1, part, enc_buffer, MSG_CHUNK_SIZE_1024, trinity.node->dns_name, trinity.node->port,tmp_hex, tmp_hex + strlen(tmp_hex) -5
             );
 #endif // DEBUG

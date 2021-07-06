@@ -8,6 +8,7 @@
 // have. It is included form np_key.c, therefore there are no extra #include directives.
 
 #include "core/np_comp_identity.h"
+#include "core/np_comp_msgproperty.h"
 
 #include "stdint.h"
 #include "inttypes.h"
@@ -21,6 +22,7 @@
 #include "np_network.h"
 #include "np_node.h"
 #include "np_route.h"
+#include "np_attributes.h"
 #include "util/np_event.h"
 #include "util/np_statemachine.h"
 
@@ -253,10 +255,10 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
         is_deserialization_successful &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
     }
 
-    if (is_deserialization_successful) 
+    if (is_deserialization_successful)
     {
         log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
-                    "deserialized message %s (source: \"%s\")", msg_in->uuid, event.user_data);
+                    "deserialized message %s", msg_in->uuid);
 
         CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE")
         {
@@ -412,10 +414,24 @@ void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_u
     {
         if ( !FLAG_CMP(authz_token->state, AAA_AUTHORIZED) )
         {
-            log_debug_msg(LOG_DEBUG, "now checking (join/ident) authorization of token");
+            log_debug(LOG_AAATOKEN, "now checking (join/ident) authorization of token %s", authz_token->uuid);
+            np_msgproperty_t* in_prop = _np_msgproperty_get(context, INBOUND, authz_token->subject);
+            np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, authz_token->subject);
+
             struct np_token tmp_user_token = { 0 };
-            bool access_allowed = context->authorize_func(context, np_aaatoken4user(&tmp_user_token, authz_token));
-            log_debug_msg(LOG_DEBUG, "authorization of token: %"PRIu8, access_allowed);
+            bool access_allowed_by_policy = true;
+            if(in_prop != NULL){
+                access_allowed_by_policy &= _np_policy_check_compliance(in_prop->required_attributes_policy, authz_token->attributes);
+                log_msg(LOG_INFO, "policy result  INBOUND for %s / %s is %"PRIu8,authz_token->uuid, authz_token->subject, access_allowed_by_policy);
+            }
+            if(out_prop != NULL){
+                access_allowed_by_policy &= _np_policy_check_compliance(out_prop->required_attributes_policy, authz_token->attributes);
+                log_msg(LOG_INFO, "policy result OUTBOUND for %s / %s is %"PRIu8,authz_token->uuid, authz_token->subject, access_allowed_by_policy);
+            }
+            bool access_allowed =
+                access_allowed_by_policy &&
+                context->authorize_func(context, np_aaatoken4user(&tmp_user_token, authz_token));
+            log_debug(LOG_AAATOKEN, "authorization of token %s: %"PRIu8, authz_token->uuid, access_allowed);
 
             if (true == access_allowed && context->enable_realm_client == false)
             {

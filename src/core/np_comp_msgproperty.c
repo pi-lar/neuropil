@@ -39,7 +39,7 @@
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_msgproperty_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_msgproperty_ptr);
 
-#include "../np_msgproperty_init.c"
+#include "../np_msgproperty_init.c.part"
 
 void _np_msgproperty_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* property)
 {
@@ -1404,17 +1404,18 @@ void __np_property_handle_in_msg(np_util_statemachine_t* statemachine, const np_
         sll_iterator(np_usercallback_ptr) iter_usercallbacks = sll_first(property->user_receive_clb);
         while (iter_usercallbacks != NULL && ret)
         {
+            log_debug(LOG_MESSAGE, "(msg: %s) invoking user callback %p", msg_in->uuid, iter_usercallbacks->val->fn);
             ret &= iter_usercallbacks->val->fn(context, msg_in, msg_in->body, iter_usercallbacks->val->data);
             sll_next(iter_usercallbacks);
         }
-        log_debug(LOG_DEBUG, "(msg: %s) invoked user callback", msg_in->uuid);
+        log_debug(LOG_MESSAGE, "(msg: %s) invoked user callback", msg_in->uuid);
     }
 
     _np_msgproperty_threshold_decrease(property);
 
     if (ret) _np_increment_received_msgs_counter(property->msg_subject);
 
-    log_debug(LOG_DEBUG, "in: (subject: %s / msg: %s) handling complete", property->msg_subject, msg_in->uuid);    
+    log_debug(LOG_DEBUG, "in: (subject: %s / msg: %s) handling complete", property->msg_subject, msg_in->uuid);
     np_unref_obj(np_message_t, msg_in, ref_message_in_send_system);
 }
 
@@ -1558,52 +1559,55 @@ void __np_property_handle_intent(np_util_statemachine_t* statemachine, const np_
 
     NP_CAST(sll_first(my_property_key->entities)->val, np_msgproperty_t, real_prop);
 
-    // always?: just store the available tokens in memory and update them if new data arrives
-    np_dhkey_t sendtoken_issuer_key = np_aaatoken_get_partner_fp(intent_token);
-
-    if (_np_dhkey_equal(&sendtoken_issuer_key, &context->my_node_key->dhkey) )
+    if(_np_policy_check_compliance(real_prop->required_attributes_policy, intent_token->attributes))
     {
-        // only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
-        // TODO: CHECK IF NESSECARY
+        // always?: just store the available tokens in memory and update them if new data arrives
+        np_dhkey_t sendtoken_issuer_key = np_aaatoken_get_partner_fp(intent_token);
+
+        if (_np_dhkey_equal(&sendtoken_issuer_key, &context->my_node_key->dhkey) )
+        {
+            // only add the token if it is not from ourself (in case of IN/OUTBOUND on same subject)
+            // TODO: CHECK IF NESSECARY
+        }
+        bool needs_authz = false;
+        // add token, authorization could be in the future
+        np_dhkey_t target_inbound_dhkey = _np_msgproperty_dhkey(INBOUND, intent_token->subject);
+        np_dhkey_t target_outbound_dhkey = _np_msgproperty_dhkey(OUTBOUND, intent_token->subject);
+
+        // choose correct target ledger
+        if (_np_dhkey_equal(&target_inbound_dhkey, &my_property_key->dhkey) &&
+            sll_contains(np_evt_callback_t, real_prop->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type))
+        {
+            log_msg(LOG_INFO, "adding sending intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
+            np_aaatoken_t* old_token = _np_intent_add_sender(my_property_key, intent_token);
+            np_unref_obj(np_aaatoken_t, old_token, ref_aaatoken_local_mx_tokens);
+
+            // check if some messages are left in the cache
+            _np_msgproperty_check_receiver_msgcache(real_prop, _np_aaatoken_get_issuer(intent_token));
+            needs_authz = true;
+        }
+
+        // choose correct target ledger
+        if (_np_dhkey_equal(&target_outbound_dhkey, &my_property_key->dhkey)) 
+        {
+            log_msg(LOG_INFO, "adding receiver intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
+            np_aaatoken_t* old_token = _np_intent_add_receiver(my_property_key, intent_token);
+            np_unref_obj(np_aaatoken_t, old_token, ref_aaatoken_local_mx_tokens);
+
+            // check if some messages are left in the cache
+            _np_msgproperty_check_sender_msgcache(real_prop);
+            needs_authz = true;
+        }
+
+        if (IS_NOT_AUTHORIZED(intent_token->state) && needs_authz == true)
+        {
+            log_msg(LOG_INFO, "token %s from %s complies with subject policy %s", intent_token->uuid, intent_token->issuer, intent_token->subject );
+
+            log_msg(LOG_INFO, "authorizing intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
+            np_dhkey_t authz_target = context->my_identity->dhkey;
+            np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=intent_token, .target_dhkey=authz_target };
+            _np_keycache_handle_event(context, authz_target, authz_event, false);
+        }
     }
-    bool needs_authz = false;
-    // add token, authorization could be in the future
-    np_dhkey_t target_inbound_dhkey = _np_msgproperty_dhkey(INBOUND, intent_token->subject);
-    np_dhkey_t target_outbound_dhkey = _np_msgproperty_dhkey(OUTBOUND, intent_token->subject);
-
-    // choose correct target ledger
-    if (_np_dhkey_equal(&target_inbound_dhkey, &my_property_key->dhkey) &&
-        sll_contains(np_evt_callback_t, real_prop->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type))
-    {
-        log_msg(LOG_INFO, "adding sending intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
-        np_aaatoken_t* old_token = _np_intent_add_sender(my_property_key, intent_token);
-        np_unref_obj(np_aaatoken_t, old_token, ref_aaatoken_local_mx_tokens);
-
-        // check if some messages are left in the cache
-        _np_msgproperty_check_receiver_msgcache(real_prop, _np_aaatoken_get_issuer(intent_token));
-        needs_authz = true;
-    }
-
-    // choose correct target ledger
-    if (_np_dhkey_equal(&target_outbound_dhkey, &my_property_key->dhkey)) 
-    {
-        log_msg(LOG_INFO, "adding receiver intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
-        np_aaatoken_t* old_token = _np_intent_add_receiver(my_property_key, intent_token);
-        np_unref_obj(np_aaatoken_t, old_token, ref_aaatoken_local_mx_tokens);
-
-        // check if some messages are left in the cache
-        _np_msgproperty_check_sender_msgcache(real_prop);
-        needs_authz = true;
-    }
-
-    if (IS_NOT_AUTHORIZED(intent_token->state) && needs_authz == true) 
-    {
-        log_msg(LOG_INFO, "authorizing intent %s for subject %s", intent_token->uuid, real_prop->msg_subject);
-        np_dhkey_t authz_target = context->my_identity->dhkey;
-        // if (real_prop->realm) authz_target = real_prop->realm->dhkey;
-        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=intent_token, .target_dhkey=authz_target };
-        _np_keycache_handle_event(context, authz_target, authz_event, false);
-    }
-
     np_unref_obj(np_aaatoken_t, intent_token, "np_token_factory_read_from_tree");
 }

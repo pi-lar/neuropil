@@ -14,8 +14,10 @@
 
 #include "neuropil.h"
 #include "neuropil_data.h"
+#include "np_data.h"
 #include "np_serialization.h"
 #include "np_util.h"
+#include "util/np_mapreduce.h"
 
 struct __np_datablock_s
 {
@@ -225,6 +227,97 @@ struct __kv_pair __read_object(cmp_ctx_t *cmp, enum np_data_return *error)
 
     return ret;
 }
+
+void _conver_kv_to_conf(struct np_data_conf * dest_conf, np_data_value * dest_data, struct __kv_pair * src){
+    if(dest_conf != NULL) {
+        dest_conf->data_size = src->data_size;
+        dest_conf->type = src->data_type;
+        strncpy(dest_conf->key, src->key, 255);
+    }
+    if (dest_data != NULL) {
+        if (src->data_type == NP_DATA_TYPE_BIN)
+        {
+            dest_data->bin = src->data.bin;
+        }
+        else if (src->data_type == NP_DATA_TYPE_INT)
+        {
+            dest_data->integer = src->data.integer;
+        }
+        else if (src->data_type == NP_DATA_TYPE_UNSIGNED_INT)
+        {
+            dest_data->unsigned_integer = src->data.unsigned_integer;
+        }
+        else if (src->data_type == NP_DATA_TYPE_STR)
+        {
+            dest_data->str = src->data.str;
+        }// other types
+        else
+        {
+            ASSERT(false, "missing implementation");
+        }
+    }
+}
+
+enum np_data_return np_iterate_data(np_datablock_t * block, np_iterate_data_cb callback, void * userdata)
+{
+    assert(block != NULL);
+    assert(callback != NULL);
+
+    enum np_data_return ret = np_could_not_read_object;
+    struct __np_datablock_s db = __read_datablock(block, &ret);
+    struct np_data_conf data_conf;
+    np_data_value data_value;
+    if (ret == np_data_ok)
+    {
+        cmp_ctx_t *cmp = &db.cmp;
+        unsigned char *start_buffer = db.ublock;
+        uint32_t max_read = db.used_length;
+
+        while ((((unsigned char *)cmp->buf) - start_buffer) < max_read)
+        {
+            struct __kv_pair tmp = __read_object(cmp, &ret);
+            if(ret == np_data_ok){
+                _conver_kv_to_conf(&data_conf, &data_value, &tmp);
+                if (!callback(&data_conf, &data_value, userdata)){
+                    ret = np_invalid_arguments;
+                    printf("AAAAAAA  %s\n",data_conf.key);
+                    break;
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+enum np_data_return _np_iterate_data_mapreduce(np_datablock_t * block, np_map_reduce_t * map)
+{
+    assert(block != NULL);
+
+    enum np_data_return ret = np_could_not_read_object;
+    struct __np_datablock_s db = __read_datablock(block, &ret);
+    struct np_data data = {0};
+    if (ret == np_data_ok)
+    {
+        cmp_ctx_t *cmp = &db.cmp;
+        unsigned char *start_buffer = db.ublock;
+        uint32_t max_read = db.used_length;
+
+        while ((((unsigned char *)cmp->buf) - start_buffer) < max_read)
+        {
+            struct __kv_pair tmp = __read_object(cmp, &ret);
+            if(ret == np_data_ok){
+                _conver_kv_to_conf(&data.conf, &data.value, &tmp);
+                if (!map->map(map, &data)){
+                    ret = np_invalid_arguments;
+                    break;
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+
 /**
  * @return unsigned char *  returns the key object start pointer if found
  */
@@ -269,6 +362,7 @@ enum np_data_return np_set_data(np_datablock_t *block, struct np_data_conf data_
             // overwrite data (as in: delete old object und add anew)
             memmove(tmp.start_of_object, tmp.end_of_object, end_of_datablock - tmp.end_of_object);
             db.used_length -= (tmp.end_of_object - tmp.start_of_object); // remove old_object_size;
+            db.object_count--;
         }
 
         if (ret == np_key_not_found || ret == np_data_ok)
@@ -360,33 +454,7 @@ enum np_data_return np_get_data(np_datablock_t *block, char key[255], struct np_
 
         if (ret == np_data_ok)
         {
-            if(out_data_config != NULL) {
-                out_data_config->data_size = tmp.data_size;
-                out_data_config->type = tmp.data_type;
-                strncpy(out_data_config->key, key, 255);
-            }
-            if (out_data != NULL){
-                if (tmp.data_type == NP_DATA_TYPE_BIN)
-                {
-                    out_data->bin = tmp.data.bin;
-                }
-                else if (tmp.data_type == NP_DATA_TYPE_INT)
-                {
-                    out_data->integer = tmp.data.integer;
-                }
-                else if (tmp.data_type == NP_DATA_TYPE_UNSIGNED_INT)
-                {
-                    out_data->unsigned_integer = tmp.data.unsigned_integer;
-                }
-                else if (tmp.data_type == NP_DATA_TYPE_STR)
-                {
-                    out_data->str = tmp.data.str;
-                }// other types
-                else
-                {
-                    ASSERT(false, "missing implementation");
-                }
-            }
+            _conver_kv_to_conf(out_data_config, out_data, &tmp);
         }
     }
     return ret;
@@ -402,6 +470,19 @@ enum np_data_return np_get_data_size(np_datablock_t *block, size_t *out_block_si
         *out_block_size = db.used_length;
     }else{
         *out_block_size = 0;
+    }
+    return ret;
+}
+
+enum np_data_return np_get_object_count(np_datablock_t * block, uint32_t * count){
+    assert(count != NULL);
+    enum np_data_return ret = np_invalid_arguments;
+    struct __np_datablock_s db = __read_datablock(block, &ret);
+    if (ret == np_data_ok)
+    {
+        *count = db.object_count;
+    }else{
+        *count = 0;
     }
     return ret;
 }
@@ -429,4 +510,65 @@ enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src)
     }
 
     return ret;
+}
+
+
+struct _np_print_data_s{
+    char * buffer;
+    size_t used;
+    size_t buffer_max_size;
+};
+bool __np_print_datablock_item(struct np_data_conf *out_data_config, np_data_value *out_data, void *userdata)
+{
+    bool error = false;
+    struct _np_print_data_s * tmp = (struct _np_print_data_s *)userdata;
+
+    size_t max_n = tmp->buffer_max_size-tmp->used;
+    int n =0;
+    switch (out_data_config->type)
+    {
+    case NP_DATA_TYPE_BIN:
+        n = snprintf(tmp->buffer+tmp->used,max_n,
+            "%s:%s:size=%"PRIsizet"; ",out_data_config->key, "BIN", out_data_config->data_size);
+        break;
+    case NP_DATA_TYPE_INT:
+        n = snprintf(tmp->buffer+tmp->used,max_n,
+            "%s:%s:%"PRIi32"; ",out_data_config->key, "INT", out_data->integer);
+        break;
+    case NP_DATA_TYPE_STR:
+        n = snprintf(tmp->buffer+tmp->used,max_n,
+            "%s:%s:%.*s; ",out_data_config->key, "STR", out_data_config->data_size, out_data->str);
+        break;
+    case NP_DATA_TYPE_UNSIGNED_INT:
+        n = snprintf(tmp->buffer+tmp->used,max_n,
+            "%s:%s:%"PRIu32"; ",out_data_config->key,"UINT", out_data->unsigned_integer);
+        break;
+
+    default:
+        break;
+    }
+    if(n < 0 && n >= max_n)
+        error = true;
+    else
+        tmp->used += n;
+
+    return !error && tmp->used <= tmp->buffer_max_size;
+}
+
+char* _np_print_datablock(char * buffer, size_t buffer_max_size, np_datablock_t *src)
+{
+    struct _np_print_data_s tmp = {0};
+    tmp.buffer = buffer;
+    tmp.used = 0;
+    tmp.buffer_max_size = buffer_max_size;
+    uint32_t count=0;
+    if(np_data_ok == np_get_object_count(src, &count)) {
+        size_t max_n = tmp.buffer_max_size-tmp.used;
+        int n = snprintf(tmp.buffer+tmp.used,max_n, "Count:%"PRIu32"; ", count);
+        if(!(n < 0 && n >= max_n)){
+            tmp.used += n;
+            np_iterate_data(src, __np_print_datablock_item, &tmp);
+        }
+    }
+    return buffer;
 }

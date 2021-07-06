@@ -281,7 +281,7 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
     // check whether an handler already exists
     np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, INBOUND, subject);
     
-    log_debug(LOG_INFO, "adding receive listener on subject %s / property %p", subject, msg_prop);
+    log_debug(LOG_MISC,"adding receive listener on subject %s / property %p", subject, msg_prop);
     
     np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
     msg_handler->data = msg_handler_localdata;

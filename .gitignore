@@ -33,7 +33,7 @@ bindings/python_cffi/neuropil.egg-info/
 bindings/python_cffi/dist/
 *.tmp
 *.so
-core*
+core.*
 vgcore*
 
 smoke_test-junit.xml

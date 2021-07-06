@@ -130,7 +130,6 @@ smoke_tests:
   retry:
     max: 2
   allow_failure: false
-  timeout: 10m
   artifacts:
     when: always
     reports:

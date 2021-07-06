@@ -105,7 +105,8 @@ NP_API_INTERN
 void _np_dhkey_str(const np_dhkey_t* k, char* key_string);
 NP_API_INTERN
 void _np_str_dhkey(const char* key_string, np_dhkey_t* k);
-
+NP_API_INTERN
+np_dhkey_t _np_dhkey_generate_hash (const unsigned char * data, size_t data_size);
 #ifdef __cplusplus
 }
 #endif

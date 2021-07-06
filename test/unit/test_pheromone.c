@@ -43,8 +43,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
                               ._subj_bloom = NULL,
                               ._pos = 0,
                               ._sender=context->my_node_key->dhkey,
-                              ._receiver=NULL,
-                              ._attr_bloom={0} };
+                              ._receiver=NULL };
         t1._subj_bloom = _np_neuropil_bloom_create();
         t1._subj_bloom->op = neuropil_operations;
         t1._subj_bloom->op.add_cb(t1._subj_bloom, test1);
@@ -56,8 +55,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
                               ._subj_bloom = NULL,
                               ._pos = 0,
                               ._sender=context->my_node_key->dhkey,
-                              ._receiver=NULL,
-                              ._attr_bloom={0} };
+                              ._receiver=NULL};
         t2._subj_bloom = _np_neuropil_bloom_create();
         t2._subj_bloom->op = neuropil_operations;
         t2._subj_bloom->op.add_cb(t2._subj_bloom, test2);
@@ -69,8 +67,7 @@ Test(np_pheromone_t, _pheromone_set, .description="test the functions to add a d
                               ._subj_bloom = NULL,
                               ._pos = 0,
                               ._sender=NULL,
-                              ._receiver=context->my_node_key->dhkey,
-                              ._attr_bloom={0} };
+                              ._receiver=context->my_node_key->dhkey };
         t3._subj_bloom = _np_neuropil_bloom_create();
         t3._subj_bloom->op = neuropil_operations;
         t3._subj_bloom->op.add_cb(t3._subj_bloom, test3);
@@ -189,8 +186,7 @@ Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exha
                                   ._subj_bloom = NULL,
                                   ._pos = 0,
                                   ._sender=test2,
-                                  ._receiver=NULL,
-                                  ._attr_bloom={0} };
+                                  ._receiver=NULL };
             t2._subj_bloom = _np_neuropil_bloom_create();
             t2._subj_bloom->op = neuropil_operations;
             t2._subj_bloom->op.add_cb(t2._subj_bloom, test2);
@@ -221,8 +217,7 @@ Test(np_pheromone_t, _pheromone_exhale, .description="test the functions to exha
                                   ._subj_bloom = NULL,
                                   ._pos = 0,
                                   ._sender=test2,
-                                  ._receiver=NULL,
-                                  ._attr_bloom={0} };
+                                  ._receiver=NULL};
             t2._subj_bloom = _np_neuropil_bloom_create();
             t2._subj_bloom->op = neuropil_operations;
             t2._subj_bloom->op.add_cb(t2._subj_bloom, test2);

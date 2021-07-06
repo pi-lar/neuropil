@@ -159,11 +159,14 @@ task_test() {
     cd build
     mkdir -p logs
     if [[ $? == 0 ]] ; then
-      ./neuropil/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
       # Enable for test debugging
-      #nohup ./build/neuropil/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
-      #sleep 1
-      #gdb ./build/neuropil/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+      if [ "0" = 1 ] ; then
+        nohup ./neuropil/bin/neuropil_test_suite --debug=gdb -j1 --xml=neuropil_test_suite-junit.xml "$@" &>/dev/null &
+        sleep 1
+        gdb ./neuropil/bin/neuropil_test_suite -ex "target remote localhost:1234" -ex "continue"
+      else
+        ./neuropil/bin/neuropil_test_suite -j1 --xml=neuropil_test_suite-junit.xml "$@"
+      fi
     fi
   )
 }
@@ -229,6 +232,15 @@ task_helgrind() {
     return $ret
   )
 }
+task_gdb() {
+  (
+    ensure_venv
+
+    gdb -c $1 build/neuropil/lib/libneuropil.so
+
+    return 0
+  )
+}
 
 task_ensure_dependencies() {
   ensure_venv
@@ -253,7 +265,7 @@ task_run_script(){
   )
 }
 task_uninstall(){
-  sudo rm -rf /usr/local/lib/neuropil*
+  sudo rm -rf /usr/local/lib/*neuropil*
   sudo rm -rf /usr/local/include/neuropil*
 }
 task_pre_commit(){
@@ -263,7 +275,7 @@ task_pre_commit(){
   python3 scripts/util/build_helper.py --update_strings
 }
 usage() {
-  echo "$0  build | test | clean | package | coverage | script | deploy | smoke | doc | (r)un | ensure_dependencies | pre_commit | helgrind | analyze"
+  echo "$0  build | test | clean | package | coverage | script | deploy | smoke | doc | (r)un | ensure_dependencies | pre_commit | helgrind | analyze | gdb"
   exit 1
 }
 
@@ -297,6 +309,7 @@ shift || true
 
     pre_commit) task_pre_commit ;;
 
+    gdb) task_gdb "$@";;
     helgrind) task_helgrind "$@";;
     analyze) task_analyze "$@";;
     script) task_run_script "$@";;

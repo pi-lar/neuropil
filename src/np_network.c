@@ -324,7 +324,7 @@ void _np_network_write (struct ev_loop *loop, ev_io *event, int revents)
                                                 network->remote_addr_len);
             }
             _np_debug_log_bin(data_to_send, MSG_CHUNK_SIZE_1024,
-            LOG_NETWORK, "Did send    data (%"PRIi16" bytes) via fd: %d: %s", current_write_per_data, network->socket)
+            LOG_NETWORK, "Did send    data (%"PRIi16" bytes / %p) via fd: %d: %s", current_write_per_data, data_to_send, network->socket)
 
             if (current_write_per_data == MSG_CHUNK_SIZE_1024)
             {
@@ -449,7 +449,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
     np_ctx_decl(ev_userdata(loop));
     if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE))
     {
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid read event");
+        log_debug_msg(LOG_NETWORK, "got invalid read event");
         return;
     }
 
@@ -511,7 +511,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
             #ifdef DEBUG
             	char msg_hex[2*in_msg_len+1];
             	sodium_bin2hex(msg_hex, 2*in_msg_len+1, data_container.data, in_msg_len);
-                log_debug(LOG_NETWORK, "Did receive data (%"PRIi16" bytes) via fd: %d hex: %.5s...%s", in_msg_len, event->fd, msg_hex, msg_hex + strlen(msg_hex) - 5);
+                log_debug(LOG_NETWORK, "Did receive data (%"PRIi16" bytes / %p) via fd: %d hex: 0x%.5s...%s", in_msg_len, data_container.data, event->fd, msg_hex, msg_hex + strlen(msg_hex) - 5);
             #endif
 
             if (in_msg_len == MSG_CHUNK_SIZE_1024) 
@@ -872,7 +872,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
         ((_np_network_data_t*)ng->watcher_in.data)->network = ng;
 
         ng->initialized = true;
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local listening socket");
+        log_debug_msg(LOG_NETWORK, "created local listening socket");
     }
     else 
     {

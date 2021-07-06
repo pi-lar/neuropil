@@ -29,6 +29,16 @@ class np_mx_properties(object):
 
         return ret
 
+    def set_attr_policy_bin(self, key:bytes, data:bytes):
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        data_return = neuropil.np_set_mxp_attr_policy_bin(self._raw._context, self.subject, key, data, len(data))
+
+        if data_return != neuropil.np_data_ok:
+            raise NeuropilException(f'Could not set attribute. Error code: {data_return}. Please review neuropil_data.h for details',data_return)
+
     # enum np_data_return np_set_mxp_attr_bin(np_context *ac,   char * subject,         enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
     def set_attr_bin(self, key:bytes, data:bytes):
         if isinstance(key, str):
@@ -50,7 +60,6 @@ class np_id(object):
 
     def __str__(self):
         return self._hex
-
 
 class np_token(object):
     def __init__(self, node, raw,  **entries):

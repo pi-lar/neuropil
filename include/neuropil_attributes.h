@@ -44,6 +44,11 @@ extern "C" {
     NP_API_EXPORT
     enum np_data_return np_get_token_attr_bin(struct np_token* ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
 
+    //NP_API_EXPORT
+    //enum np_data_return np_set_mxp_attr_policy_str(np_context *ac, char* subject, char key[255], char* value[1024], size_t value_size);
+    NP_API_EXPORT
+    enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, char* subject, char key[255], unsigned char * value, size_t value_size);
+
 #ifdef __cplusplus
 }
 #endif

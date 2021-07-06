@@ -202,16 +202,21 @@ Test(np_bloom_t, _bloom_stable, .description="test the functions of the stable b
     cr_expect(false == stable_bloom->op.check_cb(stable_bloom, test4), "expect that the id test4 is not found in bloom filter");
     cr_expect(false == stable_bloom->op.check_cb(stable_bloom, test5), "expect that the id test5 is not found in bloom filter");
 
-    for (uint16_t i = 0; i < 90; i++) {
+    uint8_t test_count = 100;
+    uint8_t test_success_counter = test_count;
+    for (uint16_t i = 0; i < test_count; i++) {
 
         np_get_id(&test4, np_uuid_create("test", i, NULL), 36);
 //        np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
-
-        cr_expect(false == stable_bloom->op.check_cb(stable_bloom, test4), "expect that the new element is not found");
+        if(stable_bloom->op.check_cb(stable_bloom, test4)){
+            test_success_counter--;
+        }
         if (i%4)
             cr_expect(true  == stable_bloom->op.check_cb(stable_bloom, test2), "expect that the id test2 is     found in bloom filter");
     }
     _np_bloom_free(stable_bloom);
+    float test_ok = test_success_counter / (float)test_count;
+    cr_expect(test_ok > .99, "expect that the new element is not found %f%% of time",test_ok);
 }
 
 Test(np_bloom_t, _bloom_scalable, .description="test the functions of the scalable bloom filter") {

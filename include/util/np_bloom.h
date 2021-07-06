@@ -139,9 +139,14 @@ extern "C" {
     NP_API_INTERN
     bool _np_neuropil_bloom_intersect_test(np_bloom_t* result, np_bloom_t* to_intersect);
     NP_API_INTERN
+    bool _np_neuropil_bloom_intersect_ignore_age(np_bloom_t* result, np_bloom_t* to_intersect);
+    NP_API_INTERN
     float _np_neuropil_bloom_intersect_age(np_bloom_t* result, np_bloom_t* to_intersect);
     NP_API_INTERN
     void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* first);
+
+    NP_API_INTERN
+    int _np_neuropil_bloom_cmp(np_bloom_t* a, np_bloom_t* b);
 
     NP_API_INTERN
     void _np_neuropil_bloom_serialize(np_bloom_t* filter, unsigned char ** to, uint16_t* to_size);

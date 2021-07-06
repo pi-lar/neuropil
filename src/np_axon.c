@@ -86,7 +86,7 @@ bool _np_out_callback_wrapper(np_state_t* context, const np_util_event_t event)
 
     np_sll_t(np_aaatoken_ptr, tmp_token_list);
     sll_init(np_aaatoken_ptr, tmp_token_list);
-    
+
     _np_intent_get_all_receiver(prop_key, event.target_dhkey, &tmp_token_list);
 
     // TODO: refactor breach check as single callback
@@ -355,17 +355,18 @@ bool _np_out_available_messages(np_state_t* context, np_util_event_t event)
     uint8_t i = 0;
     while (sll_size(tmp) == 0 && i < 9)
     {
-        if (find_receiver) 
+        if (find_receiver){
             _np_pheromone_snuffle_receiver(context, tmp, msg_to.value.dhkey, &target_age);
-        else 
-        if (find_sender) 
+        } else {
+        if (find_sender)
             _np_pheromone_snuffle_sender(context, tmp, msg_to.value.dhkey, &target_age);
+        }
         log_debug_msg(LOG_DEBUG, "--- request for available message out %s: %f", msg_subj.value.s, target_age);
         i++;
         target_age -= 0.1;
     };
-    
-    if (sll_size(tmp) == 0) 
+
+    if (sll_size(tmp) == 0)
     {
         log_msg(LOG_WARN, "--- request for available message (%s) out, but no routing found ...", msg_subj.value.s);
         sll_free(np_dhkey_t, tmp);

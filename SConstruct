@@ -197,19 +197,15 @@ if neuropil_conf.CheckFunc('nanosleep'):
 # neuropil_env.Append(CCFLAGS = ['-DEV_USE_REALTIME=0'])
 # neuropil_env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
 
-# sources for neuropil
-SOURCES  = ['neuropil.c',              'neuropil_data.c',            'neuropil_attributes.c']
-SOURCES += ['dtime.c',                 'np_time.c',                  'np_aaatoken.c',          'np_axon.c',           'np_dendrit.c'                                 ]
-SOURCES += ['np_glia.c',               'np_jobqueue.c',              'np_dhkey.c',             'np_key.c',            'np_keycache.c',       'np_bootstrap.c'        ]
-SOURCES += ['np_threads.c',            'np_log.c',                   'np_memory.c',            'np_message.c',        'np_network.c',        'np_node.c'             ]
-SOURCES += ['np_util.c',               'util/np_scache.c',           'util/np_statemachine.c', 'util/np_tree.c',      'util/np_treeval.c',   'util/np_bloom.c'       ]
-SOURCES += ['core/np_comp_identity.c', 'core/np_comp_msgproperty.c', 'core/np_comp_intent.c',  'core/np_comp_node.c', 'core/np_comp_alias.c', 'util/np_minhash.c'    ]
-SOURCES += ['np_pheromones.c',         'np_route.c',                 'np_event.c',             'np_messagepart.c',    'np_statistics.c',     'np_responsecontainer.c']
-SOURCES += ['np_legacy.c',             'np_serialization.c',         'np_shutdown.c',          'np_token_factory.c',  'np_crypto.c' ]
 
+# sources for neuropil
+SOURCES  =[]
+SOURCES  += glob.glob(os.path.join("..", "src",                 "*.c"))
+SOURCES  += glob.glob(os.path.join("..", "src", "util",         "*.c"))
+SOURCES  += glob.glob(os.path.join("..", "src", "core",         "*.c"))
 SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c']
 
-SOURCES = [os.path.join(variantDir, "src" , s) for s in SOURCES]
+SOURCES = [os.path.abspath(os.path.join(variantDir, "src" , os.path.relpath(s))) for s in SOURCES]
 
 # source code 3rd party libraries
 neuropil_conf = Configure(neuropil_conf.Finish())

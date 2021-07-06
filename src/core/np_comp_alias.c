@@ -440,7 +440,7 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
     #ifdef DEBUG
         char msg_hex[2*MSG_CHUNK_SIZE_1024+1];
         sodium_bin2hex(msg_hex, 2*MSG_CHUNK_SIZE_1024+1, event.user_data, MSG_CHUNK_SIZE_1024);                
-        log_debug(LOG_MESSAGE, "Try to decrypt data. hex: %.5s...%s", msg_hex, msg_hex + strlen(msg_hex) - 5);
+        log_debug(LOG_MESSAGE, "Try to decrypt data. 0x%.5s...%s", msg_hex, msg_hex + strlen(msg_hex) - 5);
     #endif
 
     int crypto_result = 
@@ -839,15 +839,15 @@ void __np_handle_np_forward(np_util_statemachine_t* statemachine, const np_util_
     _np_increment_forwarding_counter(str_msg_subject.value.s);
 
     __np_cleanup__: {}
-} 
+}
 
 void __np_handle_usr_msg(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
     log_trace_msg(LOG_TRACE, "start: bool __np_handle_usr_msg(...) {");
-    
+
     __np_handle(statemachine, event);
-} 
+}
 
 bool __is_alias_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event) 
 {

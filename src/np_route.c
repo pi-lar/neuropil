@@ -336,10 +336,11 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_state_t* context, np_dhkey_t dhk
             int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
             for (k = 0; k < __MAX_ENTRY; k++)
             {
-                if (np_module(route)->table[index + k] != NULL &&
-                    !_np_dhkey_equal(&np_module(route)->table[index + k]->dhkey, &dhkey) )
+                np_key_t * _key = np_module(route)->table[index + k];
+                if ( _key != NULL &&
+                    !_np_dhkey_equal(&_key->dhkey, &dhkey) )
                 {
-                    sll_append(np_key_ptr, sll_of_keys, np_module(route)->table[index + k]);
+                    sll_append(np_key_ptr, sll_of_keys, _key);
                 }
             }
         }

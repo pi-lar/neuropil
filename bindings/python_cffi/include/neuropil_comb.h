@@ -124,11 +124,10 @@
         np_could_not_read_key,
     } ;
     enum np_data_type {
-        NP_DATA_TYPE_MASK = 0xFFF000,
-        NP_DATA_TYPE_BIN = 0x001000,
-        NP_DATA_TYPE_INT = 0x002000,
-        NP_DATA_TYPE_UNSIGNED_INT = 0x003000,
-        NP_DATA_TYPE_STR = 0x004000,
+        NP_DATA_TYPE_BIN,
+        NP_DATA_TYPE_INT,
+        NP_DATA_TYPE_UNSIGNED_INT,
+        NP_DATA_TYPE_STR
     } ;
     struct np_data_conf {
         char key[255];
@@ -146,6 +145,8 @@
     enum np_data_return np_set_data(np_datablock_t * block, struct np_data_conf data_conf, np_data_value data);
     enum np_data_return np_get_data(np_datablock_t * block, char key[255], struct np_data_conf * out_data_config, np_data_value * out_data);
     enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src);
+    typedef bool (*np_iterate_data_cb)(struct np_data_conf * out_data_config, np_data_value * out_data, void * userdata);
+    enum np_data_return np_iterate_data(np_datablock_t * block, np_iterate_data_cb callback, void * userdata);
     enum np_msg_attr_type {
         NP_ATTR_NONE = -1,
         NP_ATTR_USER_MSG,
@@ -160,6 +161,7 @@
     enum np_data_return np_set_mxp_attr_bin(np_context *ac, char * subject, enum np_msg_attr_type inheritance, char key[255], unsigned char * bin, size_t bin_length);
     enum np_data_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
     enum np_data_return np_get_token_attr_bin(struct np_token* ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
+    enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, char* subject, char key[255], unsigned char * value, size_t value_size);
    enum np_log_e
    {
       LOG_NONE = 0x00000000U,

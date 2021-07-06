@@ -43,7 +43,6 @@ extern "C" {
         np_sll_t(np_dhkey_t, _send_list);
         np_sll_t(np_dhkey_t, _recv_list);
 
-        np_bloom_t _attr_bloom; // bloom attr filter (if full intent arrived)
     } np_pheromone_t;
 
     NP_API_INTERN
