@@ -126,7 +126,7 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
                     sll_prepend(np_dhkey_t, _entry->_pheromone[i]._send_list, pheromone._sender);
                     update_filter = true;
                     
-                    if (sll_size(_entry->_pheromone[i]._send_list) > NP_ROUTE_LEAFSET_SIZE ) 
+                    if (sll_size(_entry->_pheromone[i]._send_list) > (context->settings->leafset_size*2) ) 
                     {
                         sll_tail(np_dhkey_t, _entry->_pheromone[i]._send_list);
                         _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);
@@ -148,7 +148,7 @@ bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone)
                     sll_prepend(np_dhkey_t, _entry->_pheromone[i]._recv_list, pheromone._receiver);
                     update_filter = true;
 
-                    if (sll_size(_entry->_pheromone[i]._recv_list) > NP_ROUTE_LEAFSET_SIZE ) 
+                    if (sll_size(_entry->_pheromone[i]._recv_list) > (context->settings->leafset_size*2) ) 
                     {
                         sll_tail(np_dhkey_t, _entry->_pheromone[i]._recv_list);
                         _np_neuropil_bloom_count_decrement(_entry->_pheromone[i]._subj_bloom);

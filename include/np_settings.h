@@ -312,11 +312,6 @@ extern "C" {
 #define NP_ROUTES_MAX_ENTRIES __MAX_ENTRY
 #define NP_ROUTES_TABLE_SIZE (__MAX_ROW * __MAX_COL * __MAX_ENTRY)
 
-// TODO: change size to match the possible log10(hash key max value)
-// TODO: change the size according to the number of entries in the routing table (min: 2/ max: 8)
-#define NP_ROUTE_LEAFSET_SIZE  12 /* (must be even) excluding node itself */
-
-
 #ifdef __cplusplus
 }
 #endif

@@ -159,6 +159,7 @@ extern "C" {
         uint32_t n_threads;
         char log_file[256];
         uint32_t log_level;
+        uint8_t leafset_size;
         // ...
     } NP_PACKED(1);
 

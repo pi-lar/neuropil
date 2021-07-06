@@ -59,6 +59,7 @@
         uint32_t n_threads;
         char log_file[256];
         uint32_t log_level;
+        uint8_t leafset_size;
     } ;
     struct np_settings * np_default_settings(struct np_settings *settings);
     np_context* np_new_context(struct np_settings *settings);

@@ -201,7 +201,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                 if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, true))
                 {
                     if (
-                        sll_size(np_module(route)->right_leafset) < NP_ROUTE_LEAFSET_SIZE ||
+                        sll_size(np_module(route)->right_leafset) < (context->settings->leafset_size*2) ||
                         _np_dhkey_between(
                             &node_key->dhkey,
                             &np_module(route)->my_key->dhkey,
@@ -216,14 +216,14 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                     }
 
                     // Cleanup of leafset / resize leafsets to max size if necessary
-                    if (sll_size(np_module(route)->right_leafset) > NP_ROUTE_LEAFSET_SIZE) {
+                    if (sll_size(np_module(route)->right_leafset) > (context->settings->leafset_size*2)) {
                         deleted_from = sll_tail(np_key_ptr, np_module(route)->right_leafset);
                     }
                 }
                 else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &np_module(route)->my_key->dhkey, true))
                 {
                     if (
-                        sll_size(np_module(route)->left_leafset) < NP_ROUTE_LEAFSET_SIZE ||
+                        sll_size(np_module(route)->left_leafset) < (context->settings->leafset_size*2) ||
                         _np_dhkey_between(
                             &node_key->dhkey,
                             &np_module(route)->Lrange,
@@ -237,7 +237,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                         _np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
                     }
                     // Cleanup of leafset / resize leafsets to max size if necessary
-                    if (sll_size(np_module(route)->left_leafset) > NP_ROUTE_LEAFSET_SIZE) {
+                    if (sll_size(np_module(route)->left_leafset) > (context->settings->leafset_size*2)) {
                         deleted_from = sll_tail(np_key_ptr, np_module(route)->left_leafset);
                     }
                 }

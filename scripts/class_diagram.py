@@ -12,7 +12,7 @@ import subprocess
 import plantuml
 from puml import make_svg
 
-r = re.compile(r'NP_UTIL_STATEMACHINE_TRANSITION\(\s*(?P<MACHINE>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<SOURCE_STATE>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<TARGET_STATE>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<ACTION>[a-zA-Z0-9\"\-_]+)\s*,\s*(?P<CONDITION>[a-zA-Z0-9\"\-_]+)\s*\)')
+r = re.compile(r'(typedef)?\s*struct\s*(?P<s_name>[a-z0-9_]+)?\s*({(?P<fields>.+)}\s*)?(?P<t_name>[a-z0-9_]+)?\s*;',re.MULTILINE|re.IGNORECASE|re.DOTALL)
 
 with open(os.path.join(Path(__file__).parent.absolute(),"..","src","np_key.c"),"r") as f:
     t = f.read()
@@ -48,4 +48,4 @@ for k,v  in res.items():
 puml += "IN_DESTROY --> [*]\n"
 puml += "@enduml\n"
 
-make_svg(puml, "states.puml")
+make_svg(puml, "class.puml")
