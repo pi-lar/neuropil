@@ -9,10 +9,10 @@ Token in general
 ****************
 
 Within the neuropil library we us the aaatoken structure to fulfil authentication, authorization and accounting
-purposes. The usage and meaning of each token for/in each sepcific case is ambigously and sometimes confusing (even
-for us).
+purposes. The usage and meaning of each token for/in each specific case is ambiguously and sometimes confusing 
+(even for us).
 
-This chapter will try to add the neccessary details how tokens are used. Let us recall first how the token structure
+This chapter will try to add the necessary details how tokens are used. Let us recall first how the token structure
 is composed before diving into the details:
 
 .. code-block:: c
@@ -125,7 +125,7 @@ In addition to specifying a layout we must define the format and semantics of th
 Handshaking token
 *****************
 
-For the handshake we need to send some core informations to the other node, so the above mentioned fields will
+For the handshake we need to send some core information to the other node, so the above mentioned fields will
 contain:
 
 .. code-block:: c
@@ -143,7 +143,7 @@ contain:
 
 
 Please remember that the main purpose here is to establish a secure conversation channel between any two nodes.
-The cleartext hostname and port could also be found by doing a network scan. Furthermore we have to keep the token
+The clear text hostname and port could also be found by doing a network scan. Furthermore we have to keep the token
 size small to fit into the 1024 bytes bounds of our selected paket size. Only one paket as an initial handshake message
 is allowed.
 
@@ -179,9 +179,9 @@ and imported and are available in the userspace.
                                                                           min 666
 
 
-Again we can create a fingerprint of this token ('infp'). This fingerprint is not the same as the fingeprint of a
+Again we can create a fingerprint of this token ('info'). This fingerprint is not the same as the fingerprint of a
 pure identity (ifp), as we do not know in advance which 'nfp' this idenity will use. A pure identity token of does
-not contain the 'nfp'. But we can still calculate the fingeprint afterwards, because:
+not contain the 'nfp'. But we can still calculate the fingerprint afterwards, because:
 
   ifp = hash(idtoken, signature)
   infp = hash(idtoken, signature_ext, nfp)
@@ -206,7 +206,7 @@ containing the required identity fingerprint:
 
 The second transmit of the node token is needed to certify that this identity is really running on this specific
 node, a kind of automated cross-signing between node and identity. We could add the handshake fingerprint to this
-token to make it really foolproof, but currently we do not think that it would be neccessary.
+token to make it really foolproof, but currently we do not think that it would be necessary.
 
 Please note that in the case of a pure technical node that should support the network we will only transmit the node
 token again in the join message. The reason for doing so is the authentication callback, which is only triggered when
@@ -216,7 +216,7 @@ sending a join message.
 Message intent token
 ********************
 
-If an identity would like to exchange informations with another identity in the network, it sends out its message
+If an identity would like to exchange information with another identity in the network, it sends out its message
 intents, where we use token again.:
 
 .. code-block:: c
@@ -237,22 +237,22 @@ accomplish this by doing one of the three steps:
 
    - you implement a callback that is able to properly authenticate peers (e.g. using MerkleTree / Secure Remote
      Password / Shamirs shared secret schemes / ...)
-   - you forward the recieved token to do the authn work for your node: either to your own realm, or to the realm set
+   - you forward the received token to do the authn work for your node: either to your own realm, or to the realm set
      in the message intent, or you ask the partner fingerprint contained in the token whether the identity is really known
-   - you do some sort of out-of-band deployment for know public idenity tokens. you could even use neuropil itself to
+   - you do some sort of out-of-band deployment for know public identity tokens. you could even use neuropil itself to
      inject a trusted public identity token into a device.
 
-Once you know, that the recieved peer is the correct one, you do the second step and authorize the message exchange.
-Again you have the three options above with the follwoing restriction to the second choice:
+Once you know, that the received peer is the correct one, you do the second step and authorize the message exchange.
+Again you have the three options above with the following restriction to the second choice:
 
-   - you forward the recieved token to do the authz work for your node to your own realm
+   - you forward the received token to do the authz work for your node to your own realm
 
 
 PKI / Web of trust / zero knowledge setups
 ******************************************
 
 Sometimes it is desirable to choose a pki setup for the tokens that you use. For this case the issuer field of the
-token strutcure can be used. It indicates whether a token has been signed by another party. There is no pre-defined
+token structure can be used. It indicates whether a token has been signed by another party. There is no pre-defined
 setup for this kind of , but the usual setup as you know it from certificates is required. Especially you will have
 to add your signature token to the attributes of an identity token.
 
@@ -262,7 +262,7 @@ can be only one identity in the whole DHT which is able to create such identity 
 
 Therefore we (ourselves) favor the use of realms, because it lets you create 'online' registration instances without
 pre-issuing and deploying public tokens. A fingerprint of an identity token is enough to identify the right partner or
-to find a third party (realm) who is willing to proove the authenticity of a device, application or person.
+to find a third party (realm) who is willing to prove the authenticity of a device, application or person.
 In a similar way you can remote control your devices, because for authorization requests each device, application or
 person is able to contact your realm for allowance.
 
@@ -273,7 +273,7 @@ The missing accounting tokens
 The chapters above have described the measures how you can authenticate and authorize token, but we have not yet
 covered how you can use tokens for accounting purposes. But basically it is very easy.
 
-An identity e.g. could create and send an accounting token for the messages and message intents it has recieved, just
+An identity e.g. could create and send an accounting token for the messages and message intents it has received, just
 by copying its own message intent
 
 .. code-block:: c
@@ -320,7 +320,7 @@ messages have travelled through the :term:`DHT` (via the uuid).
 Conclusion
 **********
 
-You can create arbitrary complex hierarchical token constructs and facilitate them in the way we have descibed them.
+You can create arbitrary complex hierarchical token constructs and facilitate them in the way we have described them.
 Please do not overdo it! Setting up a new realm and rejoining your devices and applications is easier than creating
-complex pki hierarchies, and it can be done online ! Try this with certifates/pki and you know that you have fallen
+complex pki hierarchies, and it can be done online ! Try this with certificates/pki and you know that you have fallen
 into a trap ...

@@ -216,25 +216,28 @@ bool _np_attribute_build_bloom(np_bloom_t *target, np_attributes_t *attributes)
 bool _np_policy_check_compliance(np_bloom_t *policy, np_attributes_t *attributes)
 {
     bool ret = false;
-    np_bloom_t *all_relevant_hashs_of_attributes = _np_attribute_bloom();
+    np_bloom_t *all_relevant_hashes_of_attributes = _np_attribute_bloom();
 
     // test for empty policy
-    if (policy == NULL || _np_neuropil_bloom_cmp(all_relevant_hashs_of_attributes, policy) == 0)
+    if (policy == NULL || _np_neuropil_bloom_cmp(all_relevant_hashes_of_attributes, policy) == 0)
     {
         ret = true;
     }
     else
     {
-        ret = _np_attribute_build_bloom(all_relevant_hashs_of_attributes, attributes);
+        ret = _np_attribute_build_bloom(all_relevant_hashes_of_attributes, attributes);
 
         if (ret)
         {
             np_bloom_t *policy_relevant_elements_of_attributes = _np_attribute_bloom();
             policy_relevant_elements_of_attributes->op.union_cb(policy_relevant_elements_of_attributes, policy);
-            policy_relevant_elements_of_attributes->op.intersect_cb(policy_relevant_elements_of_attributes, all_relevant_hashs_of_attributes);
+            policy_relevant_elements_of_attributes->op.intersect_cb(policy_relevant_elements_of_attributes, all_relevant_hashes_of_attributes);
 
             ret = _np_neuropil_bloom_cmp(policy, policy_relevant_elements_of_attributes) == 0;
+
+            _np_bloom_free(policy_relevant_elements_of_attributes);
         }
     }
+    _np_bloom_free(all_relevant_hashes_of_attributes);
     return ret;
 }

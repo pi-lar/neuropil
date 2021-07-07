@@ -466,22 +466,22 @@ Test(np_bloom_t, _bloom_neuropil_union_intersection, .description="test the unio
     cr_expect(true  == test4_bloom->op.check_cb(test4_bloom, test4), "expect that the id test4 is     found in bloom filter");
     cr_expect(true  == test5_bloom->op.check_cb(test5_bloom, test5), "expect that the id test5 is     found in bloom filter");
 
-    cr_expect(32 == union_bloom->_free_items, "expect that the number of free_items is 32");
+    cr_expect(64   == union_bloom->_free_items, "expect that the number of free_items is 64");
 
     union_bloom->op.union_cb(union_bloom, test2_bloom);
-    cr_expect(31 == union_bloom->_free_items, "expect that the number of free_items is 31");
+    cr_expect(64-1 == union_bloom->_free_items, "expect that the number of free_items is 63");
     cr_expect(true  == union_bloom->op.check_cb(union_bloom, test2), "expect that the id test2 is     found in bloom filter");
     cr_expect(false == union_bloom->op.check_cb(union_bloom, test4), "expect that the id test4 is not found in bloom filter");
     cr_expect(false == union_bloom->op.check_cb(union_bloom, test5), "expect that the id test5 is not found in bloom filter");
 
     union_bloom->op.union_cb(union_bloom, test4_bloom);
-    cr_expect(30 == union_bloom->_free_items, "expect that the number of free_items is 30");
+    cr_expect(64-2 == union_bloom->_free_items, "expect that the number of free_items is 62");
     cr_expect(true  == union_bloom->op.check_cb(union_bloom, test2), "expect that the id test2 is     found in bloom filter");
     cr_expect(true  == union_bloom->op.check_cb(union_bloom, test4), "expect that the id test4 is     found in bloom filter");
     cr_expect(false == union_bloom->op.check_cb(union_bloom, test5), "expect that the id test5 is not found in bloom filter");
 
     union_bloom->op.union_cb(union_bloom, test5_bloom);
-    cr_expect(29 == union_bloom->_free_items, "expect that the number of free_items is 29");
+    cr_expect(64-3 == union_bloom->_free_items, "expect that the number of free_items is 61");
     cr_expect(true  == union_bloom->op.check_cb(union_bloom, test2), "expect that the id test2 is     found in bloom filter");
     cr_expect(true  == union_bloom->op.check_cb(union_bloom, test4), "expect that the id test4 is     found in bloom filter");
     cr_expect(true  == union_bloom->op.check_cb(union_bloom, test5), "expect that the id test5 is     found in bloom filter");

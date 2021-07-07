@@ -283,7 +283,6 @@ struct np_msgproperty_s
     uint32_t  max_threshold; // local cache size
 
     bool is_internal;
-
     // timestamp for cleanup thread
     double          last_update;
     // user settable properties share the same property, thus we have to differentiate between tx and rx
@@ -419,6 +418,12 @@ void _np_msgproperty_threshold_decrease(np_msgproperty_t* self);
 NP_API_INTERN
 bool _np_msgproperty_threshold_breached(np_msgproperty_t* self);
 
+/**
+ ** temporarily disable / enable message intent token exchange
+ **/
+void __np_property_lifecycle_set(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_msgproperty_lifecycle_disable(np_util_statemachine_t* statemachine, const np_util_event_t event);
+bool __is_msgproperty_lifecycle_enable(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 /**
  ** convert to|from user struct mx_property

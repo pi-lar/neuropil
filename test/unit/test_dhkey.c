@@ -214,14 +214,14 @@ Test(np_dhkey_t, _dhkey_hamming_distance, .description = "test the hamming dista
         np_dhkey_t key_3 = { .t[0] = 3,.t[1] = 3,.t[2] = 3,.t[3] = 3 ,.t[4] = 3 ,.t[5] = 3 ,.t[6] = 3 ,.t[7] = 3 };
         np_dhkey_t key_4 = { .t[0] = 4,.t[1] = 4,.t[2] = 4,.t[3] = 4 ,.t[4] = 4 ,.t[5] = 4 ,.t[6] = 4 ,.t[7] = 4 };
 
-        uint16_t result_1, result_2, result_3;
+        uint8_t result_1, result_2, result_3;
 
         _np_dhkey_hamming_distance(&result_1, &key_4, &key_1);
         _np_dhkey_hamming_distance(&result_2, &key_4, &key_2);
         _np_dhkey_hamming_distance(&result_3, &key_4, &key_3);
 
         cr_expect(true == (result_1 == result_2), "expected the result to be key_1");
-        cr_expect(true == (result_2 < result_3), "expected the result to be key_1");
-        cr_expect(true == (result_1 < result_3), "expected the result to be key_1");
+        cr_expect(true == (result_2  < result_3), "expected the result to be key_1");
+        cr_expect(true == (result_1  < result_3), "expected the result to be key_1");
     }
 }

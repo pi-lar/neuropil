@@ -138,8 +138,8 @@ void _np_add_http_callback(np_state_t *context, const char* path, htp_method met
         if (NULL == np_module(http)->user_hooks)
             np_module(http)->user_hooks = np_tree_create();
 
-        char key[32];
-        snprintf(key, 31, "%d:%s", method, path);
+        char key[128];
+        snprintf(key, 128, "%d:%s", method, path);
         log_msg(LOG_DEBUG, "register of http callback for key %s", key);
 
         _np_http_callback_t* callback_data = malloc(sizeof(_np_http_callback_t));
@@ -276,9 +276,9 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client)
     if (NULL == np_module(http)->user_hooks)
         np_module(http)->user_hooks = np_tree_create();
 
-    char key[32];
-    snprintf(key, 31, "%d:%s", client->ht_request.ht_method,
-            client->ht_request.ht_path);
+    char key[128];
+    snprintf(key, 128, "%d:%s", client->ht_request.ht_method,
+             client->ht_request.ht_path+1);
 
     log_msg(LOG_DEBUG, "lookup   of http callback for key %s", key);
 
@@ -291,12 +291,14 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client)
     np_tree_elem_t* user_callback = np_tree_find_str(np_module(http)->user_hooks, key);
     if (NULL != user_callback)
     {
+        client->ht_response.cleanup_body = true;
+
         _np_http_callback_t* callback_data =
                 (_np_http_callback_t*) user_callback->val.value.v;
         client->ht_response.ht_status = callback_data->callback(
                 &client->ht_request, &client->ht_response,
                 callback_data->user_arg);
-        client->ht_response.cleanup_body = true;
+
         client->status = RESPONSE;
     } else {
         switch (client->ht_request.ht_method) {
@@ -320,6 +322,8 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client)
                 {
                     client->ht_response.ht_body = strdup(client->ht_request.ht_path);
                     client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
+                    np_tree_insert_str( client->ht_response.ht_header, "X-Content-Type-Options",
+                            np_treeval_new_s("nosniff"));
                     np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
                         np_treeval_new_s("application/json"));
                 }

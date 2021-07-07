@@ -69,6 +69,7 @@ enum NP_KEY_STATES {
     IN_USE_NODE,        // holds connection status / outbound transport encryption
     IN_USE_ALIAS,       // holds inbound decryption
     IN_USE_MSGPROPERTY, // inbound and outbound message creation (payload encryption / routing decision / lookup / chunking / ...)
+    ON_HOLD_MSGPROPERTY, // disabled data channel
     IN_DESTROY,
     MAX_KEY_STATES
 };
@@ -232,14 +233,18 @@ void __np_key_populate_states(np_key_t* key)
             NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_IDENTITY, IN_DESTROY     , __np_identity_shutdown      , __is_identity_invalid      ); // check for local identity validity
 
         NP_UTIL_STATEMACHINE_STATE(states, IN_USE_MSGPROPERTY, "IN_USE_MSGPROPERTY", __keystate_noop, __keystate_noop, __keystate_noop);
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_response_handler_set   , __is_response_event          ); // user changed mx_properties
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_redelivery_set, __is_message_redelivery_event); // user changed mx_properties
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_in_msg , __is_external_message        ); // call usr callback function
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_out_msg, __is_internal_message        ); // call usr callback function
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_handle_intent , __is_intent_authz            ); // received authn information (eventually through identity join)
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_update        , __is_msgproperty             ); // user changed mx_properties
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_check         ,  NULL                        ); // send out intents
-            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_DESTROY        , __keystate_noop             , __is_key_invalid             );
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, ON_HOLD_MSGPROPERTY, __np_property_lifecycle_set , __is_msgproperty_lifecycle_disable ); // user changed mx_properties
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY,  __np_response_handler_set   , __is_response_event                ); // user changed mx_properties
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY,  __np_property_redelivery_set, __is_message_redelivery_event      ); // user changed mx_properties
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY,  __np_property_handle_in_msg , __is_external_message              ); // call usr callback function
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY,  __np_property_handle_out_msg, __is_internal_message              ); // call usr callback function
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY,  __np_property_handle_intent , __is_intent_authz                  ); // received authn information (eventually through identity join)
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY,  __np_property_update        , __is_msgproperty                   ); // user changed mx_properties
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_USE_MSGPROPERTY,  __np_property_check         ,  NULL                              ); // send out intents
+            NP_UTIL_STATEMACHINE_TRANSITION(states, IN_USE_MSGPROPERTY, IN_DESTROY        ,  __keystate_noop             , __is_key_invalid                   );
+
+        NP_UTIL_STATEMACHINE_STATE(states, ON_HOLD_MSGPROPERTY, "ON_HOLD_MSGPROPERTY", __keystate_noop, __keystate_noop, __keystate_noop);
+            NP_UTIL_STATEMACHINE_TRANSITION(states, ON_HOLD_MSGPROPERTY, IN_USE_MSGPROPERTY, __np_property_lifecycle_set , __is_msgproperty_lifecycle_enable  ); // user changed mx_properties
    
         NP_UTIL_STATEMACHINE_STATE(states, IN_DESTROY, "IN_DESTROY", __keystate_noop, __np_key_destroy, __keystate_noop);
             // NP_UTIL_STATEMACHINE_TRANSITION(states, IN_DESTROY, UNUSED, __np_destroy, NULL);

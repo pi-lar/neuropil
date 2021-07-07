@@ -10,7 +10,7 @@ KnowHow
 .. _neuropil_knowhow:
 
 If you are interested in some theoretical background of neuropil, then
-looking at these papers/publications may provide some further informations:
+looking at these papers/publications may provide some further information:
 
 
 Links for DHT (distributed hash tables)

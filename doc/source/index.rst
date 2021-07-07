@@ -7,7 +7,8 @@
 
 .. meta::
    :description: neuropil is a secure messaging library for IoT, robotics and more
-   :description lang=de: neuropil messaging layer, Ende-zu-Ende Verschlüsselung,
+   :description lang=de: neuropil messaging layer, Ende-zu-Ende Verschlüsselung, Föderierte Identitäten, Cybersecurity Mesh
+   :description lang=en: neuropil messaging layer, end-to-end encryption, federated identity, cybersecurity mesh
    :keywords: neuropil, messaging, IoT messaging, end-to-end encryption, secure messaging, robotics
    :http-equiv=Content-Type: text/html; charset=ISO-8859-1
 

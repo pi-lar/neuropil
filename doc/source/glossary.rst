@@ -35,4 +35,4 @@ Glossary
     abbreviation for 'distributed hash table'
 
   msgpack
-    An embedded library to de-/serialize data accross multiple device architectures (see: https://msgpack.org/)
+    An embedded library to de-/serialize data across multiple device architectures (see: https://msgpack.org/)

@@ -60,6 +60,12 @@ NP_API_INTERN
 void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
 NP_API_INTERN
 void _np_dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
+NP_API_INTERN
+void _np_dhkey_and (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
+NP_API_INTERN
+void _np_dhkey_or (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
+NP_API_INTERN
+void _np_dhkey_xor (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2);
 
 /* key_distance:k1,k2
  * calculate the distance between k1 and k2 in the keyspace and assign that to #diff#
@@ -68,7 +74,9 @@ NP_API_INTERN
 void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_dhkey_t* const k2);
 
 NP_API_INTERN
-void _np_dhkey_hamming_distance(uint16_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y);
+void _np_dhkey_hamming_distance(uint8_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y);
+NP_API_INTERN
+void _np_dhkey_hamming_distance_each(np_dhkey_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y);
 
 /* key_between: test, left, right
  * check to see if the value in #test# falls in the range from #left# clockwise

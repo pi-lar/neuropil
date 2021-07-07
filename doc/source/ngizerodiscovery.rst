@@ -16,9 +16,9 @@ with the traditional internet, where first a lookup of DNS name happens, and the
 the connection to a specific server is established. Using the hash distance builds up
 arbitrary connections that do not carry any further meaning than ... hash distance.
 
-Second, we use stacked digital identies: the user or application identity is stacked 
+Second, we use stacked digital identities: the user or application identity is stacked 
 upon the node identity (with an automated cross-signing between the both). Only the node
-identity should be visible to neighbour nodes. At least in theory the node fingerprint 
+identity should be visible to neighbor nodes. At least in theory the node fingerprint 
 could change frequently or an identity could use several nodes to gather data from peers.
 
 Third, our realm concept changes the fingerprint of an application identity. As the 
@@ -27,7 +27,7 @@ easily establish different fingerprints for different purposes or for different 
 The public key is then the only link between these different tokens. But with each realm
 that is used a user will receive a different pseudonym (different fingerprint).
 
-The message intents are the place where node and application idenity play together. 
+The message intents are the place where node and application identity play together. 
 The only thing of the application identity that remains visible is its public key and 
 its fingerprint. The exchange of the message intents can be seen as the "DNS lookups" 
 of the neuropil messaging layer. But we only try to discover named data channels (and 
@@ -59,15 +59,15 @@ string is hidden and finding the reverse mapping is ... hm ... difficult.
 But: there is still a one to one mapping between the two. Which reveals the real problem 
 when talking about privacy: communications could still be traced to single entities. Even 
 if the real entities behind a 256-bit hash are unknown when looking only at neuropil, a 
-real entitiy could be revealed with added additional information from outside (i.e. just 
+real entity could be revealed with added additional information from outside (i.e. just 
 trying the 256-bit hash of an mail address could be a good start). The message intents 
 also carry more information than we would like to present to other nodes after the first 
 contact.
 
 The question thus arises: which additional measures could we implement to enhance our 
 discovery and attribution of messages to single entities? The answer is pretty simple: 
-we need a form pseudonymization. Pseudomization in general means: you are further obfuscating 
-data in a way that it cannot be traced back to a single entitiy, but rather to a group. 
+we need a form pseudonymization. Pseudonymization in general means: you are further obfuscating 
+data in a way that it cannot be traced back to a single entity, but rather to a group. 
 Discovery of identities, message topics and realms should be done without a "one to one"
 mapping. But what is a proper way to pseudonymize 256 bit hash values? How can you pseudonymize
 a set of attributes?
@@ -80,7 +80,7 @@ A while ago we stumbled upon :ref:`Bloom filter<neuropil_knowhow_bloomfilter>`, 
 used to identify a set of entities within a universe. The set of entities (the ones we would
 like to detect) is usually known beforehand. Bloom filter belong to a class of probability
 algorithms, because the answer given is not "true" or "false", but rather "maybe" and "false".
-A Bloom filter always introduces a uncertaintity for results, or in other words: a false 
+A Bloom filter always introduces a uncertainty for results, or in other words: a false 
 positive rate. There are a couple of alternative Bloom filter designs that enable you to handle
 different scenarios, ranging from data duplicate detection to black- or whitelisting.
 
@@ -101,7 +101,7 @@ We can use this to our advantage for a couple of improvements in neuropil:
   together with a distance info as the first step.
 
 
-- this information can then be broadcasted to our neighbour nodes. Using a max distance
+- this information can then be broadcasted to our neighbor nodes. Using a max distance
   will prevent the spreading of local information across several networks (where they
   do not belong). At the same time we enable the global discovery of subjects by simply
   allowing more "distance". (This is actually following the :ref:`ant based routing protocols<neuropil_knowhow_routing>`)
@@ -113,9 +113,9 @@ We can use this to our advantage for a couple of improvements in neuropil:
   filter to purge old information from their cache.
 
 
-- travelling messages with content re-juvenate the "age" and further strengthen cache entries. 
+- travelling messages with content rejuvenate the "age" and further strengthen cache entries. 
   This will result in a dynamic establishment of delivery trees across the overlay network. 
-  Each delivery tree is completely independant from the base topology! The discovery of
+  Each delivery tree is completely independent from the base topology! The discovery of
   content channels would work in mesh / radio networks as well as in connection based systems.
 
 
@@ -124,7 +124,7 @@ We can use this to our advantage for a couple of improvements in neuropil:
 
 
 - just to be sure: to exchange the public keys for the end-to-end encryption we still have 
-  to transpsort the full token structure across the overlay network. The difference is: we 
+  to transport the full token structure across the overlay network. The difference is: we 
   do this now with a strong indicator where our partners are, and do not blindly send some 
   data to its nearest hash value
 
@@ -173,7 +173,7 @@ implementation, which unfortunately lacks the ability to delete items from it.
   if more than one receiver is attached to a sender.
 
 .. NOTE::
-  Unfortunately we were unable to proove the scalability of the scaleBF filter, so we cannot simply
+  Unfortunately we were unable to prove the scalability of the scaleBF filter, so we cannot simply
   add another bloom filter for the next 32 elements. For the first attempt the partitioning via the
   hash map will be sufficient to handle most intents. The implementation could handle `257*32 > 8000`
   different intent scents.
@@ -199,7 +199,7 @@ implementation, which unfortunately lacks the ability to delete items from it.
 
 
 What have we achieved after completing this step: sender and receiver can do an discovery of shared interests
-based on a probablitiy of our bloom filter. Before sending out any further full intent token, we can check for
+based on a probability of our bloom filter. Before sending out any further full intent token, we can check for
 the chance that our intent could reach its goal. 
 
 On the next step, we will show you how we can further improve our discovery.
@@ -221,10 +221,10 @@ heavyweight task, and each semantic definition adds it's own quirks, execution s
 each user of the neuropil messaging layer can add new additional attribute / attribute values or a new 
 semantic definition, then the neuropil messaging layer will never be able to match these intents to each 
 other! Out of experience we can tell you: Implementing these always changing semantics into a middleware 
-is no going to work! (It's not that these semantics are not neccessary, it is just that a classic middleware
+is no going to work! (It's not that these semantics are not necessary, it is just that a classic middleware
 must be agnostic up to a certain point against it's payloads definitions). We have to accept the fact that 
-we do not know (and will never know) the precice format/semantics of all values or attributes. But still 
-we would like to be able to compare two intents to each other, to enforce certain rules and behaviour before
+we do not know (and will never know) the precise format/semantics of all values or attributes. But still 
+we would like to be able to compare two intents to each other, to enforce certain rules and behavior before
 an application has to deal with it (i.e. HTTP is a protocol that has never thought about this specific aspect,
 and each addition of HTTP is adding exactly the complexity that I've been describing above).
 
@@ -272,7 +272,7 @@ Then we can turn these attributes into a kind of "normalized" bloom filter forma
 
 
 The point is: we are able to compare attributes of any token in a easy and fast way, yielding a result that
-matches the probablility of our bloom filter. Thus we are filtering many wrong or malicious uses of services
+matches the probability of our bloom filter. Thus we are filtering many wrong or malicious uses of services
 or data content without actually understanding the meaning of what has been send.
 
 In the first step we compare two message intent token if they share the same subject:
@@ -300,7 +300,7 @@ In the second step we can check whether all required attributes are contained in
 
 As a third and last step it is possible to create the union of sender and receiver intents and their contained
 optional attributes. This gives us an impression how many common items the two filter have. The result is a 
-probability, the higher the probablilty score is the more likely it is that two intent could match. We could 
+probability, the higher the probability score is the more likely it is that two intent could match. We could 
 also use the hamming distance to count the number of "1" that are different between the two bloom filter.
 
 .. code-block:: javascript
@@ -319,8 +319,8 @@ a vocabulary or message definition. By using arbitrary key/value pairs a user ca
 
 The above mentioned comparison (using intersections and unions) is also known as the Jaccard-Similarity
 and is calculate by dividing the intersection (e.g. the number of bits set after doing the intersection)
-with the union (e.g. the number of bits set after doing the union). The result is again a probaility
-between 0 and 1 (e.g. 0.66). We can use this infromation especially in a later step when comparing the
+with the union (e.g. the number of bits set after doing the union). The result is again a probability
+between 0 and 1 (e.g. 0.66). We can use this information especially in a later step when comparing the
 optional fields of two attribute sets.
 
 
@@ -330,7 +330,7 @@ the data object itself, but also a set of required attributes encoded as a bloom
 If a message is send, it just has to follow the path of the pheromones and will reach its target.
 
 As messages also carry attributes it is an option to match these attributes against the bloom filter 
-of the pheromes at each step. Then the bloom filter would also act as a "filter" for data objects,
+of the pheromones at each step. Then the bloom filter would also act as a "filter" for data objects,
 and we could establish highly dynamic delivery chains of data objects throughout the network.
 
 
@@ -459,11 +459,11 @@ will get is the similarity of two sets of "words"!
 
 
 .. NOTE::
-   For the full mathemmatical details please read the online book "Mining of massive data sets"
+   For the full mathematical details please read the online book "Mining of massive data sets"
    (http://www.mmds.org/)
 
 
-So for each of the above mentioned k-gram or n-shingles the minhash algorithm will caculate m hash
+So for each of the above mentioned k-gram or n-shingles the minhash algorithm will calculate m hash
 values, and use the lowest one. The calculate the hash values, you can use m different hash functions, 
 or use random permutation. Hash function can be "seeded" for additional randomization, but if you 
 would like to compare two set or words, then the same seed has to be used.

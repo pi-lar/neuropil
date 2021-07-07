@@ -43,6 +43,11 @@ void np_minhash_init(np_minhash_t* minhash, const uint32_t size, const np_dhkey_
     memcpy(&minhash->seed[28], &seed.t[7], sizeof(uint32_t));
 }
 
+void np_minhash_destroy(np_minhash_t* minhash) 
+{
+    free(minhash->minimums);
+}
+
 // pushes a new string value to the minhash and the minhash signature
 void np_minhash_push(np_minhash_t* minhash, const unsigned char* bytes, uint16_t bytes_length) 
 {

@@ -14,13 +14,13 @@ table. neuropil is not a blockchain!
 As our company is originating from a background of integration projects, one of the pillars of neuropil
 obviously is a message orientated middleware. The difference: we know that operating a enterprise service bus
 imposes certain restrictions and requirements stemming from security and privacy. This is one reason why 
-our apporach lacks a central system, but rather embraces a fully de-centralized setup. Furthermore we assisted
+our approach lacks a central system, but rather embraces a fully de-centralized setup. Furthermore we assisted
 a few B2B projects in the past, and we know that the security measures for B2B data transfer are "heavier" than
 within a company. Take these two important aspects together and you're directly there, many design choices
 and details are based one of these two main aspects: de-centralized security and messaging, but central governance. 
 
 
-As you'll see, the neuropil is a structure that sits in between all systems using it. It is and will be designe to 
+As you'll see, the neuropil is a structure that sits in between all systems using it. It is and will be designed to 
 enable interoperability between all connected devices, applications, processes and users. Of we go with some other 
 explanation to grasp what the neuropil messaging is or can be.
 
@@ -60,7 +60,7 @@ Security: an obfuscated data space with a flat address structure to reduce the a
 
 Each hash value that is visible refers to "something that you know" and enables the users of the 
 messaging layer to make sense and to share information. Structures thus become visible to a 
-specific user (group) only, which in parts reverts the current aproach of how the internet works. 
+specific user (group) only, which in parts reverts the current approach of how the internet works. 
 
 Our model enforces coopetition between involved parties. Central structures are only needed to build 
 up or let entities emerge from the flat address space. neuropil increases and strengthens integrity, 

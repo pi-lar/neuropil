@@ -151,7 +151,7 @@ category             neuropil             |MQTT|                 |TCP/TLS|      
 
 Another big plus for neuropil: because our protocol covers the application layer as well, you can
 add payload encryption signatures easily. When sending a multicast message, you can encrypt the credit
-card number for one of the receivers, and then send the messag to all receivers. The sending system just
+card number for one of the receivers, and then send the message to all receivers. The sending system just
 has to send the message once, it will be duplicated by the neuropil messaging layer.
 
 All other components leave you in the dark: please use an additional standard ...

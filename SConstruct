@@ -199,11 +199,13 @@ if neuropil_conf.CheckFunc('nanosleep'):
 
 
 # sources for neuropil
-SOURCES  =[]
+SOURCES  =  []
 SOURCES  += glob.glob(os.path.join("..", "src",                 "*.c"))
 SOURCES  += glob.glob(os.path.join("..", "src", "util",         "*.c"))
 SOURCES  += glob.glob(os.path.join("..", "src", "core",         "*.c"))
-SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c']
+
+SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c', '../framework/files/file.c']
+SOURCES += ['../framework/search/np_index.c', '../framework/search/np_bktree.c', '../framework/search/np_search.c', '../framework/http/urldecode.c']
 
 SOURCES = [os.path.abspath(os.path.join(variantDir, "src" , os.path.relpath(s))) for s in SOURCES]
 
@@ -362,6 +364,9 @@ programs = [
     (True,  'controller',     ['neuropil']),
     (True,  'receiver',       ['neuropil']),
     (True,  'sender',         ['neuropil']),
+    (True,  'file_receiver',  ['neuropil','ncurses','sodium']),
+    (True,  'http_node',      ['neuropil','ncurses','sodium']),
+    (True,  'search_node',    ['neuropil','ncurses','sodium']),
     (True,  'node',           ['neuropil','ncurses','sodium']),
     (True,  'receiver_lb',    ['neuropil','ncurses','sodium']),
     (True,  'cloud',          ['neuropil','ncurses','sodium']),

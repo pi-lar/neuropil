@@ -58,6 +58,7 @@ typedef struct np_minhash_s np_minhash_t;
 // initialize a minhash structure by allocation memory, setting size and copying seed 
 // to the right place
 void np_minhash_init(np_minhash_t* minhash, const uint32_t size, const np_dhkey_t seed);
+void np_minhash_destroy(np_minhash_t* minhash);
 
 // pushes a new string value to the minhash and the minhash signature
 void np_minhash_push(np_minhash_t* minhash, const unsigned char* bytes, uint16_t bytes_length);

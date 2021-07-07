@@ -18,6 +18,7 @@
 
 #include "np_axon.h"
 #include "np_aaatoken.h"
+#include "np_attributes.h"
 #include "util/np_bloom.h"
 #include "np_jobqueue.h"
 #include "np_key.h"
@@ -1114,6 +1115,37 @@ bool __is_msgproperty(np_util_statemachine_t* statemachine, const np_util_event_
     return ret;
 }
 
+bool __is_msgproperty_lifecycle_enable(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: bool __is_msgproperty(...){");
+    bool ret = false;
+    
+    if (!ret) ret  = FLAG_CMP(event.type, evt_enable);
+    if ( ret) ret  = FLAG_CMP(event.type, evt_property) && FLAG_CMP(event.type, evt_internal);
+    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_msgproperty_t);
+
+    return ret;
+}
+
+bool __is_msgproperty_lifecycle_disable(np_util_statemachine_t* statemachine, const np_util_event_t event) 
+{
+    np_ctx_memory(statemachine->_user_data);
+    log_trace_msg(LOG_TRACE, "start: bool __is_msgproperty(...){");
+    bool ret = false;
+    
+    if (!ret) ret  = FLAG_CMP(event.type, evt_disable);
+    if ( ret) ret  = FLAG_CMP(event.type, evt_property) && FLAG_CMP(event.type, evt_internal);
+    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_msgproperty_t);
+
+    return ret;
+}
+
+void __np_property_lifecycle_set(np_util_statemachine_t* statemachine, const np_util_event_t event)
+{
+    // noop, state handled by state machine
+}
+
 void __np_set_property(np_util_statemachine_t* statemachine, const np_util_event_t event) 
 {
     np_ctx_memory(statemachine->_user_data);
@@ -1176,9 +1208,6 @@ void __np_msgproperty_send_available_messages(np_util_statemachine_t* statemachi
 
     np_tree_t* intent_data = np_tree_create();
 
-    np_aaatoken_encode(intent_data, intent_token);
-    np_unref_obj(np_aaatoken_t, intent_token, ref_obj_usage);
-
     np_dhkey_t send_dhkey = _np_msgproperty_dhkey(OUTBOUND, property->msg_subject);
     np_dhkey_t recv_dhkey = _np_msgproperty_dhkey(INBOUND,  property->msg_subject);
     np_dhkey_t target_dhkey = recv_dhkey; // np_dhkey_create_from_hostport(property->msg_subject, "0");
@@ -1190,6 +1219,9 @@ void __np_msgproperty_send_available_messages(np_util_statemachine_t* statemachi
     if (_np_dhkey_equal(&property_key->dhkey, &send_dhkey) &&
        (now - property->last_intent_tx_update) > property->token_min_ttl)
     {   // send our token, search for receiver of messages
+
+        np_aaatoken_encode(intent_data, intent_token);
+
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create( msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_AVAILABLE_SENDER, np_tree_clone(intent_data));
@@ -1206,6 +1238,9 @@ void __np_msgproperty_send_available_messages(np_util_statemachine_t* statemachi
        ( (now - property->last_intent_rx_update) > property->token_min_ttl) &&
        sll_contains(np_evt_callback_t, property->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type))
     {   // send our token, search for sender of messages
+        
+        np_aaatoken_encode(intent_data, intent_token);
+
         np_message_t* msg_out = NULL;
         np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
         _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, _NP_MSG_AVAILABLE_RECEIVER, np_tree_clone(intent_data) );
@@ -1217,6 +1252,7 @@ void __np_msgproperty_send_available_messages(np_util_statemachine_t* statemachi
         _np_keycache_handle_event(context, available_dhkey, available_event, false);
         property->last_intent_rx_update = now;
     }
+    np_unref_obj(np_aaatoken_t, intent_token, ref_obj_usage);
     np_tree_free(intent_data);
 }
 

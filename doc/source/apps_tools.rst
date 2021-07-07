@@ -86,7 +86,7 @@ As a next step we will now start a pingpong service to illustrate the callback f
 
 .. _node_view:
 
-We created a little HTML/JS app to visualise a neuropil network!
+We created a little HTML/JS app to visualize a neuropil network!
 Try it out with our demo service at https://view.neuropil.io.
 
 To visualize your own network please make sure you do have the :ref:`neuropil_sysinfo` subsystem enabled for your nodes.

@@ -141,13 +141,13 @@ bool _np_dhkey_equal (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 }
 
 int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
-{	
+{
     if (k1 == NULL) return -1;
     if (k2 == NULL) return  1;
 
     for (uint8_t i = 0; i < 8; i++)
     {
-        if 		(k1->t[i] > k2->t[i]) return ( 1);
+        if      (k1->t[i] > k2->t[i]) return ( 1);
         else if (k1->t[i] < k2->t[i]) return (-1);
     }
     return (0);
@@ -157,10 +157,17 @@ void _np_dhkey_add (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
 {
     // we dont care about unsigned integer overflow, since we are adding hashes
     // as we are using uint32_t we always stay in valid data
-    for (uint8_t i = 0; i < 8 ; i++)
-    {
-        result->t[i] = op1->t[i] + op2->t[i];
-    }
+    // for (uint8_t i = 0; i < 8; i++)
+    // {
+        result->t[0] = op1->t[0] + op2->t[0];
+        result->t[1] = op1->t[1] + op2->t[1];
+        result->t[2] = op1->t[2] + op2->t[2];
+        result->t[3] = op1->t[3] + op2->t[3];
+        result->t[4] = op1->t[4] + op2->t[4];
+        result->t[5] = op1->t[5] + op2->t[5];
+        result->t[6] = op1->t[6] + op2->t[6];
+        result->t[7] = op1->t[7] + op2->t[7];
+    // }
 }
 
 void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
@@ -169,6 +176,51 @@ void _np_dhkey_sub (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dh
     {
         result->t[i] = op1->t[i] - op2->t[i];
     }
+}
+
+void _np_dhkey_and (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
+{
+    // for (uint8_t i = 0; i < 8; i++)
+    // {
+        result->t[0] = op1->t[0] & op2->t[0];
+        result->t[1] = op1->t[1] & op2->t[1];
+        result->t[2] = op1->t[2] & op2->t[2];
+        result->t[3] = op1->t[3] & op2->t[3];
+        result->t[4] = op1->t[4] & op2->t[4];
+        result->t[5] = op1->t[5] & op2->t[5];
+        result->t[6] = op1->t[6] & op2->t[6];
+        result->t[7] = op1->t[7] & op2->t[7];
+    // }
+}
+
+void _np_dhkey_or (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
+{
+    // for (uint8_t i = 0; i < 8; i++)
+    // {
+        result->t[0] = op1->t[0] | op2->t[0];
+        result->t[1] = op1->t[1] | op2->t[1];
+        result->t[2] = op1->t[2] | op2->t[2];
+        result->t[3] = op1->t[3] | op2->t[3];
+        result->t[4] = op1->t[4] | op2->t[4];
+        result->t[5] = op1->t[5] | op2->t[5];
+        result->t[6] = op1->t[6] | op2->t[6];
+        result->t[7] = op1->t[7] | op2->t[7];
+    // }
+}
+
+void _np_dhkey_xor (np_dhkey_t* result, const np_dhkey_t* const op1, const np_dhkey_t* const op2)
+{
+    // for (uint8_t i = 0; i < 8; i++)
+    // {
+        result->t[0] = op1->t[0] ^ op2->t[0];
+        result->t[1] = op1->t[1] ^ op2->t[1];
+        result->t[2] = op1->t[2] ^ op2->t[2];
+        result->t[3] = op1->t[3] ^ op2->t[3];
+        result->t[4] = op1->t[4] ^ op2->t[4];
+        result->t[5] = op1->t[5] ^ op2->t[5];
+        result->t[6] = op1->t[6] ^ op2->t[6];
+        result->t[7] = op1->t[7] ^ op2->t[7];
+    // }
 }
 
 bool  _np_dhkey_init (NP_UNUSED np_state_t* context)
@@ -219,19 +271,69 @@ void _np_dhkey_distance (np_dhkey_t* diff, const np_dhkey_t* const k1, const np_
         _np_dhkey_sub(diff, &__dhkey_max, diff);
 }
 
-void _np_dhkey_hamming_distance(uint16_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y)
+void _np_dhkey_hamming_distance(uint8_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y)
 {
     *diff = 0;
-    for (uint8_t k = 0; k < 8; ++k)
-    {
-        uint32_t val = x->t[k] ^ y->t[k];
+    // for (uint8_t k = 0; k < 8; ++k)
+    // {
+        uint32_t val = 0;
+        val = x->t[0] ^ y->t[0];
+        *diff += __builtin_popcount(val);
+        val = x->t[1] ^ y->t[1];
+        *diff += __builtin_popcount(val);
+        val = x->t[2] ^ y->t[2];
+        *diff += __builtin_popcount(val);
+        val = x->t[3] ^ y->t[3];
+        *diff += __builtin_popcount(val);
+        val = x->t[4] ^ y->t[4];
+        *diff += __builtin_popcount(val);
+        val = x->t[5] ^ y->t[5];
+        *diff += __builtin_popcount(val);
+        val = x->t[6] ^ y->t[6];
+        *diff += __builtin_popcount(val);
+        val = x->t[7] ^ y->t[7];
+        *diff += __builtin_popcount(val);
+
         // Count the number of bits set
-        while (val != 0)
-        {
-            (*diff)++;
-            val &= val - 1;
-        }
-    }
+        // while (val != 0)
+        // {
+        //     (*diff)++;
+        //     val &= val - 1;
+        // }
+    // }
+}
+
+void _np_dhkey_hamming_distance_each(np_dhkey_t* diff, const np_dhkey_t* const x, const np_dhkey_t* const y)
+{
+    // uint16_t pp_diff = 0;
+
+    // for (uint8_t k = 0; k < 8; ++k) // loops are nice, but slower than direct access
+    // {
+        uint32_t val = 0;
+        val = x->t[0] ^ y->t[0];
+        diff->t[0] = __builtin_popcount(val);
+        val = x->t[1] ^ y->t[1];
+        diff->t[1] = __builtin_popcount(val);
+        val = x->t[2] ^ y->t[2];
+        diff->t[2] = __builtin_popcount(val);
+        val = x->t[3] ^ y->t[3];
+        diff->t[3] = __builtin_popcount(val);
+        val = x->t[4] ^ y->t[4];
+        diff->t[4] = __builtin_popcount(val);
+        val = x->t[5] ^ y->t[5];
+        diff->t[5] = __builtin_popcount(val);
+        val = x->t[6] ^ y->t[6];
+        diff->t[6] = __builtin_popcount(val);
+        val = x->t[7] ^ y->t[7];
+        diff->t[7] = __builtin_popcount(val);
+        // Count the number of bits set
+        // while (val != 0)
+        // {
+        //     pp_diff++;
+        //     val &= val - 1;
+        // }
+        // diff->t[k] = pp_diff;
+    // }
 }
 
 bool _np_dhkey_between (const np_dhkey_t* const test, const np_dhkey_t* const left, const np_dhkey_t* const right, const bool includeBounds)

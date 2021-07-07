@@ -93,7 +93,7 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
     ret->log_level |= LOG_WARN;
     ret->log_level |= LOG_INFO;
 
-    ret->leafset_size = 6;
+    ret->leafset_size = 16;
 
 #ifdef DEBUG
     ret->log_level |= LOG_DEBUG;    
@@ -673,6 +673,31 @@ enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct 
     return ret;
 }
 
+enum np_return np_mx_properties_enable(np_context* ac, const char* subject) 
+{
+    np_ctx_cast(ac);
+    enum np_return ret = np_ok;
+    
+    np_msgproperty_t* property = _np_msgproperty_get(context, DEFAULT_MODE, subject);
+    np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject);
+    np_util_event_t enable_event = { .type=(evt_enable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=property_dhkey };
+    _np_keycache_handle_event(ac, property_dhkey, enable_event, false);
+    return ret;
+}
+
+enum np_return np_mx_properties_disable(np_context* ac, const char* subject) 
+{
+    np_ctx_cast(ac);
+    enum np_return ret = np_ok;
+    
+    np_msgproperty_t* property = _np_msgproperty_get(context, DEFAULT_MODE, subject);
+    np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject);
+    np_util_event_t enable_event = { .type=(evt_disable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=property_dhkey };
+    _np_keycache_handle_event(ac, property_dhkey, enable_event, false);
+
+    return ret;
+}
+
 enum np_return np_run(np_context* ac, double duration) {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
@@ -702,6 +727,12 @@ enum np_return np_run(np_context* ac, double duration) {
         }
     }
     return ret;
+}
+
+enum np_return np_add_shutdown_cb(np_context* ac, np_callback callback) 
+{
+    np_ctx_cast(ac);
+    np_shutdown_add_callback(ac, (np_destroycallback_t) callback);
 }
 
 void np_set_userdata(np_context *ac, void* userdata) {

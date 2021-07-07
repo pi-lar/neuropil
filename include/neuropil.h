@@ -226,7 +226,7 @@ extern "C" {
     struct np_mx_properties {
         char reply_subject[255] NP_PACKED(1);
         enum np_mx_ackmode ackmode;
-        //enum np_mx_pattern pattern;  will be added later on
+        // enum np_mx_pattern pattern;  will be added later on
         enum np_mx_cache_policy cache_policy;
         uint16_t cache_size;
         uint8_t max_parallel, max_retry;
@@ -238,6 +238,11 @@ extern "C" {
     struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject);
     NP_API_EXPORT
     enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties properties);
+    NP_API_EXPORT
+    enum np_return np_mx_properties_enable(np_context* ac, const char* subject);
+    NP_API_EXPORT
+    enum np_return np_mx_properties_disable(np_context* ac, const char* subject);
+
     NP_API_EXPORT
     void np_set_userdata(np_context * ac, void* userdata);
     NP_API_EXPORT
@@ -259,6 +264,15 @@ extern "C" {
 
     NP_API_EXPORT
         void np_destroy(np_context*ac, bool gracefully);
+
+   // a general callback just taking the context as an argument
+   typedef void (*np_callback)(np_context* ac);
+
+    NP_API_EXPORT
+        enum np_return np_add_shutdown_cb(np_context* ac, np_callback callback);
+   //  NP_API_EXPORT
+   //      enum np_return np_add_periodic_cb(np_context* ac, np_callback callback, double start_time, uint16_t interval);
+
     NP_API_EXPORT
         bool np_id_equals(np_id first, np_id second);
 #ifdef __cplusplus

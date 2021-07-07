@@ -7,7 +7,7 @@ Digital Identities
 ==================
 
 neuropil uses digital identities to identify users, systems and to protect data content.
-The following section will define and explain how digital identites are used in the neuropil 
+The following section will define and explain how digital identities are used in the neuropil 
 messaging layer.
 
 In general a digital identity in neuropil is loosely modeled after the OpenID Connect JWT standard. 
@@ -33,24 +33,24 @@ neuropil uses three different kind of digitial identities to protect its users.
 3) A message intent token is the tie between nodes and identities that would like to exchange information.
    The subject of the message intent (or the blake2b hash of a string) is the common ground (virtual address) 
    and can be mapped into the physical address space of the neuropil nodes. The message intent is automatically
-   composed from informations of the node and the identity. Especially the attribute set will be merged 
+   composed from information of the node and the identity. Especially the attribute set will be merged 
    from identity and node attributes. The subject also enables neuropil to match corresponding sender/receiver.
    A message intent is a like a security session object for communication channels. A message intent token
    has a limited lifetime, ranging from minutes or days to weeks.
 
-For each of these token there it is possible to create an additional fingerprint: the fingerpint of the token
+For each of these token there it is possible to create an additional fingerprint: the fingerprint of the token
 extended with the attributes and its signature: This additional fingerprint is then designed for a specific use
 case. The relationship between these three kind of tokens changes with each usage, and only somebody using the
 token can make sense of the resulting hahs values.
 
-More important is the way how identities are handled and can be used in neuropil. Let's beging with a 
+More important is the way how identities are handled and can be used in neuropil. Let's begin with a 
 simple setup and then extend it step by step.
 
 identity identifiers
 ********************
 
 consider that you need to create yourself an identity that you can use for any followup actions. As 
-you would like to be identifies, you may choose to create yourself an iniial identity, that you can
+you would like to be identifies, you may choose to create yourself an initial identity, that you can
 use later on for other purposes as well.
 
 .. code-block:: JSON
@@ -65,7 +65,7 @@ We left out the reminding parts of the token structure. The important aspect is 
 private key and associated two kind of data with it: your mail address ind the subject field, and the
 Blake2B hash of your mail address in the issuer field. In addition you get something very useful: from 
 the signature that neuropil creates from your token we build the Blake2B hash value ( H(id1) ) again, so
-your identity token is uniqely identifiable within the neuropil network. This is commonly referred to as 
+your identity token is uniquely identifiable within the neuropil network. This is commonly referred to as 
 the fingerprint ( FP(id1) ) of the token.
 
 This signature has is very useful, because you can use it and send it to peers to identify you. Together 
@@ -74,7 +74,7 @@ this hash value. This is in no way different than in other existing solutions, e
 allows you to use hash values as addresses.
 
 So without any further delay you could decide to listen for messages on the subject "H(sig)". Since there 
-is only one single entity in the world that can create this hash value, everybody will be able to uniqely 
+is only one single entity in the world that can create this hash value, everybody will be able to uniquely 
 identify the correct digital identity behind it, namely you! Internally the neuropil library will create 
 additional message intent token that look like this:
 
@@ -88,10 +88,10 @@ additional message intent token that look like this:
 
 
 You may opt to add your public identity token as an attribute to this message intent token, and together 
-with both informations at hand everybody will be able send you messages, if you authorize him! If you do 
+with both information at hand everybody will be able send you messages, if you authorize him! If you do 
 not authorize him, then everybody would be able to send you messages, but since they are encrypted the 
 neuropil library will have nearly no effort in deleting encrypted spam. Be aware that we do not recommend 
-this approach, because it would allow a DoS attack on your identitiy (well, only if the atacker knows your
+this approach, because it would allow a DoS attack on your identity (well, only if the attacker knows your
 fingerprint).
 
 So instead it is time to become a bit more careful to whom and about what you would like to talk about with 
@@ -104,7 +104,7 @@ pseudonyms
 You may hide behind a pseudonym for data exchange to further obfuscate the attack space. There are two ways
 to create sub-identities for the initial one that we create above. 
 
-The first way is the way PKI infratstructures work, you create a new identity and use your identity hash into
+The first way is the way PKI infrastructures work, you create a new identity and use your identity hash into
 the issuer field. As a next step you have to add the signature of your initial identity to the attribute set.
 
 .. code-block:: JSON
@@ -150,7 +150,7 @@ company from building a password database, while still maintaining a valid user 
 .. code-block:: JSON
 
    {
-     "realm": "FP(thirdparty)",
+     "realm": "FP(third-party)",
      "iss": "FP(id1)",
      "sub": "mail:pseudonym@example.com",
      „pub“: <binary data>
@@ -171,13 +171,13 @@ The token fingerprint of the identities really serve as a de-centralized identif
 you could also use 'did:example:123456abcdef' as the subject of our identity token.
 
 As already mentioned we can use the attributes of token to add more context specific information about the current environment,
-in the wording of verifiable identitfiers you are adding 'claims' claims. In any case, the opposite peer can use and verify the
-attributes that he received, and partly becomes independant from all the identities he may need to know. He can also put
+in the wording of verifiable identifiers you are adding 'claims' claims. In any case, the opposite peer can use and verify the
+attributes that he received, and partly becomes independent from all the identities he may need to know. He can also put
 his trust into a attribute / verifiable credential that has been signed by a known third party. In fact in neuropil each 
 peer can contact his third party and ask if this attribute has really been given to an entity. 
 
-In the same way verififier can be transported as attributes of a token, or proofs can be send as extra messages to entities in the 
-network who require this infromation. Smaller devices, which are lecking the capability to execute the prrof code, could forward
+In the same way verifier can be transported as attributes of a token, or proofs can be send as extra messages to entities in the 
+network who require this information. Smaller devices, which are lacking the capability to execute the proof code, could forward
 the request to a trusted party via an connection. E.g. for machines it becomes irrelevant for a single machine to know each 
 single entity. It is sufficient to verify the received attribute set against the proof.
 
@@ -188,5 +188,5 @@ which can be used a verifiable credential for a session. In addition to add clai
 intent (protected) or message/private) it is possible to share attributes for more than one level, that is it would be used 
 attached to the identity token and to the message intent token.
 
-Using verifiale credentials and identifiers is also possible by other technical means, it is just very easy to transport them with 
+Using verifiable credentials and identifiers is also possible by other technical means, it is just very easy to transport them with 
 neuropil to the correct destination: a fingerprint is all that you need.

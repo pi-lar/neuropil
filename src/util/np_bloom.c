@@ -435,6 +435,126 @@ float _np_decaying_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
     return (ret);
 }
 
+// a simple counting bloom filter
+np_bloom_t* _np_counting_bloom_create(size_t size, uint8_t d, uint8_t p) {
+    
+    np_bloom_t* res = (np_bloom_t*) calloc(1, sizeof(np_bloom_t));
+    res->_type = counting_bf;
+    res->_size = size;
+    
+    res->_d = d;
+    res->_p = p;
+    
+    res->_bitset = calloc(size, res->_d/8);
+    // simplified max elements calculation
+    res->_free_items = size * res->_d;
+    res->_num_blocks = 1;
+    
+    return res;
+}
+
+void _np_counting_bloom_clear(np_bloom_t* res)
+{
+    memset(res->_bitset, 0, res->_num_blocks*res->_size*res->_d/8);
+    res->_free_items = res->_size / 16;
+}
+
+void _np_counting_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
+{    
+    if (bloom->_free_items == 0) abort();
+    
+    for (uint8_t k = 0; k < 8; ++k)
+    {
+        uint32_t _bit_array_pos = id.t[k] % bloom->_size;
+        uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+        uint8_t* _current_val   = &bloom->_bitset[_local_pos];
+        (*_current_val)++;
+        
+// #ifdef DEBUG
+// char test_string[65];
+// for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
+// np_id_str(test_string, &bloom->_bitset[i]);
+// log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string, _local_pos, bloom->_bitset[_local_pos]);
+// }
+// #endif
+   
+    }
+    bloom->_free_items--;
+}
+
+void _np_counting_bloom_remove(np_bloom_t* bloom, np_dhkey_t id)
+{    
+    if (bloom->_free_items == 0) abort();
+    
+    for (uint8_t k = 0; k < 8; ++k)
+    {
+        uint32_t _bit_array_pos = id.t[k] % bloom->_size;
+        uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+        uint8_t* _current_val   = &bloom->_bitset[_local_pos];
+        (*_current_val)--;
+        
+// #ifdef DEBUG
+// char test_string[65];
+// for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
+// np_id_str(test_string, &bloom->_bitset[i]);
+// log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string, _local_pos, bloom->_bitset[_local_pos]);
+// }
+// #endif
+   
+    }
+    bloom->_free_items++;
+}
+
+bool _np_counting_bloom_check(np_bloom_t* bloom, np_dhkey_t id)
+{
+    bool ret = true;
+    
+    for (uint8_t k = 0; k < 8; ++k)
+    {
+        uint32_t _bit_array_pos = id.t[k] % bloom->_size;
+        uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+        uint8_t* _current_val   = &bloom->_bitset[_local_pos];
+        if ( 0 == (*_current_val) ) ret = false;
+        // #ifdef DEBUG
+        // char test_string[65];
+        // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
+        //   np_id_str(test_string, &bloom->_bitset[i]); log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string, _local_pos, bloom->_bitset[_local_pos]);
+        // }
+        // #endif
+    }
+    return (ret);
+}
+
+void _np_counting_bloom_containment(np_bloom_t* first, np_bloom_t* second, float* result)
+{   
+    // containment only uses the number of query elements (of first) for the union count
+    uint16_t union_count = 0;
+    uint16_t intersection_count = 0; // prevent division by zero in line 773
+
+    for (uint16_t k = 0; k < first->_num_blocks*first->_size*first->_d/8; k++)
+    {
+        union_count += 
+            (first->_bitset[k] > 0) ? 1 : 0;
+
+        intersection_count += 
+            ((first->_bitset[k]  > 0  && second->_bitset[k] > 0 ) &&  
+             (first->_bitset[k]  == second->_bitset[k]          )  ) ? 1 : 0;
+    }
+
+    if (union_count > 0)
+        *result = ((float) intersection_count) / union_count;
+    else
+        *result = 0.0;
+    
+    // fprintf(stdout, "bloom: union: %02d --> intersection: %02d --> result: %f\n", union_count, intersection_count, *result); 
+
+    /*      
+    fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
+                    first->_bitset[k  ], first->_bitset[k+1],
+                    second->_bitset[k  ], second->_bitset[k+1]); 
+    */
+}
+
 // neuropil bloom filter size calculation:
 // p(nbf) = (1-e^(- n/m))^k        // many thanks for the formulas!
 // p(nbf) = (1-e^(- n/m))^4        // k = 4 --> four 3dbf per filter
@@ -446,12 +566,13 @@ float _np_decaying_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
 // p(nbf) = (1-e^(-32/(3*5*13)))^4 // m = X*Y*Z --> 3*5*13
 // p(nbf) = 0,000524653516         // better, approx one in 2000 but still possible to transport
 //                                 // one neuropil bf (32 different subjects) with one message chunk
+// and we use counting (8bits) per position ...
 
 #define SCALE3D_X   3
 #define SCALE3D_Y   5
-#define SCALE3D_Z  13
+#define SCALE3D_Z  17
 
-#define SCALE3D_FREE_ITEMS 32 // upper limit of items per neuropil bloom filter
+#define SCALE3D_FREE_ITEMS 64 // upper limit of items per neuropil bloom filter
 
 np_bloom_t* _np_neuropil_bloom_create() 
 {
@@ -553,8 +674,8 @@ bool _np_neuropil_bloom_check(np_bloom_t* bloom, np_dhkey_t id)
         uint8_t* _current_age   = &bloom->_bitset[_local_pos  ];
         uint8_t* _current_count = &bloom->_bitset[_local_pos+1];
 
-        // check both field for bit being set
-        if ( 0 == (*_current_age) || *_current_count == 0) ret = false;
+        // check both fields for bit being set
+        if ( 0 == (*_current_age) || 0 == (*_current_count) ) ret = false;
 
 #ifdef DEBUG
         /*char test_string[65];
@@ -769,6 +890,79 @@ void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* to_add)
     }
 }
 
+void _np_neuropil_bloom_similarity(np_bloom_t* first, np_bloom_t* second, float* result)
+{
+    assert(first->_type == neuropil_bf);
+    assert(first->_type == second->_type);
+    assert(first->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
+    assert(first->_size == second->_size);
+    assert(first->_d    == second->_d);
+    assert(first->_num_blocks == second->_num_blocks);
+
+    assert(first->_free_items  <= SCALE3D_FREE_ITEMS);
+    assert(second->_free_items <= SCALE3D_FREE_ITEMS);
+
+    uint16_t union_count = 0;
+    uint16_t intersection_count = 0; // prevent division by zero in line 773
+
+    for (uint16_t k = 0; k < first->_num_blocks*first->_size*first->_d/8; k+=2)
+    {
+        union_count += 
+            (first->_bitset [k+1]  > 0                    || 
+             second->_bitset[k+1]  > 0                     ) ? 1 : 0;
+
+        intersection_count += 
+            ((first->_bitset[k+1]  > 0  && second->_bitset[k+1] > 0 ) &&  
+             (first->_bitset[k+1]  == second->_bitset[k+1]          )  ) ? 1 : 0;
+    }
+
+    if (union_count > 0)
+        *result = ((float) intersection_count) / union_count;
+    else
+        *result = 0.0;
+    
+    // fprintf(stdout, "bloom: union: %02d --> intersection: %02d --> result: %f\n", union_count, intersection_count, *result); 
+
+    /*      
+    fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
+                    first->_bitset[k  ], first->_bitset[k+1],
+                    second->_bitset[k  ], second->_bitset[k+1]); 
+    */
+}
+
+void _np_neuropil_bloom_containment(np_bloom_t* first, np_bloom_t* second, bool* result)
+{   
+    // containment only uses the number of query elements (of first) for the union count
+    assert(first->_type == neuropil_bf);
+    assert(first->_type == second->_type);
+    assert(first->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
+    assert(first->_size == second->_size);
+    assert(first->_d    == second->_d);
+    assert(first->_num_blocks == second->_num_blocks);
+
+    assert(first->_free_items  <= SCALE3D_FREE_ITEMS);
+    assert(second->_free_items <= SCALE3D_FREE_ITEMS);
+
+    uint16_t union_count = 0;
+    uint16_t intersection_count = 0; // prevent division by zero in line 773
+
+    for (uint16_t k = 0; k < first->_num_blocks*first->_size*first->_d/8; k+=2)
+    {
+        intersection_count += 
+            (second->_bitset [k+1]  > 0) ? 1 : 0;
+        union_count += 
+            ( (first->_bitset[k+1]  > 0  && second->_bitset[k+1] > 0 ) ) ? 1 : 0;
+    }
+
+    *result = (intersection_count == union_count);    
+
+    /*      
+    fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
+                    first->_bitset[k  ], first->_bitset[k+1],
+                    second->_bitset[k  ], second->_bitset[k+1]); 
+    */
+}
+
 void _np_neuropil_bloom_serialize(np_bloom_t* filter, unsigned char** to, uint16_t* to_size)
 {
     np_tree_t* data = np_tree_create();
@@ -812,6 +1006,49 @@ void _np_neuropil_bloom_deserialize(np_bloom_t* filter, unsigned char * from, ui
         iter = RB_NEXT(np_tree_s, data, iter);
     }
     np_tree_free(data);
+}
+
+void _np_neuropil_bloom_compress(np_bloom_t* filter, unsigned char** to, size_t* to_size)
+{
+    assert(*to_size == 0   );
+    assert( to      != NULL);
+    assert(*to      == NULL);
+
+    size_t single_entry_size   =  sizeof(uint16_t) + 2*sizeof(uint8_t);
+    uint8_t* _compressed_array = NULL;
+    size_t _compressed_array_size = *to_size;
+
+    uint16_t k = 0, j = 0;
+    for (k = 0; k < filter->_num_blocks*filter->_size*filter->_d/8; k+=2, j++)
+    {
+        if ( (filter->_bitset[k  ] > 0) &&
+             (filter->_bitset[k+1] > 0)  )
+        {
+            _compressed_array_size += single_entry_size;
+            _compressed_array       = realloc(_compressed_array, _compressed_array_size);
+
+            memcpy(&_compressed_array[_compressed_array_size-4], &j, sizeof(uint16_t) );
+            _compressed_array[_compressed_array_size-2] = filter->_bitset[k  ];
+            _compressed_array[_compressed_array_size-1] = filter->_bitset[k+1];
+
+            // uint16_t* pos = &_compressed_array[_compressed_array_size-4];
+            // fprintf(stdout,
+            //         " (%d)       (%"PRIu16":%"PRIu8":%"PRIu8":%"PRIu16":%"PRIu8":%"PRIu8") ...\n", 
+            //         _compressed_array_size, k,   filter->_bitset[k  ], filter->_bitset[k+1],
+            //         *pos, _compressed_array[_compressed_array_size-2], _compressed_array[_compressed_array_size-1] );
+
+        }
+    }
+
+    if (_compressed_array_size < 32) 
+    {
+        _compressed_array = realloc(_compressed_array, 32);
+        memset(_compressed_array+_compressed_array_size, 0, 32-_compressed_array_size);
+        _compressed_array_size = 32;
+    }
+
+    *to      = _compressed_array;
+    *to_size = _compressed_array_size;
 }
 
 int _np_neuropil_bloom_cmp(np_bloom_t* a, np_bloom_t* b){

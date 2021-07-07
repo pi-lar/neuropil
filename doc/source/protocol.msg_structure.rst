@@ -83,7 +83,7 @@ Even if no transport encryption is applied, the body contents are still safe. On
 Key exchange and messages
 *************************
 
-  *  the n2n key generation is based on the PFS/DHKE by exchanging handshake messages. We plan to extend tranport
+  *  the n2n key generation is based on the PFS/DHKE by exchanging handshake messages. We plan to extend transport
      encryption with attribute based chained hmac values in the future.
   *  the e2e key generation is based on random symmetric key data. attribute based chained hmac values are also an option
      for later releases
@@ -98,7 +98,7 @@ Key exchange and messages
 Message encryption
 ******************
 
-For the encryption the XCacha20 algoithms are used, for the signature the Poly1305 tags are added to the messages.
+For the encryption the XCacha20 algorithms are used, for the signature the Poly1305 tags are added to the messages.
 Both are covered in the following libsodium function::
 
   .. code-block:: c
@@ -166,7 +166,7 @@ Join and leave messages to inform peers about starting/stopping nodes.
 3. Pure node to node messages (ping, piggy, ...)
 ************************************************
 
-Simple messages for healthchecks and exchange of peer nodes.
+Simple messages for health-checks and exchange of peer nodes.
 
 .. code-block:: c
 
@@ -336,7 +336,7 @@ Message instructions contents
 Message mac/nonce details
 *************************
 
-`_np.nonce` | (24 bytes) | a uniqe nonce for each single message on the transport
+`_np.nonce` | (24 bytes) | a unique nonce for each single message on the transport
 
 `_np.mac(n)` | (16 bytes) | an  mac using authentication code of the node
 

@@ -10,7 +10,7 @@ FAQ
 Why do you not use SSL certificates ?
 -------------------------------------
 
-When the internal project started several bugs like heartbleet were dicovered. This led to the decision to use a modern
+When the internal project started several bugs like heartbleet were discovered. This led to the decision to use a modern
 encryption library. In addition, certificates are not easy to parse, to add user supplied data is difficult (in comparison
 to the now used (JSON) token structure). And authorization on top of SSL certificates is also not easy if you do not
 supply additional data.
@@ -35,11 +35,11 @@ Well, obviously you can! But you're exposing i.e. enterprise applications to the
 
 Usually you are using a intermediate hop to decouple your devices and applications because of technical and
 organizational aspects. This intermediate hop requires additional configuration efforts, in consequence it becomes your
-bootleneck and your single point of failure and attack. Message queing was partly invented to protect againts network
+bottleneck and your single point of failure and attack. Message queuing was partly invented to protect against network
 failures, today we add message queuing systems as central components.
 
 Talking about IoT and millions of devices requires a paradigm shift of architecture solutions in our point of view.
-We know from the mirai botnet (only around 400.000 devices) that single point of attacks are a bad idea, but still
+We know from the Mirai botnet (only around 400.000 devices) that single point of attacks are a bad idea, but still
 platforms are set up that are "easy" to attack. Just consider that a DoS attack against a central infrastructure
 component can block your complete enterprise for days !
 
@@ -47,7 +47,7 @@ At the same time you would like to connect devices of different vendors directly
 only establishes connections to his own "cloud" platform. Essentially this means that IoT has become IoP (Internet of
 Platforms) today, with increased integration efforts to get data out of these platforms later on.
 
-Please, add some more resilience interoperability to your messqge queueing system !
+Please, add some more resilience interoperability to your message queueing system !
 
 
 Why is it written in (insecure) c ?

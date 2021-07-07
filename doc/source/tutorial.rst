@@ -55,7 +55,7 @@ messages on a subject.
 Using identities
 ****************
 
-This example shows you how you can use digital identities to achieve loadbalancing between two nodes.
+This example shows you how you can use digital identities to achieve load balancing between two nodes.
 
 .. NOTE:: The source code of this example is available in
           examples/neuropil_receiver_lb.c

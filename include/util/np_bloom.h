@@ -35,6 +35,7 @@ extern "C" {
         stable_bf,
         scalable_bf,
         decaying_bf,
+        counting_bf,
         neuropil_bf,
     };
 
@@ -75,6 +76,7 @@ extern "C" {
     NP_API_INTERN
     void _np_bloom_free(np_bloom_t* bloom);
 
+    // a standard bloom filter
     NP_API_INTERN
     np_bloom_t* _np_standard_bloom_create(size_t bit_size);
     NP_API_INTERN
@@ -88,6 +90,7 @@ extern "C" {
     NP_API_INTERN
     void _np_standard_bloom_clear(np_bloom_t* res);
 
+    // stable bloom filter
     NP_API_INTERN
     np_bloom_t* _np_stable_bloom_create(size_t size, uint8_t d, uint8_t p);
     NP_API_INTERN
@@ -95,6 +98,7 @@ extern "C" {
     NP_API_INTERN
     bool _np_stable_bloom_check(np_bloom_t* bloom, np_dhkey_t id);
 
+    // scalable bloom filter
     NP_API_INTERN
     np_bloom_t* _np_scalable_bloom_create(size_t size);
     NP_API_INTERN
@@ -102,6 +106,7 @@ extern "C" {
     NP_API_INTERN
     bool _np_scalable_bloom_check(np_bloom_t* bloom, np_dhkey_t id);
 
+    // decaying bloom filter
     NP_API_INTERN
     np_bloom_t* _np_decaying_bloom_create(size_t size, uint8_t d, uint8_t p);
     NP_API_INTERN
@@ -113,6 +118,21 @@ extern "C" {
     NP_API_INTERN
     float _np_decaying_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id);
 
+    // counting bloom filter
+    NP_API_INTERN
+    np_bloom_t* _np_counting_bloom_create(size_t size, uint8_t d, uint8_t p);
+    NP_API_INTERN
+    void _np_counting_bloom_clear(np_bloom_t* res);
+    NP_API_INTERN
+    void _np_counting_bloom_add(np_bloom_t* bloom, np_dhkey_t id);
+    NP_API_INTERN
+    void _np_counting_bloom_remove(np_bloom_t* bloom, np_dhkey_t id);
+    NP_API_INTERN
+    bool _np_counting_bloom_check(np_bloom_t* bloom, np_dhkey_t id);
+    NP_API_INTERN
+    void _np_counting_bloom_containment(np_bloom_t* first, np_bloom_t* second, float* result);
+
+    // neuropil bloom filter (mix of counting / attenuated bf)
     NP_API_INTERN
     np_bloom_t* _np_neuropil_bloom_create();
     NP_API_INTERN
@@ -146,12 +166,18 @@ extern "C" {
     void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* first);
 
     NP_API_INTERN
+    void _np_neuropil_bloom_similarity(np_bloom_t* first, np_bloom_t* second, float* result);
+    NP_API_INTERN
+    void _np_neuropil_bloom_containment(np_bloom_t* first, np_bloom_t* second, bool* result);
+    NP_API_INTERN
     int _np_neuropil_bloom_cmp(np_bloom_t* a, np_bloom_t* b);
 
     NP_API_INTERN
     void _np_neuropil_bloom_serialize(np_bloom_t* filter, unsigned char ** to, uint16_t* to_size);
     NP_API_INTERN
     void _np_neuropil_bloom_deserialize(np_bloom_t* filter, unsigned char * from, uint16_t from_size);
+    NP_API_INTERN
+    void _np_neuropil_bloom_compress(np_bloom_t* filter, unsigned char** to, size_t* to_size);
 
 #ifdef __cplusplus
 }

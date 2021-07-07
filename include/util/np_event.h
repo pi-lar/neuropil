@@ -35,6 +35,8 @@ enum event_type {
     evt_redeliver = 0x0800,
 
     evt_shutdown  = 0x1000,
+    evt_disable   = 0x2000,
+    evt_enable    = 0x4000,
 };
 
 struct np_util_event_s {
