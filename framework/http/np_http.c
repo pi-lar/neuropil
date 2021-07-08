@@ -130,27 +130,6 @@ typedef struct _np_http_callback_s {
 } _np_http_callback_t;
 
 
-void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args, _np_http_callback_func_t func)
-{
-    log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
-    if (np_module_initiated(http))
-    {
-        if (NULL == np_module(http)->user_hooks)
-            np_module(http)->user_hooks = np_tree_create();
-
-        char key[128];
-        snprintf(key, 128, "%d:%s", method, path);
-        log_msg(LOG_DEBUG, "register of http callback for key %s", key);
-
-        _np_http_callback_t* callback_data = malloc(sizeof(_np_http_callback_t));
-        CHECK_MALLOC(callback_data);
-
-        callback_data->user_arg = user_args;
-        callback_data->callback = func;
-        np_tree_insert_str(np_module(http)->user_hooks, key, np_treeval_new_v(callback_data));
-    }
-}
-
 int _np_http_on_msg_begin(htparser* parser)
 {
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {");
@@ -273,8 +252,6 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client)
     log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(...) {");
 
     assert(PROCESSING == client->status);
-    if (NULL == np_module(http)->user_hooks)
-        np_module(http)->user_hooks = np_tree_create();
 
     char key[128];
     snprintf(key, 128, "%d:%s", client->ht_request.ht_method,
@@ -303,30 +280,29 @@ void _np_http_dispatch(np_state_t* context, np_http_client_t* client)
     } else {
         switch (client->ht_request.ht_method) {
             case (htp_method_GET): {
-                if(CHECK_PATH("metrics"))
+                uint32_t buf_max = 8000;
+                char buffer[buf_max];
+                uint32_t len = snprintf(
+                    buffer,
+                    buf_max,
+                    "{ \"status\":\"not_found\", \"requestd_path\": \"%s\", \"available_paths\": [",
+                    key
+                );
+                np_tree_elem_t* iter_tree = NULL;
+                RB_FOREACH(iter_tree, np_tree_s, np_module(http)->user_hooks)
                 {
-                    if(np_module_initiated(statistics))
-                    {
-                        client->ht_response.ht_body = np_statistics_prometheus_export(context);
-                        client->ht_response.ht_status = HTTP_CODE_OK;
-                        np_tree_insert_str( client->ht_response.ht_header, "Content-Type",
-                            np_treeval_new_s("text/plain; version=0.0.4"));
-                    } else {
-                        client->ht_response.ht_body = strdup(MODULE_NOT_READY(statistics));
-                        client->ht_response.ht_status = HTTP_CODE_NOT_IMPLEMENTED;
-                        client->ht_response.cleanup_body = false;
-                        client->status = RESPONSE;
-                    }
+                    len += snprintf(buffer+len,buf_max-len, "\"%s\",", iter_tree->key.value.s);
                 }
-                else
-                {
-                    client->ht_response.ht_body = strdup(client->ht_request.ht_path);
-                    client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
-                    np_tree_insert_str( client->ht_response.ht_header, "X-Content-Type-Options",
-                            np_treeval_new_s("nosniff"));
-                    np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
-                        np_treeval_new_s("application/json"));
-                }
+
+                len += snprintf(buffer+len, buf_max-len, "]}");
+
+                client->ht_response.ht_body = strndup(buffer, buf_max);
+                client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
+                np_tree_insert_str( client->ht_response.ht_header, "X-Content-Type-Options",
+                        np_treeval_new_s("nosniff"));
+                np_tree_insert_str(client->ht_response.ht_header, "Content-Type",
+                    np_treeval_new_s("application/json"));
+
                 client->ht_response.cleanup_body = true;
                 client->status = RESPONSE;
                 break;
@@ -595,36 +571,19 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
     }
 }
 
-bool _np_http_init(np_state_t* context, char* domain, char* port)
-{
-    if (domain == NULL) {
-        domain = strdup("localhost");
-    }
-
-    if(port == NULL) port = TO_STRING(HTTP_PORT);
-
+void _np_http_module_init(np_state_t* context){
     if (!np_module_initiated(http))
     {
         np_module_malloc(http);
 
         CHECK_MALLOC(_module);
 
-        sll_init(np_http_client_ptr, _module->clients);
+        _module->user_hooks = np_tree_create();
+        _module->network == NULL;
 
-        np_new_obj(np_network_t, _module->network);
-        _np_network_init(_module->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
-        np_ref_obj(np_network_t, _module->network, ref_obj_creation);
-
-        // _np_network_enable(_module->network);
-
-        if (NULL == _module->network || false == _module->network->initialized )
-            return false;
 
         _module->hooks = (htparse_hooks*) malloc(sizeof(htparse_hooks));
         CHECK_MALLOC(_module->hooks);
-
-        if (NULL == _module->hooks)
-            return false;
 
         // define callbacks
         _module->hooks->on_msg_begin = _np_http_on_msg_begin;
@@ -645,6 +604,33 @@ bool _np_http_init(np_state_t* context, char* domain, char* port)
         _module->hooks->on_chunks_complete = NULL; /* called after all parsed chunks processed */
         _module->hooks->body = _np_http_body;
         _module->hooks->on_msg_complete = _np_http_on_msg_complete;
+    }
+}
+
+bool _np_http_init(np_state_t* context, char* domain, char* port)
+{
+    if (domain == NULL) {
+        domain = strdup("localhost");
+    }
+
+    if(port == NULL) port = TO_STRING(HTTP_PORT);
+    if (!np_module_initiated(http))
+    {
+        _np_http_module_init(context);
+    }
+    np_module_var(http);
+    if (_module->network == NULL)
+    {
+        sll_init(np_http_client_ptr, _module->clients);
+
+        np_new_obj(np_network_t, _module->network);
+        _np_network_init(_module->network, true, TCP | IPv4, domain, port,-1, UNKNOWN_PROTO);
+        np_ref_obj(np_network_t, _module->network, ref_obj_creation);
+
+        // _np_network_enable(_module->network);
+
+        if (NULL == _module->network || false == _module->network->initialized )
+            return false;
 
         _np_event_suspend_loop_http(context);
         EV_P = _np_event_get_loop_http(context);
@@ -655,7 +641,6 @@ bool _np_http_init(np_state_t* context, char* domain, char* port)
         _module->network->watcher_in.data = _module;
         ev_io_start(EV_A_&_module->network->watcher_in);
         _np_event_resume_loop_http(context);
-        _module->user_hooks = NULL;
     }
     return true;
 }
@@ -697,8 +682,7 @@ void _np_http_destroy(np_state_t* context)
 
         _np_event_resume_loop_http(context);
 
-        if (np_module(http)->user_hooks)
-            np_tree_free( np_module(http)->user_hooks);
+        np_tree_free( np_module(http)->user_hooks);
 
         free(np_module(http)->hooks);
 
@@ -708,4 +692,23 @@ void _np_http_destroy(np_state_t* context)
 
         np_module_free(http);
     }
+}
+
+void _np_add_http_callback(np_state_t *context, const char* path, htp_method method, void* user_args, _np_http_callback_func_t func)
+{
+    log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_add_http_callback(const char* path, htp_method method, void* user_args,		_np_http_callback_func_t func) {");
+     if (!np_module_initiated(http))
+    {
+        _np_http_module_init(context);
+    }
+    char key[128];
+    snprintf(key, 128, "%d:%s", method, path);
+    log_msg(LOG_DEBUG, "register of http callback for key %s", key);
+
+    _np_http_callback_t* callback_data = malloc(sizeof(_np_http_callback_t));
+    CHECK_MALLOC(callback_data);
+
+    callback_data->user_arg = user_args;
+    callback_data->callback = func;
+    np_tree_insert_str(np_module(http)->user_hooks, key, np_treeval_new_v(callback_data));
 }

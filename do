@@ -183,7 +183,8 @@ task_run() {
 
   echo "./build/neuropil/bin/$application" "$@"
   set +e
-  run=$("./build/neuropil/bin/$application" "$@")
+  "./build/neuropil/bin/$application" "$@"
+  run=$?
   set -e
   if [ "$run" != 0 ] ; then
     gdb "./build/neuropil/bin/$application" -c core*

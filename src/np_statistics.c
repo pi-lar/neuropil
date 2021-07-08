@@ -27,6 +27,7 @@
 #include "np_statistics.h"
 
 #include "prometheus/prometheus.h"
+#include "../framework/http/np_http.h"
 
 
 struct np_statistics_element_s {
@@ -98,7 +99,13 @@ bool __np_statistics_gather_data_clb(np_state_t* context, NP_UNUSED np_util_even
 
     return true;
 }
-
+int _np_http_handle_metrics(ht_request_t* request, ht_response_t* ret, void* context)
+{
+    ret->ht_body = np_statistics_prometheus_export(context);
+    ret->ht_status = HTTP_CODE_OK;
+    np_tree_insert_str( ret->ht_header, "Content-Type",
+        np_treeval_new_s("text/plain; version=0.0.4"));
+}
 bool _np_statistics_init(np_state_t* context) {
 
     if (!np_module_initiated(statistics)) {
@@ -158,7 +165,7 @@ bool _np_statistics_init(np_state_t* context) {
             container.name = np_statistics_performance_point_str[container_idx];
         }
 #endif
-
+        _np_add_http_callback(context, "metrics", htp_method_GET, context, _np_http_handle_metrics);
     }
     return true;
 }

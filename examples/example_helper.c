@@ -468,22 +468,25 @@ void np_print_startup(np_context * context) {
 bool __np_example_helper_authorize_everyone (np_context* ac, struct np_token* token)
 {
     np_ctx_cast(ac);
+    char buffer[65]={0};
     log_error("using DANGEROUS handler (authorize all) to allow authorization for: %s", token->subject );
-    np_example_print(context, stdout, "ALLOW authorize: %s / %s\n", token->subject, token->issuer);
+    np_example_print(context, stdout, "ALLOW authorize: %s / %s\n", token->subject, np_id_str(buffer, token->issuer));
     return (true);
 }
 bool __np_example_helper_authenticate_everyone (np_context* ac, struct np_token* token)
 {
     np_ctx_cast(ac);
+    char buffer[65]={0};
     log_error("using DANGEROUS handler (authorize all) to allow authenticate for: %s", token->subject );
-    np_example_print(context, stdout, "ALLOW authenticate:  %s / %s\n", token->subject, token->issuer);
+    np_example_print(context, stdout, "ALLOW authenticate:  %s / %s\n", token->subject, np_id_str(buffer, token->issuer));
     return (true);
 }
 bool __np_example_helper_acc_everyone (np_context* ac, struct np_token* token)
 {
     np_ctx_cast(ac);
+    char buffer[65]={0};
     log_error("using DANGEROUS handler (account all) to allow accounting for: %s", token->subject );
-    np_example_print(context, stdout, "ALLOW accounting:    %s / %s\n", token->subject, token->issuer);
+    np_example_print(context, stdout, "ALLOW accounting:    %s / %s\n", token->subject, np_id_str(buffer, token->issuer));
     return (true);
 }
 

@@ -15,7 +15,7 @@ if PATH:
     os.chdir(PATH)
 
 setup ( name = 'neuropil',
-        version = '0.9.10',
+        version = '0.9.11',
         author      = "pi-lar GmbH",
         description = """neuropil python bindings""",
         packages=find_packages(exclude=["_cffi_build", "_cffi_build.*"]),

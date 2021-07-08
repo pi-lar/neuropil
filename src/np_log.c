@@ -178,7 +178,7 @@ char * get_level_str(enum np_log_e level, char * buffer) {
 
 void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
-    if (np_module(log)->__logger == NULL) {
+    if (!np_module_initiated(log) || np_module(log)->__logger == NULL) {
         return;
     }
     // include msg if log level is included into selected levels
