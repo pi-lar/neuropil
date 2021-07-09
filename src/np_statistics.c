@@ -105,6 +105,7 @@ int _np_http_handle_metrics(ht_request_t* request, ht_response_t* ret, void* con
     ret->ht_status = HTTP_CODE_OK;
     np_tree_insert_str( ret->ht_header, "Content-Type",
         np_treeval_new_s("text/plain; version=0.0.4"));
+    return ret->ht_status;
 }
 bool _np_statistics_init(np_state_t* context) {
 
@@ -168,6 +169,9 @@ bool _np_statistics_init(np_state_t* context) {
         _np_add_http_callback(context, "metrics", htp_method_GET, context, _np_http_handle_metrics);
     }
     return true;
+}
+void _np_statistics_update(np_state_t* context) {
+    _np_statistics_update_prometheus_labels(context, NULL);
 }
 bool _np_statistics_enable(np_state_t* context) {
 
@@ -249,34 +253,34 @@ np_statistics_per_dhkey_metrics* __np_statistics_get_dhkey_metrics(np_state_t* c
 void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metric* metric){
     if (np_module_initiated(statistics)) {
         np_module_var(statistics);
-        
-        prometheus_label node_label = {0};   
-        prometheus_label ident_label = {0};      
+
+        prometheus_label node_label = {0};
+        prometheus_label ident_label = {0};
         prometheus_label instance_label = {0};
         strncpy(node_label.name,"node",255);
         strncpy(instance_label.name,"instance",255);
         strncpy(ident_label.name,"identity",255);
-        if(context->my_node_key) 
+        if(context->my_node_key != NULL)
         {
-            _np_dhkey_str(&context->my_node_key->dhkey, node_label.value);            
+            _np_dhkey_str(&context->my_node_key->dhkey, node_label.value);
             if(_np_key_get_node(context->my_node_key))
-                snprintf(instance_label.value, 254, "%s:%s", 
+                snprintf(instance_label.value, 254, "%s:%s",
                         _np_key_get_node(context->my_node_key)->dns_name,
                         _np_key_get_node(context->my_node_key)->port);
         }
-        if(context->my_identity)
+        if(context->my_identity != NULL)
             _np_dhkey_str(&context->my_identity->dhkey, ident_label.value);
-                
+
         if(metric == NULL) {
             for(int i=0; i < np_prometheus_exposed_metrics_END; i++) {
                 prometheus_metric_replace_label(_module->_prometheus_metrics[i], node_label);
-                prometheus_metric_replace_label(_module->_prometheus_metrics[i], ident_label);            
-                prometheus_metric_replace_label(_module->_prometheus_metrics[i], instance_label);            
+                prometheus_metric_replace_label(_module->_prometheus_metrics[i], ident_label);
+                prometheus_metric_replace_label(_module->_prometheus_metrics[i], instance_label);
             }
         } else {
             prometheus_metric_replace_label(metric, node_label);
-            prometheus_metric_replace_label(metric, ident_label);            
-            prometheus_metric_replace_label(metric, instance_label);            
+            prometheus_metric_replace_label(metric, ident_label);
+            prometheus_metric_replace_label(metric, instance_label);
         }
     }
 }

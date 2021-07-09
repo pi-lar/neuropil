@@ -21,6 +21,7 @@
 #include "np_message.h"
 #include "np_network.h"
 #include "np_node.h"
+#include "np_statistics.h"
 #include "np_route.h"
 #include "np_attributes.h"
 #include "util/np_event.h"
@@ -169,7 +170,7 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     
     _np_aaatoken_update_attributes_signature(identity_token);
     identity_token->state = AAA_VALID | AAA_AUTHENTICATED | AAA_AUTHORIZED;
-    
+    _np_statistics_update(context);
 #ifdef DEBUG
     char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2+1]; ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES*2] = '\0';
     char curve25519_pk[crypto_scalarmult_curve25519_BYTES*2+1]; curve25519_pk[crypto_scalarmult_curve25519_BYTES*2] = '\0';

@@ -119,6 +119,8 @@ char* np_statistics_prometheus_export(np_context*ac);
         NP_API_INTERN
             bool _np_statistics_enable(np_state_t* context);
         NP_API_INTERN
+            void _np_statistics_update(np_state_t* context);
+        NP_API_INTERN
             void _np_statistics_destroy(np_state_t* context);
         NP_API_INTERN
             void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metric* metric);
