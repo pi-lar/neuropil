@@ -104,10 +104,7 @@ prod_docker:
   needs:
     - "{{triple}}:package"
 
-
-
-  {% endif %}
-
+{% endif %}
 {% endfor %}
 
 update_gitlab_release:

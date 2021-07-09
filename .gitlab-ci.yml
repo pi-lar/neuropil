@@ -73,6 +73,8 @@ crossbuild:
     - if: $DYNAMIC_BUILDERS != null
   needs:
     - ci_configuration
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
 
 documentation:
   stage: build
@@ -238,6 +240,29 @@ gitlab-pypi:
   needs:
     - docker_production_enviroment
 
+python_docker:
+  stage: release
+  before_script:
+    - docker info
+  script:
+    - sh -c '[ -z "$CI_DEPLOY_USER" ] &&  (echo "Please read CI.md for the gitlab pipeline setup." >&2) && exit 1 || exit 0'
+    - echo "$CI_DEPLOY_PASSWORD" | docker login -u $CI_DEPLOY_USER $CI_REGISTRY --password-stdin
+    - |
+        docker build \
+          -t $CI_REGISTRY_IMAGE/python-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
+          -f configs/docker/python-enviroment.Dockerfile \
+          --build-arg NEUROPIL_BASE_IMAGE=$CI_REGISTRY_IMAGE/prod-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
+          --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL \
+          ./
+    - docker push $CI_REGISTRY_IMAGE/python-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG
+  image: docker:latest
+  services:
+    - docker:dind
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED == "true" && $CI_MERGE_REQUEST_ID == null
+  needs:
+    - crossbuild
+    - docker_test_enviroment
 #pypi:
 #  stage: release
 #  script:
