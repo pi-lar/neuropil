@@ -262,7 +262,10 @@ python_docker:
     - if: $CI_COMMIT_REF_PROTECTED == "true" && $CI_MERGE_REQUEST_ID == null
   needs:
     - crossbuild
-    - docker_test_enviroment
+    - job: docker_test_enviroment
+      optional: true
+    - job: docker_production_enviroment
+      optional: true
 #pypi:
 #  stage: release
 #  script:
