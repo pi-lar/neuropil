@@ -103,7 +103,7 @@ else:
 # platform specific compiler options
 
 if 'FreeBSD' in platform.system():
-    default_env.Append(LIBS = ['util', 'm'] )
+    default_env.Append(LIBS = ['util', 'm', 'pthread'] )
 
 if 'Darwin' in platform.system():
     # default_env.Append(CCFLAGS = ['-Wformat-security'])
