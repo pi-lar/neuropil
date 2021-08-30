@@ -8,7 +8,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(neuropil VERSION 0.1.0)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL -DHAVE_EPOLL_CTL -DEV_COMPAT3=0 -DEV_USE_FLOOR=1 -DEV_USE_4HEAP=1")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL -DHAVE_EPOLL_CTL -DEV_COMPAT3=0 -DEV_USE_FLOOR=1 -DEV_USE_4HEAP=1 -D_GNU_SOURCE")
 
 include(CTest)
 enable_testing()
@@ -86,7 +86,7 @@ add_executable(neuropil_sender examples/neuropil_sender.c)
 add_executable(neuropil_receiver examples/neuropil_receiver.c)
 add_executable(neuropil_search_node examples/neuropil_search_node.c)
 
-target_link_libraries(libneuropil sodium)
+target_link_libraries(libneuropil sodium pthread m)
 
 target_link_libraries(neuropil_node libneuropil sodium ncurses)
 target_link_libraries(neuropil_cloud libneuropil sodium ncurses)
