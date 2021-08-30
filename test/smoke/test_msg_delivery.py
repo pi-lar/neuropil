@@ -20,13 +20,13 @@ class MsgDeliveryTest(unittest.TestCase):
         self.assertEqual(sys.getsizeof(message.raw()), self.target_size)
         return True
 
-    def _test_msg_X_delivery(self, size):
+    def _test_msg_X_delivery(self, size, protocol_sender="udp4",protocol_receiver="udp4"):
         self.msg_delivery_succ = Value(c_bool, False)
         self.target_size = size
 
         np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_test_msg_delivery_cl_")
-        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_msg_delivery_nl1.log", auto_run=False, n_threads=6)
-        np_2 = NeuropilNode(4002, log_file="logs/smoke_test_msg_delivery_nl2.log",auto_run=False)
+        np_1 = NeuropilNode(4001,proto=protocol_sender,   log_file=f"logs/smoke_test_msg_delivery_sender_{size}_{protocol_sender}_{protocol_receiver}.log", auto_run=False, n_threads=6)
+        np_2 = NeuropilNode(4002,proto=protocol_receiver, log_file=f"logs/smoke_test_msg_delivery_receiver_{size}_{protocol_sender}_{protocol_receiver}.log",auto_run=False)
 
         subject = b"NP.TEST.msg_delivery"
         mxp1 = np_1.get_mx_properties(subject)
@@ -77,7 +77,20 @@ class MsgDeliveryTest(unittest.TestCase):
 
         self.assertTrue(send)
         self.assertTrue(self.msg_delivery_succ.value)
+        self.msg_delivery_succ.value = False
 
+    def test_msg_delivery_tcp4_pas4(self):
+        self._test_msg_X_delivery(1000,protocol_receiver="tcp4",protocol_sender="pas4")
+    def test_msg_delivery_udp4_pas4(self):
+        self._test_msg_X_delivery(1000,protocol_receiver="udp4",protocol_sender="pas4")
+    def test_msg_delivery_udp4_tcp4(self):
+        self._test_msg_X_delivery(1000,protocol_receiver="udp4",protocol_sender="tcp4")
+    def test_msg_delivery_tcp4_udp4(self):
+        self._test_msg_X_delivery(1000,protocol_receiver="tcp4",protocol_sender="udp4")
+    def test_msg_delivery_tcp4_tcp4(self):
+        self._test_msg_X_delivery(1000,protocol_receiver="tcp4",protocol_sender="tcp4")
+    def test_msg_delivery_udp4_udp4(self):
+        self._test_msg_X_delivery(1000,protocol_receiver="udp4",protocol_sender="udp4")
     def test_msg_1k_delivery(self):
         self._test_msg_X_delivery(1000)
     def test_msg_10k_delivery(self):
