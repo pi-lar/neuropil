@@ -1,10 +1,15 @@
 # SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 
+import base64
 import unittest
 import time
 from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
 from misc import TestHelper
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
+
 np_1_ident = None
 np_2_ident = None
 check_np_1_ident_ok = False
@@ -87,3 +92,36 @@ class IdentityTest(unittest.TestCase):
 
         self.assertTrue(check_np_1_ident_ok)
         self.assertTrue(check_np_2_ident_ok)
+
+    def test_identity_set_key(self):
+        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_identity_nl1.log", auto_run=False, no_threads=6)
+
+        # generate a key:        
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        # use private and public bytes for identity
+        secret_key =  private_key.private_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PrivateFormat.Raw,
+                encryption_algorithm=serialization.NoEncryption()
+            ) + private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw
+            )
+        identity = np_1.new_identity(secret_key=secret_key)
+        
+        np_1.use_identity(identity)
+        TestHelper.disableAAA(np_1)
+        np_1.run(0)
+
+        timeout = 10 #sec
+
+        t1 = time.time()
+        elapsed = 0.
+        try:
+            while elapsed < timeout:
+                elapsed = float(time.time() - t1)
+                
+                self.assertTrue(np_1.get_status() == neuropil.np_running)
+                np_1.run(0.1)
+        finally:
+            np_1.shutdown()

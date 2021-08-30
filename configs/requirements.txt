@@ -12,3 +12,4 @@ meson
 Jinja2
 requests
 twine
+cryptography
