@@ -221,7 +221,6 @@ extern "C" {
     NP_API_EXPORT
     enum np_return np_run(np_context* ac, double duration);
 
-
     // enum np_mx_pattern        { NP_MX_BROADCAST, NP_MX_ONE_WAY, /* NP_MX_REQ_REP, ... */ } NP_ENUM;
     enum np_mx_role           { NP_MX_PROVIDER, NP_MX_CONSUMER, NP_MX_PROSUMER } NP_ENUM;
     enum np_mx_cache_policy   { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } NP_ENUM;
@@ -329,15 +328,23 @@ Initialization
    :param settings:         a :c:type:`np_settings` structure used to configure the application context.
    :return:        a pointer to the newly created application context.
 
+
 .. c:type:: void np_context
 
    An opaque object that denotes a neuropil application context.
+
+
+.. c:type:: void np_subject
+
+   An blake2b obfuscated message subject to transport data
+
 
 .. c:function:: void np_default_settings(struct np_settings *settings)
 
    Initializes a :c:type:`np_settings` structure to the default settings.
 
    :param settings:         a pointer to the :c:type:`np_settings` structure to be initialized.
+
 
 .. c:type:: struct np_settings
 
@@ -353,6 +360,15 @@ Initialization
 
    Pathname of a file that neuropil will log to. The default is a ``"<timestamp>_neuropil.log"``
    where timestamp is a decimal millisecond UNIX timestamp.
+
+.. c:member:: uint8_t leafset_size
+
+   specifies the size of the leafset table (DHT entries near to our own hash value)
+
+.. c:member:: uint16_t jobqueue_size
+
+   The size of the internally used jobqueue. The default is 512 entries, depending on the number of threads
+   this should be sufficient for many use cases. High throuput cloud nodes could need larger jobqueues.
 
 
 ------------------
@@ -425,8 +441,8 @@ Starting up
    Adds a bootstrap node to be used by this node to join the neuropil network.
 
    :param ac:         a neuropil application context.
-   :param address:         a string that denotes an absolute address as obtained by :c:func:`np_get_address`.
-   :return:        :c:data:`np_ok` on success.
+   :param address:    a string that denotes an absolute address as obtained by :c:func:`np_get_address`.
+   :return:           :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning
