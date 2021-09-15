@@ -150,7 +150,7 @@ example_user_context* example_new_usercontext() {
 
 
     user_context->opt_http_domain = NULL;
-    user_context->opt_sysinfo_mode = np_sysinfo_opt_force_client;
+    user_context->opt_sysinfo_mode = np_sysinfo_opt_disable;
 
     memset(user_context->node_description,0,255);
 
@@ -1005,7 +1005,9 @@ bool example_sysinfo_init(np_context* context,np_sysinfo_opt_e opt_sysinfo_mode)
 
         np_example_print(context, stdout, "Watch sysinfo subjects \n");
         // If you want to you can enable the statistics modulte to view the nodes statistics (or use the prometheus interface)
-        np_statistics_add_watch(context, _NP_SYSINFO_DATA);
+        np_subject sysinfo_subject = {0};
+        np_generate_subject(&sysinfo_subject, _NP_SYSINFO_DATA, strnlen(_NP_SYSINFO_DATA, 256));
+        np_statistics_add_watch(context, sysinfo_subject);
         ret = true;
     }
 

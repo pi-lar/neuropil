@@ -75,7 +75,8 @@
     static void _np_events_idle_##LOOPNAME (NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_idle *w, NP_UNUSED int revents) \
     {                                                                                                                    \
         np_state_t * context = ev_userdata(EV_A);                                                                        \
-        if(context->status != np_running) {                                                                              \
+        TSP_GET(enum np_status, context->status, state);                                                                 \
+        if(state != np_running) {                                                                                        \
             ev_break (EV_A_ EVBREAK_ALL);                                                                                \
         } else {                                                                                                         \
             ev_sleep(NP_PI/500);                                                                                         \

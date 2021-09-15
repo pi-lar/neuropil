@@ -66,6 +66,7 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     entry->join_send_at = 0.0;
     entry->joined_network = false;	
     entry->handshake_priority = randombytes_random();
+    entry->connection_attempts = 0;
 
     entry->next_routing_table_update = 0.0;
     entry->is_in_routing_table = false;;

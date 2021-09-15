@@ -118,7 +118,7 @@ bool _np_statistics_init(np_state_t* context) {
 
         np_cache_init(context, &_module->__cache, cache_size, random_seed);
 
-        sll_init(char_ptr, _module->__watched_subjects);
+        sll_init(np_dhkey_t, _module->__watched_subjects);
 
         _module->_per_subject_metrics = np_tree_create();
         _module->_per_dhkey_metrics = np_tree_create();
@@ -187,16 +187,17 @@ typedef struct np_statistics_per_subject_metrics_s {
     prometheus_metric* send_msgs;
 } np_statistics_per_subject_metrics;
 
-np_statistics_per_subject_metrics* __np_statistics_get_subject_metrics(np_state_t* context, char* subject) {
+np_statistics_per_subject_metrics* __np_statistics_get_subject_metrics(np_state_t* context, np_dhkey_t subject_dhkey) {
     np_statistics_per_subject_metrics* ret;
 
     np_module_var(statistics);
-    np_tree_elem_t* element = np_tree_find_str(_module->_per_subject_metrics, subject);
+    np_tree_elem_t* element = np_tree_find_dhkey(_module->_per_subject_metrics, subject_dhkey);
 
-    if(element == NULL){
+    if(element == NULL)
+    {
         prometheus_label label;
-        strncpy(label.name, "subject",255);
-        strncpy(label.value,subject,255);    
+        strncpy(label.name, "subject", 255);
+        sodium_bin2hex(label.value, 65, &subject_dhkey, 32);    
         ret = calloc(1,sizeof(np_statistics_per_subject_metrics));
         
         ret->received_msgs = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"received_msgs");
@@ -207,7 +208,7 @@ np_statistics_per_subject_metrics* __np_statistics_get_subject_metrics(np_state_
         prometheus_metric_add_label(ret->send_msgs, label);
         _np_statistics_update_prometheus_labels(context, ret->send_msgs);
 
-        np_tree_insert_str(np_module(statistics)->_per_subject_metrics, subject,np_treeval_new_v(ret));
+        np_tree_insert_dhkey(np_module(statistics)->_per_subject_metrics, subject_dhkey, np_treeval_new_v(ret));
     }else{
         ret = element->val.value.v;
     }
@@ -299,11 +300,11 @@ void _np_statistics_destroy(np_state_t* context)
     if (np_module_initiated(statistics)) {
         np_module_var(statistics);
                
-        sll_iterator(char_ptr) __watched_subjects_item = sll_first(_module->__watched_subjects);
+        sll_iterator(np_dhkey_t) __watched_subjects_item = sll_first(_module->__watched_subjects);
         while (__watched_subjects_item != NULL)
         {
             np_statistics_element_t* value = NULL;
-            if (np_simple_cache_get(context, &np_module(statistics)->__cache, __watched_subjects_item->val, &value) )
+            if (np_simple_cache_get(context, &np_module(statistics)->__cache, &__watched_subjects_item->val, &value) )
             {
                 free(value);
             }
@@ -320,7 +321,7 @@ void _np_statistics_destroy(np_state_t* context)
         sll_free(void_ptr, _module->__np_debug_statistics);
 #endif
 
-        sll_free(char_ptr, np_module(statistics)->__watched_subjects);
+        sll_free(np_dhkey_t, np_module(statistics)->__watched_subjects);
         
         prometheus_destroy_context(_module->_prometheus_context);
 
@@ -350,29 +351,32 @@ char* np_statistics_prometheus_export(np_context*ac){
     return prometheus_format(np_module(statistics)->_prometheus_context);
 }
 
-void np_statistics_add_watch(np_state_t* context, const char* subject) {	
+void np_statistics_add_watch(np_state_t* context, np_subject subject) 
+{	
+    np_dhkey_t subject_dhkey = { 0 }; // _np_msgproperty_dhkey(OUTBOUND, subject_id);
+    memcpy(&subject_dhkey, subject, NP_FINGERPRINT_BYTES);
 
     bool addtolist = true;
-    sll_iterator(char_ptr) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
+    sll_iterator(np_dhkey_t) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
     while (iter_subjects != NULL)
     {
-        if (strncmp(iter_subjects->val, subject, strlen(subject)) == 0) {
+        if (_np_dhkey_equal(&iter_subjects->val, &subject_dhkey)) {
             addtolist = false;
             break;
         }
         sll_next(iter_subjects);
     }
 
-    const char* key = (char*) subject;
+    // const char* key = (char*) subject;
     np_statistics_element_t* value = NULL;
     if (addtolist == true) {
         // char* key_dup = strndup(subject, strlen(subject) );
-        sll_append(char_ptr, np_module(statistics)->__watched_subjects, key);
+        sll_append(np_dhkey_t, np_module(statistics)->__watched_subjects, subject_dhkey);
         value = calloc(1, sizeof(np_statistics_element_t));
-        np_simple_cache_add(context, &np_module(statistics)->__cache, key, value);
+        np_simple_cache_add(context, &np_module(statistics)->__cache, subject, value);
     }
 
-    if (np_simple_cache_get(context, &np_module(statistics)->__cache, key, &value))
+    if (np_simple_cache_get(context, &np_module(statistics)->__cache, subject, &value))
     {
         if (addtolist == true)
         {
@@ -381,41 +385,66 @@ void np_statistics_add_watch(np_state_t* context, const char* subject) {
             value->first_check    = np_time_now();
         }
 
-        if (false == value->watch_receive && _np_msgproperty_get(context, INBOUND, key) != NULL) {
-            np_msgproperty_t* prop = _np_msgproperty_get(context, INBOUND, key);
-            sll_append(np_evt_callback_t, prop->clb_inbound, _np_statistics_receive_msg_on_watched);
+        if (false == value->watch_receive && _np_msgproperty_run_get(context, INBOUND, subject_dhkey) != NULL) {
+            np_msgproperty_run_t* prop = _np_msgproperty_run_get(context, INBOUND, subject_dhkey);
+            sll_append(np_evt_callback_t, prop->callbacks, _np_statistics_receive_msg_on_watched);
             value->watch_receive = true;
         }
 
-        if (false == value->watch_send && _np_msgproperty_get(context, OUTBOUND, key) != NULL) {
-            np_msgproperty_t* prop = _np_msgproperty_get(context, OUTBOUND, key);
-            sll_append(np_evt_callback_t, prop->clb_outbound, _np_statistics_send_msg_on_watched);
+        if (false == value->watch_send && _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey) != NULL) {
+            np_msgproperty_run_t* prop = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);
+            sll_append(np_evt_callback_t, prop->callbacks, _np_statistics_send_msg_on_watched);
             value->watch_send = true;
         }
     }
 }
 
-void np_statistics_add_watch_internals(np_state_t* context) {
-    
-    //np_statistics_add_watch(context, _DEFAULT);    
-    np_statistics_add_watch(context, _NP_MSG_ACK);
-    np_statistics_add_watch(context, _NP_MSG_HANDSHAKE);
-    
-    np_statistics_add_watch(context, _NP_MSG_JOIN_REQUEST);
-    np_statistics_add_watch(context, _NP_MSG_LEAVE_REQUEST);
+void np_statistics_add_watch_internals(np_state_t* context) 
+{    
+    // np_statistics_add_watch(context, _DEFAULT);
+    np_subject subject_id = {0};
+    np_generate_subject(&subject_id, _NP_MSG_ACK, strnlen(_NP_MSG_ACK, 256));
+    np_statistics_add_watch(context, subject_id );
 
-    np_statistics_add_watch(context, _NP_MSG_PING_REQUEST);    
-    np_statistics_add_watch(context, _NP_MSG_PIGGY_REQUEST);
-    np_statistics_add_watch(context, _NP_MSG_UPDATE_REQUEST);	
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_HANDSHAKE, strnlen(_NP_MSG_HANDSHAKE, 256));
+    np_statistics_add_watch(context, subject_id );
     
-    np_statistics_add_watch(context, _NP_MSG_AVAILABLE_RECEIVER);
-    np_statistics_add_watch(context, _NP_MSG_AVAILABLE_SENDER);
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_JOIN_REQUEST, strnlen(_NP_MSG_JOIN_REQUEST, 256));
+    np_statistics_add_watch(context, subject_id );
+    
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_LEAVE_REQUEST, strnlen(_NP_MSG_LEAVE_REQUEST, 256));
+    np_statistics_add_watch(context, subject_id );
 
-    np_statistics_add_watch(context, _NP_MSG_PHEROMONE_UPDATE);
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_PING_REQUEST, strnlen(_NP_MSG_PING_REQUEST, 256));
+    np_statistics_add_watch(context, subject_id );    
+
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_PIGGY_REQUEST, strnlen(_NP_MSG_PIGGY_REQUEST, 256));
+    np_statistics_add_watch(context, subject_id );
+
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_UPDATE_REQUEST, strnlen(_NP_MSG_UPDATE_REQUEST, 256));
+    np_statistics_add_watch(context, subject_id );	
+    
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_AVAILABLE_RECEIVER, strnlen(_NP_MSG_AVAILABLE_RECEIVER, 256));
+    np_statistics_add_watch(context, subject_id );
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_AVAILABLE_SENDER, strnlen(_NP_MSG_AVAILABLE_SENDER, 256));
+    np_statistics_add_watch(context, subject_id);
+
+    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    np_generate_subject(&subject_id, _NP_MSG_PHEROMONE_UPDATE, strnlen(_NP_MSG_PHEROMONE_UPDATE, 256));
+    np_statistics_add_watch(context, subject_id );
 
     if(context->enable_realm_server || context->enable_realm_client)
     {
-/*        np_statistics_add_watch(context, _NP_MSG_REALM_REGISTRATION);
+/*        
+        np_statistics_add_watch(context, _NP_MSG_REALM_REGISTRATION);
         np_statistics_add_watch(context, _NP_MSG_AUTHENTICATION_REQUEST);
         np_statistics_add_watch(context, _NP_MSG_AUTHORIZATION_REQUEST);
         np_statistics_add_watch(context, _NP_MSG_ACCOUNTING_REQUEST);
@@ -438,7 +467,7 @@ char* np_statistics_print(np_state_t* context, bool asOneLine)
     }
     ret = np_str_concatAndFree(ret, "-%s", new_line);
 
-    sll_iterator(char_ptr) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
+    sll_iterator(np_dhkey_t) iter_subjects = sll_first(np_module(statistics)->__watched_subjects);
 
     double sec_since_start;
 
@@ -459,7 +488,7 @@ char* np_statistics_print(np_state_t* context, bool asOneLine)
     while (iter_subjects != NULL)
     {
         np_statistics_element_t* container = NULL;
-        if (np_simple_cache_get(context, &np_module(statistics)->__cache, iter_subjects->val, &container) )
+        if (np_simple_cache_get(context, &np_module(statistics)->__cache, &iter_subjects->val, &container) )
         {
             sec_since_start = (now - container->first_check);
 
@@ -512,26 +541,26 @@ char* np_statistics_print(np_state_t* context, bool asOneLine)
                 current_sec_received = container->last_sec_received;
                 current_sec_send = container->last_sec_send;
             }
-            // per Sec calc end
 
+            // per sec calc end
             if (container->watch_receive) {
                 all_total_received += container->total_received;
                 ret = np_str_concatAndFree(ret,
-                    "received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+                    "received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %08x:%08x %s",
                     container->total_received,
                     current_sec_received, container->last_secdiff_received,
                     current_min_received, container->last_mindiff_received,
-                    iter_subjects->val, new_line);
+                    iter_subjects->val.t[0], iter_subjects->val.t[1], new_line);
             }
 
             if (container->watch_send) {
                 all_total_send += container->total_send;
                 ret = np_str_concatAndFree(ret,
-                    "send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
+                    "send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %08x:%08x%s",
                     container->total_send,
                     current_sec_send, container->last_secdiff_send,
                     current_min_send, container->last_mindiff_send,
-                    iter_subjects->val, new_line
+                    iter_subjects->val.t[0], iter_subjects->val.t[1], new_line
                 );
             }
             container->last_total_received = container->total_received;
@@ -611,18 +640,18 @@ void __np_statistics_set_success_avg(np_state_t* context, np_dhkey_t id, float v
     }
 }
 
-void __np_increment_forwarding_counter(np_state_t* context, NP_UNUSED char* subject) {
+void __np_increment_forwarding_counter(np_state_t* context, NP_UNUSED np_dhkey_t subject) {
     if (np_module_initiated(statistics)) {
         prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs], 1);
     }
 }
-void __np_increment_received_msgs_counter(np_state_t* context, char * subject){
+void __np_increment_received_msgs_counter(np_state_t* context, np_dhkey_t subject){
 if (np_module_initiated(statistics)) {
         prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_received_msgs], 1);
         prometheus_metric_inc(__np_statistics_get_subject_metrics(context, subject)->received_msgs, 1);        
     }
 }
-void __np_increment_send_msgs_counter(np_state_t* context, char * subject){
+void __np_increment_send_msgs_counter(np_state_t* context, np_dhkey_t subject){
     if (np_module_initiated(statistics)) {
         prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_send_msgs], 1);
         prometheus_metric_inc(__np_statistics_get_subject_metrics(context, subject)->send_msgs, 1);        
@@ -669,8 +698,8 @@ char* __np_statistics_debug_print(np_state_t * context) {
         ret = np_str_concatAndFree(ret, "%85s --> %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "hits");
         while (iter != NULL) {
             _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;
-            ret = np_str_concatAndFree(ret, "%85s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
-                item->key, item->min, item->avg, item->max, item->count);
+            ret = np_str_concatAndFree(ret, "%x%x%x%x --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
+                item->key[0], item->key[1], item->key[2], item->key[3], item->min, item->avg, item->max, item->count);
             sll_next(iter);
         }
     }

@@ -89,20 +89,6 @@ inline void OBJ##_set_##PROP_NAME(OBJ* obj, const char* value) {	\
 	obj->PROP_NAME = strndup(value, strlen(value));					\
 }
 
-#define _NP_GENERATE_MSGPROPERTY_SETVALUE(PROP_NAME,TYPE)			\
-inline void np_set_##PROP_NAME(const char* subject, np_msg_mode_type mode_type, TYPE value) { \
-	np_msgproperty_t* msg_prop = np_message_get_handler(state, mode_type, subject); \
-	if (NULL == msg_prop)                                 				\
-	{                                                     				\
-		np_new_obj(np_msgproperty_t, msg_prop);           				\
-		msg_prop->mode_type = mode_type;                  				\
-		msg_prop->msg_subject = strndup(subject, 255);    				\
-		np_message_register_handler(state, msg_prop);     				\
-		np_unref_obj(np_msgproperty_t, msg_prop, ref_obj_creation);     \
-	}                                                     				\
-	msg_prop->PROP_NAME = value;                          				\
-}
-
 
 	#define GENERATE_ENUM_STR(...) VFUNC(GENERATE_ENUM_STR, __VA_ARGS__)
 	#define __GENERATE_ENUM_STR_BEGIN(NAME) enum NAME##_e {

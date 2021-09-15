@@ -37,7 +37,7 @@ class PubSubTest(unittest.TestCase):
 
     @staticmethod
     def msg_received(node:NeuropilNode, message:np_message):
-        # print ("{time:.3f} / {node}: 2 msg received from {sender}".format(time=float(time.time()), node=node.get_fingerprint(), sender=np_id(message.__getattribute__('from')) ))
+        # print ("{time:.3f} / {node}: 2 msg received from {sender}".format(time=float(time.time()), node=node.get_fingerprint(), sender=message.__getattribute__('from')))
         PubSubTest.received[str(node.get_fingerprint())] = True
         PubSubTest.msg_delivery_succ = len(PubSubTest.received.keys())
         return True
@@ -53,16 +53,19 @@ class PubSubTest(unittest.TestCase):
         mxp = np_r1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp.max_retry = 5
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         np_r1.set_receive_cb(subject, self.msg_received)
 
         mxp = np_r2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         np_r2.set_receive_cb(subject, self.msg_received)
 
         mxp = np_s1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.apply()
 
         np_c.set_authenticate_cb(TestHelper.authn_allow_all)
@@ -105,21 +108,20 @@ class PubSubTest(unittest.TestCase):
                     if np_s1.np_has_receiver_for(subject):
                         receiver_available = elapsed
                 else:
-                    if receiver_available != None and elapsed > receiver_available+5 and not PubSubTest.send:
+                    if not PubSubTest.send and elapsed > (receiver_available+5):
                         # print ("{time:.3f} / {node}: 2 sending message".format(time=float(time.time()), node=np_s1.get_fingerprint() ) )
                         np_s1.send(subject, b'test')
                         PubSubTest.send = True
 
                 if elapsed > timeout:
                     raise TimeoutError
-
                 np_r1.run(math.pi/10)
 
         finally:
-            np_s1.shutdown()
-            np_r1.shutdown()
-            np_r2.shutdown()
-            np_c.shutdown()
+            np_s1.shutdown(False)
+            np_r1.shutdown(False)
+            np_r2.shutdown(False)
+            np_c.shutdown(False)
 
     def tearDown(self):
         self.assertTrue(True == PubSubTest.send)

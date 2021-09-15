@@ -52,8 +52,9 @@ class IdentityAttributeTest(unittest.TestCase):
             while elapsed < timeout:
                 elapsed = float(time.time() - t1)
 
-                np_1.run(0.1)
-                np_2.run(0.1)
+                np_1.run(0.01)
+                np_2.run(0.01)
+
                 if all(attribute_found):
                     break
 

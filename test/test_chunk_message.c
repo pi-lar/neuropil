@@ -19,6 +19,7 @@
 #include "neuropil_log.h"
 #include "np_log.h"
 #include "np_jobqueue.h"
+#include "np_key.h"
 #include "util/np_tree.h"
 #include "np_dhkey.h"
 #include "np_memory.h"
@@ -50,7 +51,11 @@ int main(int argc, char **argv) {
 	my_key->dhkey = my_dhkey;
 
 	uint16_t parts = 0;
-	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) msg_subject));
+	
+	np_dhkey_t test_subject_dhkey = {0};
+	np_generate_subject(&test_subject_dhkey, msg_subject, strnlen(msg_subject, 256));
+	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_dhkey(test_subject_dhkey));
+
 	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(my_key->dhkey) );
 	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey) );
 

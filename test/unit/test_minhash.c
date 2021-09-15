@@ -149,23 +149,23 @@ Test(np_minhash_t, _minhash_compare_single_shingle, .description="test the minha
     // fprintf(stdout, "similarity of documents 1.1 to 1.1 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_1_2, &result);
-    cr_expect(0.40 < result, "expect the document similarity to be greater than 0.40");
-    cr_expect(0.45 > result, "expect the document similarity to be less than 0.45");
+    cr_expect(0.45 < result, "expect the document similarity to be greater than 0.45");
+    cr_expect(0.50 > result, "expect the document similarity to be less than 0.50");
     // fprintf(stdout, "similarity of documents 1.1 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_2_1, &result);
-    cr_expect(0.45 < result, "expect the document similarity to be greater than 0.45");
-    cr_expect(0.55 > result, "expect the document similarity to be less than 0.55");
+    cr_expect(0.40 < result, "expect the document similarity to be greater than 0.40");
+    cr_expect(0.50 > result, "expect the document similarity to be less than 0.50");
     // fprintf(stdout, "similarity of documents 1.1 to 2.1 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_2_2, &result);
-    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
-    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
+    cr_expect(0.05 < result, "expect the document similarity to be greater than 0.05");
+    cr_expect(0.15 > result, "expect the document similarity to be less than 0.15");
     // fprintf(stdout, "similarity of documents 1.1 to 2.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_3_1, &result);
-    cr_expect(0.7 < result, "expect the document similarity to be greater than 0.7");
-    cr_expect(0.8 > result, "expect the document similarity to be less than 0.8");
+    cr_expect(0.6 < result, "expect the document similarity to be greater than 0.6");
+    cr_expect(0.7 > result, "expect the document similarity to be less than 0.7");
     // fprintf(stdout, "similarity of documents 1.1 to 3.1 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_3_2, &result);
@@ -174,18 +174,18 @@ Test(np_minhash_t, _minhash_compare_single_shingle, .description="test the minha
     // fprintf(stdout, "similarity of documents 1.1 to 3.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_2_1, &minhash_1_2, &result);
-    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
-    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
+    cr_expect(0.05 < result, "expect the document similarity to be greater than 0.05");
+    cr_expect(0.15 > result, "expect the document similarity to be less than 0.15");
     // fprintf(stdout, "similarity of documents 2.1 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_2_1, &minhash_2_2, &result);
-    cr_expect(0.4 < result, "expect the document similarity to be greater than 0.4");
-    cr_expect(0.5 > result, "expect the document similarity to be less than 0.5");
+    cr_expect(0.5 < result, "expect the document similarity to be greater than 0.4");
+    cr_expect(0.6 > result, "expect the document similarity to be less than 0.5");
     // fprintf(stdout, "similarity of documents 2.1 to 2.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_2_1, &minhash_3_1, &result);
-    cr_expect(0.6 < result, "expect the document similarity to be greater than 0.6");
-    cr_expect(0.7 > result, "expect the document similarity to be less than 0.7");
+    cr_expect(0.45 < result, "expect the document similarity to be greater than 0.45");
+    cr_expect(0.55 > result, "expect the document similarity to be less than 0.55");
     // fprintf(stdout, "similarity of documents 2.1 to 3.1 is %f\n", result);
 
     np_minhash_similarity(&minhash_2_1, &minhash_3_2, &result);
@@ -209,18 +209,18 @@ Test(np_minhash_t, _minhash_compare_single_shingle, .description="test the minha
     // fprintf(stdout, "similarity of documents 3.1 to 2.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_1, &minhash_3_2, &result);
-    cr_expect(0.3 < result, "expect the document similarity to be greater than 0.3");
-    cr_expect(0.4 > result, "expect the document similarity to be less than 0.4");
+    cr_expect(0.4 < result, "expect the document similarity to be greater than 0.4");
+    cr_expect(0.5 > result, "expect the document similarity to be less than 0.5");
     // fprintf(stdout, "similarity of documents 3.1 to 3.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_1_2, &result);
-    cr_expect(0.3 < result, "expect the document similarity to be greater than 0.3");
-    cr_expect(0.4 > result, "expect the document similarity to be less than 0.4");
+    cr_expect(0.4 < result, "expect the document similarity to be greater than 0.4");
+    cr_expect(0.5 > result, "expect the document similarity to be less than 0.5");
     // fprintf(stdout, "similarity of documents 3.2 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_2_2, &result);
-    cr_expect(0.4 < result, "expect the document similarity to be greater than 0.4");
-    cr_expect(0.5 > result, "expect the document similarity to be less than 0.5");
+    cr_expect(0.2 < result, "expect the document similarity to be greater than 0.2");
+    cr_expect(0.3 > result, "expect the document similarity to be less than 0.3");
     // fprintf(stdout, "similarity of documents 3.1 to 2.2 is %f\n", result);
 
     uint32_t signature[minhash_size];
@@ -298,13 +298,13 @@ Test(np_minhash_t, _minhash_compare_single_shingle, .description="test the minha
     // fprintf(stdout, "similarity of documents 2.1 to test minhash is %f\n", result);
 
     np_minhash_similarity(&minhash_2_2, &minhash_test, &result);
-    cr_expect(0.2 < result, "expect the document similarity to be greater than 0.2");
-    cr_expect(0.3 > result, "expect the document similarity to be less than 0.3");
+    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
+    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
     // fprintf(stdout, "similarity of documents 2.2 to test minhash is %f\n", result);
 
     np_minhash_similarity(&minhash_3_1, &minhash_test, &result);
-    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
-    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
+    cr_expect(0.05 < result, "expect the document similarity to be greater than 0.05");
+    cr_expect(0.15 > result, "expect the document similarity to be less than 0.15");
     // fprintf(stdout, "similarity of documents 3.1 to test minhash is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_test, &result);
@@ -396,12 +396,12 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     // fprintf(stdout, "similarity of documents 1.1 to 1.1 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_1_2, &result);
-    cr_expect(0.40 < result, "expect the document similarity to be greater than 0.40");
-    cr_expect(0.45 > result, "expect the document similarity to be less than 0.45");
+    cr_expect(0.45 < result, "expect the document similarity to be greater than 0.45");
+    cr_expect(0.55 > result, "expect the document similarity to be less than 0.55");
     // fprintf(stdout, "similarity of documents 1.1 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_2_1, &result);
-    cr_expect(0.40 < result, "expect the document similarity to be greater than 0.40");
+    cr_expect(0.35 < result, "expect the document similarity to be greater than 0.35");
     cr_expect(0.45 > result, "expect the document similarity to be less than 0.45");
     // fprintf(stdout, "similarity of documents 1.1 to 2.1 is %f\n", result);
 
@@ -411,8 +411,8 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     // fprintf(stdout, "similarity of documents 1.1 to 2.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_3_1, &result);
-    cr_expect(0.4 < result, "expect the document similarity to be greater than 0.4");
-    cr_expect(0.5 > result, "expect the document similarity to be less than 0.5");
+    cr_expect(0.35 < result, "expect the document similarity to be greater than 0.35");
+    cr_expect(0.45 > result, "expect the document similarity to be less than 0.45");
     // fprintf(stdout, "similarity of documents 1.1 to 3.1 is %f\n", result);
 
     np_minhash_similarity(&minhash_1_1, &minhash_3_2, &result);
@@ -436,8 +436,8 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     // fprintf(stdout, "similarity of documents 2.1 to 3.1 is %f\n", result);
 
     np_minhash_similarity(&minhash_2_1, &minhash_3_2, &result);
-    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
-    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
+    cr_expect(0.0 < result, "expect the document similarity to be greater than 0.0");
+    cr_expect(0.1 > result, "expect the document similarity to be less than 0.1");
     // fprintf(stdout, "similarity of documents 2.1 to 3.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_2_2, &minhash_1_2, &result);
@@ -451,13 +451,13 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     // fprintf(stdout, "similarity of documents 2.2 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_1, &minhash_2_2, &result);
-    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
-    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
+    cr_expect(0.0 < result, "expect the document similarity to be greater than 0.0");
+    cr_expect(0.1 > result, "expect the document similarity to be less than 0.1");
     // fprintf(stdout, "similarity of documents 3.1 to 2.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_1, &minhash_3_2, &result);
-    cr_expect(0.5 < result, "expect the document similarity to be greater than 0.5");
-    cr_expect(0.6 > result, "expect the document similarity to be less than 0.6");
+    cr_expect(0.4 < result, "expect the document similarity to be greater than 0.4");
+    cr_expect(0.5 > result, "expect the document similarity to be less than 0.5");
     // fprintf(stdout, "similarity of documents 3.1 to 3.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_1_2, &result);
@@ -466,8 +466,8 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     // fprintf(stdout, "similarity of documents 3.2 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_2_2, &result);
-    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
-    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
+    cr_expect(0.05 < result, "expect the document similarity to be greater than 0.05");
+    cr_expect(0.15 > result, "expect the document similarity to be less than 0.15");
     // fprintf(stdout, "similarity of documents 3.1 to 2.2 is %f\n", result);
 
     uint32_t signature[minhash_size];
@@ -550,7 +550,7 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     // fprintf(stdout, "similarity of documents 2.2 to test minhash is %f\n", result);
 
     np_minhash_similarity(&minhash_3_1, &minhash_test, &result);
-    cr_expect(0.0 < result, "expect the document similarity to be greater than 0.0");
+    cr_expect(0.0 <= result, "expect the document similarity to be greater than 0.0");
     cr_expect(0.1 > result, "expect the document similarity to be less than 0.1");
     // fprintf(stdout, "similarity of documents 3.1 to test minhash is %f\n", result);
 
@@ -649,13 +649,13 @@ Test(np_minhash_t, _minhash_compare_odrl, .description="test the minhash functio
     // fprintf(stdout, "similarity of documents 2.2 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_1_2, &result);
-    cr_expect(0.6 < result, "expect the document similarity to be greater than 0.6");
-    cr_expect(0.7 > result, "expect the document similarity to be less than 0.7");
+    cr_expect(0.45 < result, "expect the document similarity to be greater than 0.6");
+    cr_expect(0.55 > result, "expect the document similarity to be less than 0.7");
     // fprintf(stdout, "similarity of documents 3.2 to 1.2 is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_2_2, &result);
-    cr_expect(0.4 < result, "expect the document similarity to be greater than 0.4");
-    cr_expect(0.5 > result, "expect the document similarity to be less than 0.5");
+    cr_expect(0.6 < result, "expect the document similarity to be greater than 0.4");
+    cr_expect(0.7 > result, "expect the document similarity to be less than 0.5");
     // fprintf(stdout, "similarity of documents 3.2 to 2.2 is %f\n", result);
 
     uint32_t signature[minhash_size];
@@ -702,18 +702,18 @@ Test(np_minhash_t, _minhash_compare_odrl, .description="test the minhash functio
 
 
     np_minhash_similarity(&minhash_1_2, &minhash_test, &result);
-    cr_expect(0.1< result, "expect the document similarity to be greater than 0.0");
-    cr_expect(0.2 > result, "expect the document similarity to be less than 0.1");
+    cr_expect(0.1< result, "expect the document similarity to be greater than 0.1");
+    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
     // fprintf(stdout, "similarity of documents 1.2 to test minhash is %f\n", result);
 
     np_minhash_similarity(&minhash_2_2, &minhash_test, &result);
-    cr_expect(0.2 < result, "expect the document similarity to be greater than 0.1");
-    cr_expect(0.3 > result, "expect the document similarity to be less than 0.2");
+    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
+    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
     // fprintf(stdout, "similarity of documents 2.2 to test minhash is %f\n", result);
 
     np_minhash_similarity(&minhash_3_2, &minhash_test, &result);
-    cr_expect(0.2 < result, "expect the document similarity to be greater than 0.0");
-    cr_expect(0.3 > result, "expect the document similarity to be less than 0.1");
+    cr_expect(0.1 < result, "expect the document similarity to be greater than 0.1");
+    cr_expect(0.2 > result, "expect the document similarity to be less than 0.2");
     // fprintf(stdout, "similarity of documents 3.2 to test minhash is %f\n", result);
 
 /*

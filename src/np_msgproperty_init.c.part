@@ -15,15 +15,15 @@
 #ifndef DEFAULT_MSGPROPERTY_SET
 #define DEFAULT_MSGPROPERTY_SET
 
-sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
+sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t* context) {
     
-    np_sll_t(np_msgproperty_ptr, ret);
-    sll_init(np_msgproperty_ptr, ret);
+    np_sll_t(np_msgproperty_conf_ptr, ret);
+    sll_init(np_msgproperty_conf_ptr, ret);
 
 
-    np_msgproperty_t* __default_properties = NULL;
-    np_new_obj(np_msgproperty_t, __default_properties, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __default_properties);
+    np_msgproperty_conf_t* __default_properties = NULL;
+    np_new_obj(np_msgproperty_conf_t, __default_properties, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __default_properties);
 
     __default_properties->msg_subject = strdup(_DEFAULT);
     __default_properties->msg_ttl = 20.0;
@@ -38,12 +38,13 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __default_properties->max_threshold = 2;
     __default_properties->token_max_ttl = 30;
     __default_properties->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __default_properties->clb_outbound , _np_out_default);    
+    __default_properties->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __default_properties->callbacks , _np_out_default);    
 
 
-    np_msgproperty_t* __forward_properties = NULL;
-    np_new_obj(np_msgproperty_t, __forward_properties, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __forward_properties);
+    np_msgproperty_conf_t* __forward_properties = NULL;
+    np_new_obj(np_msgproperty_conf_t, __forward_properties, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __forward_properties);
 
     __forward_properties->msg_subject = strdup(_FORWARD);
     __forward_properties->rep_subject = NULL;
@@ -53,17 +54,18 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __forward_properties->ack_mode = ACK_NONE;
     __forward_properties->retry = 0;
     __forward_properties->unique_uuids_check = true;
-    __forward_properties->msg_ttl = 20.0;
+    __forward_properties->msg_ttl = 5.0;
     __forward_properties->cache_size = 8;
     __forward_properties->max_threshold = 2;
     __forward_properties->token_max_ttl = 30;
     __forward_properties->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __forward_properties->clb_outbound , _np_out_forward);    
+    __forward_properties->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __forward_properties->clb_outbound , _np_out_forward);    
 
 
-    np_msgproperty_t* __handshake_properties = NULL;
-    np_new_obj(np_msgproperty_t, __handshake_properties, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __handshake_properties);
+    np_msgproperty_conf_t* __handshake_properties = NULL;
+    np_new_obj(np_msgproperty_conf_t, __handshake_properties, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __handshake_properties);
 
     __handshake_properties->msg_subject = strdup(_NP_MSG_HANDSHAKE);
     __handshake_properties->rep_subject = NULL;
@@ -72,20 +74,21 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __handshake_properties->priority = 0;
     __handshake_properties->ack_mode = ACK_NONE;
     __handshake_properties->retry = 0;
-    __handshake_properties->unique_uuids_check = false;
-    __handshake_properties->msg_ttl = 20.0;
+    __handshake_properties->unique_uuids_check = true;
+    __handshake_properties->msg_ttl = 5.0;
     __handshake_properties->cache_size = 8;
     __handshake_properties->max_threshold = 2;
     __handshake_properties->token_max_ttl = 30;
     __handshake_properties->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __handshake_properties->clb_inbound , _np_in_handshake );
-    sll_append(np_evt_callback_t, __handshake_properties->clb_outbound, _np_out_handshake);
+    __handshake_properties->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __handshake_properties->clb_inbound , _np_in_handshake );
+    // sll_append(np_evt_callback_t, __handshake_properties->clb_outbound, _np_out_handshake);
 
 
     // we don't need to ack the ack the ack the ack ...
-    np_msgproperty_t* __ack_properties = NULL;
-    np_new_obj(np_msgproperty_t, __ack_properties, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __ack_properties);
+    np_msgproperty_conf_t* __ack_properties = NULL;
+    np_new_obj(np_msgproperty_conf_t, __ack_properties, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __ack_properties);
 
     __ack_properties->msg_subject = strdup(_NP_MSG_ACK);
     __ack_properties->rep_subject = NULL;
@@ -100,14 +103,15 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __ack_properties->max_threshold = 2;
     __ack_properties->token_max_ttl = 30;
     __ack_properties->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __ack_properties->clb_inbound, _np_in_ack);
-    sll_append(np_evt_callback_t, __ack_properties->clb_outbound, _np_out_ack);
+    __ack_properties->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __ack_properties->clb_inbound, _np_in_ack);
+    // sll_append(np_evt_callback_t, __ack_properties->clb_outbound, _np_out_ack);
 
 
     // join request: node unknown yet; therefore send without ack; explicit ack handling via extra messages
-    np_msgproperty_t* __join_req = NULL;
-    np_new_obj(np_msgproperty_t, __join_req, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __join_req);
+    np_msgproperty_conf_t* __join_req = NULL;
+    np_new_obj(np_msgproperty_conf_t, __join_req, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __join_req);
 
     __join_req->msg_subject = strdup(_NP_MSG_JOIN_REQUEST);
     __join_req->rep_subject = NULL;
@@ -117,19 +121,20 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __join_req->ack_mode = ACK_NONE;
     __join_req->retry = 5;
     __join_req->unique_uuids_check = true;
-    __join_req->msg_ttl = 30.0;
+    __join_req->msg_ttl = 5.0;
     __join_req->cache_size = 8;
     __join_req->max_threshold = 2;
     __join_req->token_max_ttl = 30;
     __join_req->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __join_req->clb_inbound,  _np_in_join );
-    sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out_join);
+    __join_req->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __join_req->clb_inbound,  _np_in_join );
+    // sll_append(np_evt_callback_t, __join_req->clb_outbound, _np_out_join);
 
 
     // leave the network and clean up the mess
-    np_msgproperty_t* __leave_properties = NULL;
-    np_new_obj(np_msgproperty_t, __leave_properties, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __leave_properties);
+    np_msgproperty_conf_t* __leave_properties = NULL;
+    np_new_obj(np_msgproperty_conf_t, __leave_properties, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __leave_properties);
 
     __leave_properties->msg_subject = strdup(_NP_MSG_LEAVE_REQUEST);
     __leave_properties->rep_subject = NULL;
@@ -144,13 +149,14 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __leave_properties->max_threshold = 2;
     __leave_properties->token_max_ttl = 30;
     __leave_properties->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __leave_properties->clb_inbound,  _np_in_leave );
-    sll_append(np_evt_callback_t, __leave_properties->clb_outbound, _np_out_leave);
+    __leave_properties->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __leave_properties->clb_inbound,  _np_in_leave );
+    // sll_append(np_evt_callback_t, __leave_properties->clb_outbound, _np_out_leave);
 
 
-    np_msgproperty_t* __ping = NULL;
-    np_new_obj(np_msgproperty_t, __ping, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __ping);
+    np_msgproperty_conf_t* __ping = NULL;
+    np_new_obj(np_msgproperty_conf_t, __ping, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __ping);
 
     __ping->msg_subject = strdup(_NP_MSG_PING_REQUEST);
     __ping->rep_subject = NULL;
@@ -165,14 +171,15 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __ping->max_threshold = 2;
     __ping->token_max_ttl = 30;
     __ping->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __ping->clb_inbound , _np_in_ping);
-    sll_append(np_evt_callback_t, __ping->clb_inbound , _check_and_send_destination_ack);
-    sll_append(np_evt_callback_t, __ping->clb_outbound, _np_out_ping);
+    __ping->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __ping->clb_inbound , _np_in_ping);
+    // sll_append(np_evt_callback_t, __ping->clb_inbound , _check_and_send_destination_ack);
+    // sll_append(np_evt_callback_t, __ping->clb_outbound, _np_out_ping);
 
 
-    np_msgproperty_t* __piggy = NULL;
-    np_new_obj(np_msgproperty_t, __piggy, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __piggy);
+    np_msgproperty_conf_t* __piggy = NULL;
+    np_new_obj(np_msgproperty_conf_t, __piggy, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __piggy);
 
     __piggy->msg_subject = strndup(_NP_MSG_PIGGY_REQUEST, strlen(_NP_MSG_PIGGY_REQUEST));
     __piggy->rep_subject = NULL;
@@ -187,13 +194,14 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __piggy->max_threshold = 2;
     __piggy->token_max_ttl = 30;
     __piggy->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __piggy->clb_inbound, _np_in_piggy);
-    sll_append(np_evt_callback_t, __piggy->clb_outbound, _np_out_piggy);
+    __piggy->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __piggy->clb_inbound, _np_in_piggy);
+    // sll_append(np_evt_callback_t, __piggy->clb_outbound, _np_out_piggy);
 
 
-    np_msgproperty_t* __update = NULL;
-    np_new_obj(np_msgproperty_t, __update, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __update);
+    np_msgproperty_conf_t* __update = NULL;
+    np_new_obj(np_msgproperty_conf_t, __update, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __update);
 
     __update->msg_subject = strdup(_NP_MSG_UPDATE_REQUEST);
     __update->rep_subject = NULL;
@@ -203,18 +211,19 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __update->ack_mode = ACK_NONE;
     __update->retry = 0;
     __update->unique_uuids_check = true;
-    __update->msg_ttl = 20.0;
+    __update->msg_ttl = 10.0;
     __update->cache_size = 8;
     __update->max_threshold = 2;
     __update->token_max_ttl = 30;
     __update->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __update->clb_inbound, _np_in_update);
-    sll_append(np_evt_callback_t, __update->clb_outbound, _np_out_update);
+    __update->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __update->clb_inbound, _np_in_update);
+    // sll_append(np_evt_callback_t, __update->clb_outbound, _np_out_update);
 
 
-    np_msgproperty_t* __available_receiver = NULL;
-    np_new_obj(np_msgproperty_t, __available_receiver, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __available_receiver);
+    np_msgproperty_conf_t* __available_receiver = NULL;
+    np_new_obj(np_msgproperty_conf_t, __available_receiver, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __available_receiver);
 
     __available_receiver->msg_subject = strdup(_NP_MSG_AVAILABLE_RECEIVER);
     __available_receiver->rep_subject = NULL;
@@ -224,18 +233,19 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __available_receiver->ack_mode = ACK_NONE;
     __available_receiver->retry = 0;
     __available_receiver->unique_uuids_check = true;
-    __available_receiver->msg_ttl = 20.0;
+    __available_receiver->msg_ttl = 10.0;
     __available_receiver->cache_size = 8;
     __available_receiver->max_threshold = 2;
     __available_receiver->token_max_ttl = 30;
     __available_receiver->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __available_receiver->clb_inbound, _np_in_available_receiver);
-    sll_append(np_evt_callback_t, __available_receiver->clb_outbound, _np_out_available_messages);    
+    __available_receiver->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __available_receiver->clb_inbound, _np_in_available_receiver);
+    // sll_append(np_evt_callback_t, __available_receiver->clb_outbound, _np_out_available_messages);    
 
 
-    np_msgproperty_t* __available_sender = NULL;
-    np_new_obj(np_msgproperty_t, __available_sender, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __available_sender);
+    np_msgproperty_conf_t* __available_sender = NULL;
+    np_new_obj(np_msgproperty_conf_t, __available_sender, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __available_sender);
 
     __available_sender->msg_subject = strdup(_NP_MSG_AVAILABLE_SENDER);
     __available_sender->rep_subject = NULL;
@@ -245,17 +255,18 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __available_sender->ack_mode = ACK_NONE;
     __available_sender->retry = 0;
     __available_sender->unique_uuids_check = true;
-    __available_sender->msg_ttl = 20.0;
+    __available_sender->msg_ttl = 10.0;
     __available_sender->cache_size = 8;
     __available_sender->max_threshold = 2;
     __available_sender->token_max_ttl = 30;
     __available_sender->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __available_sender->clb_inbound, _np_in_available_sender);
-    sll_append(np_evt_callback_t, __available_sender->clb_outbound, _np_out_available_messages);
+    __available_sender->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __available_sender->clb_inbound, _np_in_available_sender);
+    // sll_append(np_evt_callback_t, __available_sender->clb_outbound, _np_out_available_messages);
 
-    np_msgproperty_t* __pheromone_update = NULL;
-    np_new_obj(np_msgproperty_t, __pheromone_update, ref_system_msgproperty);
-    sll_append(np_msgproperty_ptr, ret, __pheromone_update);
+    np_msgproperty_conf_t* __pheromone_update = NULL;
+    np_new_obj(np_msgproperty_conf_t, __pheromone_update, ref_system_msgproperty);
+    sll_append(np_msgproperty_conf_ptr, ret, __pheromone_update);
 
     __pheromone_update->msg_subject = strdup(_NP_MSG_PHEROMONE_UPDATE);
     __pheromone_update->rep_subject = NULL;
@@ -266,13 +277,14 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
     __pheromone_update->retry = 1;
     __pheromone_update->unique_uuids_check = false;
     __pheromone_update->cache_policy = FIFO | OVERFLOW_PURGE;
-    __pheromone_update->msg_ttl = 5.0;
+    __pheromone_update->msg_ttl = 10.0;
     __pheromone_update->cache_size = 2;
     __pheromone_update->max_threshold = 2;
     __pheromone_update->token_max_ttl = 30;
     __pheromone_update->token_min_ttl = 20;
-    sll_append(np_evt_callback_t, __pheromone_update->clb_inbound, _np_in_pheromone);
-    sll_append(np_evt_callback_t, __pheromone_update->clb_outbound , _np_out_pheromone);
+    __pheromone_update->audience_type = NP_MX_AUD_PUBLIC;
+    // sll_append(np_evt_callback_t, __pheromone_update->clb_inbound, _np_in_pheromone);
+    // sll_append(np_evt_callback_t, __pheromone_update->clb_outbound , _np_out_pheromone);
 
     return (ret);
 }
@@ -281,10 +293,10 @@ sll_return(np_msgproperty_ptr) default_msgproperties(np_state_t* context) {
 #ifndef REALM_MSGPROPERTY_SET
 #define REALM_MSGPROPERTY_SET
 
-np_msgproperty_ptr realm_msgproperty_template(np_state_t* context) {
+np_msgproperty_conf_ptr realm_msgproperty_template(np_state_t* context) {
 
-    np_msgproperty_t* __authenticate = NULL;
-    np_new_obj(np_msgproperty_t, __authenticate, ref_system_msgproperty);
+    np_msgproperty_conf_t* __authenticate = NULL;
+    np_new_obj(np_msgproperty_conf_t, __authenticate, ref_system_msgproperty);
 
     __authenticate->msg_subject = NULL; // strdup(_NP_MSG_AUTHENTICATION_REQUEST);
     __authenticate->rep_subject = NULL;
@@ -307,9 +319,9 @@ np_msgproperty_ptr realm_msgproperty_template(np_state_t* context) {
 #endif // REALM_MSGPROPERTY_SET
 
 /*
-    np_msgproperty_t* __authorize = NULL;
-    np_new_obj(np_msgproperty_t, __authorize, ref_system_msgproperty);
-    //sll_append(np_msgproperty_ptr, ret, __authorize);
+    np_msgproperty_conf_t* __authorize = NULL;
+    np_new_obj(np_msgproperty_conf_t, __authorize, ref_system_msgproperty);
+    //sll_append(np_msgproperty_conf_ptr, ret, __authorize);
 
     __authorize->msg_subject = strdup(_NP_MSG_AUTHORIZATION_REQUEST);
     __authorize->rep_subject = strdup(_NP_MSG_AUTHORIZATION_REPLY);
@@ -327,9 +339,9 @@ np_msgproperty_ptr realm_msgproperty_template(np_state_t* context) {
     __authorize->token_min_ttl = 20;
 
 
-    np_msgproperty_t* __authorize_reply = NULL;
-    np_new_obj(np_msgproperty_t, __authorize_reply, ref_system_msgproperty);
-    //sll_append(np_msgproperty_ptr, ret, __authorize_reply);
+    np_msgproperty_conf_t* __authorize_reply = NULL;
+    np_new_obj(np_msgproperty_conf_t, __authorize_reply, ref_system_msgproperty);
+    //sll_append(np_msgproperty_conf_ptr, ret, __authorize_reply);
 
     __authorize_reply->msg_subject = strdup(_NP_MSG_AUTHORIZATION_REPLY);
     __authorize_reply->rep_subject = NULL;
@@ -346,9 +358,9 @@ np_msgproperty_ptr realm_msgproperty_template(np_state_t* context) {
     __authorize_reply->token_min_ttl = 20;
 
 
-    np_msgproperty_t* __account = NULL;
-    np_new_obj(np_msgproperty_t, __account, ref_system_msgproperty);
-    //sll_append(np_msgproperty_ptr, ret, __account);
+    np_msgproperty_conf_t* __account = NULL;
+    np_new_obj(np_msgproperty_conf_t, __account, ref_system_msgproperty);
+    //sll_append(np_msgproperty_conf_ptr, ret, __account);
 
     __account->msg_subject = strdup(_NP_MSG_ACCOUNTING_REQUEST);
     __account->rep_subject = NULL;

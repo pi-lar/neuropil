@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
-
 from _neuropil import lib as neuropil, ffi
+from typing import Union
 import time, copy, inspect
 
 class NeuropilException(Exception):
@@ -13,7 +13,7 @@ class np_mx_properties(object):
 
     def __init__(self, raw, **entries):
         self._ignore_at_conversion = ["subject","_raw"]
-        self.subject = None
+        self.subject:np_subject = None
         self._raw = raw
         self.__dict__.update(entries)
 
@@ -24,7 +24,7 @@ class np_mx_properties(object):
         ret = neuropil.np_invalid_argument
         if self._raw and self.subject:
             ret = self._raw.set_mx_properties(self.subject, self)
-        if ret is not neuropil.np_ok:
+        if ret != neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
 
         return ret
@@ -34,7 +34,7 @@ class np_mx_properties(object):
             key = key.encode("utf-8")
         if isinstance(data, str):
             data = data.encode("utf-8")
-        data_return = neuropil.np_set_mxp_attr_policy_bin(self._raw._context, self.subject, key, data, len(data))
+        data_return = neuropil.np_set_mxp_attr_policy_bin(self._raw._context, self.subject._cdata, key, data, len(data))
 
         if data_return != neuropil.np_data_ok:
             raise NeuropilException(f'Could not set attribute. Error code: {data_return}. Please review neuropil_data.h for details',data_return)
@@ -45,21 +45,49 @@ class np_mx_properties(object):
             key = key.encode("utf-8")
         if isinstance(data, str):
             data = data.encode("utf-8")
-        data_return = neuropil.np_set_mxp_attr_bin(self._raw._context, self.subject, neuropil.NP_ATTR_NONE, key, data, len(data))
+        data_return = neuropil.np_set_mxp_attr_bin(self._raw._context, self.subject._cdata, neuropil.NP_ATTR_NONE, key, data, len(data))
 
         if data_return != neuropil.np_data_ok:
             raise NeuropilException(f'Could not set attribute. Error code: {data_return}. Please review neuropil_data.h for details',data_return)
 
 class np_id(object):
-
     def __init__(self, id_cdata):
         self._cdata = id_cdata
-        s = ffi.new("char[65]", b'\0')
+        self._update_hex()
+        
+    def _update_hex(self,size=65):        
+        s = ffi.new(f"char[{size}]", b'\0')
         neuropil.np_id_str(s, self._cdata)
         self._hex = ffi.string(s).decode("utf-8")
 
     def __str__(self):
         return self._hex
+
+class np_subject(np_id):
+    def __init__(self, id_cdata):
+        super().__init__(id_cdata)
+
+    def add(self, subject:str)->int:
+        np_subject.generate(subject, base_subject=self)
+        self._update_hex()
+
+    @staticmethod
+    def generate(subject:Union[str,bytes], base_subject:"np_subject"=None)->"np_subject":
+        _subject = subject
+        if isinstance(_subject, str):
+            _subject =  _subject.encode("utf-8")
+        if not isinstance(_subject, bytes):
+            raise ValueError(f"argument `subject` needs to be of type `bytes` or `str`, not `{type(subject)}`")
+        
+        if base_subject == None:
+            id = ffi.new("np_subject", b'\0')
+        else:
+            id = base_subject._cdata
+        code = neuropil.np_generate_subject(ffi.addressof(id), _subject, len(_subject))
+        if code != neuropil.np_ok:
+            raise NeuropilException(f'Could not generate subject \"{str(subject)}\". Error code: {code}. Please review neuropil.h for details',code)            
+        
+        return base_subject or np_subject(id)
 
 class np_token(object):
     def __init__(self, node, raw,  **entries):
@@ -116,7 +144,7 @@ class np_message(object):
         setattr(self,'from',np_id(getattr(self,'from')))
         self._raw = _raw
         self._data = bytes(ffi.buffer(_data['data'], self.data_length))
-        self.subject = np_id(self.subject)
+        self.subject = np_subject(self.subject)
 
     def raw(self):
         return self._data
@@ -216,8 +244,7 @@ class NeuropilNode(object):
 
     def __del__(self):
         if not self._destroyed:
-            self._destroyed = True
-            neuropil.np_destroy(self._context, False)
+            self.shutdown(False)
 
     def shutdown(self, grace=True):
         if not self._destroyed:
@@ -233,24 +260,17 @@ class NeuropilNode(object):
 
         return np_id(id)
 
-    def set_receive_cb(self, subject:bytes, recv_callback):
-        if isinstance( subject, str):
-             subject =  subject.encode("utf-8")
-
-        if not isinstance( subject, bytes):
-            raise ValueError(f"Subject needs to be of type `bytes` or `str`")
+    def set_receive_cb(self, subject:Union[str,bytes,np_subject], recv_callback):
+        subject = _NeuropilHelper.check_subject(subject)
 
         ret = neuropil.np_ok
 
-        subject_npid = ffi.new("np_id")
-        subject_id = ffi.new("char[65]",b'\0')
-        neuropil.np_get_id(ffi.addressof(subject_npid), subject, 64)
-        neuropil.np_id_str(subject_id, subject_npid)
-        subject_id = _NeuropilHelper.convert_to_python(self, subject_id)
+        subject_id = str(subject)
 
         if subject_id not in self.__callback_info_dict__:
             self.__callback_info_dict__[subject_id] = []
-            ret = neuropil.np_add_receive_cb(self._context, subject, neuropil._py_subject_callback)
+            ret = neuropil.np_add_receive_cb(self._context, subject._cdata, neuropil._py_subject_callback)
+
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         else:
@@ -293,16 +313,13 @@ class NeuropilNode(object):
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
-    def send(self, subject:str, message:bytes):
-        if isinstance(subject, str):
-            subject = subject.encode("utf-8")
+    def send(self, subject:Union[str,bytes,np_subject], message:bytes):
+        _subject = _NeuropilHelper.check_subject(subject)
         if isinstance(message, str):
             message = message.encode("utf-8")
-        if not isinstance(subject, bytes):
-            raise ValueError(f"subject needs to be of type `bytes` or `str`")
 
         raw_bytes = ffi.from_buffer(message)
-        ret = neuropil.np_send(self._context, subject, raw_bytes, len(raw_bytes))
+        ret = neuropil.np_send(self._context, _subject._cdata, raw_bytes, len(raw_bytes))
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
@@ -336,13 +353,10 @@ class NeuropilNode(object):
             raise NeuropilException('Could not use identity. Error: {error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
 
-    def get_mx_properties(self, subject:bytes):
-        if isinstance(subject, str):
-            subject = subject.encode("utf-8")
-        if not isinstance(subject, bytes):
-            raise ValueError(f"subject needs to be of type `bytes` or `str`")
+    def get_mx_properties(self, subject:Union[str,bytes,np_subject]):
+        subject = _NeuropilHelper.check_subject(subject)
 
-        ret = neuropil.np_get_mx_properties(self._context, subject)
+        ret = neuropil.np_get_mx_properties(self._context, subject._cdata)
 
         if ret == ffi.NULL:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
@@ -352,15 +366,12 @@ class NeuropilNode(object):
 
         return ret
 
-    def set_mx_properties(self, subject:bytes, mx_property:np_mx_properties):
-        subject = _NeuropilHelper.convert_from_python(subject)
-
-        if not isinstance(subject, bytes):
-            raise ValueError(f"subject needs to be of type `bytes` or `str`")
+    def set_mx_properties(self, subject:Union[str,bytes,np_subject], mx_property:np_mx_properties):
+        subject = _NeuropilHelper.check_subject(subject)
         if not isinstance(mx_property, np_mx_properties):
             raise ValueError(f"mx_property needs to be of type `np_mx_properties`")
 
-        ret = neuropil.np_set_mx_properties(self._context, subject, _NeuropilHelper.convert_from_python(mx_property))
+        ret = neuropil.np_set_mx_properties(self._context, subject._cdata, _NeuropilHelper.convert_from_python(mx_property))
 
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
@@ -375,13 +386,10 @@ class NeuropilNode(object):
     def has_joined(self):
         return neuropil.np_has_joined(self._context)
 
-    def np_has_receiver_for(self, subject:str):
-        subject = _NeuropilHelper.convert_from_python(subject)
+    def np_has_receiver_for(self, subject:Union[str,bytes,np_subject]):
+        subject = _NeuropilHelper.check_subject(subject)
 
-        if not isinstance(subject, bytes):
-            raise ValueError(f"subject needs to be of type `bytes` or `str`")
-
-        return neuropil.np_has_receiver_for(self._context, subject)
+        return neuropil.np_has_receiver_for(self._context, subject._cdata)
 
     def get_address(self):
         address = ffi.new("char[500]",b'\0')
@@ -442,6 +450,16 @@ class _NeuropilHelper():
                     yield (field,getattr( s, field ))
                 else:
                     yield (field, _NeuropilHelper.convert_to_python(node,  getattr( s, field )))
+    @staticmethod
+    def check_subject(subject):
+        ret = subject
+        if not isinstance(ret, np_subject):
+            ret =  np_subject.generate(ret)
+
+        if not isinstance(ret, np_subject):
+            raise ValueError(f"argument `subject` needs to be of type `bytes`, `str` or `np_subject`")
+        return ret
+
 
     @staticmethod
     def convert_to_python(node:NeuropilNode, s):
@@ -462,6 +480,8 @@ class _NeuropilHelper():
                 ret = np_token(node, s, **ret)
             elif  type.cname == 'struct np_id':
                 ret = np_id(s)
+            elif  type.cname == 'struct np_subject':
+                ret = np_subject(s)
             elif  type.cname == 'struct np_mx_properties':
                 ret = np_mx_properties(node, **ret)
         elif type.kind == 'array':
@@ -481,7 +501,8 @@ class _NeuropilHelper():
         elif type.kind == 'pointer':
                 ret = _NeuropilHelper.convert_to_python(node, s[0])
         else:
-            print(f"_NeuropilHelper.convert_to_python: _NeuropilHelper.convert_to_python: unknown {type.kind}")
+            print(f"NotImplementedError in _NeuropilHelper.convert_to_python: unknown {type.kind}. {type.name} {repr(type)}")
+            raise NotImplementedError()
         return ret
 
     @staticmethod

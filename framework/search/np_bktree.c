@@ -16,14 +16,14 @@ int8_t _compare_npindex_entry_add(const void* old, const void* new)
     np_searchentry_t* _1 = (np_searchentry_t*) old;
     np_searchentry_t* _2 = (np_searchentry_t*) new;
 
-    np_dhkey_t _common = {0}, _diff = {0}, _zero = {0};
+    np_dhkey_t _common = {0}, _diff = {0};
 
     _np_dhkey_and(&_common, &_1->search_index.lower_dhkey, &_2->search_index.lower_dhkey);
     _np_dhkey_xor(&_diff  , &_1->search_index.lower_dhkey, &_2->search_index.lower_dhkey);
 
     uint8_t _dist_common = 0, _dist_diff = 0;
-    _np_dhkey_hamming_distance(&_dist_common, &_zero, &_common);
-    _np_dhkey_hamming_distance(&_dist_diff, &_zero, &_diff);
+    _np_dhkey_hamming_distance(&_dist_common, &dhkey_zero, &_common);
+    _np_dhkey_hamming_distance(&_dist_diff, &dhkey_zero, &_diff);
 
     // fprintf(stdout, "comm: %u diff: %u  --> %d\n", _dist_common, _dist_diff, _dist_common - _dist_diff); 
     if      (_dist_diff > _dist_common) return -1;
@@ -96,14 +96,14 @@ bool __np_bktree_insert(np_bktree_node_t* tree_node, np_dhkey_t key, void* value
     //     }
     // }
 
-    np_dhkey_t _common = {0}, _diff = {0}, _zero = {0};
+    np_dhkey_t _common = {0}, _diff = {0};
 
     _np_dhkey_and(&_common, &key, &tree_node->_key);
     _np_dhkey_or(&_diff  , &key, &tree_node->_key);
 
     uint8_t _dist_common = 0, _dist_diff = 0;
-    _np_dhkey_hamming_distance(&_dist_common, &_zero, &_common); // sum of 1 in both np_index
-    _np_dhkey_hamming_distance(&_dist_diff, &_zero, &_diff); // sum of 1 in either np_index
+    _np_dhkey_hamming_distance(&_dist_common, &dhkey_zero, &_common); // sum of 1 in both np_index
+    _np_dhkey_hamming_distance(&_dist_diff, &dhkey_zero, &_diff); // sum of 1 in either np_index
 
     float _jc = (float) _dist_common / _dist_diff; // jaccard index
 
@@ -220,14 +220,14 @@ void __np_bktree_query(np_bktree_node_t* tree_node, np_dhkey_t key, void* value,
     //     }
     // }
 
-    np_dhkey_t _common = {0}, _diff = {0}, _zero = {0};
+    np_dhkey_t _common = {0}, _diff = {0};
 
     _np_dhkey_and(&_common, &key, &tree_node->_key);
     _np_dhkey_or(&_diff  , &key, &tree_node->_key);
 
     uint8_t _dist_common = 0, _dist_diff = 0;
-    _np_dhkey_hamming_distance(&_dist_common, &_zero, &_common); // sum of 1 in both np_index
-    _np_dhkey_hamming_distance(&_dist_diff, &_zero, &_diff); // sum of 1 in either np_index
+    _np_dhkey_hamming_distance(&_dist_common, &dhkey_zero, &_common); // sum of 1 in both np_index
+    _np_dhkey_hamming_distance(&_dist_diff, &dhkey_zero, &_diff); // sum of 1 in either np_index
 
     float _jc = (float) _dist_common / _dist_diff; // jaccard index
 

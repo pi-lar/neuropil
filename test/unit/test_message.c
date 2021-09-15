@@ -71,9 +71,12 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description = "test the s
         np_tree_insert_str(write_tree, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
         np_tree_insert_str(write_tree, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
+        np_dhkey_t test_subject_dhkey = {0};
+        np_generate_subject(&test_subject_dhkey, "serialize_np_message_t", 22);
+
         np_message_t* write_msg = NULL;
         np_new_obj(np_message_t, write_msg);
-        _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
+        _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, test_subject_dhkey, write_tree);
         np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
         // Do the serialsation
@@ -162,7 +165,10 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
         np_tree_insert_str(write_msg->instructions, "TESTKEY_FROM", np_treeval_new_dhkey(write_dhkey_from));
         np_tree_insert_str(write_msg->instructions, "TESTKEY_TO", np_treeval_new_dhkey(write_dhkey_to));
 
-        _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, "serialize_np_message_t", write_tree);
+		np_dhkey_t test_subject_dhkey = {0};
+		np_generate_subject(&test_subject_dhkey, "serialize_np_message_t", 22);
+
+        _np_message_create(write_msg, write_to->dhkey, write_from->dhkey, test_subject_dhkey, write_tree);
         np_tree_insert_str(write_msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(0, 0));
 
         // Do the serialsation
@@ -226,7 +232,9 @@ Test(np_message_t, _message_chunk_and_serialize, .description = "test the chunki
         my_key->dhkey = my_dhkey;
 
         uint16_t parts = 0;
-        np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_s((char*)msg_subject));
+        np_dhkey_t test_subject_dhkey = {0};
+        np_generate_subject(&test_subject_dhkey, msg_subject, strnlen(msg_subject, 256));
+        np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_dhkey(test_subject_dhkey));
         np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_TO, np_treeval_new_dhkey(my_key->dhkey));
         np_tree_insert_str(msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey));
 

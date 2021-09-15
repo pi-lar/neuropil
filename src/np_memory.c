@@ -269,7 +269,8 @@ np_memory_register_type(context, np_memory_types_np_##type##_t, sizeof(np_##type
 
     np_register_defaultobj(message, 4, 4);
     np_register_defaultobj(key, 4, 4);
-    np_register_defaultobj(msgproperty, 4, 4);
+    np_register_defaultobj(msgproperty_conf, 4, 4);
+    np_register_defaultobj(msgproperty_run, 8, 8);
     np_register_defaultobj(thread, 1, 1);
     np_register_defaultobj(node, 4, 4);
     np_register_defaultobj(network, 4, 4);

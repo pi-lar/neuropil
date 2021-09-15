@@ -17,40 +17,41 @@
 #include "event/ev.h"
 
 #include "neuropil.h"
-#include "np_legacy.h"
-
-#include "np_types.h"
-#include "dtime.h"
 #include "neuropil_log.h"
-#include "np_log.h"
+
+
 #include "np_aaatoken.h"
 #include "np_axon.h"
+#include "np_constants.h"
 #include "np_dendrit.h"
+#include "np_dhkey.h"
+#include "np_event.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"
-#include "util/np_tree.h"
-#include "np_dhkey.h"
+#include "np_legacy.h"
+#include "np_log.h"
 #include "np_keycache.h"
 #include "np_memory.h"
-
 #include "np_message.h"
+#include "np_network.h"
+#include "np_node.h"
+#include "np_route.h"
+#include "np_settings.h"
+#include "np_shutdown.h"
+#include "np_statistics.h"
+#include "np_token_factory.h"
+#include "np_threads.h"
+#include "np_types.h"
+#include "np_util.h"
+
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
-#include "np_network.h"
-#include "np_token_factory.h"
-#include "np_node.h"
-#include "np_threads.h"
-#include "np_route.h"
-#include "np_event.h"
-#include "np_statistics.h"
+
 #include "util/np_list.h"
-#include "np_util.h"
-#include "np_shutdown.h"
-#include "np_bootstrap.h"
 #include "util/np_tree.h"
 
-#include "np_settings.h"
-#include "np_constants.h"
+#include "dtime.h"
+
 
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_usercallback_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_ptr);
@@ -164,7 +165,9 @@ void np_set_realm_name(np_context*ac, const char* realm_name)
 {
     np_ctx_cast(ac);
     log_trace_msg(LOG_TRACE, "start: void np_set_realm_name(const char* realm_name){");
-    context->realm_name = strndup(realm_name, 255);
+
+    memset(context->realm_id, 0, 256);
+    strncat(context->realm_id, realm_name, 256);
     
     /*    
     // create a new token
@@ -225,30 +228,39 @@ void np_enable_realm_client(np_context*ac)
 void np_enable_realm_server(np_context*ac )
 {
     np_ctx_cast(ac);
-    if (NULL == context->realm_name)
+    if (NULL == context->realm_id)
     {
         return;
     }
 
-    np_msgproperty_t* prop = NULL;
-
+    np_msgproperty_conf_t* prop = NULL;
+    np_dhkey_t _subject = {0};
     // turn msg handlers for aaa to inbound msg as well
-    prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHENTICATION_REQUEST);
-    if (NULL == prop->msg_audience)
+    np_generate_subject(&_subject, _NP_MSG_AUTHENTICATION_REQUEST, 24);
+    np_generate_subject(&_subject, context->realm_id, strnlen(context->realm_id, 256));
+    prop = _np_msgproperty_conf_get(context, OUTBOUND, _subject);
+    if (_np_dhkey_equal(&dhkey_zero, &prop->audience_id))
     {
-        prop->msg_audience = strndup(context->realm_name, 255);
+        // _np_dhkey_assign(&prop->audience_id, &context->realm_id);
+        prop->audience_type = NP_MX_AUD_PROTECTED;
     }
 
-    prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_AUTHORIZATION_REQUEST);
-    if (NULL == prop->msg_audience)
+    np_generate_subject(&_subject, _NP_MSG_AUTHORIZATION_REQUEST, 21);
+    np_generate_subject(&_subject, context->realm_id, strnlen(context->realm_id, 256));
+    prop = _np_msgproperty_conf_get(context, OUTBOUND, _subject);
+    if (_np_dhkey_equal(&dhkey_zero, &prop->audience_id))
     {
-        prop->msg_audience = strndup(context->realm_name, 255);
+        // _np_dhkey_assign(&prop->audience_id, &context->realm_id);
+        prop->audience_type = NP_MX_AUD_PROTECTED;
     }
 
-    prop = _np_msgproperty_get(context, OUTBOUND, _NP_MSG_ACCOUNTING_REQUEST);
-    if (NULL == prop->msg_audience)
+    np_generate_subject(&_subject, _NP_MSG_ACCOUNTING_REQUEST, 19);
+    np_generate_subject(&_subject, context->realm_id, strnlen(context->realm_id, 256));
+    prop = _np_msgproperty_conf_get(context, OUTBOUND, _subject);
+    if (_np_dhkey_equal(&dhkey_zero, &prop->audience_id))
     {
-        prop->msg_audience = strndup(context->realm_name, 255);
+        // _np_dhkey_assign(&prop->audience_id, &context->realm_id);
+        prop->audience_type = NP_MX_AUD_PROTECTED;
     }
 
     context->enable_realm_server = true;
@@ -275,49 +287,48 @@ void np_waitforjoin(np_context*ac)
 * @param msg_handler
 * @param subject
 */
-void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, const char* subject)
+void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, np_dhkey_t subject)
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, INBOUND, subject);
-    
-    log_debug(LOG_MISC,"adding receive listener on subject %s / property %p", subject, msg_prop);
-    
-    np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
-    msg_handler->data = msg_handler_localdata;
-    msg_handler->fn = msg_handler_fn;
+    np_msgproperty_conf_t* mx_conf = _np_msgproperty_get_or_create(context, INBOUND, subject);
+    np_msgproperty_register(mx_conf); // register it if it did not exists before
 
-    if (msg_prop != NULL && msg_prop->is_internal == false) 
+    if (mx_conf->audience_type != NP_MX_AUD_VIRTUAL)
     {
-        if (false == sll_contains(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type)) 
-        {   // decrypt or cache the message
-            sll_append(np_evt_callback_t, msg_prop->clb_inbound, _np_in_callback_wrapper);
+        np_msgproperty_run_t* mx_run = _np_msgproperty_run_get(context, INBOUND, subject);
+        if (mx_run != NULL) 
+        {
+            log_debug(LOG_MISC,"adding recv listener on subject %08"PRIx32":%08"PRIx32" / property %p", subject.t[0], subject.t[1], mx_run);
+            np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
+            msg_handler->data = msg_handler_localdata;
+            msg_handler->fn = msg_handler_fn;
+
+            // hand it over to the userspace
+            sll_append(np_usercallback_ptr, mx_run->user_callbacks, msg_handler);
         }
-        if (false == sll_contains(np_evt_callback_t, msg_prop->clb_inbound, _check_and_send_destination_ack, np_evt_callback_t_sll_compare_type)) 
-        {   // potentially send an ack for a message
-            sll_append(np_evt_callback_t, msg_prop->clb_inbound, _check_and_send_destination_ack);
-        }
-        // hand it over to the userspace
-        sll_append(np_usercallback_ptr, msg_prop->user_receive_clb, msg_handler);
     }
 }
+
 /**
 * Sets a callback for a given msg subject.
 * Each msg for the given subject may invoke this handler.
 * @param msg_handler
 * @param subject
 */
-void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, const char* subject)
+void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void * msg_handler_localdata, np_dhkey_t subject)
 {
     np_ctx_cast(ac);
     // check whether an handler already exists
-    np_msgproperty_t* msg_prop = _np_msgproperty_get_or_create(context, OUTBOUND, subject);
-
-    np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
-    msg_handler->data = msg_handler_localdata;
-    msg_handler->fn   = msg_handler_fn;
-
-    sll_append(np_usercallback_ptr, msg_prop->user_send_clb, msg_handler);
+    np_msgproperty_run_t* msg_prop = _np_msgproperty_run_get(context, OUTBOUND, subject);
+    if (msg_prop != NULL /*&& msg_prop->is_internal == false*/ ) 
+    {
+        log_debug(LOG_MISC,"adding send listener on subject %08"PRIx32":%08"PRIx32" / property %p", subject.t[0], subject.t[1], msg_prop);
+        np_usercallback_t * msg_handler = malloc(sizeof(np_usercallback_t));
+        msg_handler->data = msg_handler_localdata;
+        msg_handler->fn   = msg_handler_fn;
+        sll_append(np_usercallback_ptr, msg_prop->user_callbacks, msg_handler);
+    }
 }
 
 /**
@@ -415,10 +426,6 @@ void np_send_join(np_context*ac, const char* node_string)
 
     np_node_t* new_node = _np_node_decode_from_str(context, node_string);
     if (new_node == NULL) return;
-
-    // TODO: use sscanf ?
-    // int n = sscanf("string", "%64s%*[:]%4s%*[:]%s%*[:]%d", hash_str, proto, dns/ip, port); // n == 4
-    // int n = sscanf("string", "%*[*]%*[:]%4s%*[:]%s%*[:]%d", proto, dns/ip, port); // n == 3
     
     np_dhkey_t search_key = {0};
     if (new_node->host_key[0] == '*') 
@@ -431,7 +438,19 @@ void np_send_join(np_context*ac, const char* node_string)
     }
     else 
     {
+        np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");    
         return;
+    }
+
+    if (FLAG_CMP(new_node->protocol, PASSIVE) ) 
+    {
+        log_msg(LOG_WARN, "user requests to join passive node at %u:%s:%s!", new_node->protocol, new_node->dns_name, new_node->port);
+        np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");    
+        return;
+    }
+    else 
+    {
+        log_msg(LOG_INFO, "user request to join %u:%s:%s", new_node->protocol, new_node->dns_name, new_node->port);
     }
 
     np_key_t* node_key = _np_keycache_find_or_create(context, search_key);
@@ -440,7 +459,7 @@ void np_send_join(np_context*ac, const char* node_string)
                                      .user_data=new_node, .target_dhkey=search_key };
     _np_keycache_handle_event(context, search_key, new_node_evt, false);
 
+    np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");    
     np_unref_obj(np_key_t, node_key, "_np_keycache_find_or_create");    
-    np_bootstrap_add(context, node_string);
 }
 

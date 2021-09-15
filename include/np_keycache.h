@@ -60,6 +60,9 @@ NP_API_INTERN
 np_key_t* _np_keycache_find(np_state_t* context, np_dhkey_t key);
 
 NP_API_INTERN
+bool _np_keycache_contains(np_state_t* context, const np_dhkey_t search_dhkey);
+
+NP_API_INTERN
 np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t key);
 
 NP_API_INTERN

@@ -284,10 +284,12 @@ int main(int argc, char **argv)
 				// fprintf(stdout, "logpath: %s\n", settings->log_file);
 				settings->log_level = level;
 
-				np_context * context = np_new_context(settings);
+   				np_context * context = np_new_context(settings);
 				np_set_userdata(context, user_context);
-
-				if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
+				char* protocols[] = { "udp4", "udp6", "tcp4", "tcp6", "pas4", "pas6" };
+    			srand ( atoi(port) );
+				char* choosen_protocol = protocols[rand()%6];
+				if (np_ok != np_listen(context, choosen_protocol, publish_domain, atoi(port))) {
 					np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 					exit(EXIT_FAILURE);
 				}
@@ -313,7 +315,9 @@ int main(int argc, char **argv)
 				// We enable the statistics watchers for debugging purposes
 				if(has_a_node_started == false){ // <=> we are the first node started
 					np_statistics_add_watch_internals(context);
-					np_statistics_add_watch(context, _NP_SYSINFO_DATA);
+					np_subject sysinfo_subject = {0};
+					np_generate_subject(&sysinfo_subject, _NP_SYSINFO_DATA, strnlen(_NP_SYSINFO_DATA, 256));
+					np_statistics_add_watch(context, sysinfo_subject );
 					__np_example_inti_ncurse(context);
 					__np_example_helper_run_loop(context);
 				}
@@ -334,7 +338,7 @@ int main(int argc, char **argv)
 					np_join(context, j_key);
 					firstConnectionTry = false;
 					int timeout = 100;
-					while (timeout > 0 && np_run(context, 0.01) && false == np_has_joined(context)) {
+					while (timeout > 0 && np_run(context, 0.05) && false == np_has_joined(context)) {
 							// wait for join acceptance
 							timeout--;
 					}

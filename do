@@ -275,6 +275,12 @@ task_pre_commit(){
   task_build --RELEASE python
   python3 scripts/util/build_helper.py --update_strings
 }
+task_search_log(){
+  
+
+  grep --no-filename "$@" build/logs/* | sort -k2
+
+}
 usage() {
   echo "$0  build | test | clean | package | coverage | script | deploy | smoke | doc | (r)un | ensure_dependencies | pre_commit | helgrind | analyze | gdb"
   exit 1
@@ -310,6 +316,7 @@ shift || true
 
     pre_commit) task_pre_commit ;;
 
+    log) task_search_log "$@";;
     gdb) task_gdb "$@";;
     helgrind) task_helgrind "$@";;
     analyze) task_analyze "$@";;

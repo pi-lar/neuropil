@@ -58,11 +58,14 @@ bool __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_util_event_t ar
                 // issue ping messages
                 np_message_t* msg_out = NULL;
                 np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-                _np_message_create(msg_out, bootstrap_key->dhkey, context->my_node_key->dhkey, _NP_MSG_PING_REQUEST, NULL);
 
-                np_dhkey_t ping_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PING_REQUEST);
+                np_dhkey_t ping_dhkey = { 0 };
+                np_generate_subject(&ping_dhkey, _NP_MSG_PING_REQUEST, 16);
+                _np_message_create(msg_out, bootstrap_key->dhkey, context->my_node_key->dhkey, ping_dhkey, NULL);
+
+                np_dhkey_t ping_out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, ping_dhkey);
                 np_util_event_t ping_event = { .type=(evt_internal|evt_message), .target_dhkey=bootstrap_key->dhkey, .user_data=msg_out, .context=context };
-                _np_keycache_handle_event(context, ping_dhkey, ping_event, false);
+                _np_keycache_handle_event(context, ping_out_dhkey, ping_event, false);
 
                 log_debug_msg(LOG_DEBUG, "submitted ping to bootstrap target key %s / %p", _np_key_as_str(bootstrap_key), bootstrap_key);
             }

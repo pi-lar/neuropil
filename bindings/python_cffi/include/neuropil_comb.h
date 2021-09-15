@@ -32,16 +32,20 @@
    typedef unsigned char np_id[NP_FINGERPRINT_BYTES];
    typedef unsigned char np_attributes_t[NP_EXTENSION_BYTES];
    typedef unsigned char np_signature_t[NP_SIGNATURE_BYTES];
+   typedef np_id np_subject;
     void np_get_id(np_id (*id), const char* string, size_t length);
+    enum np_return np_generate_subject(np_subject (*subject_id), const char* subject, size_t length);
     struct np_token {
         char uuid[NP_UUID_BYTES];
         char subject[255];
         np_id issuer;
-        char realm[255];
-        char audience[255];
-        double issued_at, not_before, expires_at;
+        np_id realm;
+        np_id audience;
+        double issued_at,
+               not_before,
+               expires_at;
         unsigned char public_key[NP_PUBLIC_KEY_BYTES],
-                secret_key[NP_SECRET_KEY_BYTES];
+                      secret_key[NP_SECRET_KEY_BYTES];
         np_signature_t signature;
         np_attributes_t attributes;
         np_signature_t attributes_signature;
@@ -49,7 +53,7 @@
     struct np_message {
         char uuid[NP_UUID_BYTES];
         np_id from;
-        np_id subject;
+        np_subject subject;
         double received_at;
         unsigned char * data;
         size_t data_length;
@@ -60,48 +64,59 @@
         char log_file[256];
         uint32_t log_level;
         uint8_t leafset_size;
+        uint16_t jobqueue_size;
     } ;
-    struct np_settings * np_default_settings(struct np_settings *settings);
-    np_context* np_new_context(struct np_settings *settings);
-    struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]);
-    enum np_return np_use_identity(np_context* ac, struct np_token identity);
-    enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign);
-    enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
-    enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
-    enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) ;
-    enum np_return np_get_address(np_context* ac, char* address, uint32_t max);
-    enum np_return np_join(np_context* ac, const char* address);
-    enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length);
-    typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
-    enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback);
-    typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
-    enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
-    enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
-    enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
+   struct np_settings * np_default_settings(struct np_settings *settings);
+   np_context* np_new_context(struct np_settings *settings);
+   struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]);
+   enum np_return np_use_identity(np_context* ac, struct np_token identity);
+   enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign);
+   enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
+   enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
+   enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) ;
+   enum np_return np_get_address(np_context* ac, char* address, uint32_t max);
+   enum np_return np_join(np_context* ac, const char* address);
+   typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
+   enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
+   enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
+   enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
     enum np_return np_run(np_context* ac, double duration);
-    enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } ;
-    enum np_mx_ackmode { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } ;
+    enum np_mx_role { NP_MX_PROSUMER=0, NP_MX_PROVIDER, NP_MX_CONSUMER } ;
+    enum np_mx_cache_policy { NP_MX_FIFO_REJECT=0, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } ;
+    enum np_mx_ackmode { NP_MX_ACK_NONE=0, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } ;
+    enum np_mx_audience_type { NP_MX_AUD_PUBLIC=0, NP_MX_AUD_VIRTUAL, NP_MX_AUD_PROTECTED, NP_MX_AUD_PRIVATE } ;
     struct np_mx_properties {
-        char reply_subject[255] ;
+        enum np_mx_role role;
         enum np_mx_ackmode ackmode;
+        np_subject reply_id ;
+        enum np_mx_audience_type audience_type;
+        np_id audience_id ;
         enum np_mx_cache_policy cache_policy;
         uint16_t cache_size;
         uint8_t max_parallel, max_retry;
         double intent_ttl, intent_update_after;
         double message_ttl;
     } ;
-    struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject);
-    enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties properties);
-    void np_set_userdata(np_context * ac, void* userdata);
-    void* np_get_userdata(np_context * ac);
-        enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target));
-        bool np_has_joined(np_context * ac);
-        enum np_status np_get_status(np_context* ac);
-        bool np_has_receiver_for(np_context*ac, const char * subject);
-        char * np_id_str(char str[65], const np_id id);
-        void np_str_id(np_id (*id), const char str[65]);
-        void np_destroy(np_context*ac, bool gracefully);
-        bool np_id_equals(np_id first, np_id second);
+   struct np_mx_properties np_get_mx_properties(np_context* ac, const np_subject id);
+   enum np_return np_set_mx_properties(np_context* ac, const np_subject id, struct np_mx_properties properties);
+   enum np_return np_set_mx_authorize_cb(np_context* ac, const np_subject id, np_aaa_callback callback);
+   enum np_return np_mx_properties_enable(np_context* ac, const np_subject id);
+   enum np_return np_mx_properties_disable(np_context* ac, const np_subject id);
+   enum np_return np_send(np_context* ac, np_subject subject, const unsigned char* message, size_t length);
+   enum np_return np_send_to(np_context* ac, np_subject subject, const unsigned char* message, size_t length, np_id (*target));
+   typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
+   enum np_return np_add_receive_cb(np_context* ac, np_subject subject, np_receive_callback callback);
+   void np_set_userdata(np_context * ac, void* userdata);
+   void* np_get_userdata(np_context * ac);
+      bool np_has_joined(np_context * ac);
+      enum np_status np_get_status(np_context* ac);
+      bool np_has_receiver_for(np_context*ac, np_subject subject);
+      char * np_id_str(char str[65], const np_id id);
+      void np_str_id(np_id (*id), const char str[65]);
+      void np_destroy(np_context*ac, bool gracefully);
+   typedef void (*np_callback)(np_context* ac);
+      enum np_return np_add_shutdown_cb(np_context* ac, np_callback callback);
+      bool np_id_equals(np_id first, np_id second);
     enum np_data_return {
         np_data_ok = 0,
         np_key_not_found = 1,
@@ -133,7 +148,7 @@
     struct np_data_conf {
         char key[255];
         enum np_data_type type;
-        uint32_t data_size;
+        size_t data_size;
     } ;
     typedef union {
         unsigned char *bin;
@@ -159,10 +174,10 @@
         NP_ATTR_MAX,
     } ;
     enum np_data_return np_set_ident_attr_bin(np_context *ac, struct np_token* ident, enum np_msg_attr_type inheritance, char key[255], unsigned char * bin, size_t bin_length);
-    enum np_data_return np_set_mxp_attr_bin(np_context *ac, char * subject, enum np_msg_attr_type inheritance, char key[255], unsigned char * bin, size_t bin_length);
+    enum np_data_return np_set_mxp_attr_bin(np_context *ac, np_subject subject, enum np_msg_attr_type inheritance, char key[255], unsigned char * bin, size_t bin_length);
     enum np_data_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
     enum np_data_return np_get_token_attr_bin(struct np_token* ident, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
-    enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, char* subject, char key[255], unsigned char * value, size_t value_size);
+    enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, np_subject subject, char key[255], unsigned char * value, size_t value_size);
    enum np_log_e
    {
       LOG_NONE = 0x00000000U,

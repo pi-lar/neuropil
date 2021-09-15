@@ -102,14 +102,14 @@ void _np_message_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED si
 
     log_debug_msg(LOG_MEMORY | LOG_DEBUG, "msg (%s) freeing memory", msg->uuid);
 
-    np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
+    // np_unref_obj(np_msgproperty_t, msg->msg_property, ref_message_msg_property);
 
     np_unref_obj(np_aaatoken_t, msg->decryption_token,"np_message_t.decryption_token");
 
-    np_tree_free( msg->header);
-    np_tree_free( msg->instructions);
-    np_tree_free( msg->body);
-    np_tree_free( msg->footer);
+    np_tree_free( msg->header       );
+    np_tree_free( msg->instructions );
+    np_tree_free( msg->body         );
+    np_tree_free( msg->footer       );
 
     _LOCK_ACCESS(&msg->msg_chunks_lock) 
     {    
@@ -750,30 +750,37 @@ bool _np_message_deserialize_chunked(np_message_t* msg)
  ** creates the message to the destination #dest# the message format would be like:
  **  [ type ] [ size ] [ key ] [ data ]. It return the created message structure.
  */
-void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data)
+void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, np_dhkey_t subject, np_tree_t* the_data)
 {
     np_ctx_memory(msg);
     // np_message_t* new_msg;
     // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "message ptr: %p %s", msg, subject);
 
     // in the future: header
-    np_tree_insert_str( msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_s((char*) subject));
+    np_tree_insert_str( msg->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_dhkey(subject));
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(to));
     np_tree_insert_str( msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(from));
     // insert a uuid if not yet present
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(msg->uuid));
 
     // derived message data from the msgproperty
-    np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, subject);
+    np_msgproperty_conf_t* out_prop = _np_msgproperty_conf_get(context, OUTBOUND, subject);
 
     // insert timestamp and time-to-live
     double now = np_time_now();
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-    np_tree_insert_str( msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(out_prop->msg_ttl));
+    if (out_prop != NULL)
+        np_tree_insert_str( msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(out_prop->msg_ttl));
+    else
+        np_tree_insert_str( msg->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(5.0));
     msg->redelivery_at = msg->send_at = now;
 
     // insert msg acknowledgement indicator
-    np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(out_prop->ack_mode));
+    if (out_prop != NULL)
+        np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(out_prop->ack_mode));
+    else
+        np_tree_insert_str( msg->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(ACK_NONE));
+
     // insert message chunking placeholder
     np_tree_insert_str( msg->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(1, 1));
 
@@ -810,6 +817,25 @@ inline void _np_message_setfooter(np_message_t* msg, np_tree_t* footer)
     msg->footer = footer;
     np_tree_free(old);
 };
+
+bool np_message_clone(np_message_t* copy_of_message, np_message_t* message) 
+{
+    copy_of_message->send_at = message->send_at;
+    copy_of_message->is_single_part = message->is_single_part;
+    copy_of_message->no_of_chunks = message->no_of_chunks;
+    memcpy(copy_of_message->uuid, message->uuid, NP_UUID_BYTES);
+
+    np_tree_free(copy_of_message->header);
+    copy_of_message->header = np_tree_clone(message->header);
+    np_tree_free(copy_of_message->instructions);
+    copy_of_message->instructions = np_tree_clone(message->instructions);
+    np_tree_free(copy_of_message->body);
+    copy_of_message->body = np_tree_clone(message->body);
+    np_tree_free(copy_of_message->footer);
+    copy_of_message->footer = np_tree_clone(message->footer);
+
+    return true; 
+}
 
 void _np_message_encrypt_payload(np_message_t* msg, np_sll_t(np_aaatoken_ptr,tmp_token) )
 {
@@ -964,17 +990,17 @@ bool _np_message_decrypt_payload(np_message_t* msg, np_aaatoken_t* tmp_token)
     return (ret);
 }
 
-char* _np_message_get_subject(const np_message_t* const self)
+np_dhkey_t* _np_message_get_subject(const np_message_t* const self)
 {
     // np_ctx_memory(msg);
-    char* ret = NULL;
-    if (self->msg_property != NULL) {
-        ret = self->msg_property->msg_subject;
-    }
-    else if(self->header != NULL){
+    np_dhkey_t* ret = NULL;
+    // if (self->msg_property != NULL) {
+    //     ret = self->msg_property->msg_subject;
+    // }
+    if (self->header != NULL){
         np_tree_elem_t* ele = np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT);
         if(ele != NULL){
-            ret =  np_treeval_to_str(ele->val, NULL);
+            ret =  &ele->val.value.dhkey;
         }
     }
     return ret;
@@ -1008,15 +1034,15 @@ void _np_message_add_msg_response_handler(const np_message_t* self)
     np_new_obj(np_responsecontainer_t, rh);
 
     memcpy(rh->uuid, self->uuid, NP_UUID_BYTES);
-    rh->msg_dhkey  = _np_msgproperty_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.s);
+    rh->msg_dhkey  = _np_msgproperty_tweaked_dhkey(OUTBOUND, np_tree_find_str(self->header, _NP_MSG_HEADER_SUBJECT)->val.value.dhkey);
     rh->send_at    =  np_tree_find_str(self->instructions, _NP_MSG_INST_TSTAMP)->val.value.d;
 	rh->expires_at = rh->send_at + 
                      np_tree_find_str(self->instructions, _NP_MSG_INST_TTL)->val.value.d;
 	rh->received_at = 0.0;
 
-    np_dhkey_t ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
-    np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_dhkey, .type=(evt_internal|evt_response) };
-    _np_keycache_handle_event(context, ack_dhkey, rh_event, false);
+    np_dhkey_t ack_in_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
+    np_util_event_t rh_event = { .context=context, .user_data=rh, .target_dhkey=ack_in_dhkey, .type=(evt_internal|evt_response) };
+    _np_keycache_handle_event(context, ack_in_dhkey, rh_event, false);
 }
 
 np_dhkey_t* _np_message_get_sender(const np_message_t* const self){

@@ -39,7 +39,7 @@ struct np_message_s
     np_pll_t(np_messagepart_ptr, msg_chunks);
     np_mutex_t msg_chunks_lock;
 
-    np_msgproperty_ptr msg_property;
+    // np_msgproperty_conf_ptr msg_property;
     double send_at;
     double redelivery_at;
 
@@ -61,7 +61,10 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t)
  **
  **/
 NP_API_INTERN
-void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, const char* subject, np_tree_t* the_data);
+void _np_message_create(np_message_t* msg, np_dhkey_t to, np_dhkey_t from, np_dhkey_t subject, np_tree_t* the_data);
+
+NP_API_INTERN
+bool np_message_clone(np_message_t* copy_of_message, np_message_t* message);
 
 NP_API_INTERN
 void _np_message_encrypt_payload(np_message_t* msg, np_sll_t(np_aaatoken_ptr,tmp_token) );
@@ -111,7 +114,7 @@ NP_API_INTERN
 void _np_message_del_footerentry(np_message_t*, const char* key);
 
 NP_API_INTERN
-char* _np_message_get_subject(const np_message_t* const self);
+np_dhkey_t* _np_message_get_subject(const np_message_t* const self);
 NP_API_INTERN
 double _np_message_get_expiery(const np_message_t* const self);
 NP_API_INTERN

@@ -37,7 +37,7 @@ extern "C" {
     NP_API_EXPORT
     enum np_data_return np_set_ident_attr_bin(np_context *ac, struct np_token* ident, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
     NP_API_EXPORT
-    enum np_data_return np_set_mxp_attr_bin(np_context *ac,   char * subject,         enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
+    enum np_data_return np_set_mxp_attr_bin(np_context *ac,   np_subject subject,     enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length);
 
     NP_API_EXPORT
     enum np_data_return np_get_msg_attr_bin(struct np_message * msg, char key[255], struct np_data_conf ** out_data_config, unsigned char ** out_data);
@@ -47,7 +47,7 @@ extern "C" {
     //NP_API_EXPORT
     //enum np_data_return np_set_mxp_attr_policy_str(np_context *ac, char* subject, char key[255], char* value[1024], size_t value_size);
     NP_API_EXPORT
-    enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, char* subject, char key[255], unsigned char * value, size_t value_size);
+    enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, np_subject subject, char key[255], unsigned char * value, size_t value_size);
 
 #ifdef __cplusplus
 }

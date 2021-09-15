@@ -59,9 +59,9 @@ bool __is_identity_invalid(np_util_statemachine_t* statemachine, const np_util_e
     
     NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
     
-    if (!ret) ret = (sll_size(my_identity_key->entities) == 1);
+    if (!ret) ret = (my_identity_key->entity_array[1] != NULL);
     if ( ret) {
-        NP_CAST(sll_first(my_identity_key->entities)->val, np_aaatoken_t, identity);
+        NP_CAST(my_identity_key->entity_array[1], np_aaatoken_t, identity);
         ret &= (  identity->type == np_aaatoken_type_identity                             ) ||
                ( (identity->type == np_aaatoken_type_node) && identity->private_key_is_set);
         ret &= !_np_aaatoken_is_valid(identity, identity->type);
@@ -103,8 +103,6 @@ void __np_identity_destroy(np_util_statemachine_t* statemachine, const np_util_e
 
     np_unref_obj(np_aaatoken_t, trinity.token, "__np_set_identity");
 
-    sll_free(void_ptr, my_identity_key->entities);
-
     ref_replace_reason(np_key_t, my_identity_key, "__np_set_identity", "_np_keycache_finalize");
     my_identity_key->type = np_key_type_unknown;
 }
@@ -125,8 +123,8 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     {
         my_identity_key->type |= np_key_type_node;
 
+        my_identity_key->entity_array[1] = identity_token;
         np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
-        sll_append(void_ptr, my_identity_key->entities, identity_token);
 
         context->my_node_key = my_identity_key;
 
@@ -143,8 +141,8 @@ void __np_set_identity(np_util_statemachine_t* statemachine, const np_util_event
     }
     else if(FLAG_CMP(identity_token->type, np_aaatoken_type_identity) )
     {
+        my_identity_key->entity_array[1] = identity_token;
         np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
-        sll_append(void_ptr, my_identity_key->entities, identity_token);
     
         if ((NULL == context->my_identity || context->my_identity == context->my_node_key) &&
              identity_token->private_key_is_set)
@@ -194,7 +192,7 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
     {
         // create node structure (we still need it !!!)
         np_node_t* my_node = _np_node_from_token(identity, np_aaatoken_type_node);
-        sll_append(void_ptr, my_identity_key->entities, my_node);
+        my_identity_key->entity_array[2] = my_node;
         ref_replace_reason(np_node_t, my_node, "_np_node_from_token", "__np_create_identity_network")
 
         if (!FLAG_CMP(my_node->protocol, PASSIVE)) 
@@ -207,7 +205,7 @@ void __np_create_identity_network(np_util_statemachine_t* statemachine, const np
             {
                 _np_network_set_key(my_network, my_identity_key->dhkey);
 
-                sll_append(void_ptr, my_identity_key->entities, my_network);
+                my_identity_key->entity_array[3] = my_network;
                 ref_replace_reason(np_network_t, my_network, ref_obj_creation, "__np_create_identity_network")
 
                 log_debug_msg(LOG_DEBUG, "Network %s is the main receiving network %d", np_memory_get_id(my_network), identity->type);
@@ -249,51 +247,52 @@ void __np_extract_handshake(np_util_statemachine_t* statemachine, const np_util_
     np_message_t* msg_in = NULL;
     np_new_obj(np_message_t, msg_in, FUNC);
 
-    bool is_header_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, raw_message);
-    bool is_deserialization_successful = is_header_deserialization_successful;
-    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, str_msg_subject, "NO SUBJECT IN MESSAGE")
+    np_dhkey_t handshake_dhkey = _np_msgproperty_dhkey(WIRE_FORMAT, _NP_MSG_HANDSHAKE);
+    // np_generate_subject(&handshake_dhkey, _NP_MSG_HANDSHAKE, 13);
+    unsigned char* dup_msg = np_memory_new(context, np_memory_types_BLOB_1024);
+    memcpy(dup_msg, raw_message, 1024);
+    bool is_header_deserialization_successful = _np_message_deserialize_header_and_instructions(msg_in, dup_msg);
+    bool is_deserialization_successful = false;
+
+    CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_elem, "NO SUBJECT IN MESSAGE")
     {   // check if the message is really a handshake message
-        is_deserialization_successful &= ( 0 == strncmp(str_msg_subject->val.value.s, _NP_MSG_HANDSHAKE, strlen(_NP_MSG_HANDSHAKE)) );
+        is_header_deserialization_successful &= _np_dhkey_equal(&handshake_dhkey, &msg_subject_elem->val.value.dhkey);
     }
 
-    if (is_deserialization_successful)
+    if (is_header_deserialization_successful)
     {
         log_debug_msg(LOG_SERIALIZATION | LOG_MESSAGE | LOG_DEBUG,
-                    "deserialized message %s", msg_in->uuid);
+                    "deserialized message header %s", msg_in->uuid);
 
-        CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject, "NO SUBJECT IN MESSAGE")
-        {
+        // CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_dhkey, "NO SUBJECT IN MESSAGE")
+        // {
             // const char* str_msg_subject = msg_subject->val.value.s;
             log_debug_msg(LOG_ROUTING | LOG_DEBUG, "(msg: %s) received msg", msg_in->uuid);
-
-            np_msgproperty_t* handshake_prop = _np_msgproperty_get(context, INBOUND, _NP_MSG_HANDSHAKE);
-            if (_np_msgproperty_check_msg_uniquety_in(handshake_prop, msg_in)) 
+            
+            //  np_msgproperty_conf_t* handshake_prop = _np_msgproperty_conf_get(context, INBOUND, msg_subject_dhkey->val.value.dhkey);
+            // if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in)) 
+            // {
+            is_deserialization_successful = _np_message_deserialize_chunked(msg_in);
+            if (is_deserialization_successful) 
             {
-                
-                _np_message_deserialize_chunked(msg_in);
-
-                np_dhkey_t handshake_dhkey    = _np_msgproperty_dhkey(INBOUND, _NP_MSG_HANDSHAKE);
+                np_dhkey_t handshake_in_dhkey = _np_msgproperty_tweaked_dhkey(INBOUND, handshake_dhkey);
                 np_util_event_t handshake_evt = { .type=(evt_external|evt_message), .context=context, 
-                                                .user_data=msg_in, .target_dhkey=event.target_dhkey};                                                    
+                                                  .user_data=msg_in, .target_dhkey=event.target_dhkey };
                 ref_replace_reason(np_message_t, msg_in, FUNC, ref_message_in_send_system);
-                _np_keycache_handle_event(context, handshake_dhkey, handshake_evt, false);
+                _np_keycache_handle_event(context, handshake_in_dhkey, handshake_evt, false);
             }
+            // }
             else
             {
-                log_msg(LOG_INFO, "duplicate handshake message (%s) detected, dropping it ...", msg_in->uuid);
+                // log_msg(LOG_INFO, "duplicate handshake message (%s) detected, dropping it ...", msg_in->uuid);
                 np_unref_obj(np_message_t, msg_in, FUNC);
-
             }
-        }
-    }else{
+    } else {
         log_msg(LOG_WARN, "error deserializing initial message from new partner node");
         np_unref_obj(np_message_t, msg_in, FUNC);
-        if(!is_header_deserialization_successful) 
-        {            
-            np_memory_free(context, raw_message); 
-        }
+            np_memory_free(context, dup_msg);             
     }
-
+    np_unref_obj(BLOB_1024, raw_message, "_np_network_read");
 } 
 
 void __np_identity_shutdown(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -401,7 +400,7 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
         np_unref_obj(np_aaatoken_t, authn_token, "np_token_factory_read_from_tree");
     }
 
-    // TODO: lookup hash of sending/receiving entitiy locally or in the dht
+    // TODO: lookup hash of sending/receiving entity locally or in the dht
 }
 
 void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_util_event_t event)
@@ -415,23 +414,39 @@ void __np_identity_handle_authz(np_util_statemachine_t* statemachine, const np_u
     {
         if ( !FLAG_CMP(authz_token->state, AAA_AUTHORIZED) )
         {
-            log_debug(LOG_AAATOKEN, "now checking (join/ident) authorization of token %s", authz_token->uuid);
-            np_msgproperty_t* in_prop = _np_msgproperty_get(context, INBOUND, authz_token->subject);
-            np_msgproperty_t* out_prop = _np_msgproperty_get(context, OUTBOUND, authz_token->subject);
+            log_debug(LOG_DEBUG, "now checking intent authorization of token %s %s", authz_token->uuid, authz_token->subject);
+            // np_dhkey_t subject_dhkey = {0};
+            // np_generate_subject(&subject_dhkey, &authz_token->subject, strnlen(authz_token->subject, 256));
+
+            np_dhkey_t subject_dhkey = np_dhkey_create_from_hash(authz_token->subject);
+
+            np_msgproperty_run_t* in_prop = _np_msgproperty_run_get(context, INBOUND, subject_dhkey);
+            np_msgproperty_run_t* out_prop = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);
 
             struct np_token tmp_user_token = { 0 };
             bool access_allowed_by_policy = true;
-            if(in_prop != NULL){
-                access_allowed_by_policy &= _np_policy_check_compliance(in_prop->required_attributes_policy, authz_token->attributes);
-                log_msg(LOG_INFO, "policy result  INBOUND for %s / %s is %"PRIu8,authz_token->uuid, authz_token->subject, access_allowed_by_policy);
+            bool access_allowed = false;
+
+            if(in_prop != NULL) {
+                // access_allowed_by_policy &= _np_policy_check_compliance(in_prop->required_attributes_policy, authz_token->attributes);
+                log_msg(LOG_INFO, "policy result  INBOUND for %s / %s is %"PRIu8, authz_token->uuid, authz_token->subject, access_allowed_by_policy);
+                if (in_prop->authorize_func != NULL)
+                    access_allowed = /*access_allowed_by_policy && */ in_prop->authorize_func(context, np_aaatoken4user(&tmp_user_token, authz_token));
             }
-            if(out_prop != NULL){
-                access_allowed_by_policy &= _np_policy_check_compliance(out_prop->required_attributes_policy, authz_token->attributes);
-                log_msg(LOG_INFO, "policy result OUTBOUND for %s / %s is %"PRIu8,authz_token->uuid, authz_token->subject, access_allowed_by_policy);
+
+            if(out_prop != NULL) {
+                // access_allowed_by_policy &= _np_policy_check_compliance(out_prop->required_attributes_policy, authz_token->attributes);
+                log_msg(LOG_INFO, "policy result OUTBOUND for %s / %s is %"PRIu8, authz_token->uuid, authz_token->subject, access_allowed_by_policy);
+
+                if (out_prop->authorize_func != NULL)
+                    access_allowed = /* access_allowed_by_policy && */ out_prop->authorize_func(context, np_aaatoken4user(&tmp_user_token, authz_token));
             }
-            bool access_allowed =
-                access_allowed_by_policy &&
-                context->authorize_func(context, np_aaatoken4user(&tmp_user_token, authz_token));
+            
+            // check whether a authorization function on subject level has been triggered. if not, then call the global authz function
+            if (!access_allowed)             
+                access_allowed = 
+                    access_allowed_by_policy &&
+                    context->authorize_func(context, np_aaatoken4user(&tmp_user_token, authz_token));
             log_debug(LOG_AAATOKEN, "authorization of token %s: %"PRIu8, authz_token->uuid, access_allowed);
 
             if (true == access_allowed && context->enable_realm_client == false)

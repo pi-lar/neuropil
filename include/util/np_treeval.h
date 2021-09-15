@@ -80,7 +80,7 @@ enum np_treeval_type_t {
 	np_treeval_type_npobj,
 	np_treeval_type_npval_count,
 	np_treeval_type_special_char_ptr,
-} np_treeval_type_t;
+};
 
 /* The Jval -- a type that can hold any type */
 typedef union val_type

@@ -17,7 +17,7 @@ extern "C" {
 	struct np_dhkey_s
 	{
 		uint32_t t[8];
-	} NP_PACKED;
+	} NP_PACKED(1);
 
 NP_SLL_GENERATE_PROTOTYPES(np_dhkey_t);
 

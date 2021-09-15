@@ -98,7 +98,7 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
         else {
             np_ref_obj(np_key_t, key);
         }
-        key->last_update = np_time_now();
+        // key->last_update = np_time_now();
     }
     // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint _np_keycache_find_or_create end");
     return (key);
@@ -109,16 +109,32 @@ np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey)
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
     np_key_t* key = NULL;
 
-    np_new_obj(np_key_t, key);
-    key->dhkey = search_dhkey;
+    np_new_obj(np_key_t, key, FUNC);
+    _np_dhkey_assign(&key->dhkey, &search_dhkey);
     _np_dhkey_str(&key->dhkey, key->dhkey_str);
     key->created_at = np_time_now();
     key->last_update = key->created_at;
 
-    ref_replace_reason(np_key_t, key, ref_obj_creation, FUNC);
     _np_keycache_add(context, key);
     
     return key;
+}
+
+bool _np_keycache_contains(np_state_t* context, const np_dhkey_t search_dhkey)
+{
+    bool ret = false;
+    np_key_t* return_key = NULL;
+    np_key_t search_key = { .dhkey = search_dhkey };
+
+    _LOCK_MODULE(np_keycache_t)
+    {
+        return_key = RB_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
+        if (NULL != return_key)
+        {
+            ret = true;
+        }
+    }
+    return ret;
 }
 
 np_key_t* _np_keycache_find(np_state_t* context, const np_dhkey_t search_dhkey)
@@ -133,12 +149,6 @@ np_key_t* _np_keycache_find(np_state_t* context, const np_dhkey_t search_dhkey)
         if (NULL != return_key)
         {
             np_ref_obj(np_key_t, return_key);
-        }
-    }
-    if (NULL != return_key)
-    {
-        _LOCK_ACCESS(&return_key->key_lock) {
-            return_key->last_update = np_time_now();
         }
     }
     return return_key;
@@ -201,7 +211,7 @@ np_key_t* _np_keycache_find_by_details(
             {
                 np_ref_obj(np_key_t, iter);
                 ret = iter;
-                ret->last_update = np_time_now();
+                // ret->last_update = np_time_now();
                 break;
             }
         }
@@ -351,19 +361,16 @@ np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t search_dhkey)
 
 np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key)
 {
+    assert(subject_key != NULL);
+    assert(_np_memory_rtti_check(subject_key, np_memory_types_np_key_t));
+
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
-    //TODO: ist das notwendig? warum einen leeren key hinzufügen?
-    if (NULL == subject_key)
-    {
-        np_new_obj(np_key_t, subject_key);
-    }
-    np_ref_obj(np_key_t, subject_key, ref_keycache);
-    
     _LOCK_MODULE(np_keycache_t)
     {
         RB_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
-        subject_key->last_update = np_time_now();
+        // subject_key->last_update = np_time_now();
         subject_key->is_in_keycache = true;
+        np_ref_obj(np_key_t, subject_key, ref_keycache);
         np_module(keycache)->__last_udpate = subject_key->last_update;
     }
     return subject_key;
@@ -374,14 +381,15 @@ void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_ev
     log_trace_msg(LOG_TRACE, "start: void _np_keycache_handle_event(...){");
 
     np_key_t* key = _np_keycache_find(context, dhkey);
-    if (key != NULL) 
+    if (key != NULL)
     {
         _np_key_handle_event(key, event, force);
         np_unref_obj(np_key_t, key, "_np_keycache_find");
-    }else{
-        char tmp[65] = {0};
-        _np_dhkey_str(&event.target_dhkey, tmp);
-        log_warn(LOG_KEYCACHE,"key-target %s is not available for event", tmp );
+    } else {
+        if (NULL != event.user_data) {
+            log_debug_msg(LOG_WARN, "event not handled, deleting attached datatype: %u", np_memory_get_type(event.user_data) );
+            //np_memory_unref_obj(context, event.user_data, "");
+        }
     }
 }
 

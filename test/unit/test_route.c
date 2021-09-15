@@ -118,7 +118,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 				ref_replace_reason(np_key_t, insert_key, "_np_keycache_create", "_np_keycache_find_or_create");
 				np_node_t* new_node = NULL;
 				np_new_obj(np_node_t, new_node);
-				sll_append(void_ptr, insert_key->entities, new_node);
+				insert_key->entity_array[2] = new_node;
 				sll_append(np_key_ptr, my_keys, insert_key);
 			}
 			else
@@ -126,7 +126,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 				ref_replace_reason(np_key_t, insert_key, "_np_keycache_find", "_np_keycache_find_or_create");
 			}
 
-			NP_CAST(sll_first(insert_key->entities)->val, np_node_t, node);
+			NP_CAST(insert_key->entity_array[2], np_node_t, node);
 			node->latency = ((double)rand()) / 1000;
 
 			np_key_t *added = NULL, *deleted = NULL;

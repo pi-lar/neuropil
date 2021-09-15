@@ -543,7 +543,7 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t*self, np_dhkey_t partner_fp) {
                                 (struct np_data_conf) {
                                     .key = "_np.partner_fp",
                                     .type = NP_DATA_TYPE_BIN,
-                                    .data_size = sizeof(partner_fp)
+                                    .data_size = NP_FINGERPRINT_BYTES
                                 }, (np_data_value){ .bin = &partner_fp }
                             );
     assert(r == np_ok);
@@ -763,19 +763,16 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
 
     strncpy(dest->uuid, src->uuid, NP_UUID_BYTES);
 
-    // TODO: convert to np_id
-    //strncpy(dest->issuer, src->issuer, 65);
-    strncpy(dest->realm, src->realm, 255);
-    strncpy(dest->audience, src->audience, 255);
-    strncpy(dest->subject, src->subject, 255);
+    np_dhkey_t realm_dhkey = np_dhkey_create_from_hash(src->realm);
+    memcpy(dest->realm, &realm_dhkey, NP_FINGERPRINT_BYTES);
 
-    if(src->issuer[0] != NULL){
-        np_str_id(&dest->issuer, src->issuer);
-        char tst[65] = {0};
-        np_id_str(tst, &dest->issuer);
-    }
-    else
-        memcpy(&dest->issuer, &dhkey_zero,sizeof(np_dhkey_t));
+    np_dhkey_t audience_dhkey = np_dhkey_create_from_hash(src->audience);
+    memcpy(dest->audience, &audience_dhkey, NP_FINGERPRINT_BYTES);
+
+    np_dhkey_t issuer_dhkey = np_dhkey_create_from_hash(src->issuer);
+    memcpy(dest->issuer, &issuer_dhkey, NP_FINGERPRINT_BYTES);
+
+    strncpy(dest->subject, src->subject, 255);
 
     assert(crypto_sign_PUBLICKEYBYTES == NP_PUBLIC_KEY_BYTES);
     memcpy(dest->public_key, src->crypto.ed25519_public_key, NP_PUBLIC_KEY_BYTES);
@@ -805,16 +802,28 @@ np_aaatoken_t* np_user4aaatoken(np_aaatoken_t* dest, struct np_token* src) {
 
     strncpy(dest->uuid, src->uuid, NP_UUID_BYTES);
 
-    if(memcmp(&src->issuer, &dhkey_zero,sizeof(np_dhkey_t)) == 0){
-        dest->issuer[0] = NULL;
+    if(memcmp(&src->issuer, &dhkey_zero,sizeof(np_dhkey_t)) == 0) {
+        memset(dest->issuer, 0, NP_FINGERPRINT_BYTES);
     } else {
-        np_id_str(dest->issuer, &src->issuer);
+        np_id_str(dest->issuer, src->issuer);
+    }
+
+    if(memcmp(&src->realm, &dhkey_zero,sizeof(np_dhkey_t)) == 0) {
+        memset(dest->realm, 0, NP_FINGERPRINT_BYTES);
+    } else {
+        np_id_str(dest->realm, src->realm);
+    }
+
+    if(memcmp(&src->audience, &dhkey_zero,sizeof(np_dhkey_t)) == 0) {
+        memset(dest->audience, 0, NP_FINGERPRINT_BYTES);
+    } else {
+        np_id_str(dest->audience, src->audience);
     }
 
     //TODO: convert to np_id
     //strncpy(dest->issuer, src->issuer, 65);
-    strncpy(dest->realm, src->realm, 255);
-    strncpy(dest->audience, src->audience, 255);
+    // strncpy(dest->realm, src->realm, 255);
+    // strncpy(dest->audience, src->audience, 255);
     strncpy(dest->subject, src->subject, 255);
 
     // copy public key

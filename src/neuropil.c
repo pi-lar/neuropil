@@ -28,7 +28,6 @@
 
 #include "np_aaatoken.h"
 #include "np_attributes.h"
-#include "np_bootstrap.h"
 #include "np_dhkey.h"
 #include "np_event.h"
 #include "np_jobqueue.h"
@@ -53,7 +52,6 @@
 #include "np_util.h"
 
 
-
 static const char *error_strings[] = {
     "",
     "unknown error cause",
@@ -72,11 +70,18 @@ const char *np_error_str(enum np_return e) {
 }
 
 // split into hash 
-void np_get_id(np_id (*id), const char* string, NP_UNUSED size_t length) {
+void np_get_id(np_id (*id), const char* string, size_t length) {
     // np_ctx_cast(ac);
-     
-    np_dhkey_t  dhkey = np_dhkey_create_from_hostport(string, "0");
+    np_dhkey_t dhkey = _np_dhkey_generate_hash(string, length);
     memcpy(id, &dhkey, NP_FINGERPRINT_BYTES);
+}
+
+enum np_return np_generate_subject(np_subject (*subject_id), const char* subject, size_t length)
+{
+    np_dhkey_t dhkey = _np_dhkey_generate_hash(subject, length);
+    _np_dhkey_add((np_dhkey_t*)subject_id, &dhkey, (np_dhkey_t*)subject_id);
+    
+    return np_ok;
 }
 
 struct np_settings * np_default_settings(struct np_settings * settings) {
@@ -88,12 +93,13 @@ struct np_settings * np_default_settings(struct np_settings * settings) {
         ret = settings;
     }
     ret->n_threads = 5;
-    snprintf(ret->log_file, 256, "%.0f_neuropil.log",_np_time_now(NULL)*100);
+    snprintf(ret->log_file, 256, "%.0f_neuropil.log", _np_time_now(NULL)*100);
     ret->log_level = LOG_ERROR;
     ret->log_level |= LOG_WARN;
     ret->log_level |= LOG_INFO;
 
-    ret->leafset_size = 16;
+    ret->leafset_size = NP_LEAFSET_MAX_ENTRIES;
+    ret->jobqueue_size = JOBQUEUE_MAX_SIZE;
 
 #ifdef DEBUG
     ret->log_level |= LOG_DEBUG;    
@@ -175,7 +181,7 @@ np_context* np_new_context(struct np_settings * settings_in)
     }
     else {
         np_thread_t * new_thread =
-            __np_createThread(context, 0, NULL, false, np_thread_type_main);
+        __np_createThread(context, 0, NULL, false, np_thread_type_main);
         new_thread->id = (unsigned long)getpid();
         _np_threads_set_self(new_thread);
 
@@ -214,7 +220,6 @@ bool __np_is_already_listening(np_state_t* context)
 {
     return (context->my_node_key != NULL);
 }
-
 
 enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint16_t port)
 {
@@ -260,7 +265,7 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
             // np_network_t* my_network = NULL;
             // np_new_obj(np_network_t, my_network);
             // get public / local network interface id
-            char np_host[255];			
+            char np_host[255];
             bool has_host = true;
             if (NULL == host && port != 0) {
                 log_msg(LOG_INFO, "neuropil_init: resolve hostname");
@@ -287,11 +292,6 @@ enum np_return _np_listen_safe(np_context* ac, char* protocol, char* host, uint1
             else if (_np_jobqueue_init(context) == false)
             {
                 log_msg(LOG_ERROR, "neuropil_init: _np_jobqueue_init failed: %s", strerror(errno));
-                ret = np_startup;
-            }
-            else if (_np_bootstrap_init(context)== false)
-            {
-                log_msg(LOG_ERROR, "neuropil_init: _np_bootstrap_init failed: %s", strerror(errno));
                 ret = np_startup;
             }
             else if (!_np_statistics_enable(context))
@@ -411,7 +411,8 @@ enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bo
     return ret;
 }
 
-enum np_return np_use_identity(np_context* ac, struct np_token identity) {
+enum np_return np_use_identity(np_context* ac, struct np_token identity)
+{
     np_ctx_cast(ac);
 
     TSP_GET(enum np_status, context->status, state);
@@ -462,7 +463,7 @@ bool np_has_joined(np_context* ac)
     return ret;
 }
 
-bool np_has_receiver_for(np_context*ac, const char * subject)
+bool np_has_receiver_for(np_context*ac, np_subject subject)
 {
     assert(ac != NULL);
     assert(subject != NULL);
@@ -470,8 +471,15 @@ bool np_has_receiver_for(np_context*ac, const char * subject)
     np_ctx_cast(ac);
     bool ret = false;
 
-    np_dhkey_t prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, subject);
+    np_dhkey_t subject_dhkey = {0};
+    memcpy(&subject_dhkey, subject, NP_FINGERPRINT_BYTES);
+
+    np_dhkey_t prop_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
     np_key_t*  prop_key   = _np_keycache_find(context, prop_dhkey);
+
+    log_debug_msg(LOG_DEBUG, "receiver key %p for %08"PRIx32":%08"PRIx32 "!", prop_key, subject_dhkey.t[0], subject_dhkey.t[1]);
+
+    if (prop_key == NULL) return false;
 
     np_sll_t(np_aaatoken_ptr, receiver_list);
     sll_init(np_aaatoken_ptr, receiver_list);
@@ -490,42 +498,55 @@ bool np_has_receiver_for(np_context*ac, const char * subject)
 
 enum np_return np_join(np_context* ac, const char* address) 
 {
-  enum np_return ret = np_ok;
-  np_ctx_cast(ac);
-  TSP_GET(enum np_status,context->status,context_status);
-  if (address == NULL)             return np_invalid_argument;
-  if (strnlen(address,500) <=  10) return np_invalid_argument;
-  if (strnlen(address,500) >= 500) return np_invalid_argument;
-  if (context_status != np_running) return np_invalid_operation;
-  // char *nts = memchr(address,'\0', strnlen(address, 500));
-  // if (nts == NULL) return np_invalid_argument;
-  char* safe_address = strndup(address, 500);
-  np_send_join(context, safe_address);
-  free(safe_address);
-  return ret;
-}
+    enum np_return ret = np_ok;
+    np_ctx_cast(ac);
+    TSP_GET(enum np_status,context->status,context_status);
 
-enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length) 
-{
+    if (address == NULL)              return np_invalid_argument;
+    if (strnlen(address,500) <=  10)  return np_invalid_argument;
+    if (strnlen(address,500) >= 500)  return np_invalid_argument;
+    if (context_status != np_running) return np_invalid_operation;
 
-	if (subject == NULL) return np_invalid_argument;
-	if (strnlen(subject,500) == 0) return np_invalid_argument;
+    // char *nts = memchr(address,'\0', strnlen(address, 500));
+    // if (nts == NULL) return np_invalid_argument;
+    char* safe_address = strndup(address, 500);
+    np_send_join(context, safe_address);
+    free(safe_address);
 
-	char* safe_subject = strndup(subject,255);
-    enum np_return ret = np_send_to(ac, safe_subject, message, length, NULL);
-
-    free(safe_subject);
     return ret;
 }
 
-enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target)) 
+enum np_return np_send(np_context* ac, np_subject subject_id, const unsigned char* message, size_t length) 
+{
+
+	if (subject_id == NULL) return np_invalid_argument;
+	// if (strnlen(subject,500) == 0) return np_invalid_argument;
+
+	// char* safe_subject = strndup(subject_id,255);
+    enum np_return ret = np_send_to(ac, subject_id, message, length, NULL);
+
+    // free(safe_subject);
+    return ret;
+}
+
+enum np_return np_send_to(np_context* ac, np_subject subject_id, const unsigned char* message, size_t length, np_id (*target)) 
 {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
 
+    np_dhkey_t subject_dhkey = { 0 }; // _np_msgproperty_dhkey(OUTBOUND, subject_id);
+    memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
+
+    // make sure that an outbound msgproperty exists, function call is here for the side effect
+    np_msgproperty_conf_t* prop = _np_msgproperty_get_or_create(ac, OUTBOUND, subject_dhkey);
+
+    if (prop->audience_type == NP_MX_AUD_VIRTUAL) 
+        return np_invalid_operation;
+
+    np_msgproperty_register(prop);
+
     np_tree_t* body = np_tree_create();
     np_tree_insert_str(body, NP_SERIALISATION_USERDATA, np_treeval_new_bin((void*) message, length));
-
 
     np_attributes_t tmp_msg_attr;
     if( np_ok == np_init_datablock(tmp_msg_attr,sizeof(tmp_msg_attr))){
@@ -538,24 +559,22 @@ enum np_return np_send_to(np_context* ac, const char* subject, const unsigned ch
         }
     }
 
-    np_dhkey_t subject_dhkey = _np_msgproperty_dhkey(OUTBOUND, subject);
-    np_dhkey_t target_dhkey = {0};
+    np_dhkey_t target_dhkey = {0}; // will be used as a selector -> check whether the opposite peer contains this hash value
     if (target != NULL) {
         // TOOD: id to dhkey
     }
-    // make sure that an outbound msgproperty exists
-    np_msgproperty_t* prop = _np_msgproperty_get_or_create(ac, INBOUND | OUTBOUND, subject);
+    np_dhkey_t out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
 
     np_message_t* msg_out = NULL;
     np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
-    _np_message_create(msg_out, subject_dhkey, context->my_node_key->dhkey, subject, body);
+    _np_message_create(msg_out, subject_dhkey, context->my_node_key->dhkey, subject_dhkey, body);
 
     log_msg(LOG_INFO, "sending message (size: %"PRIu16" msg: %s)", length, msg_out->uuid);
 
     np_util_event_t send_event = { .type=(evt_internal | evt_message), .context=ac, .user_data=msg_out, .target_dhkey=target_dhkey };
     // _np_keycache_handle_event(context, subject_dhkey, send_event, false);
 
-    if(!np_jobqueue_submit_event(context, 0.0, subject_dhkey, send_event, "event: userspace message delivery request")){
+    if(!np_jobqueue_submit_event(context, 0.0, out_dhkey, send_event, "event: userspace message delivery request")){
         log_msg(LOG_WARN, "rejecting possible sending of message, please check jobqueue settings!");
     }
 
@@ -569,14 +588,16 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
     np_receive_callback callback = localdata;
     np_tree_elem_t* userdata = np_tree_find_str(body, NP_SERIALISATION_USERDATA);
 
-    if (userdata != NULL) {
+    if (userdata != NULL) 
+    {
         struct np_message message = { 0 };
         strncpy(message.uuid, msg->uuid, NP_UUID_BYTES-1);
-        np_get_id(&message.subject, _np_message_get_subject(msg), strlen(_np_message_get_subject(msg)));
+        memcpy(&message.subject, _np_message_get_subject(msg), NP_FINGERPRINT_BYTES);
+        // np_get_id(&message.subject, _np_message_get_subject(msg), strlen(_np_message_get_subject(msg)));
 
         ASSERT(msg->decryption_token != NULL,"The decryption token should never be empty in this stage");
         np_dhkey_t _t ;
-        np_str_id(&_t,msg->decryption_token->issuer);
+        np_str_id(&_t, msg->decryption_token->issuer);
         memcpy(&message.from, &_t, NP_FINGERPRINT_BYTES);
 
         message.received_at = np_time_now(); // todo get from network
@@ -584,37 +605,35 @@ bool __np_receive_callback_converter(np_context* ac, const np_message_t* const m
         message.data = userdata->val.value.bin;
         message.data_length = userdata->val.size;
 
-
         np_tree_elem_t* msg_attributes = np_tree_find_str(body, NP_SERIALISATION_ATTRIBUTES);
-        if(msg_attributes == NULL){
+        if(msg_attributes == NULL) {
             np_init_datablock(message.attributes,sizeof(message.attributes));
-        }else{
-
+        } else {
             np_datablock_t * dt = msg_attributes->val.value.bin;
             // size_t attr_size;
             if(sizeof(message.attributes) >= msg_attributes->val.size) {
                 memcpy(message.attributes, dt, msg_attributes->val.size);
             }
         }
-        log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) conversion into public structs complete.", msg->uuid);
         log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Calling user function.", msg->uuid);
         callback(context, &message);
         log_debug(LOG_MESSAGE | LOG_VERBOSE,"(msg: %s) Called  user function.", msg->uuid);
-    }else{
+    } else {
         log_info(LOG_MESSAGE |LOG_ROUTING,"(msg: %s) contains no userdata", msg->uuid);
     }
     return ret;
 }
 
-enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback)
+enum np_return np_add_receive_cb(np_context* ac, np_subject subject_id, np_receive_callback callback)
 {
     enum np_return ret = np_ok;
     np_ctx_cast(ac);
-    log_debug(LOG_MISC, "np_add_receive_cb %s", subject);
+    log_debug(LOG_MISC, "np_add_receive_cb %s", subject_id);
 
-    char* safe_subject = strndup(subject,255);
-    np_add_receive_listener(ac, __np_receive_callback_converter, callback, safe_subject);
-    free(safe_subject);
+    np_dhkey_t subject_dhkey = { 0 }; // _np_msgproperty_dhkey(OUTBOUND, subject_id);
+    memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
+
+    np_add_receive_listener(ac, __np_receive_callback_converter, callback, subject_dhkey);
     return ret;
 }
 
@@ -646,54 +665,108 @@ enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback)
     return ret;
 }
 
-struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject) 
+struct np_mx_properties np_get_mx_properties(np_context* ac, const np_subject subject_id) 
 {
     np_ctx_cast(ac);
     struct np_mx_properties ret = { 0 };
 
-    np_msgproperty_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
+    np_dhkey_t subject_dhkey = {0};
+    memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
 
-    np_msgproperty4user(&ret, property);
+    np_msgproperty_conf_t* property = _np_msgproperty_conf_get(context, DEFAULT_MODE, subject_dhkey);
+    if (property != NULL)
+        np_msgproperty4user(&ret, property);
 
     return ret;
 }
 
-enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties user_property) 
+enum np_return np_set_mx_authorize_cb(np_context* ac, const np_subject subject_id, np_aaa_callback callback)
+{
+    np_ctx_cast(ac);
+    enum np_return ret = np_invalid_operation;
+
+    np_dhkey_t subject_dhkey = {0};
+    memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
+
+    np_msgproperty_run_t* property = NULL;
+    
+    property = _np_msgproperty_run_get(context, INBOUND, subject_dhkey);
+    if (property != NULL && property->authorize_func == NULL) {
+        property->authorize_func = callback;
+        ret = np_ok;
+        log_debug(LOG_INFO, "set authorization callback on subject (%08"PRIx32":%08"PRIx32") level", subject_dhkey.t[0], subject_dhkey.t[1]);
+    }
+    else
+    {
+        log_debug(LOG_WARN, "cannot set authorization callback on subject (%08"PRIx32":%08"PRIx32") level, as it is already set or it doesn't exists", subject_dhkey.t[0], subject_dhkey.t[1]);
+    }
+
+    property = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);
+    if (property != NULL && property->authorize_func == NULL) {
+        property->authorize_func = callback;
+        ret = np_ok;
+        log_debug(LOG_INFO, "set authorization callback on subject (%08"PRIx32":%08"PRIx32") level", subject_dhkey.t[0], subject_dhkey.t[1]);
+    }
+    else
+    {
+        log_debug(LOG_WARN, "cannot set authorization callback on subject (%08"PRIx32":%08"PRIx32") level, as it is already set or it doesn't exists", subject_dhkey.t[0], subject_dhkey.t[1]);
+    }
+
+    return ret;
+}
+
+enum np_return np_set_mx_properties(np_context* ac, const np_subject subject_id, struct np_mx_properties user_property) 
 {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
     
     // TODO: validate user_property
     struct np_mx_properties safe_user_property = user_property;
-    safe_user_property.reply_subject[254] = 0;
- 
-    np_msgproperty_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
+    // safe_user_property.reply_id[254] = 0;
+
+    np_dhkey_t subject_dhkey = {0};
+
+    // check if the audience field has been set for protected data channels
+    if (user_property.audience_type == NP_MX_AUD_PROTECTED &&
+        _np_dhkey_equal(&user_property.audience_id, &subject_dhkey))
+        return np_invalid_operation;
+    
+    memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
+
+    np_msgproperty_conf_t* property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject_dhkey);
     np_msgproperty_from_user(context, property, &safe_user_property);
+    np_msgproperty_register(property);
 
     return ret;
 }
 
-enum np_return np_mx_properties_enable(np_context* ac, const char* subject) 
+enum np_return np_mx_properties_enable(np_context* ac, const np_subject subject_id) 
 {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
     
-    np_msgproperty_t* property = _np_msgproperty_get(context, DEFAULT_MODE, subject);
-    np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject);
-    np_util_event_t enable_event = { .type=(evt_enable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=property_dhkey };
-    _np_keycache_handle_event(ac, property_dhkey, enable_event, false);
+    np_dhkey_t subject_dhkey = {0};
+    memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
+
+    np_msgproperty_conf_t* property = _np_msgproperty_conf_get(context, DEFAULT_MODE, subject_dhkey);
+    // np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject_id);
+    np_util_event_t enable_event = { .type=(evt_enable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=subject_dhkey };
+    _np_keycache_handle_event(ac, subject_dhkey, enable_event, false);
     return ret;
 }
 
-enum np_return np_mx_properties_disable(np_context* ac, const char* subject) 
+enum np_return np_mx_properties_disable(np_context* ac, const np_subject subject_id) 
 {
     np_ctx_cast(ac);
     enum np_return ret = np_ok;
     
-    np_msgproperty_t* property = _np_msgproperty_get(context, DEFAULT_MODE, subject);
-    np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject);
-    np_util_event_t enable_event = { .type=(evt_disable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=property_dhkey };
-    _np_keycache_handle_event(ac, property_dhkey, enable_event, false);
+    np_dhkey_t subject_dhkey = {0};
+    memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
+
+    np_msgproperty_conf_t* property = _np_msgproperty_conf_get(context, DEFAULT_MODE, subject_dhkey);
+    // np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject_id);
+    np_util_event_t enable_event = { .type=(evt_disable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=subject_dhkey };
+    _np_keycache_handle_event(ac, subject_dhkey, enable_event, false);
 
     return ret;
 }
@@ -733,6 +806,8 @@ enum np_return np_add_shutdown_cb(np_context* ac, np_callback callback)
 {
     np_ctx_cast(ac);
     np_shutdown_add_callback(ac, (np_destroycallback_t) callback);
+
+    return np_ok;
 }
 
 void np_set_userdata(np_context *ac, void* userdata) {
@@ -798,11 +873,10 @@ void np_destroy(np_context* ac, bool gracefully)
     // destroy modules
     // _np_sysinfo_destroy_cache(context);
     _np_shutdown_destroy(context);    
-    _np_bootstrap_destroy(context);
-
-    np_threads_shutdown_workers(context);
 
     TSP_SET(context->status, np_shutdown);
+    np_threads_shutdown_workers(context);
+
 
     _np_jobqueue_destroy(context);
     _np_time_destroy(context);

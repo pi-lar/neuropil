@@ -179,14 +179,18 @@ char* np_messagepart_printcache(np_state_t* context, bool asOneLine)
 
 		RB_FOREACH(tmp, np_tree_s, context->msg_part_cache)
 		{
+
 			np_message_t* msg = tmp->val.value.v;
+			char tmp_msg_subject[65];
+			// TODO: tmp_msg_subject (this is an ugly cast from dhkey* to char*)
+			sodium_bin2hex(tmp_msg_subject, 65, _np_message_get_subject(msg), NP_FINGERPRINT_BYTES);
 
 			ret = np_str_concatAndFree(ret,
-					"%s   received %2"PRIu32" of %2"PRIu16" expected parts. msg subject:%s%s",
+					"%s   received %2"PRIu32" of %2"PRIu16" expected parts. msg subject: %s%s",
 					msg->uuid,
 					pll_size(msg->msg_chunks),
 					msg->no_of_chunks,
-					_np_message_get_subject(msg),
+					tmp_msg_subject,
 					new_line
 					);
 		}		

@@ -4,6 +4,8 @@
 //
 #include <criterion/criterion.h>
 
+#include "neuropil.h"
+
 #include "np_jobqueue.h"
 #include "np_types.h"
 
@@ -36,15 +38,22 @@ Test(np_jobqueue, _np_jobqueue, .description = "test the jobqueue module of the 
 		char* test_subject = "urn:np:test:subject";
 
 		// the corresponding msgproperty for the subject
-		np_msgproperty_t* msg_prop = NULL;
-	    np_new_obj(np_msgproperty_t, msg_prop, __func__);
+		np_msgproperty_conf_t* msg_prop = NULL;
+	    np_new_obj(np_msgproperty_conf_t, msg_prop, __func__);
 	    msg_prop->msg_subject = strndup(test_subject, 255);
+
+	    np_generate_subject( (np_subject *) &msg_prop->subject_dhkey, msg_prop->msg_subject, strnlen(msg_prop->msg_subject, 256));
+
 	    np_msgproperty_register(msg_prop);
 
 	    // a message for the subject
 		np_message_t* msg = NULL;
 		np_new_obj(np_message_t, msg, ref_obj_creation);
-		_np_message_create(msg, dhkey, dhkey, test_subject, "urn:np:test:data:{ name: \"key\", value: \"value\" }");
+
+		np_dhkey_t test_subject_dhkey = {0};
+		np_generate_subject(&test_subject_dhkey, test_subject, strnlen(test_subject, 256));
+
+		_np_message_create(msg, dhkey, dhkey, test_subject_dhkey, "urn:np:test:data:{ name: \"key\", value: \"value\" }");
 
 		cr_expect( NULL != context->np_module_jobqueue, "jobqueue module should be initialized");
 		cr_expect( NULL != context->np_module_jobqueue->job_list, "jobqueue job list should be initialized");

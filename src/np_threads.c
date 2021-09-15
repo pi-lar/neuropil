@@ -759,7 +759,7 @@ void* __np_thread_status_wrapper(void* self)
         }
         else 
         {
-            log_debug_msg(LOG_DEBUG, "thread %p type %d sleeping ...", thread->thread_id, thread->thread_type);
+            log_debug_msg(LOG_DEBUG, "thread %d type %d sleeping ...", thread->thread_id, thread->thread_type);
             np_time_sleep(0.0);
         }
         tmp_status = np_get_status(context);
@@ -767,6 +767,7 @@ void* __np_thread_status_wrapper(void* self)
     }
 
     log_error("thread %p type %d stopping ...", thread->thread_id, thread->thread_type);
+    
     pthread_exit(NULL);
 
     return NULL;
@@ -839,24 +840,23 @@ void np_threads_shutdown_workers(np_state_t* context)
     sll_iterator(np_thread_ptr) iter_threads;
     
     iter_threads = sll_first(np_module(threads)->threads);
-    while (iter_threads != NULL)
-    {   // wake me up ...
-        _np_jobqueue_check(context);
+    
+    // wakeup jobqueue for cancellation of manager thread
+    _np_threads_module_condition_broadcast(context, np_jobqueue_t_lock);
 
-        if(iter_threads->val->thread_type != np_thread_type_main){
-            log_debug_msg(LOG_DEBUG, "thread %p type %d stopping ...", iter_threads->val->id, iter_threads->val->thread_type);
-            int res = pthread_cancel(iter_threads->val->thread_id);
-            if (res != 0)
-                log_debug_msg(LOG_DEBUG, "thread %p type %d not cancelled", iter_threads->val->id, iter_threads->val->thread_type);
-            np_time_sleep(0.0);
-        }
-        sll_next(iter_threads);
-    }
-    iter_threads = sll_first(np_module(threads)->threads);
-        
     while (iter_threads != NULL)
-    {   // ... before you go !        
+    {
         np_thread_t* thread = iter_threads->val;
+        // wakeup worker for cancellation of thread
+        if(thread->thread_type == np_thread_type_worker || thread->thread_type == np_thread_type_managed){
+            log_debug_msg(LOG_DEBUG, "thread %p type %d stopping ...", thread->id, thread->thread_type);
+            _np_threads_mutex_condition_signal(context, &thread->job_lock); 
+        }
+        // force cancel of eventloop (probably on wait cancellation point)
+        else if(thread->thread_type == np_thread_type_eventloop) {
+            int cancel_res = pthread_cancel(thread->thread_id);
+        }
+        // and wait for all threads to join the main thread again
         if(thread->thread_type != np_thread_type_main){
             
             // only the main thread cannot be shut down (np_threads_shutdown_workers needs to be invoked from here)

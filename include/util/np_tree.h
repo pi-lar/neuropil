@@ -322,7 +322,7 @@ void np_tree_set_treeval(np_tree_t* tree, np_tree_elem_t* element, np_treeval_t 
 NP_API_EXPORT
 unsigned char* np_tree_get_hash(np_tree_t* self);
 NP_API_INTERN
-bool np_tree_check_field(np_state_t* context, np_tree_t* tree, const char* field_name, const  char* _NP_MSG_HEADER_SUBJECT, np_tree_elem_t** buffer) ;
+bool np_tree_check_field(np_state_t* context, np_tree_t* tree, const char* field_name, const char* _NP_MSG_HEADER_SUBJECT, np_tree_elem_t** buffer) ;
 #ifdef __cplusplus
 }
 #endif

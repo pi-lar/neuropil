@@ -48,7 +48,7 @@ class StarSetupTest(unittest.TestCase):
 
     @staticmethod
     def authn_allow_star(node:NeuropilNode, token:np_token):
-        global np_0_fp
+        # global np_0_fp
         id = ffi.new("np_id", b'\0')
         ret = neuropil.np_token_fingerprint(node._context, _NeuropilHelper.convert_from_python(token), False, ffi.addressof(id))
         if ret is not neuropil.np_ok:
@@ -67,57 +67,61 @@ class StarSetupTest(unittest.TestCase):
         return True
 
     def run_sender(self):
-        np_1 = NeuropilNode(4002, log_file="logs/smoke_test_star_n1.log", auto_run=False, n_threads=5)
+        sender = NeuropilNode(4002, log_file="logs/smoke_test_star_n1.log", auto_run=False, n_threads=5)
         # configure node 1 as sender
-        mxp = np_1.get_mx_properties(StarSetupTest.subject)
+        mxp = sender.get_mx_properties(StarSetupTest.subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 5
         mxp.apply()
-        np_1.set_authenticate_cb(StarSetupTest.authn_allow_star)
-        np_1.set_authorize_cb(StarSetupTest.authz_allow_all)
-        np_1.run(0)
-        np_1.join(StarSetupTest.np_0_addr)
+        
+        sender.set_authenticate_cb(StarSetupTest.authn_allow_star)
+        sender.set_authorize_cb(StarSetupTest.authz_allow_all)
+        sender.run(0)
+        sender.join(StarSetupTest.np_0_addr)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()),
         #                                           node=np_1.get_fingerprint(),
         #                                           addr=np_1.get_address()) )
-        np_1.run(math.pi/10)
+        sender.run(math.pi/10)
         t1 = time.time()
         timeout = 120 #sec
         while not self.isOK():
             elapsed = float(time.time() - t1)
             # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
             if elapsed % 2 == 0:
-                self.assertTrue(np_1.get_status() == neuropil.np_running)
+                self.assertTrue(sender.get_status() == neuropil.np_running)
             # if elapsed > 20:
             #     self.assertTrue(np_1.has_joined())
             if elapsed > 45 and not StarSetupTest.send.value:
-                np_1.send(StarSetupTest.subject, b'test data blob')
+                sender.send(StarSetupTest.subject, b'test data blob')
                 StarSetupTest.send.value = True
                 # print("sending message complete")
             if StarSetupTest.msg_delivery_succ.value or elapsed > timeout:
                 break
-            np_1.run(math.pi/10)
-        np_1.shutdown()
+            sender.run(math.pi/10)
+        sender.shutdown()
 
 
     def run_receiver(self):
         global subject
         global np_0_addr
 
-        np_2 = NeuropilNode(4003, log_file="logs/smoke_test_star_n2.log", auto_run=False, n_threads=5)
+        receiver = NeuropilNode(4003, log_file="logs/smoke_test_star_n2.log", auto_run=False, n_threads=5)
         # configure node 2 as receiver
-        mxp = np_2.get_mx_properties(StarSetupTest.subject)
+        mxp = receiver.get_mx_properties(StarSetupTest.subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
-        np_2.set_receive_cb(StarSetupTest.subject, self.msg_received)
-        np_2.set_authenticate_cb(StarSetupTest.authn_allow_star)
-        np_2.set_authorize_cb(StarSetupTest.authz_allow_all)
-        np_2.run(0)
-        np_2.join(StarSetupTest.np_0_addr)
+
+        receiver.set_receive_cb(StarSetupTest.subject, self.msg_received)
+        receiver.set_authenticate_cb(StarSetupTest.authn_allow_star)
+        receiver.set_authorize_cb(StarSetupTest.authz_allow_all)
+        receiver.run(0)
+        receiver.join(StarSetupTest.np_0_addr)
         # print("{time:.3f} / {node} --> {addr}".format(time=float(time.time()),
         #                                           node=np_2.get_fingerprint(),
         #                                           addr=np_2.get_address()) )
-        np_2.run(math.pi/10)
+        receiver.run(math.pi/10)
 
         t1 = time.time()
         timeout = 120 #sec
@@ -125,13 +129,13 @@ class StarSetupTest(unittest.TestCase):
             elapsed = float(time.time() - t1)
             # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
             if elapsed % 2 == 0:
-                self.assertTrue(np_2.get_status() == neuropil.np_running)
+                self.assertTrue(receiver.get_status() == neuropil.np_running)
             # if elapsed > 20:
             #     self.assertTrue(np_2.has_joined())
             if StarSetupTest.msg_delivery_succ.value or elapsed > timeout:
                 break
-            np_2.run(math.pi/10)
-        np_2.shutdown()
+            receiver.run(math.pi/10)
+        receiver.shutdown()
 
     def run_mitm(self):
         np_0 = NeuropilNode(4001, log_file="logs/smoke_test_star_n0.log", auto_run=False, n_threads=5)
@@ -158,6 +162,7 @@ class StarSetupTest(unittest.TestCase):
 
     def isOK(self):
         return StarSetupTest.send.value and  StarSetupTest.msg_delivery_succ.value
+    
     def test_star_setup_delivery(self):
 
         send = Value('i', 0)

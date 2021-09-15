@@ -24,7 +24,7 @@ extern "C" {
 		np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context );
 
 	NP_API_INTERN
-		np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request);
+		np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_conf_t* msg_request);
 
 	NP_API_INTERN
 		np_ident_private_token_t* np_token_factory_new_identity_token(np_state_t* context, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]);

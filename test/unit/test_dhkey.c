@@ -8,6 +8,7 @@
 #include "sodium.h"
 #include "event/ev.h"
 
+#include "neuropil.h"
 #include "np_dhkey.h"
 #include "np_memory.h"
 
@@ -119,11 +120,12 @@ Test(np_dhkey_t, _dhkey_index, .description = "test the common prefix length of 
 		np_dhkey_t key_4 = np_dhkey_create_from_hostport( subject, "4");
 		np_dhkey_t key_5 = np_dhkey_create_from_hostport( subject, "5");
 
-		cr_expect(63 == _np_dhkey_index(&key_1, &key_1), "expected index to be 64");
-		cr_expect(0 == _np_dhkey_index(&key_1, &key_2), "expected index to be  0");
-		cr_expect(0 == _np_dhkey_index(&key_1, &key_3), "expected index to be  0");
-		cr_expect(0 == _np_dhkey_index(&key_1, &key_4), "expected index to be  0");
-		cr_expect(1 == _np_dhkey_index(&key_1, &key_5), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_5));
+		cr_expect(63 == _np_dhkey_index(&key_1, &key_1), "expected index to be 63, but received %d", _np_dhkey_index(&key_1, &key_1));
+		cr_expect(1 == _np_dhkey_index(&key_1, &key_2), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_2));
+		cr_expect(0 == _np_dhkey_index(&key_1, &key_3), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_3));
+		cr_expect(0 == _np_dhkey_index(&key_1, &key_4), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_4));
+		cr_expect(0 == _np_dhkey_index(&key_1, &key_5), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_5));
+
 	}
 }
 
@@ -133,23 +135,18 @@ Test(np_dhkey_t, _dhkey_hexalpha_at, .description="test for getting the hexalpha
 		char subject[] = "this.is.a.test";
 		np_dhkey_t key_1 = np_dhkey_create_from_hostport( subject, "1");
 
-		// => 7c5f11d1 8315519a 8c4df66e dd0ae509 4aa90a88 adbbc488 3e6ba84c b13cae5d
 		uint8_t tmp = 0;
-		cr_expect( 7 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 0)) , "idx  0 expected hexalpha_at to be  7 but is: %"PRIu8, tmp);
-		// => 7c5f11d1 831_5_519a 8c4df66e dd0ae509 4aa90a88 adbbc488 3e6ba84c b13cae5d
-		cr_expect( 5 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 11)), "idx 11 expected hexalpha_at to be  5 but is: %"PRIu8, tmp);
-		// => 7c5f11d18315519a8c4df66e_d_d0ae5094aa90a88adbbc4883e6ba84cb13cae5d
-		cr_expect(13 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 24)), "idx 24 expected hexalpha_at to be 13 but is: %"PRIu8, tmp);
-		// => 7c5f11d1 8315519a 8c4df66e dd0ae509 4aa_9_0a88 adbbc488 3e6ba84c b13cae5d
-		cr_expect( 9 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 35)), "idx 35 expected hexalpha_at to be  9 but is: %"PRIu8, tmp);
-		// => 7c5f11d18315519a8c4df66edd0ae5094aa90a88adbbc488_3_e6ba84cb13cae5d
-		cr_expect( 3 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 48)), "idx 48 expected hexalpha_at to be  3 but is: %"PRIu8, tmp);
-		// => 7c5f11d1 8315519a 8c4df66e dd0ae509 4aa90a88 adbbc488 3e6ba84c b13c_a_e5d
+		cr_expect(13 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 0)) , "idx  0 expected hexalpha_at to be  7 but is: %"PRIu8, tmp);
+		cr_expect( 9 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 11)), "idx 11 expected hexalpha_at to be  5 but is: %"PRIu8, tmp);
+		cr_expect(14 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 24)), "idx 24 expected hexalpha_at to be 13 but is: %"PRIu8, tmp);
+		cr_expect( 1 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 35)), "idx 35 expected hexalpha_at to be  9 but is: %"PRIu8, tmp);
+		cr_expect(14 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 48)), "idx 48 expected hexalpha_at to be  3 but is: %"PRIu8, tmp);
 		cr_expect(10 == (tmp = _np_dhkey_hexalpha_at(context, &key_1, 60)), "idx 60 expected hexalpha_at to be 10 but is: %"PRIu8, tmp);
 
-		np_dhkey_t key_2 = np_dhkey_create_from_hostport( subject, "2");
-		// => cc462cab0a689bfb232b27f4816116a2e04de54f7b0aee1fc179fae41e2c8c62
-		char* key_2_reference = "cc462cab0a689bfb232b27f4816116a2e04de54f7b0aee1fc179fae41e2c8c62";
+                np_dhkey_t key_2 = np_dhkey_create_from_hostport( subject, "2");
+
+		// => 688f55430688c12f8f647605bb7a07ce41f79d5dd7dfb7404c80b1840ad1f8a1
+		char* key_2_reference = "688f55430688c12f8f647605bb7a07ce41f79d5dd7dfb7404c80b1840ad1f8a1";
 		char ele[2] = { 0 };
 		for (int i = 0; i < strlen(key_2_reference); i++) {
 			memcpy(ele, key_2_reference + i, 1);

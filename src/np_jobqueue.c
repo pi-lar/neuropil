@@ -231,7 +231,7 @@ bool _np_jobqueue_init(np_state_t * context)
         np_module_malloc(jobqueue);
 
         TSP_INIT(np_module(jobqueue)->job_list);
-        pheap_init(np_job_t, _module->job_list, JOBQUEUE_MAX_SIZE);
+        pheap_init(np_job_t, _module->job_list, context->settings->jobqueue_size);
 
         _module->periodic_jobs = 0;
 

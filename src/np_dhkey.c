@@ -38,7 +38,8 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_dhkey_t)
 np_dhkey_t _np_dhkey_generate_hash (const unsigned char * data, size_t data_size)
 {
     unsigned char md_value[32] = {0};
-    crypto_hash_sha256(md_value, data, data_size);
+    crypto_generichash_blake2b(md_value, NP_FINGERPRINT_BYTES, data, data_size, NULL, 0);
+    // crypto_hash_sha256(md_value, data, data_size);
 
     np_dhkey_t kResult = { 0 };
     memcpy(&kResult.t[0], &md_value[ 0], 4);
@@ -49,7 +50,7 @@ np_dhkey_t _np_dhkey_generate_hash (const unsigned char * data, size_t data_size
     memcpy(&kResult.t[5], &md_value[20], 4);
     memcpy(&kResult.t[6], &md_value[24], 4);
     memcpy(&kResult.t[7], &md_value[28], 4);
-
+    
     return kResult;
 }
 
@@ -74,19 +75,19 @@ np_dhkey_t np_dhkey_create_from_hash(const char* strOrig)
         }
     }
 
-    if (_invalid_format) return kResult;
-
-    np_id new_id = {0};
-    np_str_id(&new_id, strOrig);
-    memcpy(&kResult.t[0], &new_id[ 0], 4);
-    memcpy(&kResult.t[1], &new_id[ 4], 4);
-    memcpy(&kResult.t[2], &new_id[ 8], 4);
-    memcpy(&kResult.t[3], &new_id[12], 4);
-    memcpy(&kResult.t[4], &new_id[16], 4);
-    memcpy(&kResult.t[5], &new_id[20], 4);
-    memcpy(&kResult.t[6], &new_id[24], 4);
-    memcpy(&kResult.t[7], &new_id[28], 4);
-
+    if (!_invalid_format)
+    {
+        np_id new_id = {0};
+        np_str_id(&new_id, strOrig);
+        memcpy(&kResult.t[0], &new_id[ 0], 4);
+        memcpy(&kResult.t[1], &new_id[ 4], 4);
+        memcpy(&kResult.t[2], &new_id[ 8], 4);
+        memcpy(&kResult.t[3], &new_id[12], 4);
+        memcpy(&kResult.t[4], &new_id[16], 4);
+        memcpy(&kResult.t[5], &new_id[20], 4);
+        memcpy(&kResult.t[6], &new_id[24], 4);
+        memcpy(&kResult.t[7], &new_id[28], 4);
+    }
     return kResult;
 }
 
@@ -95,7 +96,7 @@ np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
     char name[256] = {0};
     snprintf (name, 255, "%s:%s", strOrig, port);
 
-    return _np_dhkey_generate_hash(name,strnlen(name, 255));
+    return _np_dhkey_generate_hash(name, strnlen(name, 255));
 }
 
 void _np_dhkey_encode(NP_UNUSED np_state_t* context, np_tree_t* jrb, np_dhkey_t* key)

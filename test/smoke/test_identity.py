@@ -47,7 +47,7 @@ class IdentityTest(unittest.TestCase):
         global check_np_1_ident_ok
         global check_np_2_ident_ok
 
-        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_identity_nl1.log", auto_run=False, no_threads=6)
+        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_identity_nl1.log", auto_run=False)
         np_2 = NeuropilNode(4002, log_file="logs/smoke_test_identity_nl2.log", auto_run=False)
 
         np_2_ident = np_2.new_identity()
@@ -94,7 +94,7 @@ class IdentityTest(unittest.TestCase):
         self.assertTrue(check_np_2_ident_ok)
 
     def test_identity_set_key(self):
-        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_identity_nl1.log", auto_run=False, no_threads=6)
+        np_1 = NeuropilNode(4001, log_file="logs/smoke_test_identity_nl1.log", auto_run=False)
 
         # generate a key:        
         private_key = ed25519.Ed25519PrivateKey.generate()

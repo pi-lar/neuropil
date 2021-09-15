@@ -68,7 +68,7 @@ typedef struct np_searchnode_s np_searchnode_t;
 // can be used as a second reduce stage to filter results.
 struct np_searchquery_s {
     uint8_t query_id;
-    np_id result_idx; // same as np_searchentry_s::search_index
+    np_dhkey_t result_idx; // same as np_searchentry_s::search_index
 
     np_searchentry_t query_entry;
 };
@@ -104,21 +104,19 @@ void np_search_query(np_context* context, np_searchquery_t* query);
 np_tree_t* np_search_get_resultset(np_context* context, np_searchquery_t* query);
 
 // messages and callbacks required for nodes to interact
-void _np_searchnode_anounce(np_context* ac, np_searchnode_t* node);
-bool _np_searchnode_acounce_cb(np_context* ac, struct np_message* token_msg);
 void _np_searchnode_withdraw(np_context* ac, np_searchnode_t* node);
 bool _np_searchnode_withdraw_cb(np_context* ac, struct np_message* token_msg);
 
-void _np_searchentry_anounce(np_context* ac, np_searchentry_t* entry);
-bool _np_searchentry_anounce_cb(np_context* ac, struct np_message* token_msg);
+void _np_searchentry_announce(np_context* ac, np_searchentry_t* entry);
+bool _np_searchentry_announce_cb(np_context* ac, struct np_message* token_msg);
 // void _np_searchentry_withdraw(np_context* ac, struct np_searchentry_s* entry);
 // bool _np_searchentry_withdraw_cb(np_context* ac, struct np_message* token);
 
 void _np_searchentry_send_query(np_context* ac, np_searchquery_t* query);
-void _np_searchentry_query_cb(np_context* ac, struct np_message* query_msg);
+bool _np_searchentry_query_cb(np_context* ac, struct np_message* query_msg);
 
 void _np_searchentry_send_result(np_context* ac, np_searchentry_t* result);
-void _np_searchentry_result_cb(np_context* ac, struct np_message* result);
+bool _np_searchentry_result_cb(np_context* ac, struct np_message* result);
 
 void _np_search_shutdown_hook(np_context* ac);
 

@@ -126,7 +126,7 @@ char* np_statistics_prometheus_export(np_context*ac);
             void _np_statistics_update_prometheus_labels(np_state_t*context, prometheus_metric* metric);
 
         NP_API_EXPORT
-            void np_statistics_add_watch(np_state_t* context, const char* subject);
+            void np_statistics_add_watch(np_state_t* context, np_subject subject);
 
         NP_API_EXPORT
             char * np_statistics_print(np_state_t* context, bool asOneLine);
@@ -136,11 +136,11 @@ char* np_statistics_prometheus_export(np_context*ac);
 
     #ifdef NP_STATISTICS_COUNTER
         NP_API_INTERN
-            void __np_increment_forwarding_counter(np_state_t* context, char * subject);
+            void __np_increment_forwarding_counter(np_state_t* context, np_dhkey_t subject);
         NP_API_INTERN
-            void __np_increment_received_msgs_counter(np_state_t* context, char * subject);
+            void __np_increment_received_msgs_counter(np_state_t* context, np_dhkey_t subject);
             NP_API_INTERN
-            void __np_increment_send_msgs_counter(np_state_t* context, char * subject);
+            void __np_increment_send_msgs_counter(np_state_t* context, np_dhkey_t subject);
         NP_API_INTERN
             void __np_statistics_add_send_bytes(np_state_t* context, uint32_t add);
         NP_API_INTERN

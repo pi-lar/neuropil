@@ -42,8 +42,11 @@ typedef np_key_t* np_key_ptr;
 typedef struct np_message_s np_message_t;
 typedef np_message_t* np_message_ptr;
 
-typedef struct np_msgproperty_s np_msgproperty_t;
-typedef np_msgproperty_t* np_msgproperty_ptr;
+typedef struct np_msgproperty_conf_s np_msgproperty_conf_t;
+typedef np_msgproperty_conf_t* np_msgproperty_conf_ptr;
+
+typedef struct np_msgproperty_run_s np_msgproperty_run_t;
+typedef np_msgproperty_run_t* np_msgproperty_run_ptr;
 
 typedef struct _np_obj_buffer_container_s _np_obj_buffer_container_t;
 
@@ -107,7 +110,8 @@ NP_SLL_GENERATE_PROTOTYPES(np_state_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_conf_ptr);
+NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_run_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_thread_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_usercallback_ptr);

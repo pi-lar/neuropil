@@ -24,18 +24,20 @@ class MsgDeliveryTest(unittest.TestCase):
         self.msg_delivery_succ = Value(c_bool, False)
         self.target_size = size
 
-        np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_test_msg_delivery_cl_")
-        np_1 = NeuropilNode(4001,proto=protocol_sender,   log_file=f"logs/smoke_test_msg_delivery_sender_{size}_{protocol_sender}_{protocol_receiver}.log", auto_run=False, n_threads=6)
-        np_2 = NeuropilNode(4002,proto=protocol_receiver, log_file=f"logs/smoke_test_msg_delivery_receiver_{size}_{protocol_sender}_{protocol_receiver}.log",auto_run=False)
+        np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix=f"logs/smoke_test_msg_delivery_{size}_{protocol_sender}_{protocol_receiver}_cluster_")
+        np_1 = NeuropilNode(4001,proto=protocol_sender,   log_file=f"logs/smoke_test_msg_delivery_{size}_{protocol_sender}_{protocol_receiver}_sender.log", auto_run=False)
+        np_2 = NeuropilNode(4002,proto=protocol_receiver, log_file=f"logs/smoke_test_msg_delivery_{size}_{protocol_sender}_{protocol_receiver}_receiver.log",auto_run=False)
 
         subject = b"NP.TEST.msg_delivery"
         mxp1 = np_1.get_mx_properties(subject)
         mxp1.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp1.role = neuropil.NP_MX_PROVIDER
         mxp1.max_retry = 10
         mxp1.apply()
 
         mxp2 = np_2.get_mx_properties(subject)
         mxp2.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp2.role = neuropil.NP_MX_CONSUMER
         mxp2.apply()
         np_2.set_receive_cb(subject, self.msg_received)
 
@@ -46,10 +48,10 @@ class MsgDeliveryTest(unittest.TestCase):
         np1_addr = np_1.get_address()
         np2_addr = np_2.get_address()
 
+        np_c.join(np1_addr)
         np_2.join(np1_addr)
-        np_c.join(np2_addr)
 
-        timeout = 180 #sec
+        timeout = 40 #sec
 
         t1 = time.time()
         elapsed = 0.
@@ -64,37 +66,37 @@ class MsgDeliveryTest(unittest.TestCase):
                     if np_1.send(subject, data) != neuropil.np_ok:
                         print("ERROR sending Data")
                     else:
+                        timeout = 160 #sec
                         send = True
 
                 if self.msg_delivery_succ.value:
                     break
-                np_1.run(math.pi/10)
+                np_1.run(0.01)
 
         finally:
             np_1.shutdown()
             np_2.shutdown()
             np_c.shutdown()
 
-        self.assertTrue(send)
-        self.assertTrue(self.msg_delivery_succ.value)
-        self.msg_delivery_succ.value = False
+        self.assertTrue(send,f"Could not send data as no token was received in {timeout}sec.")
+        self.assertTrue(self.msg_delivery_succ.value,f"Did not receive data in {timeout}sec, but did receive token.")
 
     def test_msg_delivery_tcp4_pas4(self):
-        self._test_msg_X_delivery(1000,protocol_receiver="tcp4",protocol_sender="pas4")
+        self._test_msg_X_delivery(1000,protocol_sender="tcp4",protocol_receiver="pas4")
     def test_msg_delivery_udp4_pas4(self):
-        self._test_msg_X_delivery(1000,protocol_receiver="udp4",protocol_sender="pas4")
-    def test_msg_delivery_udp4_tcp4(self):
-        self._test_msg_X_delivery(1000,protocol_receiver="udp4",protocol_sender="tcp4")
+        self._test_msg_X_delivery(1000,protocol_sender="udp4", protocol_receiver="pas4")
     def test_msg_delivery_tcp4_udp4(self):
-        self._test_msg_X_delivery(1000,protocol_receiver="tcp4",protocol_sender="udp4")
+        self._test_msg_X_delivery(1000,protocol_sender="tcp4",protocol_receiver="udp4")
+    def test_msg_delivery_udp4_tcp4(self):
+        self._test_msg_X_delivery(1000,protocol_sender="udp4",protocol_receiver="tcp4")
     def test_msg_delivery_tcp4_tcp4(self):
-        self._test_msg_X_delivery(1000,protocol_receiver="tcp4",protocol_sender="tcp4")
+        self._test_msg_X_delivery(1000,protocol_sender="tcp4",protocol_receiver="tcp4")
     def test_msg_delivery_udp4_udp4(self):
-        self._test_msg_X_delivery(1000,protocol_receiver="udp4",protocol_sender="udp4")
+        self._test_msg_X_delivery(1000,protocol_sender="udp4",protocol_receiver="udp4")
     def test_msg_1k_delivery(self):
         self._test_msg_X_delivery(1000)
     def test_msg_10k_delivery(self):
-        self._test_msg_X_delivery(1000*50)
+        self._test_msg_X_delivery(1000*10)
     #def test_msg_100k_delivery(self):
     #    self._test_msg_X_delivery(1000*100)
     #def test_msg_1MB_delivery(self):

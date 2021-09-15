@@ -50,9 +50,9 @@ np_aaatoken_t* __np_token_factory_new(np_state_t* context, char issuer[64], char
     np_new_obj(np_aaatoken_t, ret, FUNC);
 
     // create token
-    if (NULL != context->realm_name)
+    if (NULL != context->realm_id)
     {
-        strncpy(ret->realm, context->realm_name, 255);
+        strncpy(ret->realm, context->realm_id, 255);
     }
     strncpy(ret->issuer, issuer, 65);
     strncpy(ret->subject, node_subject, 254);
@@ -154,7 +154,7 @@ np_ident_public_token_t* np_token_factory_get_public_ident_token(np_aaatoken_t* 
     ASSERT(FLAG_CMP(source->type, np_aaatoken_type_identity), "Can only directly derive ident token from ident token. current token type: %"PRIu8, source->type);
 
     ret = __np_token_factory_derive(source, np_aaatoken_scope_private_available);
-    strncpy(ret->uuid, source->uuid, 255);
+    memcpy(ret->uuid, source->uuid, NP_UUID_BYTES);
 
     np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY));
     np_merge_data(ret->attributes,(np_datablock_t*)_np_get_attributes_cache(context, NP_ATTR_IDENTITY_AND_USER_MSG));
@@ -182,7 +182,7 @@ np_node_public_token_t* np_token_factory_get_public_node_token(np_aaatoken_t* so
     return ret;
 }
 
-np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_t* msg_request) {
+np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_msgproperty_conf_t* msg_request) {
 
 	np_ctx_memory(msg_request);
     np_message_intent_public_token_t* ret = NULL;
@@ -199,11 +199,14 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     // fill in token metadata for message identification
     char msg_id_subject[255];
     snprintf(msg_id_subject, 255, _NP_URN_MSG_PREFIX"%s", msg_request->msg_subject);
-    strncpy(ret->issuer, (char*)_np_key_as_str(context->my_identity), 65);
     strncpy(ret->subject, msg_id_subject, 255);
-    if (NULL != msg_request->msg_audience)
+
+    strncpy(ret->issuer, (char*)_np_key_as_str(context->my_identity), 65);
+    if (msg_request->audience_type == NP_MX_AUD_PROTECTED)
     {
-        strncpy(ret->audience, (char*)msg_request->msg_audience, 255);
+        char hex[65] = {0};
+        sodium_bin2hex(hex, 65, &msg_request->audience_id, NP_FINGERPRINT_BYTES);
+        memcpy(ret->audience, hex, 64);
     }
     // TODO: how to allow the possible transmit jitter ?
     ret->not_before = np_time_now();
@@ -218,13 +221,13 @@ np_message_intent_public_token_t* _np_token_factory_new_message_intent_token(np_
     //        (char*)identity_token->crypto.ed25519_public_key,
     //        crypto_sign_PUBLICKEYBYTES);
     enum np_data_return tmp;
-    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="mep_type",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->mep_type});
+    tmp = np_set_data(ret->attributes,(struct np_data_conf) {.key="mep_type",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->mep_type});
     ASSERT(np_ok == tmp,"Could not set \"mep_type\" data %"PRIu32,tmp);
-    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="ack_mode",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->ack_mode});
+    tmp = np_set_data(ret->attributes,(struct np_data_conf) {.key="ack_mode",      .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->ack_mode});
     ASSERT(np_ok == tmp,"Could not set \"ack_mode\" data %"PRIu32,tmp);
-    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->max_threshold});
+    tmp = np_set_data(ret->attributes,(struct np_data_conf) {.key="max_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = msg_request->cache_size});
     ASSERT(np_ok == tmp,"Could not set \"max_threshold\" data %"PRIu32,tmp);
-    tmp = np_set_data(ret->attributes,(struct np_data_conf){.key="msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = 0});
+    tmp = np_set_data(ret->attributes,(struct np_data_conf) {.key="msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, (np_data_value){ .unsigned_integer = 0});
     ASSERT(np_ok == tmp,"Could not set \"msg_threshold\" data %"PRIu32,tmp);
 
     // TODO: insert value based on msg properties / respect (sticky) reply

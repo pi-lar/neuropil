@@ -125,20 +125,27 @@ extern "C" {
    typedef unsigned char np_attributes_t[NP_EXTENSION_BYTES];
    typedef unsigned char np_signature_t[NP_SIGNATURE_BYTES];
 
+   typedef np_id np_subject;
+
     // If length is 0 then string is expected to be null-terminated.
     // char* is the appropriate type because it is the type of a string
     // and can also describe an array of bytes. (sizeof char == 1)
     void np_get_id(np_id (*id), const char* string, size_t length);
+    // reentrant version fo np_get_id. the subject_id will not be overwrittem, but will ba used as a base hash value
+    // otherwise the same as np_get_id
+    enum np_return np_generate_subject(np_subject (*subject_id), const char* subject, size_t length);
 
     struct np_token {
         char uuid[NP_UUID_BYTES];
-        char subject[255]; // todo: has to be np_id
+        char subject[255];
         np_id issuer;
-        char realm[255]; // todo: has to be np_id
-        char audience[255]; // todo: has to be np_id
-        double  issued_at, not_before, expires_at;
+        np_id realm; 
+        np_id audience; 
+        double issued_at, 
+               not_before, 
+               expires_at;
         unsigned char public_key[NP_PUBLIC_KEY_BYTES],
-                secret_key[NP_SECRET_KEY_BYTES];
+                      secret_key[NP_SECRET_KEY_BYTES];
         np_signature_t signature;
 
         np_attributes_t attributes;
@@ -148,7 +155,7 @@ extern "C" {
     struct np_message {
         char uuid[NP_UUID_BYTES];
         np_id from;
-        np_id subject;
+        np_subject subject;
         double received_at;
         unsigned char * data;
         size_t data_length;
@@ -160,58 +167,53 @@ extern "C" {
         char log_file[256];
         uint32_t log_level;
         uint8_t leafset_size;
+        uint16_t jobqueue_size;
         // ...
     } NP_PACKED(1);
 
-    NP_API_EXPORT
-    struct np_settings * np_default_settings(struct np_settings *settings);
+   NP_API_EXPORT
+   struct np_settings * np_default_settings(struct np_settings *settings);
 
-    NP_API_EXPORT
-    np_context* np_new_context(struct np_settings *settings);
+   NP_API_EXPORT
+   np_context* np_new_context(struct np_settings *settings);
 
-    // secret_key is nullable
-    NP_API_EXPORT
-    struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]);
+   // secret_key is nullable
+   NP_API_EXPORT
+   struct np_token np_new_identity(np_context* ac, double expires_at, unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]);
 
-    NP_API_EXPORT
-    enum np_return np_use_identity(np_context* ac, struct np_token identity);
+   NP_API_EXPORT
+   enum np_return np_use_identity(np_context* ac, struct np_token identity);
 
-    NP_API_EXPORT
-    enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign);
+   NP_API_EXPORT
+   enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign);
 
-    NP_API_EXPORT
-    enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
+   //NP_API_EXPORT
+   //enum np_return np_verify_fingerprint(np_context* ac, struct np_token* identity, bool self_sign);
 
-    NP_API_EXPORT
-    enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
+   NP_API_EXPORT
+   enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
 
-    NP_API_EXPORT
-    enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) ;
+   NP_API_EXPORT
+   enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
 
-    // Get “connect string”. Signals error if connect string is unavailable (i.e.,
-    // no listening interface is configured.)
-    NP_API_EXPORT
-    enum np_return np_get_address(np_context* ac, char* address, uint32_t max);
+   NP_API_EXPORT
+   enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) ;
 
-    NP_API_EXPORT
-    enum np_return np_join(np_context* ac, const char* address);
+   // Get “connect string”. Signals error if connect string is unavailable (i.e.,
+   // no listening interface is configured.)
+   NP_API_EXPORT
+   enum np_return np_get_address(np_context* ac, char* address, uint32_t max);
 
-    NP_API_EXPORT
-    enum np_return np_send(np_context* ac, const char* subject, const unsigned char* message, size_t length);
+   NP_API_EXPORT
+   enum np_return np_join(np_context* ac, const char* address);
 
-    typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
-
-    // There can be more than one receive callback, hence "add".
-    NP_API_EXPORT
-    enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback);
-
-    typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
-    NP_API_EXPORT
-    enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
-    NP_API_EXPORT
-    enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
-    NP_API_EXPORT
-    enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
+   typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
+   NP_API_EXPORT
+   enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback);
+   NP_API_EXPORT
+   enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
+   NP_API_EXPORT
+   enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
 
 
     // duration: 0 => process pending events and return
@@ -219,62 +221,87 @@ extern "C" {
     NP_API_EXPORT
     enum np_return np_run(np_context* ac, double duration);
 
-    //enum np_mx_pattern      { NP_MX_BROADCAST, NP_MX_ANY, NP_MX_ONE_WAY, NP_MX_REQ_REP, /* ... */ } NP_ENUM;
-    enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } NP_ENUM;
-    enum np_mx_ackmode      { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } NP_ENUM;
+
+    // enum np_mx_pattern        { NP_MX_BROADCAST, NP_MX_ONE_WAY, /* NP_MX_REQ_REP, ... */ } NP_ENUM;
+    enum np_mx_role           { NP_MX_PROVIDER, NP_MX_CONSUMER, NP_MX_PROSUMER } NP_ENUM;
+    enum np_mx_cache_policy   { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } NP_ENUM;
+    enum np_mx_ackmode        { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } NP_ENUM;
+    enum np_mx_audience_type  { NP_MX_AUD_PUBLIC, NP_MX_AUD_VIRTUAL, NP_MX_AUD_PROTECTED, NP_MX_AUD_PRIVATE } NP_ENUM;
 
     struct np_mx_properties {
-        char reply_subject[255] NP_PACKED(1);
+        // char msg_subject[255] NP_PACKED(1);
+
+        enum np_mx_role    role;
         enum np_mx_ackmode ackmode;
+
         // enum np_mx_pattern pattern;  will be added later on
+        np_subject reply_id NP_PACKED(1);
+
+        enum np_mx_audience_type audience_type;
+        np_id audience_id NP_PACKED(1);
+
         enum np_mx_cache_policy cache_policy;
         uint16_t cache_size;
         uint8_t max_parallel, max_retry;
+
         double intent_ttl, intent_update_after;
         double message_ttl;
+
     } NP_PACKED(1);
 
-    NP_API_EXPORT
-    struct np_mx_properties np_get_mx_properties(np_context* ac, const char* subject);
-    NP_API_EXPORT
-    enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties properties);
-    NP_API_EXPORT
-    enum np_return np_mx_properties_enable(np_context* ac, const char* subject);
-    NP_API_EXPORT
-    enum np_return np_mx_properties_disable(np_context* ac, const char* subject);
+   NP_API_EXPORT
+   struct np_mx_properties np_get_mx_properties(np_context* ac, const np_subject id);
+   NP_API_EXPORT
+   enum np_return np_set_mx_properties(np_context* ac, const np_subject id, struct np_mx_properties properties);
+   NP_API_EXPORT
+   enum np_return np_set_mx_authorize_cb(np_context* ac, const np_subject id, np_aaa_callback callback);
+   NP_API_EXPORT
+   enum np_return np_mx_properties_enable(np_context* ac, const np_subject id);
+   NP_API_EXPORT
+   enum np_return np_mx_properties_disable(np_context* ac, const np_subject id);
 
-    NP_API_EXPORT
-    void np_set_userdata(np_context * ac, void* userdata);
-    NP_API_EXPORT
-    void* np_get_userdata(np_context * ac);
+   NP_API_EXPORT
+   enum np_return np_send(np_context* ac, np_subject subject, const unsigned char* message, size_t length);
+   NP_API_EXPORT
+   enum np_return np_send_to(np_context* ac, np_subject subject, const unsigned char* message, size_t length, np_id (*target));
+
+   typedef bool (*np_receive_callback)(np_context* ac, struct np_message* message);
 
 
-    NP_API_EXPORT
-        enum np_return np_send_to(np_context* ac, const char* subject, const unsigned char* message, size_t length, np_id (*target));
-    NP_API_EXPORT
-        bool np_has_joined(np_context * ac);
-    NP_API_EXPORT
-        enum np_status np_get_status(np_context* ac);
-    NP_API_EXPORT
-        bool np_has_receiver_for(np_context*ac, const char * subject);
-    NP_API_EXPORT
-        char * np_id_str(char str[65], const np_id id);
-    NP_API_EXPORT
-        void np_str_id(np_id (*id), const char str[65]);
+   // There can be more than one receive callback, hence "add".
+   NP_API_EXPORT
+   enum np_return np_add_receive_cb(np_context* ac, np_subject subject, np_receive_callback callback);
 
-    NP_API_EXPORT
-        void np_destroy(np_context*ac, bool gracefully);
+   NP_API_EXPORT
+   void np_set_userdata(np_context * ac, void* userdata);
+   NP_API_EXPORT
+   void* np_get_userdata(np_context * ac);
+
+   NP_API_EXPORT
+      bool np_has_joined(np_context * ac);
+   NP_API_EXPORT
+      enum np_status np_get_status(np_context* ac);
+   NP_API_EXPORT
+      bool np_has_receiver_for(np_context*ac, np_subject subject);
+   NP_API_EXPORT
+      char * np_id_str(char str[65], const np_id id);
+   NP_API_EXPORT
+      void np_str_id(np_id (*id), const char str[65]);
+
+   NP_API_EXPORT
+      void np_destroy(np_context*ac, bool gracefully);
 
    // a general callback just taking the context as an argument
    typedef void (*np_callback)(np_context* ac);
 
-    NP_API_EXPORT
-        enum np_return np_add_shutdown_cb(np_context* ac, np_callback callback);
+   NP_API_EXPORT
+      enum np_return np_add_shutdown_cb(np_context* ac, np_callback callback);
    //  NP_API_EXPORT
    //      enum np_return np_add_periodic_cb(np_context* ac, np_callback callback, double start_time, uint16_t interval);
 
-    NP_API_EXPORT
-        bool np_id_equals(np_id first, np_id second);
+   NP_API_EXPORT
+      bool np_id_equals(np_id first, np_id second);
+
 #ifdef __cplusplus
 }
 #endif

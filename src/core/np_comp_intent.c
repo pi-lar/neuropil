@@ -42,13 +42,13 @@ static int8_t _np_intent_cmp (np_aaatoken_ptr first, np_aaatoken_ptr second)
         return (ret_check);
     }
 
-    ret_check = strncmp(first->subject, second->subject, (strnlen(first->subject,255)));
+    ret_check = strncmp(first->subject, second->subject, strnlen(first->subject, 255) );
     if (0 != ret_check )
     {
         return (ret_check);
     }
 
-    ret_check = strncmp(first->realm, second->realm, strlen(first->realm));
+    ret_check = strncmp(first->realm, second->realm, strnlen(first->realm, 255));
     if (0 != ret_check )
     {
         return (ret_check);
@@ -86,8 +86,8 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
     assert(token != NULL);
     np_state_t* context = np_ctx_by_memory(token);
 
-    NP_CAST(sll_first(subject_key->entities)->val, np_msgproperty_t, property);
-    NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
+    NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
+    NP_CAST(subject_key->entity_array[2], struct __np_token_ledger, ledger);
 
     np_aaatoken_t * ret = NULL;
 
@@ -115,7 +115,7 @@ np_aaatoken_t* _np_intent_add_sender(np_key_t* subject_key, np_aaatoken_t *token
 
     property->mep_type |= (mep_type.unsigned_integer & SENDER_MASK);
     property->ack_mode = ack_mode.unsigned_integer;
-    property->last_update = np_time_now();
+    // property->last_update = np_time_now();
 
     if (max_threshold.unsigned_integer > 0)
     {
@@ -155,8 +155,8 @@ np_aaatoken_t* _np_intent_get_sender_token(np_key_t* subject_key, const np_dhkey
     log_debug_msg(LOG_DEBUG, "lookup in global sender msg token structures (%p)...", subject_key);
 
     // static np_dhkey_t empty_dhkey = {0};
-    NP_CAST(sll_first(subject_key->entities)->val, np_msgproperty_t, property);
-    NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
+    NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
+    NP_CAST(subject_key->entity_array[2], struct __np_token_ledger, ledger);
 
     // look up sources to see whether a sender already exists
     np_aaatoken_t* return_token = NULL;
@@ -221,8 +221,8 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
     assert(token != NULL);
     np_state_t* context = np_ctx_by_memory(token);
 
-    NP_CAST(sll_first(subject_key->entities)->val, np_msgproperty_t, property);
-    NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
+    NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
+    NP_CAST(subject_key->entity_array[2], struct __np_token_ledger, ledger);
 
     np_aaatoken_t* ret = NULL;
 
@@ -248,7 +248,7 @@ np_aaatoken_t* _np_intent_add_receiver(np_key_t* subject_key, np_aaatoken_t *tok
     }
 
     property->mep_type |= (mep_type.unsigned_integer & RECEIVER_MASK);
-    property->last_update = np_time_now();
+    // property->last_update = np_time_now();
 
     if (max_threshold.unsigned_integer > 0)
     {   // only add if there are messages to receive
@@ -290,7 +290,7 @@ np_aaatoken_t* _np_intent_get_receiver(np_key_t* subject_key, const np_dhkey_t t
 
     static np_dhkey_t empty_dhkey = {0};
 
-    NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
+    NP_CAST(subject_key->entity_array[2], struct __np_token_ledger, ledger);
 
     np_aaatoken_t* return_token = NULL;
     bool found_return_token = false;
@@ -372,7 +372,7 @@ void _np_intent_get_all_sender(np_key_t* subject_key, np_dhkey_t audience, np_sl
     np_ctx_memory(subject_key);
 
     np_sll_t(np_aaatoken_ptr, result_list = *tmp_token_list);
-    NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
+    NP_CAST(subject_key->entity_array[2], struct __np_token_ledger, ledger);
 
     pll_iterator(np_aaatoken_ptr) tmp = pll_first(ledger->send_tokens);
     while (NULL != tmp)
@@ -411,9 +411,7 @@ void _np_intent_get_all_sender(np_key_t* subject_key, np_dhkey_t audience, np_sl
         }
         pll_next(tmp);
     }
-    log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_sender %d", pll_size(ledger->send_tokens));
-
-    // return (return_list);
+    log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_sender %u -> selected %u", pll_size(ledger->send_tokens), sll_size(result_list));
 }
 
 void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_sll_t(np_aaatoken_ptr, *tmp_token_list))
@@ -421,7 +419,7 @@ void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_
     np_ctx_memory(subject_key);
 
     np_sll_t(np_aaatoken_ptr, result_list = *tmp_token_list);
-    NP_CAST(sll_last(subject_key->entities)->val, struct __np_token_ledger, ledger);
+    NP_CAST(subject_key->entity_array[2], struct __np_token_ledger, ledger);
 
     pll_iterator(np_aaatoken_ptr) tmp = pll_first(ledger->recv_tokens);
     while (NULL != tmp)
@@ -436,13 +434,12 @@ void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_
         }
         else
         {
-            np_dhkey_t null_dhkey = {0};
             np_dhkey_t issuer = np_dhkey_create_from_hash(tmp->val->issuer);
             bool include_token = true;
 
             include_token =
                     _np_dhkey_equal(&audience, &issuer)     ||
-                    _np_dhkey_equal(&audience, &null_dhkey) ;
+                    _np_dhkey_equal(&audience, &dhkey_zero) ;
 
             if (include_token==true) 
             {
@@ -459,9 +456,7 @@ void _np_intent_get_all_receiver(np_key_t* subject_key, np_dhkey_t audience, np_
         }
         pll_next(tmp);
     }
-    log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_receiver %d", pll_size(ledger->recv_tokens));
-
-    // return (return_list);
+    log_debug_msg(LOG_DEBUG, ".step2._np_aaatoken_get_all_receiver %u -> selected %u", pll_size(ledger->recv_tokens), sll_size(result_list));
 }
 
 bool __is_intent_authz(np_util_statemachine_t* statemachine, const np_util_event_t event) 
@@ -488,11 +483,11 @@ void __np_intent_check(np_util_statemachine_t* statemachine, NP_UNUSED const np_
     np_ctx_memory(statemachine->_user_data);
 
     NP_CAST(statemachine->_user_data, np_key_t, intent_key);
-    if (intent_key->entities == NULL) return;
-    if (sll_size(intent_key->entities) < 2) return;
+    if (intent_key->entity_array[0] == NULL) return;
+    if (intent_key->entity_array[2] == NULL) return;
 
-    NP_CAST(sll_first(intent_key->entities)->val, np_msgproperty_t, property);
-    NP_CAST(sll_last(intent_key->entities)->val, struct __np_token_ledger, ledger);
+    NP_CAST(intent_key->entity_array[0], np_msgproperty_conf_t, property);
+    NP_CAST(intent_key->entity_array[2], struct __np_token_ledger, ledger);
 
     log_debug_msg(LOG_DEBUG,
             "%s has intent token (recv: %u / send: %u)",

@@ -53,6 +53,8 @@ struct np_node_s
 	double join_send_at;
 	bool joined_network;
 
+	uint8_t connection_attempts;
+
 	np_crypto_session_t session;
 	bool session_key_is_set;
 

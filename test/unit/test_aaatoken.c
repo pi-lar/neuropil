@@ -149,8 +149,8 @@ Test(np_aaatoken_t, test_audience_filtering, .description="test the filtering ba
 		np_set_realm_name(context, "test_realm");
 
 		// create a send msgproerty to create message intent token
-		np_msgproperty_t* test_send_prop_1 = NULL;
-		np_new_obj(np_msgproperty_t, test_send_prop_1);
+		np_msgproperty_conf_t* test_send_prop_1 = NULL;
+		np_new_obj(np_msgproperty_conf_t, test_send_prop_1);
 		test_send_prop_1->msg_subject = strndup("test_subject", 255);
 		test_send_prop_1->mep_type = REQ_REP;
 		test_send_prop_1->ack_mode = ACK_NONE;
@@ -161,8 +161,8 @@ Test(np_aaatoken_t, test_audience_filtering, .description="test the filtering ba
 		test_send_prop_1->max_threshold = 20;
 
 		// create a recv msgproerty to create message intent token
-		np_msgproperty_t* test_recv_prop_1 = NULL;
-		np_new_obj(np_msgproperty_t, test_recv_prop_1);
+		np_msgproperty_conf_t* test_recv_prop_1 = NULL;
+		np_new_obj(np_msgproperty_conf_t, test_recv_prop_1);
 		test_recv_prop_1->msg_subject = strndup("test_subject", 255);
 		test_recv_prop_1->mep_type = REQ_REP;
 		test_recv_prop_1->ack_mode = ACK_NONE;

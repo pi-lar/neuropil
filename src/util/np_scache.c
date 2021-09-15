@@ -19,7 +19,8 @@
 int8_t 
 np_cache_item_t_sll_compare_type(np_cache_item_t const a, np_cache_item_t const b) 
 {
-    return strncmp(a.key, b.key, strnlen(a.key, 255)); 
+    return memcmp(a.key, b.key, NP_FINGERPRINT_BYTES); 
+    // return strncmp(a.key, b.key, strnlen(a.key, 255)); 
 }
 
 NP_SLL_GENERATE_IMPLEMENTATION(np_cache_item_t);
@@ -72,18 +73,18 @@ np_simple_cache_get(np_state_t* context, const np_simple_cache_table_t *table, c
 
     unsigned char bucket_hash[crypto_shorthash_BYTES];
     uint64_t bucket_bigint = 0;
-    crypto_shorthash_siphash24(bucket_hash,  (const unsigned char*) key, strnlen(key, 255), table->_seed);    
+    crypto_shorthash_siphash24(bucket_hash,  (const unsigned char*) key, NP_FINGERPRINT_BYTES, table->_seed);    
     memcpy(&bucket_bigint, &bucket_hash[0], crypto_shorthash_BYTES);
     uint16_t bucket = ((uint16_t)(bucket_bigint) & 0xffff) % (table->_bucket_size);
 
-    log_debug_msg(LOG_DEBUG, "cache::get() %d -> %s (%d)", bucket, key, sll_size(&table->_bucket[bucket]));
+    // log_debug_msg(LOG_DEBUG, "cache::get() %d -> %s (%d)", bucket, key, sll_size(&table->_bucket[bucket]));
     np_spinlock_lock(&table->_bucket_guard[bucket]);
     {
         sll_iterator(np_cache_item_t) iter = sll_first(&table->_bucket[bucket]);
         while (NULL != iter )
         {
             if(NULL != iter->val.key && 
-               strncmp(iter->val.key, key, strnlen(iter->val.key, 255) ) == 0)
+               memcmp(iter->val.key, key, NP_FINGERPRINT_BYTES ) == 0)
             {
                 *value = iter->val.value;
                 ret = true;
@@ -107,13 +108,17 @@ np_simple_cache_add(np_state_t* context, const np_simple_cache_table_t *table, c
 
     bool ret = false;
 
+    char* internal_key = malloc((NP_FINGERPRINT_BYTES+1)*sizeof(char));
+    internal_key[NP_FINGERPRINT_BYTES] = '\0';
+    memcpy(internal_key, key, NP_FINGERPRINT_BYTES);
+
     unsigned char bucket_hash[crypto_shorthash_BYTES];
     uint64_t bucket_bigint = 0;
-    crypto_shorthash_siphash24(bucket_hash, (const unsigned char*) key, strnlen(key, 255), table->_seed);    
+    crypto_shorthash_siphash24(bucket_hash, (const unsigned char*) internal_key, NP_FINGERPRINT_BYTES, table->_seed);    
     memcpy(&bucket_bigint, &bucket_hash[0], crypto_shorthash_BYTES);
     uint16_t bucket = ((uint16_t) (bucket_bigint) & 0xffff) % (table->_bucket_size);
 
-    log_debug_msg(LOG_DEBUG, "cache::add() %d -> %s (%d)", bucket, key, sll_size(&table->_bucket[bucket]));
+    // log_debug_msg(LOG_DEBUG, "cache::add() %d -> %s (%d)", bucket, internal_key, sll_size(&table->_bucket[bucket]));
     np_spinlock_lock(&table->_bucket_guard[bucket]);
     {
         bool found = false;
@@ -121,7 +126,7 @@ np_simple_cache_add(np_state_t* context, const np_simple_cache_table_t *table, c
         while (NULL != iter)
         {
             if(NULL != iter->val.key && 
-               strncmp(iter->val.key, key, strnlen(iter->val.key, 255) ) == 0)
+               memcmp(iter->val.key, key, NP_FINGERPRINT_BYTES ) == 0)
             {
                 found = true;
                 break;
@@ -133,11 +138,15 @@ np_simple_cache_add(np_state_t* context, const np_simple_cache_table_t *table, c
         {
             np_cache_item_t item = {
                 .insert_time = np_time_now(), 
-                .key=strndup(key, strnlen(key, 255)),
+                .key=internal_key,
                 .value = value
             };
             sll_append(np_cache_item_t, &table->_bucket[bucket], item);
             ret = true;
+        }
+        else
+        {
+            free(internal_key);
         }
     }
     np_spinlock_unlock(&table->_bucket_guard[bucket]);

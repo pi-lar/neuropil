@@ -65,9 +65,9 @@ struct np_key_s
     enum np_key_type type;
 
     np_key_t* parent_key; // reference to parent/partner key
-    np_sll_t(void_ptr, entities); // link to components attached to this key id
+    // np_sll_t(void_ptr, entities); // link to components attached to this key id
 
-    // struct np_key_entity_s** entities;
+    void_ptr entity_array[8];
 
     np_mutex_t key_lock;
 

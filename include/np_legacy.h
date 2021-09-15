@@ -107,7 +107,7 @@ struct np_state_s
 
     // reference to main identity on this node
     np_key_t* my_identity;
-    char* realm_name;
+    char realm_id[256];
 
     np_tree_t* msg_part_cache;
     np_bloom_t* msg_part_filter;
@@ -227,7 +227,7 @@ void np_waitforjoin(np_context* ac);
 
 */
 NP_API_EXPORT
-void np_add_receive_listener (np_context* ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, const char* subject);
+void np_add_receive_listener (np_context* ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, np_dhkey_t subject);
 
 /**
 .. c:function:: void np_add_send_listener(np_usercallback_t msg_handler, char* subject)
@@ -240,7 +240,7 @@ void np_add_receive_listener (np_context* ac, np_usercallbackfunction_t msg_hand
 
 */
 NP_API_EXPORT
-void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, const char* subject);
+void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_fn, void* msg_handler_localdata, np_dhkey_t subject);
 
 /**
 .. c:function:: void np_send_msg(char* subject, np_tree_t *properties, np_tree_t *body)
@@ -254,7 +254,7 @@ void np_add_send_listener(np_context*ac, np_usercallbackfunction_t msg_handler_f
 
 */
 NP_API_EXPORT
-void np_send_msg (np_context*ac, const char* subject, np_tree_t *body, np_dhkey_t* target_key);
+void np_send_msg (np_context*ac, np_dhkey_t subject, np_tree_t *body, np_dhkey_t* target_key);
 
 /**
 .. c:function:: void np_set_mx_properties(char* subject, const char* key, np_treeval_t value)

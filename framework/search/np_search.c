@@ -210,6 +210,174 @@ __json_return__:
     return http_status;
 }
 
+static const char* SEARCH_NODE_SUBJECT = "urn:np:search:node:v1";
+static const char* SEARCH_ENTRY_SUBJECT = "urn:np:search:entry:v1";
+static const char* SEARCH_QUERY_SUBJECT = "urn:np:search:query:v1";
+
+bool _np_search_authorize_entries_cb(np_context* ac, struct np_token* intent_token) 
+{
+	np_ctx_cast(ac);
+
+    bool ret = false;
+    struct np_data_conf conf = {0};
+    struct np_data_conf* conf_ptr = &conf;
+    np_dhkey_t  intent_token_new_id = {0};
+    np_dhkey_t* intent_token_new_id_ptr = &intent_token_new_id;
+
+	// fprintf(stdout, "authz request %s from %02X%02X%02X%02X%02X%02X : %02X%02X%02X%02X%02X%02X ...\n",
+    //                 intent_token->subject,
+    //                 intent_token->issuer[0],     intent_token->issuer[1],     intent_token->issuer[2],     intent_token->issuer[3],     intent_token->issuer[4],     intent_token->issuer[5],
+    //                 intent_token->public_key[0], intent_token->public_key[1], intent_token->public_key[2], intent_token->public_key[3], intent_token->public_key[4], intent_token->public_key[5]);
+
+    if (np_data_ok != np_get_token_attr_bin(intent_token, "np:key", &conf_ptr, &intent_token_new_id_ptr) )
+    {
+        return false;
+    }
+
+    if (_np_dhkey_equal(&intent_token_new_id, &np_module(search)->searchnode->node_id))
+    {
+        return false;
+    }
+
+    if (0 == strncmp(intent_token->subject, SEARCH_ENTRY_SUBJECT, 22) || 
+        0 == strncmp(intent_token->subject, SEARCH_QUERY_SUBJECT, 22) )
+    {
+        fprintf(stdout, "authz request %s from %02X%02X%02X%02X%02X%02X : %02X%02X%02X%02X%02X%02X ...\n",
+                        intent_token->subject,
+                        intent_token->issuer[0],     intent_token->issuer[1],     intent_token->issuer[2],     intent_token->issuer[3],     intent_token->issuer[4],     intent_token->issuer[5],
+                        intent_token->public_key[0], intent_token->public_key[1], intent_token->public_key[2], intent_token->public_key[3], intent_token->public_key[4], intent_token->public_key[5]);
+
+        np_dhkey_t dh_diff_index = {0};
+        _np_dhkey_hamming_distance_each(&dh_diff_index, &intent_token_new_id, &np_module(search)->searchnode->node_id);
+
+        for (uint8_t j = 0; j < 8; j++) 
+        {
+            uint8_t index = dh_diff_index.t[j];
+            if (_np_dhkey_equal(&np_module(search)->searchnode->peers[j][index], &intent_token_new_id) )
+            {
+                fprintf(stdout, "authz granted %s for %02X%02X%02X%02X%02X%02X : %02X%02X%02X%02X%02X%02X ...\n",
+                                intent_token->subject,
+                                intent_token->issuer[0],     intent_token->issuer[1],     intent_token->issuer[2],     intent_token->issuer[3],     intent_token->issuer[4],     intent_token->issuer[5],
+                                intent_token->public_key[0], intent_token->public_key[1], intent_token->public_key[2], intent_token->public_key[3], intent_token->public_key[4], intent_token->public_key[5]);
+                ret = true;
+            }
+        }
+    }    
+    
+    return ret;
+}
+
+
+bool _np_search_authorize_node_cb(np_context* ac, struct np_token* intent_token) 
+{
+	np_ctx_cast(ac);
+
+    bool ret = false;
+
+    struct np_data_conf conf = {0};
+    struct np_data_conf* conf_ptr = &conf;
+    np_dhkey_t  intent_token_new_id = {0};
+    np_dhkey_t* intent_token_new_id_ptr = &intent_token_new_id;
+	// fprintf(stdout, "authz request %s from %02X%02X%02X%02X%02X%02X : %02X%02X%02X%02X%02X%02X ...\n",
+    //                 intent_token->subject,
+    //                 intent_token->issuer[0],     intent_token->issuer[1],     intent_token->issuer[2],     intent_token->issuer[3],     intent_token->issuer[4],     intent_token->issuer[5],
+    //                 intent_token->public_key[0], intent_token->public_key[1], intent_token->public_key[2], intent_token->public_key[3], intent_token->public_key[4], intent_token->public_key[5]);
+
+    if (np_data_ok != np_get_token_attr_bin(intent_token, "np:key", &conf_ptr, &intent_token_new_id_ptr) )
+    {
+        return false;
+    }
+
+    if (_np_dhkey_equal(&intent_token_new_id, &np_module(search)->searchnode->node_id))
+    {
+        return false;
+    }
+
+    if (strncmp(intent_token->subject, SEARCH_NODE_SUBJECT, 21)) 
+    {
+        np_dhkey_t dh_diff_index  = {0};
+        np_dhkey_t      to_delete = {0};
+
+        // fprintf(stdout, "checking search node as peer: %02X%02X%02X%02X%02X%02X\n", 
+        //                 intent_token->issuer[0],     intent_token->issuer[1],     intent_token->issuer[2],     intent_token->issuer[3],     intent_token->issuer[4],     intent_token->issuer[5]);
+        
+        _np_dhkey_hamming_distance_each(&dh_diff_index, &intent_token_new_id, &np_module(search)->searchnode->node_id);
+
+        // setup competitor entry
+        uint8_t   dh_diff_new  = UINT8_MAX;
+        _np_dhkey_hamming_distance(&dh_diff_new, &intent_token_new_id, &np_module(search)->searchnode->node_id);
+
+        for (uint8_t j = 0; j < 8; j++) 
+        {
+            bool is_zero = false;
+            uint8_t index = dh_diff_index.t[j];
+            uint8_t   dh_diff_old  = UINT8_MAX;
+            
+            // compare hamming distance between old and new data channel
+            _np_dhkey_hamming_distance(&dh_diff_old, &np_module(search)->searchnode->peers[j][index], &np_module(search)->searchnode->node_id);
+            is_zero = _np_dhkey_equal(&dhkey_zero, &np_module(search)->searchnode->peers[j][index]);
+
+            // fprintf(stdout, "compare node as search peer [%u][%u], distance is %u (%u) (%u:%u)\n", 
+            //                 j, index, dh_diff_new.t[j], dh_diff_index.t[j], is_zero, exists);
+
+            if ( (dh_diff_old > dh_diff_new) || is_zero)
+            {
+                memcpy(&to_delete, &np_module(search)->searchnode->peers[j][index], NP_FINGERPRINT_BYTES);
+                memcpy(&np_module(search)->searchnode->peers[j][index], &intent_token_new_id, NP_FINGERPRINT_BYTES);
+
+                // subscribe to data channels provided by peer
+                // setup how entries can be added
+                struct np_mx_properties search_property = np_get_mx_properties(context, SEARCH_ENTRY_SUBJECT);
+
+                search_property.audience_type = NP_MX_AUD_PROTECTED;
+                search_property.intent_ttl = 3600;
+                search_property.intent_update_after = 120;
+                memcpy(&search_property.audience_id, &intent_token_new_id, NP_FINGERPRINT_BYTES);
+                np_set_mx_properties(context, SEARCH_ENTRY_SUBJECT, search_property);
+                np_set_mxp_attr_bin(context, SEARCH_ENTRY_SUBJECT, NP_ATTR_INTENT, "np:key", &__my_searchnode.node_id, NP_FINGERPRINT_BYTES);
+                
+                // setup how entries can be queried
+                np_set_mx_properties(context, SEARCH_QUERY_SUBJECT, search_property);
+                np_set_mxp_attr_bin(context, SEARCH_ENTRY_SUBJECT, NP_ATTR_INTENT, "np:key", &__my_searchnode.node_id, NP_FINGERPRINT_BYTES);
+
+                ret = true;
+                fprintf(stdout, "adding node as search peer [%u][%u], distance is %u\n", 
+                                j, index, dh_diff_new);
+            }
+            // else 
+            // {
+                // fprintf(stdout, "checked search node as peer: %02X%02X%02X%02X%02X%02X\n", 
+                //                 intent_token->issuer[0],     intent_token->issuer[1],     intent_token->issuer[2],     intent_token->issuer[3],     intent_token->issuer[4],     intent_token->issuer[5]);
+                // fprintf(stdout, "checked node as search peer [%u][%u], distance was %u\n", 
+                //                 j, index, dh_diff_new);
+            // }
+
+            is_zero = _np_dhkey_equal(&dhkey_zero, &to_delete);
+            if (!is_zero) {
+                // todo:
+            }
+            // if (push_back) {
+            // unsubscribe from old data channel (now in variable tmp)
+            // TODO: this doesn't work yet for private channels, we have to integrate the interface id first
+            // np_mx_properties_disable(context, SEARCH_ENTRY_SUBJECT);
+            // np_mx_properties_disable(context, SEARCH_QUERY_SUBJECT);
+            // }
+        }
+    }
+
+    // np_set_mx_properties(context, SEARCH_NODE_SUBJECT, search_property);
+    // np_set_mx_properties(context, SEARCH_ENTRY_SUBJECT, search_property);
+    // np_set_mx_properties(context, SEARCH_QUERY_SUBJECT, search_property);
+
+    return ret;
+}
+
+bool _np_searchnode_announce_cb(np_context* context, struct np_message* token_msg) 
+{ 
+    // just here for the completion of the api, will never be called
+    return true;
+}
+
 // initialize the np_searchnode structure and associated message exchanges
 void np_searchnode_init(np_context* ac)
 {
@@ -234,8 +402,50 @@ void np_searchnode_init(np_context* ac)
             memset(__my_searchresults, 0, UINT8_MAX*sizeof(np_searchresult_t));
             // np_bktree_init(__my_searchresults.entries[i], seed, 10);
         }
-        // np_id peers[64][16][4];
-        memset(__my_searchnode.peers, 0, 64*16*4*NP_FINGERPRINT_BYTES);
+        
+        memset(__my_searchnode.peers, 0, 8*32*NP_FINGERPRINT_BYTES);
+
+        np_set_authorize_cb(context, _np_search_authorize_node_cb);
+        np_set_mx_authorize_cb(context, SEARCH_NODE_SUBJECT, _np_search_authorize_node_cb);
+
+        struct np_mx_properties search_property = np_get_mx_properties(context, SEARCH_NODE_SUBJECT);
+
+        search_property.intent_ttl = 86400;
+        search_property.intent_update_after = 120;
+        search_property.audience_type = NP_MX_AUD_VIRTUAL;
+        np_set_mx_properties(context, SEARCH_NODE_SUBJECT, search_property);
+
+        np_set_mxp_attr_bin(context, SEARCH_NODE_SUBJECT, NP_ATTR_INTENT, "np:key", &__my_searchnode.node_id, NP_FINGERPRINT_BYTES);
+        np_add_receive_cb(context, SEARCH_NODE_SUBJECT, _np_searchnode_announce_cb);
+        // np_set_mxp_attr_bin(context, SEARCH_NODE_SUBJECT, NP_ATTR_INTENT, "np:search:peers", __my_searchnode.remote_peer_count, sizeof(uint16_t));
+
+        np_set_mx_authorize_cb(context, SEARCH_ENTRY_SUBJECT, _np_search_authorize_entries_cb);
+
+        // setup how entries can be added / receiver channels
+        search_property.intent_ttl = 3600;
+        search_property.intent_update_after = 120;
+        search_property.audience_type = NP_MX_AUD_PROTECTED;
+        memcpy(&search_property.audience_id, &__my_searchnode.node_id, NP_FINGERPRINT_BYTES);
+        np_set_mxp_attr_bin(context, SEARCH_ENTRY_SUBJECT, NP_ATTR_INTENT, "np:key", &__my_searchnode.node_id, NP_FINGERPRINT_BYTES);
+        np_set_mx_properties(context, SEARCH_ENTRY_SUBJECT, search_property);
+        np_add_receive_cb(context, SEARCH_ENTRY_SUBJECT, _np_searchentry_announce_cb);
+
+        // setup how queries can be added
+        // search_property.reply_subject = {0}; // add random garbage value for reply_subject
+        np_set_mx_authorize_cb(context, SEARCH_QUERY_SUBJECT, _np_search_authorize_entries_cb);
+
+        np_set_mx_properties(context, SEARCH_QUERY_SUBJECT, search_property);
+        np_set_mxp_attr_bin(context, SEARCH_QUERY_SUBJECT, NP_ATTR_INTENT, "np:key", &__my_searchnode.node_id, NP_FINGERPRINT_BYTES);
+        np_add_receive_cb(context, SEARCH_QUERY_SUBJECT, _np_searchentry_query_cb);
+
+        // np_add_receive_cb(context, SEARCH_QUERY_SUBJECT, _np_searchentry_result_cb);
+
+        // np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
+        //                             np_crypt_rand_mm(0, SYSINFO_PROACTIVE_SEND_IN_SEC*1000) / 1000.,
+        //                             //sysinfo_response_props->msg_ttl / sysinfo_response_props->max_threshold,
+        //                             SYSINFO_PROACTIVE_SEND_IN_SEC+.0,
+        //                             _np_search_cleanup,
+        //                             "_np_search_cleanup");
     }
 
     if (np_module_initiated(http)) 
@@ -384,13 +594,17 @@ bool np_create_searchentry(np_context* ac, np_searchentry_t* entry, const char* 
 
         np_index_update_with_minhash(&entry->search_index, &minhash);
     
-        np_msgproperty_t* prop = _np_msgproperty_get(np_module(search)->context, OUTBOUND, val_urn.str);
+        np_dhkey_t urn_dhkey = {0};
+        np_generate_subject(&urn_dhkey, val_urn.str, strnlen(val_urn.str, 256));
+        np_msgproperty_conf_t* prop = _np_msgproperty_get_or_create(np_module(search)->context, OUTBOUND, urn_dhkey);
         // np_merge_data(&prop->attributes, (np_datablock_t*) attributes);
 
         // TODO: fetch the already existing mx token for this subject
         np_message_intent_public_token_t* token = _np_token_factory_new_message_intent_token(prop);
         np_aaatoken4user(&entry->intent, token);
         np_merge_data((np_datablock_t*) entry->intent.attributes, (np_datablock_t*) attributes);
+
+        np_msgproperty_register(prop);
         
         // TODO: push all attributes as dhkey's into the index
         // np_index_update_with_dhkey(&entry, ...);
@@ -449,24 +663,26 @@ bool np_create_searchquery(np_context* ac, np_searchquery_t* query, const char* 
 
     np_index_update_with_minhash(&query->query_entry.search_index, &minhash);
 
-    // create our own interest to share search attributes
+    // create random reply target
     randombytes_buf(&query->result_idx, NP_FINGERPRINT_BYTES);
-    np_msgproperty_t* prop = _np_msgproperty_get_or_create(np_module(search)->context, INBOUND, query->result_idx);
+
+    // create our own interest to share search attributes
+    np_msgproperty_conf_t* prop = _np_msgproperty_get_or_create(np_module(search)->context, INBOUND, query->result_idx);
+    prop->reply_dhkey = query->result_idx;
 
     // TODO: fetch the already existing mx token for this subject
     np_message_intent_public_token_t* token = _np_token_factory_new_message_intent_token(prop);
     np_aaatoken4user(&query->query_entry.intent, token);
-
     // TODO: push all attributes as dhkey's into the index
     // np_index_update_with_dhkey(&entry, ...);
     // for now: only merge to apply later "reduce" functionality
     np_merge_data((np_datablock_t*) query->query_entry.intent.attributes, (np_datablock_t*) attributes);
 
+    np_msgproperty_register(prop);
+
     // np_index_update_with_dhkey(&entry->search_index, );
     np_index_hash(&query->query_entry.search_index);
 
-    // create random reply target
-    randombytes_buf(query->result_idx, NP_FINGERPRINT_BYTES);
     // TODO: use the identity token to show our interest
     query->query_id = __query_id++;
     
@@ -680,17 +896,6 @@ np_tree_t* np_search_get_resultset(np_context* ac, np_searchquery_t* query)
     return __my_searchnode.results[query->query_id];
 }
 
-// messages and callbacks required for nodes to interact
-void _np_searchnode_anounce(np_context* context, struct np_searchnode_s* node) 
-{ 
-
-}
-
-bool _np_searchnode_acounce_cb(np_context* context, struct np_message* token_msg) 
-{ 
-
-}
-
 void _np_searchnode_withdraw(np_context* context, struct np_searchnode_s* node) 
 { 
 
@@ -698,17 +903,16 @@ void _np_searchnode_withdraw(np_context* context, struct np_searchnode_s* node)
 
 bool _np_searchnode_withdraw_cb(np_context* context, struct np_message* token_msg) 
 { 
-
+    return true;
 }
 
-void _np_searchentry_anounce(np_context* context, struct np_searchentry_s* entry) 
+void _np_searchentry_announce(np_context* context, struct np_searchentry_s* entry) 
 { 
-
 }
 
-bool _np_searchentry_anounce_cb(np_context* context, struct np_message* token_msg) 
+bool _np_searchentry_announce_cb(np_context* context, struct np_message* token_msg) 
 { 
-
+    return true;
 }
 
 // void _np_searchentry_withdraw(np_context* ac, struct np_searchentry_s* entry) { }
@@ -719,9 +923,9 @@ void _np_searchentry_send_query(np_context* context, struct np_searchquery_s* qu
 
 }
 
-void _np_searchentry_query_cb(np_context* context, struct np_message* query_msg) 
+bool _np_searchentry_query_cb(np_context* context, struct np_message* query_msg) 
 { 
-
+    return true;
 }
 
 void _np_searchentry_send_result(np_context* context, struct np_searchentry_s* result) 
@@ -729,7 +933,7 @@ void _np_searchentry_send_result(np_context* context, struct np_searchentry_s* r
 
 }
 
-void _np_searchentry_result_cb(np_context* context, struct np_message* result) 
+bool _np_searchentry_result_cb(np_context* context, struct np_message* result) 
 { 
-
+    return true;
 }

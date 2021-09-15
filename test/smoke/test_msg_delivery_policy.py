@@ -35,6 +35,7 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
     def cb_msg_never_received(self, node:NeuropilNode, message:np_message):
         self.cause += " did receive data "
         self.abort_test.value = True
+        self.payload_1_received = False
         # should never trigger
         return True
 
@@ -52,18 +53,21 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
         subject = b"NP.TEST.msg_delivery"
         mxp = sender_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 10
         mxp.apply()
         mxp.set_attr_policy_bin("test_attr", b'test')
 
         mxp = receiver_2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         receiver_2.set_attr_bin("test_attr", b"test2", inheritance=neuropil.NP_ATTR_INTENT)
         receiver_2.set_receive_cb(subject, self.cb_msg_never_received)
 
         mxp = receiver_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         receiver_1.set_attr_bin("test_attr", b"test", inheritance=neuropil.NP_ATTR_INTENT)
         receiver_1.set_receive_cb(subject, self.cb_payload_1_received)
@@ -90,7 +94,9 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                     last_elapsed = elapsed
                     if sender_1.send(subject, b'test_payload_1') != neuropil.np_ok:
                         print("ERROR sending Data")
-                sender_1.run(math.pi/10)
+                
+                sender_1.run(0.01)
+
         finally:
             sender_1.shutdown()
             receiver_1.shutdown()
@@ -114,18 +120,21 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
         subject = b"NP.TEST.msg_delivery"
         mxp = sender_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 10
         mxp.apply()
         mxp.set_attr_policy_bin("test_attr", b'test')
 
         mxp = sender_2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 10
         mxp.apply()
         mxp.set_attr_policy_bin("test_attr", b'test2')
 
         mxp = receiver_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         receiver_1.set_attr_bin("test_attr", b"test", inheritance=neuropil.NP_ATTR_INTENT)
         receiver_1.set_receive_cb(subject, self.cb_payload_1_received)
@@ -155,7 +164,8 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                     if sender_2.send(subject, b'test_payload_2') != neuropil.np_ok:
                         print("ERROR sending Data")
 
-                sender_1.run(math.pi/10)
+                sender_1.run(0.01)
+
         finally:
             sender_1.shutdown()
             receiver_1.shutdown()
@@ -180,24 +190,28 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
         subject = b"NP.TEST.msg_delivery"
         mxp = sender_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 10
         mxp.apply()
         mxp.set_attr_policy_bin("test_attr", b'test')
 
         mxp = sender_2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 10
         mxp.apply()
         mxp.set_attr_policy_bin("test_attr", b'test2')
 
         mxp = receiver_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         receiver_1.set_attr_bin("test_attr", b"test", inheritance=neuropil.NP_ATTR_INTENT)
         receiver_1.set_receive_cb(subject, self.cb_payload_1_received)
 
         mxp = receiver_2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         receiver_2.set_attr_bin("test_attr", b"test2", inheritance=neuropil.NP_ATTR_INTENT)
         receiver_2.set_receive_cb(subject, self.cb_payload_2_received)
@@ -229,7 +243,7 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                     if sender_2.send(subject, b'test_payload_2') != neuropil.np_ok:
                         print("ERROR sending Data")
 
-                sender_1.run(math.pi/10)
+                sender_1.run(0.01)
         finally:
             sender_1.shutdown()
             sender_2.shutdown()
@@ -258,24 +272,28 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
         subject = b"NP.TEST.msg_delivery"
         mxp = sender_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 10
         mxp.apply()
         mxp.set_attr_policy_bin("test_attr", b'test')
 
         mxp = sender_2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_PROVIDER
         mxp.max_retry = 10
         mxp.apply()
         mxp.set_attr_policy_bin("test_attr", b'test2')
 
         mxp = receiver_1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         receiver_1.set_attr_bin("test_attr", b"test", inheritance=neuropil.NP_ATTR_INTENT)
         receiver_1.set_receive_cb(subject, self.cb_payload_1_received)
 
         mxp = receiver_2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         receiver_2.set_attr_bin("test_attr", b"test2", inheritance=neuropil.NP_ATTR_INTENT)
         receiver_2.set_receive_cb(subject, self.cb_payload_2_received)
@@ -314,7 +332,7 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                     if sender_2.send(subject, b'test_payload_2') != neuropil.np_ok:
                         print("ERROR sending Data")
 
-                sender_1.run(math.pi/10)
+                sender_1.run(0.01)
         finally:
             sender_1.shutdown()
             sender_2.shutdown()

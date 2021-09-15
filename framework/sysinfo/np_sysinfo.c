@@ -77,7 +77,10 @@ bool _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_util_event_t a
 {
     _np_sysinfo_init_cache(context);
 
-    if(np_has_receiver_for(context, _NP_SYSINFO_DATA))
+    np_subject sysinfo_subject = {0};
+    np_generate_subject(&sysinfo_subject, _NP_SYSINFO_DATA, strnlen(_NP_SYSINFO_DATA, 256));
+
+    if(np_has_receiver_for(context, sysinfo_subject))
     {
         np_tree_t* payload = np_sysinfo_get_my_info(context);
 
@@ -89,7 +92,7 @@ bool _np_sysinfo_client_send_cb(np_state_t* context, NP_UNUSED np_util_event_t a
         unsigned char buffer[payload->byte_size];
         np_tree2buffer(context, payload, buffer);
 
-        np_send(context, _NP_SYSINFO_DATA, buffer, payload->byte_size);
+        np_send(context, sysinfo_subject, buffer, payload->byte_size);
 
         np_tree_free(payload);
     }
@@ -105,7 +108,8 @@ void np_sysinfo_enable_client(np_state_t* context)
     log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_client() {");
 
     struct np_mx_properties sysinfo_properties = {
-        .reply_subject = {0},
+        .role = NP_MX_PROVIDER,
+        .reply_id = {0},
         .ackmode = NP_MX_ACK_DESTINATION,
         .message_ttl = 20.0,
         .max_retry = 2,
@@ -116,7 +120,10 @@ void np_sysinfo_enable_client(np_state_t* context)
         .intent_update_after = SYSINFO_MIN_TTL,
     };
 
-    np_set_mx_properties(context, _NP_SYSINFO_DATA, sysinfo_properties);
+    np_subject sysinfo_subject = {0};
+    np_generate_subject(&sysinfo_subject, _NP_SYSINFO_DATA, strnlen(_NP_SYSINFO_DATA, 256));
+
+    np_set_mx_properties(context, sysinfo_subject, sysinfo_properties);
 
     np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
                                  np_crypt_rand_mm(0, SYSINFO_PROACTIVE_SEND_IN_SEC*1000) / 1000.,
@@ -134,8 +141,9 @@ void np_sysinfo_enable_server(np_state_t* context)
     _np_sysinfo_init_cache(context);
 
     struct np_mx_properties sysinfo_properties = {
-        .reply_subject = {0},
-        .ackmode = NP_MX_ACK_NONE,
+        .role = NP_MX_CONSUMER,
+        .reply_id = {0},
+        .ackmode = NP_MX_ACK_DESTINATION,
         .message_ttl = 20.0,
         .max_retry = 2,
         .max_parallel = 8,
@@ -145,8 +153,11 @@ void np_sysinfo_enable_server(np_state_t* context)
         .intent_update_after = SYSINFO_MIN_TTL,
     };
 
-    np_set_mx_properties(context, _NP_SYSINFO_DATA, sysinfo_properties);
-    np_add_receive_cb(context, _NP_SYSINFO_DATA, _np_in_sysinfo);
+    np_subject sysinfo_subject = {0};
+    np_generate_subject(&sysinfo_subject, _NP_SYSINFO_DATA, strnlen(_NP_SYSINFO_DATA, 256));
+
+    np_set_mx_properties(context, sysinfo_subject, sysinfo_properties);
+    np_add_receive_cb(context, sysinfo_subject, _np_in_sysinfo);
 
     if(np_module_initiated(http))
     {

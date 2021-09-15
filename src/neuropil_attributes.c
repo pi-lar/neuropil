@@ -15,6 +15,7 @@
 #include "neuropil.h"
 #include "neuropil_data.h"
 #include "np_data.h"
+#include "np_dhkey.h"
 #include "neuropil_attributes.h"
 #include "np_attributes.h"
 #include "np_legacy.h"
@@ -66,7 +67,7 @@ enum np_data_return np_set_ident_attr_bin(np_context *ac, struct np_token *ident
     return ret;
 }
 
-enum np_data_return np_set_mxp_attr_bin(np_context *ac, char *subject, enum np_msg_attr_type inheritance, char key[255], unsigned char *bin, size_t bin_length)
+enum np_data_return np_set_mxp_attr_bin(np_context *ac, np_subject subject, enum np_msg_attr_type inheritance, char key[255], unsigned char *bin, size_t bin_length)
 {
     np_ctx_cast(ac);
     enum np_data_return ret = np_invalid_arguments;
@@ -75,14 +76,24 @@ enum np_data_return np_set_mxp_attr_bin(np_context *ac, char *subject, enum np_m
     conf.data_size = bin_length;
     conf.type = NP_DATA_TYPE_BIN;
     strncpy(conf.key, key, 254);
-    if (subject != NULL)
+
+    if (0 != memcmp(&dhkey_zero, subject, NP_FINGERPRINT_BYTES))
     {
-        np_msgproperty_t *property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
-        ret = np_set_data(property->attributes, conf, (np_data_value){.bin = bin});
+        np_dhkey_t subject_dhkey = {0};
+        memcpy(&subject_dhkey, subject, NP_FINGERPRINT_BYTES);
+        np_msgproperty_run_t* property = _np_msgproperty_run_get(context, INBOUND, subject_dhkey);
+        if (property != NULL) {
+            ret = np_set_data(property->attributes, conf, (np_data_value){ .bin = bin });
+        }
+        property = NULL;
+        property = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);
+        if (property != NULL) {
+            ret = np_set_data(property->attributes, conf, (np_data_value){ .bin = bin });
+        }
     }
 
     if (inheritance != NP_ATTR_NONE)
-        ret = np_set_data(np_module(attributes)->attribute_cache[inheritance], conf, (np_data_value){.bin = bin});
+        ret = np_set_data(np_module(attributes)->attribute_cache[inheritance], conf, (np_data_value){ .bin = bin });
 
     return ret;
 }
@@ -98,7 +109,7 @@ enum np_data_return np_get_msg_attr_bin(struct np_message *msg, char key[255], s
     ret = np_get_data(msg->attributes, key, conf, &val);
 
     if (out_data != NULL)
-        *out_data = val.bin;
+        memcpy(*out_data, val.bin, conf->data_size);
 
     return ret;
 }
@@ -126,7 +137,7 @@ np_attributes_t *_np_get_attributes_cache(np_state_t *context, enum np_msg_attr_
     return &np_module(attributes)->attribute_cache[cache];
 }
 
-enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, char *subject, char key[255], unsigned char *value, size_t value_size)
+enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, np_subject subject, char key[255], unsigned char *value, size_t value_size)
 {
     np_ctx_cast(ac);
 
@@ -134,16 +145,37 @@ enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, char *subject, ch
 
     if (subject != NULL)
     {
-        np_msgproperty_t *property = _np_msgproperty_get_or_create(context, DEFAULT_MODE, subject);
-        if (property->required_attributes_policy == NULL)
-            property->required_attributes_policy = _np_attribute_bloom();
+        np_dhkey_t subject_dhkey = {0};
+        memcpy(&subject_dhkey, subject, NP_FINGERPRINT_BYTES);
 
-        if (value == NULL)
-            _np_policy_set_key(property->required_attributes_policy, key);
-        else
-            _np_policy_set_bin(property->required_attributes_policy, key, value, value_size);
+        np_msgproperty_run_t *property = _np_msgproperty_run_get(context, INBOUND, subject_dhkey);        
+        if (property != NULL) {
+            if (property->required_attributes_policy == NULL)
+                property->required_attributes_policy = _np_attribute_bloom();
 
-        ret = np_data_ok;
+            if (value == NULL)
+                _np_policy_set_key(property->required_attributes_policy, key);
+            else
+                _np_policy_set_bin(property->required_attributes_policy, key, value, value_size);
+            ret = np_data_ok;
+        }
+        property = NULL;
+        property = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);        
+        if (property != NULL) {
+            if (property->required_attributes_policy == NULL)
+                property->required_attributes_policy = _np_attribute_bloom();
+
+            if (value == NULL)
+                _np_policy_set_key(property->required_attributes_policy, key);
+            else
+                _np_policy_set_bin(property->required_attributes_policy, key, value, value_size);
+            ret = np_data_ok;
+        }
+
+        else 
+        {
+            ret = np_invalid_operation;
+        }
     }
 
     return ret;

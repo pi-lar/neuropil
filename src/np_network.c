@@ -421,7 +421,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents)
             np_dhkey_t search_key = np_dhkey_create_from_hostport(&data_container.ipstr[0], &data_container.port[0]);
             np_key_t* alias_key = _np_keycache_create(context, search_key);
             
-            sll_append(void_ptr, alias_key->entities, new_network);
+            alias_key->entity_array[3] = new_network;
             // will be reset to alias key after first (handshake) message
             _np_network_set_key(new_network, ((_np_network_data_t*) event->data)->owner_dhkey); 
 
@@ -544,14 +544,19 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, NP_UNUSED int revents)
 
                 if (FLAG_CMP(ng->socket_type, TCP) || FLAG_CMP(ng->socket_type, PASSIVE) || NULL == alias_key )
                 {
+                    np_ref_obj(BLOB_1024, data_container.data, FUNC);
                     if(!np_jobqueue_submit_event(context, 0.0, owner_dhkey, in_event, "event: externe message in")){
                         log_debug(LOG_NETWORK, "Dropping data package as jobqueue is rejecting it");    
+                        np_unref_obj(BLOB_1024, data_container.data, FUNC);
+
                     }
                 }
                 else if (NULL != alias_key )
                 {
+                    np_ref_obj(BLOB_1024, data_container.data, FUNC);
                     if(!np_jobqueue_submit_event(context, 0.0, alias_key->dhkey, in_event, "event: externe message in")){
                         log_debug(LOG_NETWORK, "Dropping data package as jobqueue is rejecting it");    
+                        np_unref_obj(BLOB_1024, data_container.data, FUNC);
                     }
                 }
                 else
@@ -912,7 +917,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                 {
                     // As we do have a async connection (and TCP may need longer due to
                     // handshake packages) we need to check the connection status for a moment
-                    log_msg(LOG_DEBUG, "trying tcp connect: %"PRIi32" (%s)", connection_status, strerror(l_errno) );
+                    log_debug(LOG_NETWORK|LOG_VERBOSE, "trying tcp connect: %"PRIi32" (%s)", connection_status, strerror(l_errno) );
                     np_time_sleep(NP_PI / 100);
                 }
             } while (0 != connection_status && retry_connect-- > 0 && l_errno != EISCONN);
@@ -920,7 +925,9 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
             if (0 != connection_status && l_errno != EISCONN) 
             {
                 log_msg(LOG_ERROR,
-                    "could not connect: %s (%d)", strerror(errno), errno);
+                    "could not connect to %s:%s:%s ERROR: %s (%d)", 
+                    _np_network_get_protocol_string(context, type), hostname, service,
+                    strerror(errno), errno);
                 __np_network_close(ng);
                 return false;
             }
