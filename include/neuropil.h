@@ -438,7 +438,22 @@ Starting up
 Sending and receiving messages
 ------------------------------
 
-.. c:function:: enum np_return np_send(np_context* ac, const char* subject, const uint8_t* message, size_t length)
+.. c:function:: enum np_return np_generate_subject(np_subject subject, const char* text, size_t length)
+
+   Creates the binary representation of a message subject. This is an re-entrant version, using the same subject field will use the existing np_subject as a seed for the text.
+
+   :param subject:  the final np_subject field that can be used in later calls to the library
+   :param text:     the text that the subject should be based on
+   :param length:   the length of *text* in bytes.
+   :return:         :c:data:`np_ok` on success.
+
+   ===============================  ===========================================
+   Status                           Meaning
+   ===============================  ===========================================
+   :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
+   ===============================  ===========================================
+
+.. c:function:: enum np_return np_send(np_context* ac, np_subject subject, const uint8_t* message, size_t length)
 
    Sends a message on a given subject.
 
@@ -454,7 +469,7 @@ Sending and receiving messages
    :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
    ===============================  ===========================================
 
-.. c:function:: enum np_return np_add_receive_cb(np_context* ac, const char* subject, np_receive_callback callback)
+.. c:function:: enum np_return np_add_receive_cb(np_context* ac, np_subject subject, np_receive_callback callback)
 
    Adds a callback to be executed when receiving a message on a given subject.
    It is possible to add more than one receive callback for a given subject, in
@@ -537,6 +552,17 @@ Sending and receiving messages
    Acknowledgement strategy used in message exchange. The default is
    :c:data:`NP_MX_ACK_NONE` (i.e., fire and forget.)
 
+.. c:member:: enum np_mx_role role
+
+   role of the node for this data transfer. The default is not set. When calling :c:type:`np_send` 
+   the library creates the role of :c:data:`NP_MX_PROVIDER`, if calling :c:type:`np_add_receive_cb` the role
+   :c:data:`NP_MX_CONSUMER` is used
+
+.. c:member:: enum np_mx_audience_type audience_type
+
+   the intended audience for this data transfer. see :c:type:`np_mx_audience_type` for the specific meaning of each.
+   The default is :c:data:`NP_MX_AUD_PUBLIC`
+
 .. c:member:: enum np_mx_cache_policy cache_policy
 
    Cache policy used for queuing inbound messages. The default is
@@ -596,6 +622,27 @@ Sending and receiving messages
    :c:data:`NP_MX_ACK_NONE`         Message transmissions need not be acknowledged to be considered successful.
    :c:data:`NP_MX_ACK_DESTINATION`  Message transmissions need to be acknowledged by destination node to be considered successful.
    :c:data:`NP_MX_ACK_CLIENT`       Message transmissions need to be acknowledged by a receive callback to be considered successful.
+   ===============================  ===========================================
+
+.. c:type:: enum np_mx_role
+
+   ===============================  ===========================================
+   Mode                             Description
+   ===============================  ===========================================
+   :c:data:`NP_MX_PROVIDER`         node is the sender of messages 
+   :c:data:`NP_MX_CONSUMER`         node is the receiver of messages
+   :c:data:`NP_MX_PROSUMER`         node will send an receiver messages on this subject
+   ===============================  ===========================================
+
+.. c:type:: enum np_mx_audience_type
+
+   ===============================  ===========================================
+   Mode                             Description
+   ===============================  ===========================================
+   :c:data:`NP_MX_AUD_PUBLIC`       public data channel, everybody can subscribe to
+   :c:data:`NP_MX_AUD_VIRTUAL`      virtual data channel, only token will be exchanged
+   :c:data:`NP_MX_AUD_PROTECTED`    protected data channel, audience_id identifies the mutual peer
+   :c:data:`NP_MX_AUD_PRIVATE`      private data channel, subject obfuscated with np_generate_subject
    ===============================  ===========================================
 
 --------------------------------
