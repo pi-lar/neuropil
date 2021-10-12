@@ -31,18 +31,21 @@ int main (void)
 	assert(np_ok == np_join(ac, "*:udp4:localhost:2345"));
 
 	assert(np_ok == np_set_authorize_cb(ac, authorize));
+	
+	np_subject subject_id ={0};
+	assert(np_ok == np_generate_subject(&subject_id, "mysubject",9));
 
 	/**
 	   The simple receiver example looks very much like the sender we just
 	   discussed. Instead of sending messages it registers a receive
-	   callback for messages on the subject ``"mysubject"`` with
+	   callback for messages on the subject ``subject_id`` with
 	   :c:func:`np_add_receive_cb`.
 
 	   .. code-block:: c
 
 	   \code
 	*/
-	assert(np_ok == np_add_receive_cb(ac, "mysubject", receive));
+	assert(np_ok == np_add_receive_cb(ac, subject_id, receive));
         /**
 	   \endcode
 	*/

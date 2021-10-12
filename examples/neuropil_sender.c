@@ -40,7 +40,6 @@ int main (void)
 	*/
 	struct np_settings cfg;
 	np_default_settings(&cfg);
-
 	np_context *ac = np_new_context(&cfg);
         /**
 	   \endcode
@@ -90,10 +89,25 @@ int main (void)
 	   \endcode
 	*/
 
+	/**
+	   We also need to convert our human readable subject string 
+	   into an :c:type:np_subject instance. 
+	   This can be done via :c:func:`np_generate_subject`.
+
+	   .. code-block:: c
+
+	   \code
+	 */
+	np_subject subject_id ={0};
+	assert(np_ok == np_generate_subject(&subject_id, "mysubject",9));
+        /**
+	   \endcode
+	*/
+
     /**
        Now to our application logic. We will repeatedly run the neuropil
        event loop with :c:func:`np_run`, and then send our user defined
-       message with the subject ``"mysubject"`` using :c:func:`np_send`. If
+       message with the ``subject_id`` using :c:func:`np_send`. If
        anything goes wrong we return the error code (an
        :c:type:`np_return`.)
 
@@ -115,7 +129,7 @@ int main (void)
         if ((strlen(message) > 0) && (message[strlen (message) - 1] == '\n'))
             message[strlen (message) - 1] = '\0';
         size_t message_len = strlen(message);
-        np_send(ac, "mysubject", message, message_len);
+        np_send(ac, subject_id, message, message_len);
         printf("Sent: %s\n", message);
     } while (np_ok == status);
 
