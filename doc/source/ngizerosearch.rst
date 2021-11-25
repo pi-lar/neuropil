@@ -13,21 +13,25 @@ According to the FAIR principle each data set has to conform to the following fo
 (I will not comment fully, just with respect to our work):
 
 - Findable
+
   data needs an identifier and (searchable) metadata. In neuropil the metadata are 
   our intent token, and they can be send to an hash value in the DHT, ready for other
   participants to find them.
 
 - Accessible
+
   neuropil is a standardized, free and open communication protocol, and the main 
   purpose of the intent token are mutual authentication and, even more important, 
   authorization or delegated authorization. 
 
 - Interoperable
+
   The hash value of a data set hash can be used as a link to other documents, resulting
   in different DAG on top of the DHT. Although neuropil is not able to understand 
-  complete vocabularies, it is possible to match attributes and even more to each other. 
+  complete vocabularies, it is possible to match attributes and more to each other. 
 
 - Re-usable
+
   Data objects can be attributed with an owner and a signature, in addition to any other 
   attribute that a data owner defines. Data objects in neuropil are therefore re-usable, 
   although technically it will not be possible to guarantee accuracy and relevance of each 
@@ -73,17 +77,17 @@ Entering the Zero Search
 
 Our initial idea was simple: We can use the hash values of the DHT in neuropil as a kind of
 catchword index. For each single document we can distribute its metadata token to several
-places in the DHT. This can be done by first calculating the minhash signatures of each token
-and its corresponding document / object. This signature is then distributed and, using the LSH
+places in the DHT. This can be done by first calculating the minhash signature of each token
+or its corresponding document / object. This signature is then distributed and, using the LSH
 schemes, it is possible to compare two documents and find matches of contained data objects, 
 without actually knowing anything about the real data content.
 
-However, there is one fundamental difference in our approach: In addition to its own search 
+There is one fundamental difference in our approach: In addition to his own search 
 contents, each participant will contribute a bit of search capacity for others as well. 
-index content for other peers. There lies no danger in this: the only "content" that is stored 
-are the intent token, the public part of the search content. The full article / dataset still 
-stays behind the usual access limitations that neuropil gives you. This is the only way how
-search can be maintained at no costs, but carried by many participants.
+There is no danger in this: the only "content" that is stored is a digitally signed intent token, 
+the public part of the search content. The full article / dataset still stays behind the usual 
+access limitations that neuropil gives you. This is the only way how search can be maintained 
+at no costs, because each participant will contribute a part of his resource to the overall index.
 
 
 Improvements for neuropil
@@ -93,19 +97,20 @@ The implementation of the LSH comparison matrix is a clear benefit for neuropil.
 We do not have to compare each token with each other, but just the ones we have 
 stored at a certain position in the hash table. This limits the amount of required 
 comparison steps (which is the main purpose af LSH anyway). Furthermore we can fine 
-tune the result set to only match data objects that have a probability 0.8 or more. 
+tune the result set to only match data objects that have a certain probability threshold or more. 
 
-In the case of our discovery algorithm we used the hash value of the message subject
-so that token could meet, but we always just forward and do not store any token, based 
-on the pseudonymized meta-data available at each routing step. 
+In the case of our discovery algorithm we used the blake2b hash value of the message subject
+so that token/participants could establish a communication channel. But we always forward and do 
+not store any token, based on the pseudonymized meta-data available at each routing step. 
 
-For searching we need a new content based rendezvous points, where search index entries 
-and search queries can meet and exchange. Thus we have to construct a new 
-distributed data structure sitting on top of the DHT, that is maintained and managed 
-by "search" nodes only. This makes perfectly sense as not all nodes of the DHT will have 
-enough resources to add search capabilities. We have to explicitly define and implement "search"
-nodes withing the DHT, that are able to handle the expected load. And we now would like 
-to store more data and possibly also an access token in our DHT. 
+For searching we need to store the token somewhere. Thus we need a new content based rendezvous points, 
+where search index entries and search queries can meet and exchange. Thus we have to construct a new 
+distributed data structure sitting on top of the DHT, that is maintained and managed by "search" nodes 
+only. This makes perfectly sense as not all nodes of the DHT will have enough resources to add search 
+capabilities. We have to explicitly define and implement "search" nodes withing the DHT, that are able
+to handle the expected load. And we now would like to store more data and possibly also an access token 
+in our DHT. 
+
 
 Starting point for search content
 *********************************
@@ -114,37 +119,59 @@ This also opens the path to a first data definition that will be needed for sear
 main data object is the intent token, and this will already give a good data ownership. As most 
 parts of the intent token contains hash values, they are not good to derive any further searchable
 content, therefore the attributes (claims) of an intent token can be used for datatype specific extensions.
-E.g. one could use the meta tags of HTML pages (please ignore for now that these elements are ignored 
+E.g. one could use the meta tags of HTML pages (please ignore for now that these elements are not used 
 by crawlers). Let's have a look:
 
 
 .. code-block:: html
 
-    <meta name="description" content="Lorem ipsum dolor sit amet, consetetur sadipscing elitr." /> 
-    <meta name="keywords" content="keyword_1, keyword_2, keyword_3" /> 
-    <meta name="author" content="Author Name" /> 
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
-    <meta http-equiv="expires" content="Expiry in seconds" /> 
+   <meta name="description" content="Lorem ipsum dolor sit amet, consetetur sadipscing elitr." /> 
+   <meta name="keywords" content="keyword_1, keyword_2, keyword_3" /> 
+   <meta name="author" content="Author Name" /> 
+   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+   <meta http-equiv="expires" content="Expiry in seconds" /> 
 
 
 The same kind of meta data can be defined for other documents as well. We enrich the intent token
-with the needed data structures to create and distribute searchable entities.
+with the needed data structures to create and distribute searchable entities. In the absence of a 
+description or keywords, we can use algorithms like TF-IDF or BM25+ to find the most important words. 
+The description could be taken from the first 250 words of each webpage.
+
+.. NOTE::
+   For our first implementation our project concentrates on a very simplistic text processing.
+   We will analyze each line in a text file. The lines are put to lowercase, only words with more
+   than 3 letters are used, and we will us a simple 1-shingle on these words.
+
+
+This kind of text analysis shows, that there is no silver bullet for text search. This impression 
+continues once you start to play with the algorithm for search content. It is clear that there will 
+be no universal set that can be applied to all kinds of documents. The different formats and data 
+structures need different treatment and analysis. I.e. before building a minhash signature, there is 
+the choice how text will be added to the signature, giving several options like shingling (in
+various forms) or k-mer split up. During our project we experimented with various shingling variants
+and data-dependant schemes, and they have all become part of the library.
+
+
+.. raw:: html
+    :file: ./search_process_1.svg
 
 
 Comparing search content
 ************************
 
 In order to reduce the needed semantic complexity, the above intent token (plus it's attributes) will be 
-added to a bloom filter. Quite nicely, PPRL (privacy preserving record linkage) defines the layout of
-such a data structures based on bloom filter. To our own surprise, our neuropil bloom filter, implemented
-in our NGI discovery part of the project, are matching the PPRL definitions, with a few limitations or
-constraints, e.g. for single values we always use Blake2b hashing and do not allow for any other hashing.
-The size of our PPRL is fixed (around 1020 bits). For a list of keywords we will add minhash signatures 
-that are implemented on shingling, not n-grams (but that could be changed later).
+added to a bloom filter. Quite nicely, PPRL (privacy preserving record linkage) respectively CLKHash 
+defines the layout of such a data structures based on bloom filter. To our own surprise, our neuropil 
+bloom filter, implemented in our first NGI discovery part of the project, are matching the PPRL 
+definitions, with a few limitations or constraints. E.g. for single values we always use blake2b 
+hashing and do not allow for any other hashing. The size of our PPRL is fixed (around 1020 bits). 
+For a list of keywords we will add minhash signatures that are implemented on shingling, not n-grams 
+(but that could be changed later).
 
 Comparing search entries is thus just a matter of comparing a set of bloom filter, namely the CLKHash 
-(Cryptographic Longterm Keys) representation derived from our intent token. As these are just bloom
-filter values, the implementation of comparing CLK data structures should be possible in an efficient way.
+(Cryptographic Longterm Keys) representation derived from the search content. As these are just bloom
+filter values, the implementation of comparing CLK data structures will be possible in an efficient way,
+and even more important, in a privacy preserving way.
 
 
 New content index for search content
@@ -164,26 +191,28 @@ capability of the algorithm, because it allows you detect which parts of a text 
 a newer approach (a "fuzzy hash"), which is more robust against attacks. All data dependent hashing 
 schemes share one common property: they have a variable length.
 
-Our goal is to find a kind of data dependent hashing scheme, that works well on / only uses 256-bits 
+Our goal is to find a kind of data dependent hashing scheme, that works well on/only uses 256-bits 
 for the final rendezvous point. Once this rendezvous point has been found, the corresponding node can
 any database system to store and compare CLKHash values, returning/forwarding the attached intent token
 of sender/receiver to the identified actors. 
 
 So finally: what is our content index (aka rendezvous point, aka clustering index)?
 
-We use a counting bloom filter and treat item of the filter as if it would be representing one table
+We use a counting bloom filter and treat each index of the filter as if it would be representing one table
 (or a LSH bucket). We then hash the attributes and the minhash signature of keywords (or text) into
-the filter, which gives us a hint of the relative importance of each bucket for the specific search content.
+the filter. This gives us a hint of the relative importance of each bucket for the specific search content.
+
 Across this counting bloom filter we apply the TLSH technique: the resulting count across the buckets
 can be split into octile values, each bucket then falls into a specific octile. After a iteration over
 all buckets we get the data dependent bitset that represents the relative importance of each bucket.
 It is a bit weird, because we are only looking at the importance of buckets in relation to their minhash
-values, but: it works. We have succesfully distributed search entries over a set of 4096 nodes and were
+values, but: it works. We have successfully distributed search entries over a set of 4096 nodes and were
 able to find all inserted entries. 
 
 .. NOTE::
    There are several variations possible to the scheme, and we still have to experiment with more data 
    to verify that our approach works for a) many different and b) huge number of data sets.
+
 
 The data dependency allows us also to compare only parts of the new content index. Even if the first bits do
 not match, later bits may show a series of common bits / importance and we can identify the corresponding 
@@ -193,9 +222,9 @@ So our final search entry actually can be defined as follows:
 
 .. code-block:: javascript
 
-    struct np_index;   // the new rendezvous point
-    struct clkhash;    // the cryptographic longterm key of the search entry
-    struct intent_jwt; // the intent token plus its attributes
+   struct np_index;   // the new rendezvous point
+   struct clkhash;    // the cryptographic longterm key of the search entry
+   struct intent_jwt; // the intent token plus its attributes
 
 
 The nice part of this structure is: starting with the intent token, the other two properties can be
@@ -211,163 +240,167 @@ identity information and to setup the search hash space). When a node receives a
 which random hash value this node will be taking care of and add it to its internal search table. In 
 addition we can derive an encryption between these two nodes which will be used to encrypt the data 
 for communication between these two nodes. In addition to these two mx properties, each node will 
-listen to the random hash value and listen on it for queries and new search entries.
+listen to the random hash value and listens on it for queries and new search entries.
 
 .. code-block:: javascript
 
-    enum np_data_return np_set_mxp_attr_bin(ac, "urn:np:search:node:add", NP_ATTR_INTENT, "urn:np:random:hash", <random hash value>, NP_PUBLIC_KEY_BYTES);
-    struct np_mx_properties search_node_add = np_get_mx_properties(ac, "urn:np:search:node:add");   // announcing a search node
-    struct np_mx_properties search_node_rem = np_get_mx_properties(ac, "urn:np:search:node:remove");   // removing a search node
+   enum np_data_return np_set_mxp_attr_bin(ac, "urn:np:search:node:v1", NP_ATTR_INTENT, "urn:np:random:hash", <random hash value>, NP_PUBLIC_KEY_BYTES);
 
-    struct np_mx_properties search_entry = np_get_mx_properties(ac, "urn:np:search:entry:<random hash>");   // announcing a search node
-    struct np_mx_properties search_query = np_get_mx_properties(ac, "urn:np:search:query:<random hash>");   // announcing a search node
+   struct np_mx_properties search_entry = np_get_mx_properties(ac, "urn:np:search:entry:v1:<random hash>");   // announcing a search node
+   struct np_mx_properties search_query = np_get_mx_properties(ac, "urn:np:search:query:v1:<random hash>");   // announcing a search node
 
 
+As message intents get refreshed by neuropil periodically, we have an implicit heartbeat whether 
+nodes are still present in the network or not. In addition it is possible calculate the required 
+hash distance that is used internally. As more nodes enter the scene, the hash distance will decrease 
+over time, meaning that it is also possible to evict data over time. 
 
-    // use more than one search "subject"!
-    // "search" + shingle size + search space = dhkey for msg subject
-    // query contains target probability that is used for searching documents
-    // query contains a "required" bloom filter that is used to compare and search for data objects
-    // "required" bloom filter always has a target probability of 1.0
-    // query contains a "optional" bloom filter that is used to compare and search for data objects
-    // "optional" bloom filter will use the target probability of the query to match elements
-    // --> the target probability can be used for comparing Jaccard similarity of minhash results
-
-    // each node can define to which shingle size it would like to respond to
-    // for each searchable document plus it defines an attribute bloom filter:
-    // add required document attributes to the required bloom filter
-    // add minhash signature and optional document attributes to the optional bloom filter
-    // --> size of optional bloom filter depends on shingle size (e.g.256 for 1 shingles, then double)
-    // --> size of optional bloom filter depends on shingle size (e.g.512 for 2 shingles, then doubled)
-    // --> ...
-    
-    // just like in our pheromone routing: each search node can add other search fingerprints to
-    // its own database (a skiplist). Each node forwards its search entries to other nodes
-    // we do not need to use dhkeys, but the bloom filter structure as the ordering element
-    // additionaly we keep/maintain a skipgraph that matches "closer" search entries.
-
-    // How is the membership vector of a search defined? 
-    // construct the (several) dhkey from a minhash, size of minhash has to be a multiple of 8*uint32_t,
-    // minimum size is one octet(= dhkey)
-    // several dhkeys can be added to get more than one point in search "space", same effect as hashing concatenated rows
-    // -> entries can be added multiple times (in different hash tables) with different levels of detail
-    // whether a node will add an entry to its skiplist depends on a comparison of node dhkey and the 
-    // concatenated bloom filter. It is possible to take other search peers into account to further divide
-    // the available search space.
-    // Additionally we can use the Jaccard similarity as a measure whether similar bloom filter can be 
-    // joined into a single filter, or to limit the length of each skiplist.
-
-    // we reverted the search queries: search data structures are made available from bottom down 
-    // to "upper levels", queries can then be forwarded to the nodes where the bloom filter matches best.
-    // the final nodes can match their own search content and then return their contained access token 
-    // (possibly including a abstract text) to the querying node.
-
-    // even a query only node could keep a local skiplist with cached results.
-    // each query node can select one or more of the different query subjects and initiate searches.
-    // most probably it will make sense to only choose some of the bands, and certainly it doesn't make
-    // sense to use the 9-shingle space when only a single search item has been entered.
-    // a user could be able to define a set of required attributes. These attributes can be extracted
-    // from common search objects or standards like A5.
-    // a query node will collect data and sort by number of matching entries or number of matching 
-    // links/dhkey
-
-    // we have to use a special identity for search nodes, otherwise each person who would like to query
-    // would have to accept an arbitrary amount of token. This is not related to the content owners who
-    // can transmit their identities later when a search ws successful. It is required for the first 
-    // stage of searched. 
-
-    // when searching, start with initial dhkey and lookup entries
-    // entries could contain more data / larger minhash signatures 
-    // -> continue with additional data and search until no result is found
-    // attach result to continued search and do map/reduce in each visited node
-    // return found entries to querying node with match rate
+.. raw:: html
+    :file: ./search_process_2.svg
 
 
+The same applies for search content: Search content will be refreshed once a day (the exact timing 
+requirements need to be specified). As the search entry is represented by a attenuated bloom filter,
+it is possible to decrease the "age" of a search entry without directly loosing it. A refresh of a 
+search entry will not add a new dataset, but only the age information of the attenuated bloom filter 
+will be increased. Old internet content, that is not refreshed from peers, will vanish automatically 
+from the tables over time.
+
+Storing search entries in more than one node (because the hash distance could be the same) will lead 
+to a certain degree of fragmentation and double entries. If we discover that fragmentation causes 
+problems, we will have to add another metric when adding entries to search nodes.
 
 
+Querying for data sets works the same as adding entries. Based on our search text it is possible to create 
+the search hash value and the query can then be forwarded to the correct rendezvous point. The query object 
+itself is a bit different, and can be defined as follows:
 
-// other stuff
+.. code-block:: javascript
 
-Rendezvous Hashing:
-each node -> seed + weight (weight defines how many entries a node can handle)
---> weighted score := hash(key, seed) -> 64bit int -> to float -> score = 1/log(float) -> weight * score
---> node selection := for each node -> weighted score -> pick nodes with highest score
-
-
-skip list:
-l0:    x -- x -- x -- x -- x -- x -- x -- x -- x -- x -- x 
-l1:    x -- - -- - -- x -- x -- - -- x -- - -- x -- - -- x
-l2:    - -- - -- - -- x -- - -- - -- x -- - -- - -- - -- x
-l3:    - -- - -- - -- x -- - -- - -- x -- - -- - -- - -- -
+   uint8_t query_id;             // a query id to correlate replies to send out queries (needed?)
+   np_id result_idx;             // the reply subject for incoming results (could be different for each query)
+   np_searchentry_t query_entry; // a searchentry, that is used for querying. simply reuse the existing data structure
 
 
-skip graph:
-each x can be a skip list on its own
-definition into which lists an element has to be: membership vector (x)
+Search queries travel through the DHT table as search entries. Once the hash distance is closing in, the search entries
+can be compared to the search query in each node. The good news is, as the query message travels on, the searching happens
+in parallel without any further intervention. The hard part will be to make the search efficient. Searching should
+only happen on the least nodes required. 
 
-prefix trie:  a --> ab --> ab4 ...
-              a --> a0 --> a0d ...
-              x --> c1 --> c12 ...
+In addition to the similarity measurement of the bloom filter it will be possible to match the found entries against a set
+of required attributes in the search query. This acts as an early "map" of the map-reduce algorithm and filters specific entries. 
+E.g. a user could search only for documents that have been verified by a specific third party ("green" content provider),
+the signature of this third party can be verified in remote peers already.
 
-
-forest lsh:
-variable length signature := concatenated hash function(key) = (H1(key),H2(key),H3(key),H4(key),...)
-length signature can be extended if the result is not unique
--> create and use several trees, query returns m items from each tree
-
-
----------------------------------------------------
-| Distance/Similarity metric | LSH implementation |
----------------------------------------------------
-| Euclidean Distance         | Random Projection  |
-| Jaccard Similarity         | MinHash            |
-| Hamming Distance           | Bit Sampling       |
-| Cosine Similarity          | SimHash            |
----------------------------------------------------
+Matching results (aka search entries) can then be send back to the query node via the result_idx hash value. Each user can
+define his own ranking algorithms, but quite obviously the similarity and how often a document was found plays a crucial
+role.
 
 
-First technical design
-**********************
+New approach for search metrics
+*******************************
+
+In addition we could implement one optional feature: the search query item could be forwarded to the original author 
+of the search entry (the necessary data is contained in the intent token). Doing it would give each participant an 
+automated metric whether and how often his search entries were found. In fact searching could become a mutual experience,
+giving both participants, the searcher and the content provider, the required data and insights. As most data and 
+participant in neuropil are identified by their hash value only, the evaluation of search would not impact the privacy
+of any participant. The last step, getting in contact with each other, has to be triggered by each user and is left out
+of the current implementation (as it could happen through other transport protocols than neuropil anyway). 
+
+Sending search content owners the queries which led to a hit has a high impact: There is doubt that the amount of queries 
+could a) be beneficial for the user and b) be handled efficiently by the data owner.
+
+
+Identities and searching
+************************
+
+There is a special problem in the way how neuropil interacts with each other, that is yet documented. If each participant
+in the neuropil network can add his search entries, then we open the black hole of authorizations, as we would have to 
+authorize everybody when adding search entries or when querying the distributed data structure.
+
+In our first version, we circumvented this: After a node has been added to the list of nodes with a certain hash distance, 
+we explicitly allow those nodes that are "near" to our own node to add content or to query for content. In a later setup 
+we plan to add verified content only. A search entry needs the seal of a search entry optimizer (SEO) so that it will be 
+accepted from nodes. As there could be several SEO provider in the market, the person who would like to share documents 
+has to pick one (or more) provider to get his search content online. The proof that a SEO has indeed verified the contents
+needs new way of publishing trusted content, but that is (for now) not our main goal.
+
+For our search subjects, to add or query for content, we will use the private mode for message subjects. The private
+mode allows to set explicit authorization callbacks per message subject. This decouples the authorization callbacks for 
+search entries from the authorization callbacks of the remaining implementation.
 
 .. NOTE::
-   The technical design to implement our neuropil bloom filter and the lookup table is work 
-   in progress.
+   Using the private mode for data exchange should be the best practice. Apart from setting a dedicated authorization 
+   callback, it allows you to either localize an interface to your identity, or it allows you to hide your interface 
+   in the hash space that neuropil uses. 
 
 
-Literature / Links:
+In addition to this this also allows the creation of different search domains. E.g. during our experiments we have already
+seen that different kind of data will need different kind of hashing / minhashing data. (e.g. a news feed has some typical
+characteristics that is not the same as for a novel). To overcome these limitations (that also have been mentioned earlier) 
+we will allow to seed the private message subjects with a different hash for each of these application domains of search . 
+In this way we can layer several search domains which do not interfere with each other. For a client searching for content 
+this setup allows to search in different domains at the same time. The results from each domain can then be merged locally 
+by his own algorithms deployed locally.
 
-qptries : https://github.com/fanf2/qp
-use hamming distance and __popcount(x) as an index to a trie
-'''
-You can use popcount() to implement a sparse array of length N containing M < N members 
-using bitmap of length N and a packed vector of M elements. A member i is present in the 
-array if bit i is set, so M == popcount(bitmap). The index of member i in the packed vector 
-is the popcount of the bits preceding i.
-    mask = 1 << i;
-    if(bitmap & mask)
-        member = vector[popcount(bitmap & mask-1)]
-'''
 
-TresholdLSH (TLSH) / https://tlsh.org/
+Final thoughts
+**************
 
-Skip Graph: http://cs-www.cs.yale.edu/homes/shah/pubs/soda2003.pdf
+The NGI ZeroDiscovery project was a challenge for us. To implement our initial idea we had to re-read a lot of the Literature.
+Understanding the different algorithms and how they can be applied to solve a specific search problem was the key to build the
+solution. And although we have just fully implemented a simple text search, we are very happy with the results. During our
+journey we were able to build up capabilities and knowhow that we can apply in other areas. The gained knowledge can be
+be applied to other real world problems, and there are enough of them. E.g. in the field of cybersecurity you just have to
+think about spam mails, virus detection or fraudulent site indexing where our solution could be applied in a ecosystem. 
 
-Coral / DSHT (distributed sloppy hash table): https://www.coralcdn.org/docs/coral-iptps03.pdf
+We also see several limitations and extension to our chosen approach. The authorization hole mentioned above is one example 
+of such a limitation that hinders us to simple move on. But the same hole points us into the right direction: who should
+be allowed to add content, algorithms or processes to our distributed search structure? We need a better understanding of
+the search process and it's roles and responsibilities. 
 
-visual presentation of numbers: https://www.exploratorium.edu/blogs/tangents/composite-patterns
+Adding search content should not be possible for everybody. Although this sounds harsh the reality is: it is not helpful 
+to have garbage in your search index. On one hand we have experienced in our project that understanding and choosing the 
+right algorithm is important before adding content. Just pushing content will create search results which will be 
+disappointing for everybody (the content owner and the people searching for content). Why do we accept the this quality?  
+Are the current search results really the best what can be achieved? I guess no ...
 
-CRUSH partitioning protocol: https://ceph.com/wp-content/uploads/2016/08/weil-crush-sc06.pdf
+There are so many different data formats our there, why should there be just a single search instance in the world serving 
+our search? The monolithic approach to search is hindering all of us, there should be more variety. With the ability 
+to host different search domains for different groups we aim to strike a balance, to have several content curators working
+together. The algorithms that we have implemented and mixed together are just the technical foundation for collaboration.
 
-ring-cover-trees for ANN: https://homes.cs.washington.edu/~sham/papers/ml/cover_tree.pdf
-                          http://www.corelab.ntua.gr/~ebamp/oldpage/material/Approximate%20Nearest%20Neighbors.pdf
+As such our open source project is just the starting point for interested groups to establish search domains. In case you
+need help with the algorithms: we are there to help you, and we will be able to add more algorithms to the set (this 
+could be the role that we will be playing in the game ...).
 
-LSH Forest: http://infolab.stanford.edu/~bawa/Pub/similarity.pdf
 
-https://aerodatablog.wordpress.com/2017/11/29/locality-sensitive-hashing-lsh/#E2LSH-ref
 
-CIFF - Common Index File Format // https://github.com/osirrc/ciff
+Links & Literature
+==================
 
-https://www.uni-due.de/~hq0215/documents/2013/Schnell_2013_PPRL_ISI.pdf
 
-CLK Hash : https://clkhash.readthedocs.io/
+`[TLSH] <https://tlsh.org/>`_ TresholdLSH (TLSH)
 
+`[Skip Graph] <https://cs-www.cs.yale.edu/homes/shah/pubs/soda2003.pdf>`_ Skip Graph
+
+`[Coral / DSHT] <https://www.coralcdn.org/docs/coral-iptps03.pdf>`_ Coral / DSHT (distributed sloppy hash table)
+
+`[composite-patterns] <https://www.exploratorium.edu/blogs/tangents/composite-patterns>`_ visual presentation of prime numbers
+
+`[CRUSH] <https://ceph.com/wp-content/uploads/2016/08/weil-crush-sc06.pdf>`_ CRUSH partitioning protocol
+
+`[Approximate Nearest Neighbors.pdf] <http://www.corelab.ntua.gr/~ebamp/oldpage/material/Approximate%20Nearest%20Neighbors.pdf>`_ approximate nearest neighbour / removing the curse of dimensionality
+
+`[Ring Cover Trees] <https://homes.cs.washington.edu/~sham/papers/ml/cover_tree.pdf>`_ ring-cover-trees for ANN
+
+`[LSH Forest] <http://infolab.stanford.edu/~bawa/Pub/similarity.pdf>`_ LSH Forest
+
+`[LSH] <https://aerodatablog.wordpress.com/2017/11/29/locality-sensitive-hashing-lsh/#E2LSH-ref>`_ Locality Sensitive Hashing
+
+`[CIFF] <https://github.com/osirrc/ciff>`_ Common Index File Format (CIFF)
+
+`[PPRL] <https://www.uni-due.de/~hq0215/documents/2013/Schnell_2013_PPRL_ISI.pdf>`_ privacy preserving record linkage (PPRL)
+
+`[CLKHash] <https://clkhash.readthedocs.io/>`_ CLK Hash

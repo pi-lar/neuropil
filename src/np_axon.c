@@ -244,7 +244,7 @@ bool _np_out_default(np_state_t* context, np_util_event_t event)
 
     if (!_np_route_my_key_has_connection(context))
     {
-        log_msg(LOG_INFO, "--- request for forward message out, but no connections left ...");
+        log_msg(LOG_INFO, "--- request for default message out, but no connections left ...");
         return false;
     }
 

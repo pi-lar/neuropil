@@ -18,10 +18,12 @@ year        name                         topic
 2017       @eugenia                     lua binding, documentation, abi design
 2020       @NGIZero                     financial sponsorship of pheromone routing
                                         discovery and search algorithms
+2021       @NGIAssure                   financial sponsorship of distributed time,
+                                        linked-data time-stamping and efficiency measures
 2020       Carolin Zöbelein             math review for probability based routing
                                         development of simulator for pheromone distribution
 2020       Yannik Sander                NixOS packaging
 ========== ============================ ======================================================
 
-If you woud like to be mentioned, or not mentioned, or want to change the text/description,
+If you would like to be mentioned, or not mentioned, or want to change the text/description,
 please drop us a note or send a pull request with your request.

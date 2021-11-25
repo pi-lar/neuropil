@@ -367,6 +367,8 @@ programs = [
     (True,  'file_receiver',  ['neuropil','ncurses','sodium']),
     (True,  'http_node',      ['neuropil','ncurses','sodium']),
     (True,  'search_node',    ['neuropil','ncurses','sodium']),
+    (True,  'search_nlnet',   ['neuropil','ncurses','sodium']),
+    # (True,  'search_nlnet_2', ['neuropil','ncurses','sodium', 'yajl']),
     (True,  'node',           ['neuropil','ncurses','sodium']),
     (True,  'receiver_lb',    ['neuropil','ncurses','sodium']),
     (True,  'cloud',          ['neuropil','ncurses','sodium']),

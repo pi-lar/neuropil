@@ -25,7 +25,7 @@ Test(np_minhash_t, _minhash_create, .description="test the functions to create a
     np_minhash_t minhash = {0};
     uint16_t minhash_size = 16;
 
-    np_minhash_init(&minhash, minhash_size, subject_dhkey);
+    np_minhash_init(&minhash, minhash_size, false, subject_dhkey);
 
     char       text[] = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.";
     uint16_t   text_length = strnlen(text, 255);
@@ -89,12 +89,12 @@ Test(np_minhash_t, _minhash_compare_single_shingle, .description="test the minha
     uint16_t minhash_size = 32;
     uint16_t _no_shingles = 1;
 
-    np_minhash_init(&minhash_1_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_2_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_1_2, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_2_2, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_3_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_3_2, minhash_size, seed_dhkey);
+    np_minhash_init(&minhash_1_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_2_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_1_2, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_2_2, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_3_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_3_2, minhash_size, false, seed_dhkey);
 
     char text_1[] = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.";
     char text_2[] = "At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.";
@@ -272,7 +272,7 @@ Test(np_minhash_t, _minhash_compare_single_shingle, .description="test the minha
     }
 */
     np_minhash_t minhash_test;
-    np_minhash_init(&minhash_test, minhash_size, seed_dhkey);
+    np_minhash_init(&minhash_test, minhash_size, false, seed_dhkey);
 
     // at vero eos et accusam
     np_minhash_push(&minhash_test, "Lorem", 5);
@@ -336,12 +336,12 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     uint16_t minhash_size = 32;
     uint16_t _no_shingles = 3;
 
-    np_minhash_init(&minhash_1_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_2_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_1_2, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_2_2, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_3_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_3_2, minhash_size, seed_dhkey);
+    np_minhash_init(&minhash_1_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_2_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_1_2, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_2_2, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_3_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_3_2, minhash_size, false, seed_dhkey);
 
     char text_1[] = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.";
     char text_2[] = "At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.";
@@ -519,7 +519,7 @@ Test(np_minhash_t, _minhash_compare_tripple_shingle, .description="test the minh
     }
 */
     np_minhash_t minhash_test;
-    np_minhash_init(&minhash_test, minhash_size, seed_dhkey);
+    np_minhash_init(&minhash_test, minhash_size, false, seed_dhkey);
 
     // at vero eos et accusam
     np_minhash_push(&minhash_test, "Loremipsumdolor", 15);
@@ -584,12 +584,12 @@ Test(np_minhash_t, _minhash_compare_odrl, .description="test the minhash functio
     uint16_t minhash_size = 32;
     uint16_t _no_shingles = 2;
 
-    np_minhash_init(&minhash_1_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_2_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_1_2, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_2_2, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_3_1, minhash_size, seed_dhkey);
-    np_minhash_init(&minhash_3_2, minhash_size, seed_dhkey);
+    np_minhash_init(&minhash_1_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_2_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_1_2, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_2_2, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_3_1, minhash_size, false, seed_dhkey);
+    np_minhash_init(&minhash_3_2, minhash_size, false, seed_dhkey);
 
     char text_1[] = "{ \"@context\": \"http://www.w3.org/ns/odrl.jsonld\", \"@type\": \"Set\", \"uid\": \"http://example.com/policy:1010\", \"permission\": [ { \"target\": \"http://example.com/asset:9898.movie\", \"assignee\": \"John\", \"action\": \"play\" } ] }";
     char text_2[] = "{ \"@context\": \"http://www.w3.org/ns/odrl.jsonld\", \"@type\": \"Set\", \"uid\": \"http://example.com/policy:1010\", \"permission\": [ { \"target\": \"http://example.com/asset:9898.movie\", \"action\": \"display\", \"constraint\": [ { \"leftOperand\": \"spatial\", \"operator\": \"eq\", \"rightOperand\": \"https://www.wikidata.org/wiki/Q183\", \"comment\": \"i.e Germany\" } ] } ] }";
@@ -688,7 +688,7 @@ Test(np_minhash_t, _minhash_compare_odrl, .description="test the minhash functio
     fprintf(stdout, "\n");
 */
     np_minhash_t minhash_test;
-    np_minhash_init(&minhash_test, minhash_size, seed_dhkey);
+    np_minhash_init(&minhash_test, minhash_size, false, seed_dhkey);
 
     np_minhash_push(&minhash_test, "odrljsonld", 10);
     np_minhash_push(&minhash_test, "1010permission", 14);

@@ -229,7 +229,6 @@ extern "C" {
 
     struct np_mx_properties {
         // char msg_subject[255] NP_PACKED(1);
-
         enum np_mx_role    role;
         enum np_mx_ackmode ackmode;
 
@@ -317,21 +316,22 @@ extern "C" {
 
 /**
 
---------------
+
 Initialization
 --------------
-
-.. c:function:: np_context* np_new_context(struct np_settings *settings)
-
-   Creates a new neuropil application context.
-
-   :param settings:         a :c:type:`np_settings` structure used to configure the application context.
-   :return:        a pointer to the newly created application context.
 
 
 .. c:type:: void np_context
 
    An opaque object that denotes a neuropil application context.
+
+
+.. c:function:: np_context* np_new_context(struct np_settings *settings)
+
+   Creates a new neuropil application context.
+
+   :param settings:  a :c:type:`np_settings` structure used to configure the application context.
+   :return:          a pointer to the newly created application context.
 
 
 .. c:type:: void np_subject
@@ -346,7 +346,7 @@ Initialization
    :param settings:         a pointer to the :c:type:`np_settings` structure to be initialized.
 
 
-.. c:type:: struct np_settings
+.. c:struct:: np_settings
 
    The :c:type:`np_settings` structure holds various run-time preferences
    available to neuropil.
@@ -356,7 +356,7 @@ Initialization
    Controls the maximum number of threads used by neuropil at any given time.
    The default is 3.
 
-.. c:member:: char[256] log_file
+.. c:member:: char log_file[256]
 
    Pathname of a file that neuropil will log to. The default is a ``"<timestamp>_neuropil.log"``
    where timestamp is a decimal millisecond UNIX timestamp.
@@ -371,9 +371,9 @@ Initialization
    this should be sufficient for many use cases. High throuput cloud nodes could need larger jobqueues.
 
 
-------------------
+
 Identity management
-------------------
+-------------------
 
 .. c:function:: struct np_token *np_new_identity(np_context* ac, double expires_at, uint8_t secret_key[NP_SECRET_KEY_BYTES])
 
@@ -383,6 +383,7 @@ Identity management
    :param expires_at: expiry date of the identity in seconds since the Unix epoch.
    :param secret_key: the secret key used by the identity. If `NULL` is supplied a random key is generated.
    :return:        an *identity token*.
+
 
 .. c:function:: enum np_return np_set_identity(np_context* ac, struct np_token identity)
 
@@ -399,9 +400,10 @@ Identity management
    :c:data:`np_invalid_operation`   The application is in use (can not change the identity at run-time.)
    ===============================  ===========================================
 
------------
+
 Starting up
 -----------
+
 
 .. c:function:: enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port)
 
@@ -420,6 +422,7 @@ Starting up
    :c:data:`np_invalid_operation`   No identity is set for the application context.
    ===============================  ===========================================
 
+
 .. c:function:: enum np_return np_get_address(np_context* ac, char* address, uint32_t max)
 
    Gets the absolute address of the neuropil node within the overlay network.
@@ -436,6 +439,7 @@ Starting up
    :c:data:`np_invalid_operation`   No listening address is bound for the application context. (Call :c:func:`np_listen` first.)
    ===============================  ===========================================
 
+
 .. c:function:: enum np_return np_join(np_context* ac, const char* address)
 
    Adds a bootstrap node to be used by this node to join the neuropil network.
@@ -450,9 +454,10 @@ Starting up
    :c:data:`np_invalid_argument`    *Address* is malformed.
    ===============================  ===========================================
 
-------------------------------
+
 Sending and receiving messages
 ------------------------------
+
 
 .. c:function:: enum np_return np_generate_subject(np_subject subject, const char* text, size_t length)
 
@@ -469,6 +474,7 @@ Sending and receiving messages
    :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
    ===============================  ===========================================
 
+
 .. c:function:: enum np_return np_send(np_context* ac, np_subject subject, const uint8_t* message, size_t length)
 
    Sends a message on a given subject.
@@ -484,6 +490,7 @@ Sending and receiving messages
    ===============================  ===========================================
    :c:data:`np_invalid_argument`    *Length* exceeds the maximum message size supported by this implementation.
    ===============================  ===========================================
+
 
 .. c:function:: enum np_return np_add_receive_cb(np_context* ac, np_subject subject, np_receive_callback callback)
 
@@ -502,7 +509,8 @@ Sending and receiving messages
    :c:data:`np_invalid_operation`   The maximum number of receive callbacks supported by the implementation for the given subject is exceeded.
    ===============================  ===========================================
 
-.. c:function:: bool (*np_receive_callback)(struct np_message *message)
+
+.. c:function:: bool np_receive_callback(struct np_message *message)
 
    Receive callback function type to be implemented by neuropil applications. A
    message receipt is considered to be acknowledged if all receive callbacks
@@ -510,10 +518,11 @@ Sending and receiving messages
    callback returns (:c:data:`false`), the message is considered rejected and
    no further callbacks for the subject are executed.
 
-   :param message:         a pointer to a :c:type:`np_message` structure.
+   :param message: a pointer to a :c:type:`np_message` structure.
    :return:        a boolean that indicates if the receipt was acknowledged (:c:data:`true`) or rejected (:c:data:`false`.)
 
-.. c:type:: struct np_message
+
+.. c:struct:: np_message
 
    Structure that holds a received message and some metadata about that
    message.
@@ -526,7 +535,7 @@ Sending and receiving messages
 
    The length of *data* in bytes.
 
-.. c:member:: char[NP_UUID_BYTES] uuid
+.. c:member:: char uuid[NP_UUID_BYTES]
 
    A universally unique identifier for the message.
 
@@ -541,6 +550,7 @@ Sending and receiving messages
 .. c:member:: double received_at
 
    Unix timestamp that denotes the time the message was received.
+
 
 .. c:function:: enum np_return np_set_mx_properties(np_context* ac, const char* subject, struct np_mx_properties properties)
 
@@ -559,27 +569,28 @@ Sending and receiving messages
    :c:data:`np_invalid_argument`    The *properties* structure is invalid.
    ===============================  ===========================================
 
-.. c:type:: struct np_mx_properties
+
+.. c:struct:: np_mx_properties
 
    Structure that defines message the exchange semantics for a given subject.
 
-.. c:member:: enum np_mx_ackmode ackmode
+.. c:member:: np_mx_ackmode ackmode
 
    Acknowledgement strategy used in message exchange. The default is
    :c:data:`NP_MX_ACK_NONE` (i.e., fire and forget.)
 
-.. c:member:: enum np_mx_role role
+.. c:member:: np_mx_role role
 
    role of the node for this data transfer. The default is not set. When calling :c:type:`np_send` 
    the library creates the role of :c:data:`NP_MX_PROVIDER`, if calling :c:type:`np_add_receive_cb` the role
    :c:data:`NP_MX_CONSUMER` is used
 
-.. c:member:: enum np_mx_audience_type audience_type
+.. c:member:: np_mx_audience_type audience_type
 
    the intended audience for this data transfer. see :c:type:`np_mx_audience_type` for the specific meaning of each.
    The default is :c:data:`NP_MX_AUD_PUBLIC`
 
-.. c:member:: enum np_mx_cache_policy cache_policy
+.. c:member:: np_mx_cache_policy cache_policy
 
    Cache policy used for queuing inbound messages. The default is
    :c:data:`NP_MX_FIFO_REJECT` (i.e., messages are delivered first in, first
@@ -619,7 +630,8 @@ Sending and receiving messages
    only. If this is :c:data:`false` duplicate messages may be delivered to the
    application. The default is :c:data:`true`.
 
-.. c:type:: enum np_mx_cache_policy
+
+.. c:enum:: np_mx_cache_policy
 
    ===============================  ===========================================
    Mode                             Description
@@ -630,7 +642,8 @@ Sending and receiving messages
    :c:data:`NP_MX_LIFO_PURGE`       Messages are delivered in LIFO order, excessive messages are silently discarded.
    ===============================  ===========================================
 
-.. c:type:: enum np_mx_ackmode
+
+.. c:enum:: np_mx_ackmode
 
    ===============================  ===========================================
    Mode                             Description
@@ -640,7 +653,8 @@ Sending and receiving messages
    :c:data:`NP_MX_ACK_CLIENT`       Message transmissions need to be acknowledged by a receive callback to be considered successful.
    ===============================  ===========================================
 
-.. c:type:: enum np_mx_role
+
+.. c:enum:: np_mx_role
 
    ===============================  ===========================================
    Mode                             Description
@@ -650,7 +664,8 @@ Sending and receiving messages
    :c:data:`NP_MX_PROSUMER`         node will send an receiver messages on this subject
    ===============================  ===========================================
 
-.. c:type:: enum np_mx_audience_type
+
+.. c:enum:: np_mx_audience_type
 
    ===============================  ===========================================
    Mode                             Description
@@ -661,9 +676,10 @@ Sending and receiving messages
    :c:data:`NP_MX_AUD_PRIVATE`      private data channel, subject obfuscated with np_generate_subject
    ===============================  ===========================================
 
---------------------------------
+
 Authentication and authorization
 --------------------------------
+
 
 .. c:function:: enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback)
 
@@ -682,11 +698,12 @@ Authentication and authorization
    :c:data:`np_invalid_operation`   An authorization callback has already been set for this application context.
    ===============================  ===========================================
 
+
 .. c:function:: enum np_return np_set_authenticate_cb(np_context* ac, np_aaa_callback callback)
 
    Sets an additional authentication callback used to authenticate nodes. Such
    a callback can be used to extend the authentication provided by neuropil to
-   further validate tokens based on application extensions. If no such callback
+   further validate token based on application extensions. If no such callback
    is set only standard neuropil authentication is performed. Note that
    authenticated nodes are permitted to join the overlay network.
 
@@ -700,39 +717,41 @@ Authentication and authorization
    :c:data:`np_invalid_operation`   An additional authentication *callback* has already been set for this application context.
    ===============================  ===========================================
 
-.. c:function:: bool (*np_aaa_callback)(struct np_token* aaa_token)
+
+.. c:function:: bool np_aaa_callback(struct np_token* aaa_token)
 
    AAA callback function type to be implemented by neuropil applications. These
    functions are to inspect and verify the contents of the *aaa_token* they are
    provided and either accept or reject the token.
 
-   :param aaa_token:         a pointer to a :c:type:`np_token` structure to be verified.
-   :return:        a boolean that indicates if the token was accepted (:c:data:`true`) or rejected (:c:data:`false`.)
+   :param aaa_token: a pointer to a :c:type:`np_token` structure to be verified.
+   :return:          a boolean that indicates if the token was accepted (:c:data:`true`) or rejected (:c:data:`false`.)
 
-------
-Tokens
-------
 
-.. c:type:: struct np_token
+Token
+-----
+
+
+.. c:struct:: np_token
 
    A record used for authentication, authorization and accounting purposes.
    When :c:type:`np_token` records are transmitted or received over the network
    they are accompanied by a cryptographic signature that must match the
-   token’s :c:member:`public_key` field. Tokens received through the neuropil
+   token’s :c:member:`public_key` field. A token received through the neuropil
    API are guaranteed to be authentic: i.e., their integrity is validated.
    Applications are responsible to verify the issuer of a given token as
    denoted by the :c:member:`public_key`.
 
 .. c:member:: np_id realm
 
-   Optionally, tokens can specify a third party authority that governs the
-   validity of tokens in a *realm*.
+   Optionally, token can specify a third party authority that governs the
+   validity of token in a *realm*.
 
 .. c:member:: np_id issuer
 
    The fingerprint of the *identity* that issued the token.
 
-.. c:member:: char[255] subject
+.. c:member:: char subject[255]
 
    A subject that denotes the token’s purpose.
 
@@ -748,21 +767,22 @@ Tokens
    in seconds that denote issue date and validity duration of the token. These
    validity periods are validated by neuropil.
 
-.. c:member:: uint8_t[] extensions
+.. c:member:: uint8_t extensions[]
 .. c:member:: size_t extension_length
 
    A buffer of extension data of :c:member:`extension_length` bytes represented
    as a `MessagePack <https://msgpack.org/>`_ encoded map.
 
-.. c:member:: uint8_t[NP_PUBLIC_KEY_BYTES] public_key
-.. c:member:: uint8_t[NP_SECRET_KEY_BYTES] secret_key
+.. c:member:: uint8_t public_key[NP_PUBLIC_KEY_BYTES]
+.. c:member:: uint8_t secret_key[NP_SECRET_KEY_BYTES]
 
-   The key pair associated with the token. Foreign tokens have the
+   The key pair associated with the token. Foreign token have the
    :c:member:`secret_key` unset (all zero).
 
-------------
+
 Fingerprints
 ------------
+
 
 .. c:function:: void np_get_id(np_id (*id), char* string, size_t length)
 
@@ -778,15 +798,17 @@ Fingerprints
    but no party is able to forge an object that hashes to a particular
    fingerprint.
 
-.. c:type:: uint8_t[NP_FINGERPRINT_BYTES] np_id
+
+.. c:type:: uint8_t np_id[NP_FINGERPRINT_BYTES]
 
    The type :c:type:`np_id` denotes both a fingerprint and a virtual address in
    the overlay network implemented by neuropil. It is represented as a
    consecutive array of :c:data:`NP_FINGERPRINT_BYTES` bytes.
 
-------------------------
+
 Running your application
 ------------------------
+
 
 .. c:function:: enum np_return np_run(np_context* ac, double duration)
 
@@ -799,11 +821,11 @@ Running your application
    :param duration: the duration in seconds allotted to execute the event loop. If *duration* is zero :c:func:`np_run` will return as soon as it has processed all outstanding events.
    :return:          :c:data:`np_ok` on success.
 
-----------------
+
 Detecting errors
 ----------------
 
-.. c:type:: enum np_return
+.. c:enum:: np_return
 
    This type denotes the set of status codes returned by various functions in
    the neuropil API. Possible values include:
@@ -819,7 +841,7 @@ Detecting errors
    In order to accurately interpret error codes refer to the documentation of
    the specific function in question.
 
----------
+
 Constants
 ---------
 

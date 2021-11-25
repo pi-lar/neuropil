@@ -57,16 +57,15 @@ Features
 Roadmap
 *******
 
-* finalize message exchange pattern definitions (currently one-to-one only)
+* implement realm concept
+* finalize message exchange pattern definitions (missing: one-to-subgroup only)
 * implement back-pressure routing algorithm
 * implement windowing to transmit several messages in one data paket
-* distinguish between virtual, private, protected and public mx properties
 * implement multicast encryption
 * allow more than one identity on top of a node
 * allow more configuration options
 * add relaying example node
 * identity import/export from NPKS (neuropil key store)
-* implement realm concept
 * define message callbacks in case of undelivered messages
 * hook in a javascript bindings for message callback handling
 * finalize token / message structure
@@ -77,5 +76,8 @@ Roadmap
 Achieved goals
 **************
 
+* pubsub group encryption is working
+* scale-up test to thousands of nodes
+* distinguish between virtual, private, protected and public mx properties
 * there is an existing Lua and Python binding
-* Token and message structure has bee defined
+* Token and message structure has been defined

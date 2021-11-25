@@ -37,7 +37,7 @@ np_bloom_t* _np_standard_bloom_create(size_t bit_size)
     
     res->_bitset = calloc(1, (bit_size/8)*res->_d);
     // simplified max elements calculation
-    res->_free_items = bit_size / 16;
+    res->_free_items = bit_size*res->_d / 16;
     // real calculation would be (see also: https://hur.st/bloomfilter/?n=&p=1024&m=256&k=8):
     // res->_free_items = ceil(m / (-k / log(1 - exp(log(p) / k))))
     // res->_free_items = ceil(bloom filter size/ (-hash_funcs / log(1 - exp(log(false positive ) / hash_funcs))))
@@ -151,7 +151,7 @@ void _np_standard_bloom_clear(np_bloom_t* res)
     // res->_p = 0;
     // res->_num_blocks = 1;
     res->_bitset = calloc(1, (res->_size/8)*res->_d);
-    res->_free_items = res->_size / 16;
+    res->_free_items = res->_size * res->_d / 16;
     
     memset(res->_bitset, 0, res->_num_blocks*res->_size*res->_d/8);
 }
@@ -168,7 +168,7 @@ np_bloom_t* _np_stable_bloom_create(size_t size, uint8_t d, uint8_t p)
     
     res->_bitset = calloc(1, (size/8)*res->_d);
     // simplified max elements calculation
-    res->_free_items = size / 16;
+    res->_free_items = size*res->_d / 16;
     
     return res;
 }
@@ -332,9 +332,9 @@ np_bloom_t* _np_decaying_bloom_create(size_t size, uint8_t d, uint8_t p)
     res->_d = d;
     res->_p = p;
     
-    res->_bitset = calloc(1, (size/8)*res->_d);
+    res->_bitset = calloc(size, res->_d/8);
     // simplified max elements calculation
-    res->_free_items = size / 16;
+    res->_free_items = size * res->_d / 16;
     res->_num_blocks = 1;
     
     return res;
@@ -355,7 +355,7 @@ void _np_decaying_bloom_decay(np_bloom_t* bloom)
     }
 
     // adjust for left over bits when calculating free items
-    bloom->_free_items =  _zero_bits / 16;
+    bloom->_free_items =  _zero_bits * bloom->_d / 16;
 
 // #ifdef DEBUG
 // char test_string[65];
@@ -447,7 +447,7 @@ np_bloom_t* _np_counting_bloom_create(size_t size, uint8_t d, uint8_t p) {
     
     res->_bitset = calloc(size, res->_d/8);
     // simplified max elements calculation
-    res->_free_items = size * res->_d;
+    res->_free_items = size * res->_d/16;
     res->_num_blocks = 1;
     
     return res;

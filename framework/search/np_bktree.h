@@ -50,6 +50,8 @@ bool np_bktree_insert(np_bktree_t* tree, np_dhkey_t key, void* value);
 
 void np_bktree_query(np_bktree_t* tree, np_dhkey_t key, void* value, np_map_reduce_t* mr_struct);
 
+void np_bktree_remove(np_bktree_t* tree, np_dhkey_t key, void* value);
+
 #ifdef __cplusplus
 }
 #endif

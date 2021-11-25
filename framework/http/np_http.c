@@ -41,8 +41,6 @@
 #include "../framework/http/htparse.c"
 #include "../framework/sysinfo/np_sysinfo.h"
 
-#include "../examples/example_helper.h"
-
 
 static char* HTML_NOT_IMPLEMENTED =
         "<html><head><title>neuropil</title></head><body>not implemented</body></html>";

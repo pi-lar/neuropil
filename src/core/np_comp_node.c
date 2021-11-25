@@ -793,7 +793,7 @@ void __np_node_send_shutdown(np_util_statemachine_t* statemachine, const np_util
 
     NP_CAST(statemachine->_user_data, np_key_t, node_key);
     
-    if (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_shutdown)) {
+    if (FLAG_CMP(event.type, evt_internal) && FLAG_CMP(event.type, evt_shutdown)) {
         // 1: create leave message
         np_tree_t* jrb_data     = np_tree_create();
         np_tree_t* jrb_my_node  = np_tree_create();

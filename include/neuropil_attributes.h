@@ -55,9 +55,9 @@ extern "C" {
 #endif /* NP_ATTR_H_ */
 
 /**
---------------
-Initialization
---------------
+
+Attribute Initialization
+------------------------
 
 The purpose of this API is to enable the user to create and use arbitrary attributes on :c:data:`np_token` and message intent level.
 
@@ -69,7 +69,8 @@ Attributes can then be e.g. used to:
 
   - many more ...
 
-.. c:type:: enum np_msg_attr_type
+
+.. c:enum:: np_msg_attr_type
 
    This type denotes the set of scope levels relevant for a given attribute.
 
@@ -86,23 +87,25 @@ Attributes can then be e.g. used to:
    :c:data:`NP_ATTR_INTENT_AND_IDENTITY`             combine :c:data:`NP_ATTR_INTENT`   and :c:data:`NP_ATTR_IDENTITY`
    ================================================  ======================================================================
 
+
 .. c:function:: enum np_return np_set_ident_attr_bin(struct np_token* ident, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length)
 
    Sets an identity level wide attribute
 
-    :param ident:        the :c:type:`struct np_token` to set the attribute for
-    :param inheritance:  the :c:type:`enum np_msg_attr_type` inheritance level for this attribute
+    :param ident:        the :c:type:`np_token` to set the attribute for
+    :param inheritance:  the :c:type:`np_msg_attr_type` inheritance level for this attribute
     :param key:          the network wide identifier for this attribute
     :param bin:          the attribute value as binary blob
     :param bin_length:   the length of the blob
     :return: :c:data:`np_ok` on success
 
+
 .. c:function:: enum np_return np_set_mxp_attr_bin(struct np_mx_properties* prop, enum np_msg_attr_type  inheritance, char key[255], unsigned char * bin, size_t bin_length)
 
    Sets an message exchange level wide attribute
 
-    :param prop:         the :c:type:`struct np_mx_properties` to set the attribute for
-    :param inheritance:  the :c:type:`enum np_msg_attr_type` inheritance level for this attribute, only non NP_ATTR_IDENTITY... values are respected.
+    :param prop:         the :c:type:`np_mx_properties` to set the attribute for
+    :param inheritance:  the :c:type:`np_msg_attr_type` inheritance level for this attribute, only non NP_ATTR_IDENTITY... values are respected.
     :param key:          the network wide identifier for this attribute
     :param bin:          the attribute value as binary blob
     :param bin_length:   the length of the blob

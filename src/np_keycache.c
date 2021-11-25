@@ -266,11 +266,13 @@ bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t arg
     sll_iterator(np_dhkey_t) transition_iter = sll_first(tmp_to_transition);
     while(transition_iter!=NULL)
     {
-        np_util_event_t noop_event = { .type = evt_noop, .user_data=NULL };
+        np_util_event_t noop_event = { .context=context, .type = evt_noop, .user_data=NULL };
         _np_keycache_handle_event(context, transition_iter->val, noop_event, true);
         sll_next(transition_iter);
     }
     sll_free(np_dhkey_t, tmp_to_transition);
+
+    _np_memory_job_memory_management(context, args);
 
     return true;
 }

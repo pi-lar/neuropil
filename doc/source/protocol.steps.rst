@@ -91,7 +91,7 @@ state of its routing table (i.e., occupancy and individual route health
 inferred from latency).
 
 
-Step 4: message exchange; communicating message availability and interest
+Step 4: message exchange: communicating message availability and interest
 *************************************************************************
 
 Two nodes in the network that would like to exchange information about a given
@@ -109,3 +109,66 @@ other values as well, and are signed by their originating identity.
 Each node can once more authenticate and authorize the identified peer by
 verifying the exchanged token. Once the correct peer has been identified,
 message exchange happens independently from the coordinator.
+
+
+.. raw:: html
+    :file: ./transport_types.svg
+
+
+A data channel or message exchange always happens with an :c:data:`np_subject`.
+An np_subject can be created by calling the function :c:func:`np_generate_subject` 
+repeated times on the same data structures. Internally the function will use a hash 
+chaining approach that defines the final np_subject for a data channel.
+
+
+.. raw:: javascript
+	 
+   // example generation of a private np_subject for your data exchange
+   np_subject subject_id = {0};
+	 np_generate_subject(&subject_id, "urn:my:subject", strnlen("urn:my:subject", 14));
+	 np_generate_subject(&subject_id, "v1.0", strnlen("v1.0", 4));
+	 np_generate_subject(&subject_id, "AES-GCM", strnlen("AES-GCM", 7));
+   // you could push anything to the np_subject generation ...
+
+
+Step 5: Virtual MX: communicating intent, attributes and availability only
+**************************************************************************
+
+When using a virtual communication channel, the user merely send out their
+interest (the intent token) and the corresponding attributes to each peer
+that has subscribed to this channel. As intent token will be refreshed
+periodically, there is an implicit heartbeat signalling to peers that your
+node is still active and interested in this communication. However, as this
+is a virtual data channel, no messages can be send. Even if somebody
+would do so, messages would just be discarded.
+
+
+Step 6: Public MX: open communication channels for groups
+*********************************************************
+
+This is the usual standard: communicate on a given subject with one or more
+partners. Messages will be group encrypted for the authorized peers in 
+your local node. That means that each node could have a different set of
+authorized peers, and each node will use a different encryption for its
+messages.
+
+
+Step 6: Protected MX: communicating channel for mutual partners
+***************************************************************
+
+The same as a public data channel, with the subtle difference: the audience
+field has to be filled with the fingerprint of a specific peer. The end 
+result is a mutual authenticated / authorized data channel. Intent token that
+do not match the fingerprint will not be passed on into the user space 
+authorization handler.
+
+
+Step 7: Private MX: untraceable data channels with better access control
+************************************************************************
+
+First of all a private data channel lets you define a specific authorization 
+handler for each subject (all other modes before use the global authorization 
+callback function).
+Secondly you should call :c:func:`np_generate_subject` several times with 
+different input strings. This helps you to obfuscate the hash space, as only
+the final :c:data:`np_subject` hash value will be visible.

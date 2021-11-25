@@ -229,7 +229,7 @@ void __close_file(struct np_file_info* info)
 
     if (info->mmap_region) 
     {
-        void* _content = munmap(info->mmap_region, info->file_size);
+        munmap(info->mmap_region, info->file_size);
     }
     if (0 < info->fd)
     {
@@ -455,9 +455,9 @@ __json_return__:
     return http_status;
 }
 
-void __construct_id(const char* dir_or_filename, np_id (*subject_id), char (*subject)[76]) 
+void __construct_id(const char* dir_or_filename, np_subject (*subject_id), char (*subject)[76]) 
 {
-    np_get_id(subject_id, dir_or_filename, 256);
+    np_generate_subject(subject_id, dir_or_filename, strnlen(dir_or_filename, 256));
 
     char _name_hash[65];
     memset(*subject, 0, 76);
@@ -523,9 +523,9 @@ bool __file_open(np_state_t* context, np_id (**child_id), const char* filename)
 {
     bool ret = false;
 
-    char subject[76];
-    np_id subject_id;
-    memset(subject_id, 0, NP_FINGERPRINT_BYTES);
+    char subject[76] = {0};
+    np_subject subject_id = {0};
+    // memset(subject_id, 0, NP_FINGERPRINT_BYTES);
 
     __construct_id(filename, &subject_id, &subject);
     // fprintf(stdout, "derived file id %s for file %s\n", subject, filename);
@@ -556,16 +556,18 @@ bool __file_open(np_state_t* context, np_id (**child_id), const char* filename)
 
         np_tree_insert_str(__files._file_tree, subject, np_treeval_new_v(_info));
         
-        struct np_mx_properties mxp = np_get_mx_properties(context, subject);
+        struct np_mx_properties mxp = np_get_mx_properties(context, subject_id);
+        mxp.role = NP_MX_PROVIDER;
         mxp.ackmode = NP_MX_ACK_NONE;
         mxp.message_ttl = _info->file_size / NP_PI*100;
-        mxp.intent_ttl = 60*60*24;       // a new token each day
+        mxp.intent_ttl = 60*60*24;    // a new token each day
         // mxp.intent_update_after = 60*60; // refresh each hour
-        mxp.intent_update_after = 30; // refresh each hour
+        mxp.intent_update_after = 60; // refresh each minute
 
         // for(uint8_t x = 0; x < __indent_level; x++) fprintf(stdout, __indent_str);
         // fprintf(stdout, "registering   np://%s for file %s\n", subject, filename);
-        np_set_mx_properties(context, subject, mxp);
+        np_set_mx_properties(context, subject_id, mxp);
+        np_mx_properties_disable(context, subject_id);
 
         if (np_module_initiated(http)) 
         {
@@ -576,8 +578,6 @@ bool __file_open(np_state_t* context, np_id (**child_id), const char* filename)
 
         if (np_module_initiated(search)) 
         {
-            np_mx_properties_disable(context, subject);
-
             np_datablock_t attr[NP_EXTENSION_BYTES] = {0};
             np_init_datablock(attr, NP_EXTENSION_BYTES);
 
@@ -611,19 +611,47 @@ bool __file_open(np_state_t* context, np_id (**child_id), const char* filename)
         // )
 
         {
-            // fprintf(stdout, "-------------------- filename: %-5s (%s) --------------------\n", filename, subject);
+                fprintf(stdout, "--- filename: %-50s --- (%-50s) ---\n", filename, subject);
 
-            // np_attributes_t attr = {0};
-            np_searchquery_t sq = {0};
-
-            if (np_create_searchquery(context, &sq, _info->mmap_region, &attr))
+                // np_searchquery_t sq = {0};
+                // if (np_create_searchquery(context, &sq, _info->mmap_region, &attr))
+                // {    
+                //     np_search_query(context, &sq);
+                //     np_index_destroy(&sq.query_entry.search_index);            
+                // }
+                char rotator[] = { '/', '-', '\\', '|' };
+                uint16_t i = 1;
+                size_t left_file_size = _info->file_size;
+                char* text_start = _info->mmap_region;
+                while(text_start != NULL && left_file_size > 0) 
             {    
-                np_search_query(context, &sq);
-                np_index_destroy(&sq.query_entry.search_index);            
-            }
+                    fprintf(stdout, "--- adding search indices: %5u %c \r", i, rotator[i%4]); fflush(stdout);
+
+                    char* text_end = memchr(text_start, '\n', left_file_size);
+                    char* search_text = strndup(text_start, text_end-text_start);
+
             np_searchentry_t* se = calloc(1, sizeof(np_searchentry_t));
-            if (np_create_searchentry(context, se, _info->mmap_region, &attr))
+                    if (/*0 == strncmp(search_text, "theme funds", strlen("theme funds")) &&*/
+                        np_create_searchentry(context, se, search_text, &attr))
+                    {
+                        fprintf(stdout, "--- adding search indices: %5u %c \r", i, rotator[i%4]); fflush(stdout);
                 np_search_add_entry(context, se);
+                        fprintf(stdout, "--- adding search indices: %5u %c \r", i, rotator[i%4]); fflush(stdout);
+                    }
+
+                    // fprintf(stdout, "\t%s\n", search_text);
+                    free(search_text);
+
+                    left_file_size -= text_end-text_start+1;
+                    text_start = text_end;
+                    if (text_start != NULL)
+                        text_start++;
+                    i++;
+                    fprintf(stdout, "--- adding search indices: %5u %c \r", i, rotator[i%4]); fflush(stdout);
+                    // throttle to prevent overload of other systems
+                    np_time_sleep(NP_PI/31);
+                }
+                fprintf(stdout, "\n");
             }
         }
 
@@ -708,7 +736,7 @@ bool __dir_open(np_state_t* context, np_id (**child_id), const char* dirname)
             if(S_ISDIR(_f_info.st_mode))
             {
                 if (__dir_open(context, &_id, _dir_entry->d_name)){
-                    dir_info->dir_entries = realloc(dir_info->dir_entries, sizeof(np_id*) * dir_info->dir_entries_counter+1);
+                    dir_info->dir_entries = realloc(dir_info->dir_entries, sizeof(np_id*) * (dir_info->dir_entries_counter+1));
                     dir_info->dir_entries[dir_info->dir_entries_counter] = _id;
                     dir_info->dir_entries_counter++;
                 }
@@ -718,7 +746,7 @@ bool __dir_open(np_state_t* context, np_id (**child_id), const char* dirname)
             {
                 if (__file_open(context, &_id, _dir_entry->d_name))
                 {
-                    dir_info->file_entries = realloc(dir_info->file_entries, sizeof(np_id*) * dir_info->file_entries_counter+1);
+                    dir_info->file_entries = realloc(dir_info->file_entries, sizeof(np_id*) * (dir_info->file_entries_counter+1));
                     dir_info->file_entries[dir_info->file_entries_counter] = _id;
                     dir_info->file_entries_counter++;
                 }
@@ -758,6 +786,8 @@ bool __dir_open(np_state_t* context, np_id (**child_id), const char* dirname)
 void np_files_open(np_context* ac, np_id identifier_seed, const char* dir_or_filename)
 {
     const char* subject = "files";
+    np_subject subject_id = {0};
+    np_generate_subject(subject_id, subject, strnlen(subject, 6));
 
     char cwd[PATH_MAX];
     getcwd(cwd, sizeof(cwd));
@@ -790,7 +820,7 @@ void np_files_open(np_context* ac, np_id identifier_seed, const char* dir_or_fil
 
         np_tree_insert_str(__files._file_tree, dir_info->ci.subject, np_treeval_new_v(dir_info));
 
-        struct np_mx_properties mxp = np_get_mx_properties(context, subject);
+        struct np_mx_properties mxp = np_get_mx_properties(context, subject_id);
         mxp.ackmode = NP_MX_ACK_NONE;
         mxp.message_ttl = NP_PI*10;
         mxp.intent_ttl = 60*60*24;       // a new token each day
@@ -798,7 +828,7 @@ void np_files_open(np_context* ac, np_id identifier_seed, const char* dir_or_fil
 
         // for(uint8_t x = 0; x < __indent_level; x++) fprintf(stdout, __indent_str);
         // fprintf(stdout, "registering   np://%s for file %s\n", subject, "/");
-        np_set_mx_properties(context, subject, mxp);
+        np_set_mx_properties(context, subject_id, mxp);
 
         if (np_module_initiated(http)) 
         {
@@ -818,7 +848,7 @@ void np_files_open(np_context* ac, np_id identifier_seed, const char* dir_or_fil
         if(S_ISDIR(_f_info.st_mode))
         {
             if (__dir_open(context, &_id, dir_or_filename)) {
-                dir_info->dir_entries = realloc(dir_info->dir_entries, sizeof(np_id*) * dir_info->dir_entries_counter+1);
+                dir_info->dir_entries = realloc(dir_info->dir_entries, sizeof(np_id*) * (dir_info->dir_entries_counter+1));
                 dir_info->dir_entries[dir_info->dir_entries_counter] = _id;
                 dir_info->dir_entries_counter++;
             }
@@ -826,7 +856,7 @@ void np_files_open(np_context* ac, np_id identifier_seed, const char* dir_or_fil
         if (S_ISREG(_f_info.st_mode)) 
         {
             if (__file_open(context, &_id, dir_or_filename)) {
-                dir_info->file_entries = realloc(dir_info->file_entries, sizeof(np_id*) * dir_info->file_entries_counter+1);
+                dir_info->file_entries = realloc(dir_info->file_entries, sizeof(np_id*) * (dir_info->file_entries_counter+1));
                 dir_info->file_entries[dir_info->file_entries_counter] = _id;
                 dir_info->file_entries_counter++;
             }

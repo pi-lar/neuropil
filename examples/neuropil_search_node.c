@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 
 	struct np_settings settings;
 	np_default_settings(&settings);
-	settings.n_threads = 5;
+	settings.n_threads = no_threads;
 
 	snprintf(settings.log_file, 255, "%s%s_%s.log", logpath, "/neuropil_search_node", port);
 	settings.log_level = -2;
@@ -89,7 +89,8 @@ int main(int argc, char **argv)
 	if (np_ok != np_listen(context, proto, "localhost", atoi(port))) {
 		np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
 	}
-	else {
+	else 
+	{
 		// __np_example_helper_loop(context); // for the fancy ncurse display
 		fprintf(stdout, "INFO : node is listening on %s\n", np_get_connection_string(context));
 
@@ -103,7 +104,7 @@ int main(int argc, char **argv)
         np_files_open(context, file_seed, "");
 		
 		np_sysinfo_enable_server(context);
-        np_searchnode_init(context);
+        np_searchnode_init(context, NULL);
 		
 		log_debug_msg(LOG_DEBUG, "starting job queue");
 		if (np_ok != np_run(context, 0.001)) {
@@ -159,13 +160,13 @@ int main(int argc, char **argv)
 
 				struct np_data_conf conf = { 0 };
 				np_data_value val_title  = { 0 };
-				if (np_data_ok != np_get_data((np_datablock_t*) result->intent->attributes, "title", &conf, &val_title ) )
+				if (np_data_ok != np_get_data((np_datablock_t*) result->result_entry->intent.attributes, "title", &conf, &val_title ) )
 				{
 					val_title.str = "";
 				}
 				fprintf(stdout, "%5s :: %s :: %3u / %2.2f / %5s\n", 
 								search_val_title.str, tmp->key.value.s, result->hit_counter, result->level, val_title.str);
-			}    
+			} 
 
 //////////////////////
 		np_searchnode_destroy(context);

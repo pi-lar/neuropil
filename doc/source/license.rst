@@ -18,7 +18,7 @@ Licensed under the Open Software License (OSL 3.0), please see LICENSE file for 
    <hr width=200>
 
 3rd party libraries and dependencies
-***********************************
+************************************
 
 .. _neuropil_dependencies:
 

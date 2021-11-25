@@ -31,9 +31,9 @@
 
 typedef struct np_log_s
 {
+    char original_filename[PATH_MAX+1];
+    char filename[PATH_MAX+1];
     char filename_ext[16];
-    char original_filename[256];
-    char filename[256];
 
     int fp;
 
@@ -83,12 +83,14 @@ void log_rotation(np_state_t* context, bool first_init)
 
     // Closing old file
     if(!first_init) {
-        log_msg(LOG_INFO, "Continuing log in file %s now.", logger->filename);
+        // log_msg(LOG_INFO, "Continuing log in file %s now.", logger->filename);
         _np_log_fflush(context, true);
         __np_log_close_file(logger);
     }
 
-    char* old_filename = strdup(logger->filename);
+    char old_filename[PATH_MAX+1] = {0};
+    strncpy(old_filename, logger->filename, PATH_MAX);
+
     np_spinlock_lock(&np_module(log)->__log_lock);
     {
         int log_id = (logger->log_count % LOG_ROTATE_COUNT) ;
@@ -98,9 +100,9 @@ void log_rotation(np_state_t* context, bool first_init)
 
         // create new filename
         if(logger->log_rotate) {
-            snprintf (logger->filename, 255, "%s_%d%s", logger->original_filename, log_id, logger->filename_ext );
+            snprintf (logger->filename, PATH_MAX, "%s_%d%s", logger->original_filename, log_id, logger->filename_ext );
         } else {
-            snprintf (logger->filename, 255, "%s%s", logger->original_filename, logger->filename_ext );
+            snprintf (logger->filename, PATH_MAX, "%s%s", logger->original_filename, logger->filename_ext );
         }
         // setting up new file
         if(logger->log_rotate)
@@ -128,7 +130,6 @@ void log_rotation(np_state_t* context, bool first_init)
     if (!first_init) {
         log_msg(LOG_INFO, "Continuing log from file %s. This is the %"PRIu32" iteration of this file.", old_filename, logger->log_count / LOG_ROTATE_COUNT);
     }
-    free(old_filename);
 }
 
 void _np_log_rotate(np_state_t* context, bool force)
@@ -252,7 +253,6 @@ void _np_log_fflush(np_state_t* context, bool force)
 {
     //log_trace_msg(LOG_TRACE, "start: void _np_log_fflush(){");
     char* entry = NULL;
-    int lock_result = 0;
     if (np_module(log)->__logger == NULL) {
         return;
     }
@@ -343,30 +343,26 @@ bool _np_log_init(np_state_t* context, const char* filename, uint32_t level)
         __logger->log_rotate = LOG_ROTATE_ENABLE;
 
         // detect filename_ext from filename (. symbol)
-        char* parsed_filename = filename;
-        int len_f = strlen(parsed_filename);
-        for (int i = len_f; i >= 0; i--) {
-            if (strncmp((parsed_filename + i), ".", 1) == 0)
-            {
-                // found extension
-                snprintf(__logger->filename_ext, len_f - i + 1, "%s", parsed_filename + i);
-                parsed_filename = strndup(parsed_filename, i);
-                break;
-            }
+        char* suffix = strrchr(filename, '.');
+        if (suffix != NULL)
+        {   // found extension
+            snprintf(__logger->filename_ext, 15, "%s", suffix );
         }
-
-        if (strncmp(__logger->filename_ext, "", 1) == 0)
+        else 
         {
             snprintf(__logger->filename_ext, 15, ".log");
         }
 
-        snprintf(__logger->original_filename, 255, "%s", parsed_filename);
-        snprintf(__logger->filename, 255, "%s%s", parsed_filename, __logger->filename_ext);
-        free(parsed_filename);
+        char new_filename[PATH_MAX+1] = {0};
+        snprintf(new_filename, suffix+1 - filename, "%s", filename);
+        realpath(new_filename, __logger->original_filename);
+        realpath(new_filename, __logger->filename);
 
         sll_init(char_ptr, __logger->logentries_l);
         _module->__logger = __logger;
+
         log_rotation(context, true);
+
         log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
     }
     return true;

@@ -44,10 +44,18 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
     strncpy(subject, np_treeval_to_str(ele->val, NULL), 99);
 #endif
 
-    // Detect from instructions if this msg was orginally chunked
+    np_tree_elem_t*  _from = np_tree_find_str(msg_to_check->header,       _NP_MSG_HEADER_FROM);
+    np_tree_elem_t*  _uuid = np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID  );
+
     char msg_uuid[NP_UUID_BYTES+1]={0};
-    strncpy(msg_uuid, np_treeval_to_str(np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID)->val, NULL), NP_UUID_BYTES);
-    np_dhkey_t uuid_dhkey = np_dhkey_create_from_hostport(msg_uuid, "0");
+    strncpy(msg_uuid, _uuid->val.value.s, NP_UUID_BYTES);
+
+    np_dhkey_t uuid_dhkey = _np_dhkey_generate_hash(_uuid->val.value.s, NP_UUID_BYTES-1);
+    
+    np_dhkey_t check_dhkey = {0};
+    _np_dhkey_add(&check_dhkey, &uuid_dhkey, &_from->val.value.dhkey);
+    
+    // Detect from instructions if this msg was orginally chunked
 
     bool _seen_before = true;
     _LOCK_MODULE(np_message_part_cache_t)
@@ -63,7 +71,7 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
         _LOCK_MODULE(np_message_part_cache_t)
         {
             // If there exists multiple chunks, check if we already have one in cache
-            np_tree_elem_t* tmp = np_tree_find_str(context->msg_part_cache, msg_uuid);
+            np_tree_elem_t* tmp = np_tree_find_dhkey(context->msg_part_cache, check_dhkey);
             if (NULL != tmp)
             {
                 // there exists a msg(part) in our msgcache for this msg uuid
@@ -109,7 +117,7 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                     // removing the message from the cache system
                     np_ref_obj(np_message_t, msg_in_cache, ref_message_in_send_system);
                     //msg_uuid = np_treeval_to_str(np_tree_find_str(msg_in_cache->instructions, _NP_MSG_INST_UUID)->val, NULL);
-                    np_tree_del_str(context->msg_part_cache, msg_uuid);
+                    np_tree_del_dhkey(context->msg_part_cache, check_dhkey);
                     np_unref_obj(np_message_t, msg_in_cache, ref_msgpartcache);
 
                     context->msg_part_filter->op.add_cb(context->msg_part_filter, uuid_dhkey);
@@ -124,7 +132,7 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
                 // so we insert this message into out cache
                 // as a structure to accumulate further chunks into
                 np_ref_obj(np_message_t, msg_to_check, ref_msgpartcache); // we need to unref this after we finish the handeling of this msg
-                np_tree_insert_str(context->msg_part_cache, msg_uuid, np_treeval_new_v(msg_to_check));
+                np_tree_insert_dhkey(context->msg_part_cache, check_dhkey, np_treeval_new_v(msg_to_check));
                 np_unref_obj(np_message_t, msg_to_check, ref_message_in_send_system);
             }
         }
@@ -150,9 +158,8 @@ np_message_t* _np_alias_check_msgpart_cache(np_state_t* context, np_message_t* m
 
 void _np_alias_cleanup_msgpart_cache(np_state_t* context)
 {
-    np_sll_t(np_message_ptr, to_del);
-    sll_init(np_message_ptr, to_del);
-    
+    np_sll_t(np_dhkey_t, to_del);
+    sll_init(np_dhkey_t, to_del);
     _LOCK_MODULE(np_message_part_cache_t)
     {
         if (context->msg_part_cache->size > 0) 
@@ -163,25 +170,22 @@ void _np_alias_cleanup_msgpart_cache(np_state_t* context)
             {
                 np_message_t* msg = tmp->val.value.v;
                 if (true == _np_message_is_expired(msg)) {
-                    sll_append(np_message_ptr, to_del, msg);
+                    np_unref_obj(np_message_t, msg, ref_msgpartcache);
+                    sll_append(np_dhkey_t, to_del, tmp->key.value.dhkey);
                 }
             }
         }
         _np_decaying_bloom_decay(context->msg_part_filter);
-    }
 
-    sll_iterator(np_message_ptr) iter = sll_first(to_del);
+    sll_iterator(np_dhkey_t) iter = sll_first(to_del);
     while (NULL != iter)
     {
-        log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE removing (left-over) message part for uuid: %s", iter->val->uuid);
-        _LOCK_MODULE(np_message_part_cache_t)
-        {
-            np_tree_del_str(context->msg_part_cache, iter->val->uuid);
-        }
-        np_unref_obj(np_message_t, iter->val, ref_msgpartcache);
+            // log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE removing (left-over) message part for uuid: %s", iter->val->uuid);
+            np_tree_del_dhkey(context->msg_part_cache, iter->val);
         sll_next(iter);
     }
-    sll_free(np_message_ptr, to_del);  
+    sll_free(np_dhkey_t, to_del);
+    }
 
     uint16_t _peer_nodes   = _np_route_my_key_count_routes(context); /* + 
                              _np_route_my_key_count_neighbors(context, NULL, NULL); */
@@ -192,8 +196,8 @@ void _np_alias_cleanup_msgpart_cache(np_state_t* context)
         log_debug_msg(LOG_DEBUG, "MSG_PART_TABLE duplicate check has currently space for: %d items (s: %d / p: %d)", 
                           context->msg_part_filter->_free_items, context->msg_part_filter->_size, context->msg_part_filter->_p);
 
-        size_t                  _size_adjustment  = 1024;
-        if (_size_modifier > 0) _size_adjustment  = _size_modifier*1024;
+        size_t                  _size_adjustment  = 4096;
+        if (_size_modifier > 0) _size_adjustment  = _size_modifier*4096;
         if (context->msg_part_filter->_size != _size_adjustment)
         {
             free(context->msg_part_filter->_bitset);
@@ -931,7 +935,7 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np
 
     NP_CAST(statemachine->_user_data, np_key_t, alias_key); 
 
-    log_debug_msg(LOG_INFO, "__is_alias_invalid(...) { [0]:%p [1]:%p [2]:%p [3]:%p }", 
+    log_debug_msg(LOG_DEBUG, "__is_alias_invalid(...) { [0]:%p [1]:%p [2]:%p [3]:%p }", 
                   alias_key->entity_array[0], alias_key->entity_array[1], alias_key->entity_array[2], alias_key->entity_array[3]);
 
     if (!ret) ret = FLAG_CMP(alias_key->type, np_key_type_unknown);
@@ -950,14 +954,14 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np
     if (!ret) // check for not in routing / leafset table anymore
     {    
         ret = (!alias_node->is_in_leafset) && (!alias_node->is_in_routing_table);
-        log_debug_msg(LOG_INFO, "end  : bool __is_alias_invalid(...) { %d (%d / %d / %f < %f)", 
+        log_debug_msg(LOG_DEBUG, "end  : bool __is_alias_invalid(...) { %d (%d / %d / %f < %f)", 
                         ret, alias_node->is_in_leafset, alias_node->is_in_routing_table, (alias_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
 
     if (!ret) // bad node connectivity
     {
         ret  = (alias_node->success_avg < BAD_LINK);
-        log_debug_msg(LOG_INFO, "end  : bool __is_alias_invalid(...) { %d (%d / %d / %f < %f)", 
+        log_debug_msg(LOG_DEBUG, "end  : bool __is_alias_invalid(...) { %d (%d / %d / %f < %f)", 
                         ret, alias_node->is_in_leafset, alias_node->is_in_routing_table, (alias_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
 
@@ -968,7 +972,7 @@ bool __is_alias_invalid(np_util_statemachine_t* statemachine, NP_UNUSED const np
         if (!ret) {
             ret  = !_np_aaatoken_is_valid(alias_token, alias_token->type);
         }
-        log_debug_msg(LOG_INFO, "end %p: bool __is_alias_invalid(...) { %d (%d / %d / %f < %f)", 
+        log_debug_msg(LOG_DEBUG, "end %p: bool __is_alias_invalid(...) { %d (%d / %d / %f < %f)", 
                         alias_token, ret, alias_node->is_in_leafset, alias_node->is_in_routing_table, (alias_key->created_at + BAD_LINK_REMOVE_GRACETIME), np_time_now());
     }
 

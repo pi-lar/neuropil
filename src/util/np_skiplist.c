@@ -100,27 +100,30 @@ bool np_skiplist_remove(np_skiplist_t* skiplist, const void* item)
     np_skiplist_node_t* to_remove = NULL; 
     int8_t r = sentinel->_height;
 
+    int8_t comp = -1;
     while (r > 0) 
     {
-        int8_t comp = 0;
         while (NULL != u->_nodes && NULL != u->_nodes[r-1] && 0 > (comp = skiplist->compare_func(u->_nodes[r-1]->item, item)) )
             u = u->_nodes[r-1];
 
-        if (NULL != u->_nodes && NULL != u->_nodes[r-1] && comp == 0) 
-        {
-            to_remove = u->_nodes[r-1];
-            u->_nodes[r-1] = u->_nodes[r-1]->_nodes[r-1];
-            removed = true;
-            if (u->sentinel && NULL != u->_nodes && NULL == u->_nodes[r-1]) 
-            {   // skiplist height has gone down
-                sentinel->_height--;
-                sentinel->_nodes = realloc(sentinel->_nodes, (sentinel->_height)*sizeof(np_skiplist_node_t*));
-            }
-        }
-
-        // shortcut if the pointer to the next element is the same as in the level above
-        // then there is no need to compare again
         do {
+            if (NULL != u->_nodes && NULL != u->_nodes[r-1] && comp == 0) 
+            {
+                to_remove = u->_nodes[r-1];
+                u->_nodes[r-1] = u->_nodes[r-1]->_nodes[r-1];
+                removed = true;
+
+                if (u->sentinel && NULL != u->_nodes && NULL == u->_nodes[r-1]) 
+                {   // skiplist height has gone down
+                    sentinel->_nodes[r-1] = NULL;
+                    // do not realloc the sentinel node array to avoid memory fragmentation
+                    // sentinel->_height--;
+                    // sentinel->_nodes = realloc(sentinel->_nodes, (sentinel->_height)*sizeof(np_skiplist_node_t*));
+                }
+            }
+
+            // shortcut if the pointer to the next element is the same as in the level above
+            // then there is no need to compare again
             r--;
         } while (r > 0 && u->_nodes[r-1] == u->_nodes[r]);
     }
@@ -144,7 +147,7 @@ bool np_skiplist_find(const np_skiplist_t* skiplist, void** item)
 
     // np_skiplist_print(skiplist);
 
-    int8_t comp = 0;
+    int8_t comp = -1;
     while (r > 0) 
     {
         while (NULL != u->_nodes && NULL != u->_nodes[r-1] && 0 > (comp = skiplist->compare_func(u->_nodes[r-1]->item, *item)) )

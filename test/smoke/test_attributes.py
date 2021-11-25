@@ -20,8 +20,8 @@ class IdentityAttributeTest(unittest.TestCase):
     def test_connect(self):
         global attribute_found
 
-        np_1 = NeuropilNode(4001, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl1.log", auto_run=False)
-        np_2 = NeuropilNode(4002, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl2.log", auto_run=False)
+        np_1 = NeuropilNode(4001, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl1.log", auto_run=False, n_threads=0)
+        np_2 = NeuropilNode(4002, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl2.log", auto_run=False, n_threads=0)
 
         ident = np_1.new_identity()
         ident.set_attr_bin("1TEST", b"LOREM IPSUM1")

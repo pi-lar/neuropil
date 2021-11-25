@@ -400,26 +400,26 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
         if so we need to validate the new tokens signature against the already received token sig
         and an successfully verifying the new token identity is the same as in the handshake token
     */
-    if (FLAG_CMP(token->type, np_aaatoken_type_node))
-    {   // check for already received handshake token
-		np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token, false);
-        np_key_t* handshake_key = _np_keycache_find(context, handshake_token_dhkey);
-        if (handshake_key != NULL)
-        {
-            np_aaatoken_t* existing_token = _np_key_get_token(handshake_key);
-            if (existing_token != NULL && existing_token != token /* reference compare! */ &&
-                FLAG_CMP(existing_token->type, np_aaatoken_type_handshake) /*&& _np_aaatoken_is_valid(handshake_token)*/)
-            {   // FIXME: Change to signature check with other tokens pub key
-                if (memcmp(existing_token->crypto.derived_kx_public_key, token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES *(sizeof(unsigned char))) != 0) 
-                {
-                    np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
-                    log_msg(LOG_WARN, "Someone tried to impersonate a token (%s). verification failed", token->uuid);
-                    return (false);
-                }
-            }
-            np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
-        }
-    }
+    // if (FLAG_CMP(token->type, np_aaatoken_type_node))
+    // {   // check for already received handshake token
+	// 	np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token, false);
+    //     np_key_t* handshake_key = _np_keycache_find(context, handshake_token_dhkey);
+    //     if (handshake_key != NULL)
+    //     {
+    //         np_aaatoken_t* existing_token = _np_key_get_token(handshake_key);
+    //         if (existing_token != NULL && existing_token != token /* reference compare! */ &&
+    //             FLAG_CMP(existing_token->type, np_aaatoken_type_handshake) /*&& _np_aaatoken_is_valid(handshake_token)*/)
+    //         {   // FIXME: Change to signature check with other tokens pub key
+    //             if (memcmp(existing_token->crypto.derived_kx_public_key, token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES *(sizeof(unsigned char))) != 0) 
+    //             {
+    //                 np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
+    //                 log_msg(LOG_WARN, "Someone tried to impersonate a token (%s). verification failed", token->uuid);
+    //                 return (false);
+    //             }
+    //         }
+    //         np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
+    //     }
+    // }
 
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token checksum verification completed");
 
@@ -756,6 +756,8 @@ struct np_token* np_aaatoken4user(struct np_token* dest, np_aaatoken_t* src) {
     assert(src != NULL);
     assert(dest!= NULL);
     np_ctx_memory(src);
+
+    np_dhkey_t dhkey_zero = {0};
 
     dest->expires_at = src->expires_at;
     dest->issued_at	 = src->issued_at;

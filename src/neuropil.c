@@ -200,10 +200,8 @@ np_context* np_new_context(struct np_settings * settings_in)
             .check_cb = _np_decaying_bloom_check,
             .clear_cb = _np_standard_bloom_clear,
         };
-        context->msg_part_filter = _np_decaying_bloom_create(1024, 8, 1);
+        context->msg_part_filter = _np_decaying_bloom_create(4096, 8, 1);
         context->msg_part_filter->op = decaying_op;
-
-        _np_log_rotate(context, true);
     }
 
     TSP_INITD(context->status, np_uninitialized);
@@ -748,10 +746,23 @@ enum np_return np_mx_properties_enable(np_context* ac, const np_subject subject_
     np_dhkey_t subject_dhkey = {0};
     memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
 
-    np_msgproperty_conf_t* property = _np_msgproperty_conf_get(context, DEFAULT_MODE, subject_dhkey);
+    np_dhkey_t in_dhkey = _np_msgproperty_tweaked_dhkey(INBOUND, subject_dhkey);
+    if (_np_keycache_contains(context, in_dhkey))
+    {
+        np_msgproperty_conf_t* property = _np_msgproperty_run_get(context, INBOUND, subject_dhkey);
     // np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject_id);
     np_util_event_t enable_event = { .type=(evt_enable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=subject_dhkey };
-    _np_keycache_handle_event(ac, subject_dhkey, enable_event, false);
+        _np_keycache_handle_event(ac, in_dhkey, enable_event, false);
+    }
+
+    np_dhkey_t out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
+    if (_np_keycache_contains(context, out_dhkey))
+    {
+        np_msgproperty_run_t* property = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);
+        // np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject_id);
+        np_util_event_t enable_event = { .type=(evt_enable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=subject_dhkey };
+        _np_keycache_handle_event(ac, out_dhkey, enable_event, false);
+    }
     return ret;
 }
 
@@ -763,10 +774,23 @@ enum np_return np_mx_properties_disable(np_context* ac, const np_subject subject
     np_dhkey_t subject_dhkey = {0};
     memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
 
-    np_msgproperty_conf_t* property = _np_msgproperty_conf_get(context, DEFAULT_MODE, subject_dhkey);
+    np_dhkey_t in_dhkey = _np_msgproperty_tweaked_dhkey(INBOUND, subject_dhkey);
+    if (_np_keycache_contains(context, in_dhkey))
+    {
+        np_msgproperty_conf_t* property = _np_msgproperty_run_get(context, INBOUND, subject_dhkey);
     // np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject_id);
     np_util_event_t enable_event = { .type=(evt_disable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=subject_dhkey };
-    _np_keycache_handle_event(ac, subject_dhkey, enable_event, false);
+        _np_keycache_handle_event(ac, in_dhkey, enable_event, false);
+    }
+
+    np_dhkey_t out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
+    if (_np_keycache_contains(context, out_dhkey))
+    {
+        np_msgproperty_conf_t* property = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);
+        // np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE, subject_id);
+        np_util_event_t disable_event = { .type=(evt_disable | evt_internal | evt_property), .context=ac, .user_data=property, .target_dhkey=subject_dhkey };
+        _np_keycache_handle_event(ac, out_dhkey, disable_event, false);
+    }
 
     return ret;
 }

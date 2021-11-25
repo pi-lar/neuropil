@@ -86,7 +86,7 @@ np_module_struct(jobqueue)
 
     TSP( np_sll_t(np_thread_ptr, ), available_workers);
     TSP( np_pheap_t(np_job_t, ), job_list);
-
+    uint32_t size;
     uint16_t periodic_jobs;
 };
 
@@ -104,9 +104,9 @@ bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job)
     {
         // do not add job items that would overflow internal queue size
         bool overflow = (np_module(jobqueue)->job_list->count + 
-                         np_module(jobqueue)->periodic_jobs + 1) > JOBQUEUE_MAX_SIZE;
+                         np_module(jobqueue)->periodic_jobs + 1) > np_module(jobqueue)->size;
         if (overflow && false == new_job.is_periodic) {
-            log_msg(LOG_DEBUG, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");
+            log_msg(LOG_WARN, "Discarding new job(s). Increase JOBQUEUE_MAX_SIZE to prevent missing data");
         } else {
             pheap_insert(np_job_t, np_module(jobqueue)->job_list, new_job);
             ret = true;
@@ -232,7 +232,7 @@ bool _np_jobqueue_init(np_state_t * context)
 
         TSP_INIT(np_module(jobqueue)->job_list);
         pheap_init(np_job_t, _module->job_list, context->settings->jobqueue_size);
-
+        _module->size = context->settings->jobqueue_size;
         _module->periodic_jobs = 0;
 
         TSP_INIT(_module->available_workers);

@@ -329,13 +329,11 @@ class NeuropilNode(object):
             raise ValueError(f"expires_at needs to be of type `float`")
         if not isinstance(secret_key, bytes) and secret_key != None:
             raise ValueError(f"secret_key needs to be of type `bytes` or `None`")
-        internal_secret_key_cdata = None # cache to prevent garbage collection
+        
         if secret_key == None:
             internal_secret_key = ffi.NULL
         else:
-            internal_secret_key_cdata = ffi.new("unsigned char[64]", secret_key)
-            internal_secret_key = ffi.addressof(internal_secret_key_cdata)
-            
+            internal_secret_key = ffi.from_buffer(secret_key)
         ffi_token = neuropil.np_new_identity(self._context, expires_at, internal_secret_key)
         ret = _NeuropilHelper.convert_to_python(self, ffi_token)
         return ret

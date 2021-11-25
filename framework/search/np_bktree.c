@@ -25,9 +25,16 @@ int8_t _compare_npindex_entry_add(const void* old, const void* new)
     _np_dhkey_hamming_distance(&_dist_common, &dhkey_zero, &_common);
     _np_dhkey_hamming_distance(&_dist_diff, &dhkey_zero, &_diff);
 
-    // fprintf(stdout, "comm: %u diff: %u  --> %d\n", _dist_common, _dist_diff, _dist_common - _dist_diff); 
-    if      (_dist_diff > _dist_common) return -1;
-    else if (_dist_diff == 0)           return  0;
+    // fprintf(stdout, "    comm: %u diff: %u  --> %d\n", _dist_common, _dist_diff, _dist_common - _dist_diff); 
+    if (_dist_diff == 0) 
+    {
+        // return memcmp(_1->intent.subject, _2->intent.subject, 255);
+        int8_t _cmp_res = memcmp(_1->intent.subject,    _2->intent.subject,    255);
+        _cmp_res = (_cmp_res == 0) ? memcmp(_1->intent.issuer,     _2->intent.issuer,     sizeof(np_id)) : _cmp_res;
+        _cmp_res = (_cmp_res == 0) ? memcmp(_1->intent.public_key, _2->intent.public_key, NP_PUBLIC_KEY_BYTES) : _cmp_res;
+        return _cmp_res;
+    }
+    else if (_dist_diff > _dist_common) return -1;
     else                                return  1;
 
     // return _dist_common - _dist_diff;
@@ -36,9 +43,25 @@ int8_t _compare_npindex_entry_add(const void* old, const void* new)
 // typedef int8_t (*np_cmp_func   )(struct np_map_reduce_s* mr_struct, const void* element);
 int8_t _compare_npindex_entry_query(struct np_map_reduce_s* mr_struct, const void* element) 
 {
-    // fprintf(stdout, "%p -> %p :::: ", element, mr_struct->map_args.io);
-    // fflush(stdout);
-    return _compare_npindex_entry_add(element, mr_struct->map_args.io);
+    np_searchentry_t* _1 = (np_searchentry_t*) mr_struct->map_args.io;
+    np_searchentry_t* _2 = (np_searchentry_t*) element;
+
+    np_dhkey_t _common = {0}, _diff = {0};
+
+    _np_dhkey_and(&_common, &_1->search_index.lower_dhkey, &_2->search_index.lower_dhkey);
+    _np_dhkey_xor(&_diff  , &_1->search_index.lower_dhkey, &_2->search_index.lower_dhkey);
+
+    uint8_t _dist_common = 0, _dist_diff = 0;
+    _np_dhkey_hamming_distance(&_dist_common, &dhkey_zero, &_common);
+    _np_dhkey_hamming_distance(&_dist_diff,   &dhkey_zero, &_diff);
+
+    // fprintf(stdout, "    comm: %u diff: %u  --> %d\n", _dist_common, _dist_diff, _dist_common - _dist_diff); 
+    if (_dist_diff == 0) 
+    {
+        return 0;
+    }
+    else if (_dist_diff > _dist_common) return -1;
+    else                                return  1;
 }
 
 void np_bktree_init(np_bktree_t* tree, np_dhkey_t key, uint8_t distance)
@@ -320,13 +343,6 @@ void np_bktree_query(np_bktree_t* tree, np_dhkey_t key, void* value, np_map_redu
     __np_bktree_query(&tree->_root, key, value, mr_struct);
     // fprintf(stdout, "\n");
 
-    sll_iterator(void_ptr) iterator = sll_first(mr_struct->map_result);
-    while (iterator != NULL) 
-    {
-        mr_struct->reduce(mr_struct, iterator->val);
-        sll_next(iterator);
-    }
-
 /*    for (uint8_t i = 0; i < 8; i++)
     {
         int _distance = diff.t[i]; 
@@ -339,4 +355,66 @@ void np_bktree_query(np_bktree_t* tree, np_dhkey_t key, void* value, np_map_redu
     }
 */
     // fprintf(stdout, "\n");
+}
+
+void __np_bktree_remove(np_bktree_node_t* tree_node, np_dhkey_t key, void* value)
+{
+    np_dhkey_t _common = {0}, _diff = {0};
+
+    _np_dhkey_and(&_common, &key, &tree_node->_key);
+    _np_dhkey_or(&_diff  , &key, &tree_node->_key);
+
+    uint8_t _dist_common = 0, _dist_diff = 0;
+    _np_dhkey_hamming_distance(&_dist_common, &dhkey_zero, &_common); // sum of 1 in both np_index
+    _np_dhkey_hamming_distance(&_dist_diff, &dhkey_zero, &_diff); // sum of 1 in either np_index
+
+    float _jc = (float) _dist_common / _dist_diff; // jaccard index
+
+    if (tree_node->_values != NULL && _jc > 0.9 )
+    // if (_do_map && tree_node->_values != NULL) 
+    {
+        // fprintf(stdout, "--- %p:%p ( %u : %f ) ---\n", tree_node, tree_node->_values, tree_node->_values->_num_elements , _jc);
+        // int8_t res = _compare_lph_entry(tree_node->_values->root.item, value); 
+        // if (-1 <= res && res <= 1)
+        // fprintf(stdout, ":%:%p !! ", _jc, tree_node->_values);
+        // fprintf(stdout, ":%1.1f:%p !! ", _jc, tree_node->_values);
+        np_skiplist_remove(tree_node->_values, value);
+    }
+
+    uint8_t bin_index = round(_dist_common / BKTREE_SPREAD);
+    // fprintf(stdout, "qbi: %u ", bin_index);
+
+    // fprintf(stdout, "%u:%u :: ", min_diff, bin_index);
+
+    // if (tree_node->_max_child_index > -1)
+    // {
+        uint8_t min_idx = (bin_index == 0) ? 0 : bin_index - 1; 
+        uint8_t max_idx = (bin_index == BKTREE_BUCKETSIZE) ? BKTREE_BUCKETSIZE : bin_index + 1; 
+        // uint8_t j = _index;
+        for (uint8_t i = min_idx; i <= max_idx; i++)
+        {
+        // fprintf(stdout, "%u", i);
+        // if (_containment.t[i] == 0) continue;
+        // for (int8_t j = 0; j <= _index; j++)
+        // {
+            if (tree_node->_child_nodes != NULL && tree_node->_child_nodes[i] != NULL)
+            {
+                // int8_t diff = 0; // _np_dhkey_cmp(&tree_node->_key, &key);
+                // _np_dhkey_hamming_distance(&diff, &tree_node->_child_nodes[j]->_key, &key);
+                // for (uint8_t i = 0; i < 8; i++)
+                // {
+                    // if (diff.t[i] > tree_node->_max_distance) continue;
+                    // if (diff )
+                    // fprintf(stdout, "%u %p --> step --> ", i, tree_node->_child_nodes[i]->_values);
+                    __np_bktree_remove(tree_node->_child_nodes[i], key, value);
+                // }
+            }
+        }
+    // }
+    // fprintf(stdout, "<-- step\n");
+}
+
+void np_bktree_remove(np_bktree_t* tree, np_dhkey_t key, void* value)
+{
+    __np_bktree_remove(&tree->_root, key, value);
 }

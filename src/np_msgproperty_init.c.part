@@ -53,7 +53,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t* context) {
     __forward_properties->priority = 0;
     __forward_properties->ack_mode = ACK_NONE;
     __forward_properties->retry = 0;
-    __forward_properties->unique_uuids_check = true;
+    __forward_properties->unique_uuids_check = false;
     __forward_properties->msg_ttl = 5.0;
     __forward_properties->cache_size = 8;
     __forward_properties->max_threshold = 2;

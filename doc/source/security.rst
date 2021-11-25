@@ -3,11 +3,11 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
-Security review / discussions about neuropil
-============================================
+Security discussion
+===================
 
-This page will give a brief overview about the several security related questions.
-If you feel that there is something wrong or we should include a chapter about specific topic,
+This page will give a brief overview about several security related questions and discussions.
+If you feel that there is something wrong or that we should include a chapter about specific topic,
 please get in contact with us.
 
 

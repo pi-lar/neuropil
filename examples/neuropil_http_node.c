@@ -135,10 +135,8 @@ bool authorize (np_context *ac, struct np_token *id)
 	// TODO: Make sure that id->public_key is an authenticated peer!
 	fprintf(stdout, "authz %s from %02X%02X%02X%02X%02X%02X%02X: %02X%02X%02X%02X%02X%02X%02X...\n",
 			id->subject,
-			id->issuer,
-	       id->public_key[0], id->public_key[1], id->public_key[2],
-	       id->public_key[3], id->public_key[4], id->public_key[5],
-	       id->public_key[6]);
+	        id->issuer[0], id->issuer[1], id->issuer[2], id->issuer[3], id->issuer[4], id->issuer[5], id->issuer[6],
+	        id->public_key[0], id->public_key[1], id->public_key[2], id->public_key[3], id->public_key[4], id->public_key[5], id->public_key[6]);
 
 	if (strncmp(id->subject, "files/", 6) == 0)
 	{
@@ -153,10 +151,8 @@ bool authenticate (np_context *ac, struct np_token *id)
 	// TODO: Make sure that id->public_key is an authenticated peer!
 	fprintf(stdout, "authn %s from %02X%02X%02X%02X%02X%02X%02X: %02X%02X%02X%02X%02X%02X%02X...\n",
 			id->subject,
-			id->issuer,
-	       id->public_key[0], id->public_key[1], id->public_key[2],
-	       id->public_key[3], id->public_key[4], id->public_key[5],
-	       id->public_key[6]);
+	        id->issuer[0], id->issuer[1], id->issuer[2], id->issuer[3], id->issuer[4], id->issuer[5], id->issuer[6],
+	        id->public_key[0], id->public_key[1], id->public_key[2], id->public_key[3], id->public_key[4], id->public_key[5], id->public_key[6]);
 
 	// TODO: Make sure that id->public_key is the intended sender!
 	return true;

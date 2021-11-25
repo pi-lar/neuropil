@@ -325,7 +325,7 @@ void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force)
     // {
         _LOCK_ACCESS(&key->key_lock)
         {
-            log_trace_msg(LOG_DEBUG, "sm b: %p %d %s", key, key->type, key->sm._state_table[key->sm._current_state]->_state_name);
+            log_debug(LOG_DEBUG, "sm b: %s %d %s", _np_key_as_str(key), key->type, key->sm._state_table[key->sm._current_state]->_state_name);
             // push down all event from queue and execute this event
             if(!np_util_statemachine_invoke_auto_transition(&key->sm, event)){
                 log_trace_msg(LOG_DEBUG,"no transition done");

@@ -22,9 +22,12 @@
 
 // initialize a minhash structure by allocation memory, setting size and copying seed 
 // to the right place
-void np_minhash_init(np_minhash_t* minhash, const uint32_t size, const np_dhkey_t seed) 
+void np_minhash_init(np_minhash_t* minhash, const uint32_t size, bool data_dependant, const np_dhkey_t seed) 
 {
     assert(size % 2 == 0);
+
+    minhash->dd = data_dependant;
+    minhash->dd_pos = 0;
 
     minhash->size = size;
     minhash->minimums = (uint32_t*) calloc(size, sizeof(uint32_t) );
@@ -48,8 +51,8 @@ void np_minhash_destroy(np_minhash_t* minhash)
     free(minhash->minimums);
 }
 
-// pushes a new string value to the minhash and the minhash signature
-void np_minhash_push(np_minhash_t* minhash, const unsigned char* bytes, uint16_t bytes_length) 
+// pushes a new string value to the minhash and the minhash signature, but uses the data dependant scheme
+void np_minhash_push_dd(np_minhash_t* minhash, const unsigned char* bytes, uint16_t bytes_length) 
 {
     unsigned char sip_hash[crypto_shorthash_BYTES];
     uint64_t v1 = UINT64_MAX;
@@ -61,17 +64,68 @@ void np_minhash_push(np_minhash_t* minhash, const unsigned char* bytes, uint16_t
     memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
     
     uint32_t half = minhash->size / 2;
-    
-    for (uint32_t i = 0; i < minhash->size/2; i++)
+    if (minhash->dd_pos >= half) {
+        // fprintf(stdout, "minhash dd is full ...\n");
+        return;
+    }
+    uint32_t old_hash_l = minhash->minimums[minhash->dd_pos       ];
+    uint32_t old_hash_u = minhash->minimums[minhash->dd_pos + half];
+
+    // fprintf(stdout, "..%u->%u:%u..\n", minhash->dd_pos, minhash->minimums[minhash->dd_pos], minhash->minimums[minhash->dd_pos + half]);
+
+    uint32_t hash = (uint32_t) ((v1 + minhash->dd_pos * v2) & 0xFFFFFFFF);
+
+    minhash->minimums[minhash->dd_pos       ] -= hash;
+    minhash->minimums[minhash->dd_pos + half] += hash;
+
+    bool increase_counter = false;
+    if (minhash->minimums[minhash->dd_pos] > old_hash_l)
     {
-        uint32_t hash = (uint32_t) ((v1 + i*v2) & 0xFFFFFFFF);
-        if (hash < minhash->minimums[i])
+        increase_counter |= true;
+    }
+    if (minhash->minimums[minhash->dd_pos + half] < old_hash_u)
+    {
+        increase_counter &= true;
+    }
+
+    // fprintf(stdout, "..%u->%u:%u..\n", minhash->dd_pos, minhash->minimums[minhash->dd_pos], minhash->minimums[minhash->dd_pos + half]);
+    if (increase_counter)
+        minhash->dd_pos++;
+
+}
+
+// pushes a new string value to the minhash and the minhash signature
+void np_minhash_push(np_minhash_t* minhash, const unsigned char* bytes, uint16_t bytes_length) 
+{
+    if (minhash->dd) 
+    {
+        np_minhash_push_dd(minhash, bytes, bytes_length);
+        return;
+    }
+    else 
+    {
+        unsigned char sip_hash[crypto_shorthash_BYTES];
+        uint64_t v1 = UINT64_MAX;
+        uint64_t v2 = UINT64_MAX;
+
+        crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[0]);
+        memcpy(&v1, &sip_hash[0], sizeof(uint64_t));
+        crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[16]);
+        memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
+        
+        uint32_t half = minhash->size / 2;
+        
+        for (uint32_t i = 0; i < minhash->size/2; i++)
         {
-            minhash->minimums[i] = hash;
-        }
-        if (hash > minhash->minimums[i+half])
-        {
-            minhash->minimums[i+half] = hash;
+            uint32_t hash = (uint32_t) ((v1 + i*v2) & 0xFFFFFFFF);
+            if (hash < minhash->minimums[i])
+            {
+                minhash->minimums[i] = hash;
+            }
+            if (hash > minhash->minimums[i+half])
+            {
+                minhash->minimums[i+half] = hash;
+            }
         }
     }
 }
@@ -95,7 +149,7 @@ struct __mh_string {
 
 void np_minhash_push_tree(np_minhash_t* minhash, const np_tree_t* tree, uint8_t shingle_size, bool include_keys) 
 {
-    ASSERT(shingle_size != 0, "requested shingle size must be greater than one");
+    ASSERT(shingle_size != 0, "requested shingle size must be greater or equal than one");
 
     uint16_t i = 0;
     np_tree_elem_t* tmp = NULL;

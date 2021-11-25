@@ -41,7 +41,7 @@ extern "C" {
  * which internally uses a blake2b hash function.
  *
  * A user may push single entries to the minhash signature, or he may prefer to push a complete tree structure.
- * Using a tree structure has teh additional benefit that it is very easy to remove duplicate data entries. It also allows to "shingle"
+ * Using a tree structure has the additional benefit that it is very easy to remove duplicate data entries. It also allows to "shingle"
  * the data entries.
  * 
  * TODO: allow k-mer splitting for binary data entries
@@ -51,13 +51,18 @@ struct np_minhash_s {
     uint32_t      size;
     unsigned char seed[crypto_shorthash_KEYBYTES*2];
     uint32_t*     minimums;
+
+    // flags and temp storage for data dependant minhashing scheme
+    bool          dd;
+    uint32_t      dd_pos;
 };
 
 typedef struct np_minhash_s np_minhash_t;
 
 // initialize a minhash structure by allocation memory, setting size and copying seed 
 // to the right place
-void np_minhash_init(np_minhash_t* minhash, const uint32_t size, const np_dhkey_t seed);
+void np_minhash_init(np_minhash_t* minhash, const uint32_t size, bool data_dependant, const np_dhkey_t seed);
+// void np_minhash_init(np_minhash_t* minhash, const uint32_t size, const np_dhkey_t seed);
 void np_minhash_destroy(np_minhash_t* minhash);
 
 // pushes a new string value to the minhash and the minhash signature

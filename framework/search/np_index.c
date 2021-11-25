@@ -57,9 +57,11 @@ void np_index_init(np_index_t* index)
     // _np_dhkey_assign(&index->upper_dhkey, &_null);
     _np_dhkey_assign(&index->lower_dhkey, &_null);
     
-    index->_cbl_index = _np_counting_bloom_create( (5*17), 8, 0);  
+    index->_cbl_index = _np_counting_bloom_create( (5*17), 8, 0);
+    index->_cbl_index->_free_items = (5*17)*8/2; // the filter is not used as a bloom filter, bu rather a countmin sketch
     index->_cbl_index_counter = _np_counting_bloom_create( (5*17), 8, 0);
-
+    index->_cbl_index_counter->_free_items = (5*17)*8/2; // the filter is not used as a bloom filter, but rather a countmin sketch
+    
     index->_clk_hash  = _np_neuropil_bloom_create();
     struct np_bloom_optable_s index_operations = {
         .add_cb       = _np_neuropil_bloom_add,
@@ -73,9 +75,9 @@ void np_index_init(np_index_t* index)
 
 void np_index_destroy(np_index_t* index)
 {
-    _np_bloom_free(index->_cbl_index);
-    _np_bloom_free(index->_clk_hash);
-    _np_bloom_free(index->_cbl_index_counter);
+    if (index->_cbl_index)         _np_bloom_free(index->_cbl_index);
+    if (index->_clk_hash)          _np_bloom_free(index->_clk_hash);
+    if (index->_cbl_index_counter) _np_bloom_free(index->_cbl_index_counter);
 }
 
 void np_index_update_with_minhash(np_index_t* index, np_minhash_t* min_hash)
@@ -194,8 +196,8 @@ void np_index_hash(np_index_t* index)
         101 = 6
         100 = 4
         */
-        // fprintf(stdout, "%3u / %3u / ", _local_pos, _index_value_pos);
 
+        // fprintf(stdout, "%3u / %3u / ", _local_pos, _index_value_pos);
         if      (index->_cbl_index->_bitset[_local_pos] <  index->_octile_values[1])   { /*_value._as_u32 |= (0x00000000 << shift); _parity += 0;*/ }
         else if (index->_cbl_index->_bitset[_local_pos] <  index->_octile_values[2])   { _value._as_u32 |= (0x00000001 << shift); _parity += 1; }
         else if (index->_cbl_index->_bitset[_local_pos] <  index->_octile_values[3])   { _value._as_u32 |= (0x00000002 << shift); _parity += 1; }
@@ -227,7 +229,9 @@ void np_index_hash(np_index_t* index)
             // memcpy(&_index_value[_index_value_pos], &_value, 3*sizeof(uint8_t));
             _index_value[_index_value_pos+0] = _value._as_u8a[3];
             _index_value[_index_value_pos+1] = _value._as_u8a[2];
-            _index_value[_index_value_pos+2] = _value._as_u8a[1];
+            
+            if (_index_value_pos < 30)
+                _index_value[_index_value_pos+2] = _value._as_u8a[1];
 
             // fprintf(stdout, "%2u 0x%02x%02x%02x\n", _index_value_pos, _index_value[_index_value_pos+0], _index_value[_index_value_pos+1], _index_value[_index_value_pos+2] );
             _index_value_pos += 3;
@@ -255,6 +259,7 @@ void np_index_hash(np_index_t* index)
     //                 );
 
     memcpy(&index->lower_dhkey, &_index_value[ 0], 32);
+    
     // fprintf(stdout, "%08x %08x %08x %08x %08x %08x %08x %08x\n",
     //                 index->lower_dhkey.t[0], index->lower_dhkey.t[1], index->lower_dhkey.t[2], index->lower_dhkey.t[3],
     //                 index->lower_dhkey.t[4], index->lower_dhkey.t[5], index->lower_dhkey.t[6], index->lower_dhkey.t[7]

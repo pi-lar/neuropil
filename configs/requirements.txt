@@ -2,7 +2,7 @@ setuptools
 wheel
 libtmux==0.8.0
 scons==3.0.1
-Sphinx==3.5.3
+Sphinx
 sphinxcontrib-cmtinc
 sphinxcontrib-websupport
 cffi==1.13.2

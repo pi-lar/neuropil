@@ -94,6 +94,7 @@ extern "C" {
 
    An opaque object that denotes a neuropil key/value store.
 
+
 .. c:function:: enum np_data_return np_init_datablock(np_datablock_t * block, size_t block_length)
 
    Creates a new neuropil key value store.
@@ -102,11 +103,13 @@ extern "C" {
     :param block_length: a :c:type:`size_t` the size of the block input parameter
     :return:             :c:data:`np_ok` on success
 
-.. c:type:: struct np_data_conf
+
+.. c:struct:: np_data_conf
 
    The configuration of a single key in an :c:type:`np_datablock_t`
 
-.. c:type:: enum np_data_type
+
+.. c:enum:: np_data_type
 
    This type denotes the set of data types relevant for :c:type:`np_datablock_t` key/value elements
    Possible values include:
@@ -119,9 +122,11 @@ extern "C" {
    :c:data:`NP_DATA_TYPE_STR`                        Define the key to hold a string in its value container (Uses ASCII encoding)
    ================================================  ===========================================
 
-.. c:type:: typedef bool (*np_data_iterate_cb)(struct np_data_conf * out_data_config, np_data_value * out_data, void * userdata)
+
+.. c:type:: bool np_data_iterate_cb(struct np_data_conf * out_data_config, np_data_value * out_data, void * userdata)
 
    Callback definition for the :c:function:`np_iterate_data` function
+
 
 .. c:function:: enum np_data_return np_iterate_data(np_datablock_t * block, np_data_iterate_cb callback, void * userdata)
 

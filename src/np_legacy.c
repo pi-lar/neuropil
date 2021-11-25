@@ -292,9 +292,9 @@ void np_add_receive_listener(np_context*ac, np_usercallbackfunction_t msg_handle
     np_ctx_cast(ac);
     // check whether an handler already exists
     np_msgproperty_conf_t* mx_conf = _np_msgproperty_get_or_create(context, INBOUND, subject);
-    np_msgproperty_register(mx_conf); // register it if it did not exists before
+    np_msgproperty_register(mx_conf);
 
-    if (mx_conf->audience_type != NP_MX_AUD_VIRTUAL)
+    if (mx_conf != NULL && mx_conf->audience_type != NP_MX_AUD_VIRTUAL)
     {
         np_msgproperty_run_t* mx_run = _np_msgproperty_run_get(context, INBOUND, subject);
         if (mx_run != NULL) 

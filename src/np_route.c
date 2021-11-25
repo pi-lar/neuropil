@@ -43,6 +43,8 @@ np_module_struct(route)
     np_sll_t(np_key_ptr, left_leafset);
     np_sll_t(np_key_ptr, right_leafset);
 
+    uint16_t leafset_size;
+    
     np_dhkey_t Rrange;
     np_dhkey_t Lrange;
 
@@ -70,6 +72,8 @@ bool _np_route_init (np_state_t* context, np_key_t* me)
         TSP_INITD(_module->route_count, 0);
         TSP_INITD(_module->leafset_left_count, 0);
         TSP_INITD(_module->leafset_right_count, 0);
+
+        _module->leafset_size = context->settings->leafset_size;
 
         sll_init(np_key_ptr, _module->left_leafset);
         sll_init(np_key_ptr, _module->right_leafset);
@@ -201,7 +205,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                 if (_np_dhkey_between(&node_key->dhkey, &np_module(route)->my_key->dhkey, &my_inverse_dhkey, true))
                 {
                     if (
-                        sll_size(np_module(route)->right_leafset) < (context->settings->leafset_size) ||
+                        sll_size(np_module(route)->right_leafset) < np_module(route)->leafset_size ||
                         _np_dhkey_between(
                             &node_key->dhkey,
                             &np_module(route)->my_key->dhkey,
@@ -216,14 +220,14 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                     }
 
                     // Cleanup of leafset / resize leafsets to max size if necessary
-                    if (sll_size(np_module(route)->right_leafset) > (context->settings->leafset_size)) {
+                    if (sll_size(np_module(route)->right_leafset) > np_module(route)->leafset_size) {
                         deleted_from = sll_tail(np_key_ptr, np_module(route)->right_leafset);
                     }
                 }
                 else //if (_np_dhkey_between(&node_key->dhkey, &my_inverse_dhkey, &np_module(route)->my_key->dhkey, true))
                 {
                     if (
-                        sll_size(np_module(route)->left_leafset) < (context->settings->leafset_size) ||
+                        sll_size(np_module(route)->left_leafset) < np_module(route)->leafset_size ||
                         _np_dhkey_between(
                             &node_key->dhkey,
                             &np_module(route)->Lrange,
@@ -237,7 +241,7 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
                         _np_keycache_sort_keys_kd(np_module(route)->left_leafset, &np_module(route)->my_key->dhkey);
                     }
                     // Cleanup of leafset / resize leafsets to max size if necessary
-                    if (sll_size(np_module(route)->left_leafset) > (context->settings->leafset_size)) {
+                    if (sll_size(np_module(route)->left_leafset) > np_module(route)->leafset_size) {
                         deleted_from = sll_tail(np_key_ptr, np_module(route)->left_leafset);
                     }
                 }

@@ -345,10 +345,9 @@ np_msgproperty_conf_t* _np_msgproperty_get_or_create(np_state_t* context, np_msg
             // prop->msg_subject = calloc(33, sizeof(char));
             // snprintf(prop->msg_subject, 24, "%08"PRIx32 ":%08"PRIx32, subject.t[0], subject.t[1]); 
         }
-        prop->subject_dhkey = subject; // strndup(subject, 255);
+        prop->subject_dhkey = subject;
         prop->mode_type = mode_type;
         prop->mep_type = ANY_TO_ANY;
-        // np_msgproperty_register(prop);
     } 
 
     if(created) {
@@ -879,62 +878,63 @@ static int8_t _np_aaatoken_cmp_exact (np_aaatoken_ptr first, np_aaatoken_ptr sec
 
 void __load_internal_callback(char* msg_subject, np_msg_mode_type mode, sll_return(np_evt_callback_t) callback_list)
 {
-    if (0 == memcmp(msg_subject, _DEFAULT, strnlen(_DEFAULT, 256)) ) 
+    size_t msg_subject_len = strnlen(msg_subject, 256);
+    if (0 == strncmp(msg_subject, _DEFAULT, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_default);
         // if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_ack );
     }
-    if (0 == memcmp(msg_subject, _FORWARD, strnlen(_FORWARD, 256)) ) 
+    if (0 == strncmp(msg_subject, _FORWARD, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_forward);
         // if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_ack );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_HANDSHAKE, strnlen(_NP_MSG_HANDSHAKE, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_HANDSHAKE, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_handshake);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_handshake );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_ACK, strnlen(_NP_MSG_ACK, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_ACK, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_ack);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_ack );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_JOIN_REQUEST, strnlen(_NP_MSG_JOIN_REQUEST, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_JOIN_REQUEST, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_join);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_join );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_LEAVE_REQUEST, strnlen(_NP_MSG_LEAVE_REQUEST, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_LEAVE_REQUEST, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_leave);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_leave );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_PING_REQUEST, strnlen(_NP_MSG_PING_REQUEST, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_PING_REQUEST, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_ping);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_ping );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_PIGGY_REQUEST, strnlen(_NP_MSG_PIGGY_REQUEST, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_PIGGY_REQUEST, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_piggy);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_piggy );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_UPDATE_REQUEST, strnlen(_NP_MSG_UPDATE_REQUEST, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_UPDATE_REQUEST, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_update);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_update );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_AVAILABLE_RECEIVER, strnlen(_NP_MSG_AVAILABLE_RECEIVER, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_AVAILABLE_RECEIVER, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_available_messages);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_available_receiver );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_AVAILABLE_SENDER, strnlen(_NP_MSG_AVAILABLE_SENDER, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_AVAILABLE_SENDER, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_available_messages);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_available_sender );
     }
-    if (0 == memcmp(msg_subject, _NP_MSG_PHEROMONE_UPDATE, strnlen(_NP_MSG_PHEROMONE_UPDATE, 256)) ) 
+    if (0 == strncmp(msg_subject, _NP_MSG_PHEROMONE_UPDATE, msg_subject_len) )
     {
         if (mode == OUTBOUND) sll_append(np_evt_callback_t, callback_list, _np_out_pheromone);
         if (mode == INBOUND)  sll_append(np_evt_callback_t, callback_list, _np_in_pheromone );
@@ -1316,7 +1316,7 @@ bool __is_msgproperty_lifecycle_enable(np_util_statemachine_t* statemachine, con
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_enable);
     if ( ret) ret  = FLAG_CMP(event.type, evt_property) && FLAG_CMP(event.type, evt_internal);
-    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_msgproperty_conf_t);
+    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_msgproperty_run_t);
 
     return ret;
 }
@@ -1329,7 +1329,7 @@ bool __is_msgproperty_lifecycle_disable(np_util_statemachine_t* statemachine, co
     
     if (!ret) ret  = FLAG_CMP(event.type, evt_disable);
     if ( ret) ret  = FLAG_CMP(event.type, evt_property) && FLAG_CMP(event.type, evt_internal);
-    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_msgproperty_conf_t);
+    if ( ret) ret &= (np_memory_get_type(event.user_data) == np_memory_types_np_msgproperty_run_t);
 
     return ret;
 }
@@ -1679,7 +1679,7 @@ bool __is_sender_token_available(np_util_statemachine_t* statemachine, const np_
             ret = !__np_msgproperty_threshold_breached(my_property_conf, my_property_run);
 
             np_aaatoken_ptr tmp_token = _np_intent_get_sender_token(property_key, event.target_dhkey);
-            ret &= tmp_token != NULL;            
+            ret &= (tmp_token != NULL);            
             if (tmp_token != NULL) np_unref_obj(np_aaatoken_ptr, tmp_token, "_np_intent_get_sender_token");
         }
     }
