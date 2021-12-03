@@ -381,26 +381,39 @@ Links & Literature
 ==================
 
 
-`[TLSH] <https://tlsh.org/>`_ TresholdLSH (TLSH)
+`[Approximate Nearest Neighbors.pdf] <http://www.corelab.ntua.gr/~ebamp/oldpage/material/Approximate%20Nearest%20Neighbors.pdf>`_ approximate nearest neighbour / removing the curse of dimensionality
 
-`[Skip Graph] <https://cs-www.cs.yale.edu/homes/shah/pubs/soda2003.pdf>`_ Skip Graph
+`[CIFF] <https://github.com/osirrc/ciff>`_ Common Index File Format (CIFF)
 
-`[Coral / DSHT] <https://www.coralcdn.org/docs/coral-iptps03.pdf>`_ Coral / DSHT (distributed sloppy hash table)
+`[CLKHash] <https://clkhash.readthedocs.io/>`_ CLK Hash
 
 `[composite-patterns] <https://www.exploratorium.edu/blogs/tangents/composite-patterns>`_ visual presentation of prime numbers
 
+`[Coral / DSHT] <https://www.coralcdn.org/docs/coral-iptps03.pdf>`_ Coral / DSHT (distributed sloppy hash table)
+
 `[CRUSH] <https://ceph.com/wp-content/uploads/2016/08/weil-crush-sc06.pdf>`_ CRUSH partitioning protocol
 
-`[Approximate Nearest Neighbors.pdf] <http://www.corelab.ntua.gr/~ebamp/oldpage/material/Approximate%20Nearest%20Neighbors.pdf>`_ approximate nearest neighbour / removing the curse of dimensionality
+`[Efficient Record Linkage] <http://openproceedings.org/2016/conf/edbt/paper-56.pdf>`_ Efficient Record Linkage Using a Compact Hamming Space
 
-`[Ring Cover Trees] <https://homes.cs.washington.edu/~sham/papers/ml/cover_tree.pdf>`_ ring-cover-trees for ANN
+`[Efficient Processing of Hamming-Distance Similarity Search] <http://openproceedings.org/2015/conf/edbt/paper-263.pdf>`_ Efficient Processing of Hamming-Distance-Based Similarity-Search Queries Over MapReduce
+
+`[Information Retrieval in Peer-To-Peer Systems] <http://alumni.cs.ucr.edu/~csyiazti/papers/msc/html/index.html#2381>`_ Information Retrieval in Peer-To-Peer Systems
 
 `[LSH Forest] <http://infolab.stanford.edu/~bawa/Pub/similarity.pdf>`_ LSH Forest
 
 `[LSH] <https://aerodatablog.wordpress.com/2017/11/29/locality-sensitive-hashing-lsh/#E2LSH-ref>`_ Locality Sensitive Hashing
 
-`[CIFF] <https://github.com/osirrc/ciff>`_ Common Index File Format (CIFF)
+`[P2P Information Retrieval] <http://oak.cs.ucla.edu/~sia/tp3.pdf>`_ P2P Information Retrieval: A self-organizing paradigm
 
 `[PPRL] <https://www.uni-due.de/~hq0215/documents/2013/Schnell_2013_PPRL_ISI.pdf>`_ privacy preserving record linkage (PPRL)
 
-`[CLKHash] <https://clkhash.readthedocs.io/>`_ CLK Hash
+`[Ring Cover Trees] <https://homes.cs.washington.edu/~sham/papers/ml/cover_tree.pdf>`_ ring-cover-trees for ANN
+
+`[Skip Graph] <https://cs-www.cs.yale.edu/homes/shah/pubs/soda2003.pdf>`_ Skip Graph
+
+`[TLSH] <https://tlsh.org/>`_ TresholdLSH (TLSH)
+
+`[Variable Length Hashing] <https://openaccess.thecvf.com/content_cvpr_2016/papers/Ong_Improved_Hamming_Distance_CVPR_2016_paper.pdf>`_ Improved Hamming Distance Search using Variable Length Hashing
+
+`[Wikipedia N-Gram] <https://en.wikipedia.org/wiki/N-gram>`_ n-gram
+
