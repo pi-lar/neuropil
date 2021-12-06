@@ -136,6 +136,20 @@ void np_sysinfo_enable_client(np_state_t* context)
 int _np_http_handle_sysinfo_hash(ht_request_t* request, ht_response_t* ret, void* context);
 int _np_http_handle_sysinfo_all(ht_request_t* request, ht_response_t* ret, void* context);
 
+void np_sysinfo_enable_local(np_state_t* context)
+{
+    _np_sysinfo_init_cache(context);
+
+    if(np_module_initiated(http))
+    {
+        _np_add_http_callback(context, "sysinfo", htp_method_GET, context, _np_http_handle_sysinfo_all);
+
+        char my_sysinfo[9+64+1];
+        snprintf(my_sysinfo, 9+64+1, "sysinfo/%s", _np_key_as_str(context->my_node_key));
+        _np_add_http_callback(context, my_sysinfo, htp_method_GET, context, _np_http_handle_sysinfo_hash);
+    }
+}
+
 void np_sysinfo_enable_server(np_state_t* context)
 {
     _np_sysinfo_init_cache(context);

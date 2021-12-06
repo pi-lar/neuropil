@@ -79,6 +79,9 @@ void np_sysinfo_enable_client(np_state_t* context);
 NP_API_EXPORT
 void np_sysinfo_enable_server(np_state_t* context);
 
+NP_API_EXPORT
+void np_sysinfo_enable_local(np_state_t* context);
+
 
 #ifdef __cplusplus
 }
