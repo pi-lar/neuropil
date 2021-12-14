@@ -13,7 +13,7 @@
 1024 byte structure of neuropil messages
 ****************************************
 
-The neuropil messaging layer uses a layered approach as many other internet protocols
+The neuropil cybersecurity mesh uses a layered approach as many other internet protocols
 as well. The general message format consists of seven distinct sections, which are shown below:
 
 .. code-block:: c

@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 /*
- * a module to share files via the neuropil messaging layer
+ * a module to share files via the neuropil cybersecurity mesh
  *
  * The module will offer at the top level a "files/" subject that lists all opened 
  * directories or files. It contains only the hash values of each shared file or directory,

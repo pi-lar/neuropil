@@ -8,7 +8,7 @@ Digital Identities
 
 neuropil uses digital identities to identify users, systems and to protect data content.
 The following section will define and explain how digital identities are used in the neuropil 
-messaging layer.
+cybersecurity mesh.
 
 In general a digital identity in neuropil is loosely modeled after the OpenID Connect JWT standard. 
 These token are mainly a signed JSON data structure, that can be serialized in base64 format. There 

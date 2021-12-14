@@ -7,9 +7,15 @@
 Introduction
 ************
 
-neuropil is a small messaging library which by default adds two layers of encryption.
-It allows you to address identities (a device, an application, a service or a person) worldwide 
-without compromise for privacy or security requirements.
+neuropil is a small c-library which by default adds two layers of encryption to communication channels.
+It allows you to address identities (a device, an application, a service or a person) worldwide without compromise 
+for privacy or security requirements. 
+
+The project embraces modern concepts like named-data networks, self-sovereign 
+identities, zero trust architectures and attributes based access control to increase the cybersecurity level of it's 
+users beyond the current state-of-technology. In effect its users will benefit from the new way of secure, scalable 
+and souvereign data integration to easily comply with legal, organizational, operational and compliance regulations 
+and requirements.
 
 All neuropil enabled applications or devices form an ad-hoc cluster of connected nodes which
 constantly exchange messages to detect failures and to exchange information. Nodes can connect and
@@ -23,7 +29,7 @@ disconnect at any time, messages will still be transported to their destinations
 Use Cases
 *********
 
-* global and secure micro-service driver
+* global and secure nano / micro-service driver
 * establishment of data ownerships based on distributed ACL/ABAC rules
 * enable exclusive access to devices / resources for partners
 * establish secure application defined networks (ADN) and ad-hoc VPN connections
@@ -38,7 +44,7 @@ Features
 
 * zero-trust framework to comply with high data protection and security laws
 * zero discovery of identities and data channels
-* distributed messaging layer with built-in governance capabilities
+* distributed cybersecurity mesh with built-in governance capabilities
 * implementation of group encryption (fan-out messaging)
 * technical double encryption layer to implement zero-knowledge infrastructures
 * message chunking to prevent side channel analysis from network sniffers
@@ -76,6 +82,7 @@ Roadmap
 Achieved goals
 **************
 
+* NGI ZeroDiscovery: a privacy preserving search index
 * pubsub group encryption is working
 * scale-up test to thousands of nodes
 * distinguish between virtual, private, protected and public mx properties

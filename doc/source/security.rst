@@ -52,7 +52,7 @@ However, acl messages and the initial message do not necessarily travel along th
 
 Userspace messages
 ------------------
-Before a message is sent, the neuropil messaging layer sends out pheromone messages. These pheromone messages
+Before a message is sent, the neuropil cybersecurity mesh sends out pheromone messages. These pheromone messages
 only carry "scents" of a message exchange. The scent consists of a bloom filter based on the hash of the
 message subject, plus a bloom filter about other attributes. Only if a bloom filter has detected a match
 with a peer, a message intent is sent out to establish the second, end-to-end encrypted data channel.

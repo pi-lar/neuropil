@@ -15,7 +15,7 @@ is intended to help readers gain a deeper understanding of neuropil’s internal
 and its design, and ultimately make better use of the library.
 
 The versatile concepts described in this chapter are primarily pervasive in the
-implementation of the neuropil messaging layer itself, but curious users of
+implementation of the neuropil cybersecurity mesh itself, but curious users of
 neuropil will most likely be exposed to them, eventually. After all, neuropil’s
 user facing abstractions, such as :ref:`realms`, are constructed on top of
 these building blocks. By nature, primitive concepts escape the abstractions

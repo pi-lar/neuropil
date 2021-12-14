@@ -10,7 +10,7 @@ Zero discovery / privacy by design
 How do the overlay network and token structures mentioned in the core concepts 
 relate to the "privacy by design" approach of neuropil?
 
-The DHT of the neuropil messaging layer introduces already a first important step to
+The DHT of the neuropil cybersecurity mesh introduces already a first important step to
 ensure privacy: Connections are build up based on hash distance. This is in contrast
 with the traditional internet, where first a lookup of DNS name happens, and then
 the connection to a specific server is established. Using the hash distance builds up
@@ -30,7 +30,7 @@ that is used a user will receive a different pseudonym (different fingerprint).
 The message intents are the place where node and application identity play together. 
 The only thing of the application identity that remains visible is its public key and 
 its fingerprint. The exchange of the message intents can be seen as the "DNS lookups" 
-of the neuropil messaging layer. But we only try to discover named data channels (and 
+of the neuropil cybersecurity mesh. But we only try to discover named data channels (and 
 yes, a name may refer to an IP address). The difference of these intents to DNS lookups
 that they are cryptographically signed and that they are attribute bearer token.
 
@@ -218,8 +218,8 @@ These attributes can describe usage policies, license information or access poli
 there is a definition of the complete "business" semantic, defining the description logic / predicates 
 which has to be done before a protocol is used. You can treat this definition of the semantic as a rather 
 heavyweight task, and each semantic definition adds it's own quirks, execution size and rules. But if 
-each user of the neuropil messaging layer can add new additional attribute / attribute values or a new 
-semantic definition, then the neuropil messaging layer will never be able to match these intents to each 
+each user of the neuropil cybersecurity mesh can add new additional attribute / attribute values or a new 
+semantic definition, then the neuropil cybersecurity mesh will never be able to match these intents to each 
 other! Out of experience we can tell you: Implementing these always changing semantics into a middleware 
 is no going to work! (It's not that these semantics are not necessary, it is just that a classic middleware
 must be agnostic up to a certain point against it's payloads definitions). We have to accept the fact that 

@@ -9,7 +9,7 @@ List of contributions
 =====================
 
 The following is a list of people or organizations who have helped with the development of, or 
-contributed resources to the neuropil messaging layer.
+contributed resources to the neuropil cybersecurity mesh.
 
 ========== ============================ ======================================================
 year        name                         topic                                                 

@@ -4,7 +4,7 @@
 //
 // original version was taken from chimera project, but heavily modified
 /**
-np_legacy.h is the entry point to use the neuropil messaging library.
+np_legacy.h is the entry point to use the neuropil cybersecurity mesh library.
 It defines all user centric functions and hides the complexity of the double encryption layer.
 It should contain all required functions to send or receive messages.
 
@@ -91,7 +91,7 @@ MAP(np_module_typedef, NP_CTX_MODULES);
 .. c:type:: np_state_t
 
    np_state_t is a structure which contains links to the various subsystems of the library
-   Users should only need to call :c:func:`np_init` to initialize the neuropil messaging layer.
+   Users should only need to call :c:func:`np_init` to initialize the neuropil cybersecurity mesh.
    No direct access to this structure is required.
 
 */

@@ -64,7 +64,7 @@ int main (void)
 	   specific network address/port tuple by joining a wildcard address,
 	   which in this case would be ``"*:udp4:localhost:2345"``.
 
-	   In the neuropil messaging layer, nodes need no authorization to join
+	   In the neuropil cybersecurity mesh, nodes need no authorization to join
 	   a network, but they do need to authenticate themselves. This node
 	   sets an authentication callback via :c:func:`np_set_authenticate_cb`
 	   that will be called each time a node attempts to join this node.

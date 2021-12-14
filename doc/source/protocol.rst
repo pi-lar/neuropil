@@ -16,7 +16,7 @@ As we standardize the neuropil protocol, we plan to publish updates and changes 
 Protocol token
 **************
 
-The following chapter describes the protocol token structures of the neuropil messaging layer.
+The following chapter describes the protocol token structures of the neuropil cybersecurity mesh.
 
 .. include:: protocol.token.rst
 
@@ -34,6 +34,6 @@ The following chapter gives a brief outline how neuropil messages are constructe
 Protocol steps
 **************
 
-The following chapter describes the protocol phases of the neuropil messaging layer.
+The following chapter describes the protocol phases of the neuropil cybersecurity mesh.
 
 .. include:: protocol.steps.rst

@@ -9,9 +9,9 @@
 Comparison Chart
 ****************
 
-This page gives you a short overview of how we compare the neuropil messaging layer to some of the other products / 
+This page gives you a short overview of how we compare the neuropil cybersecurity mesh to some of the other products / 
 standards on the market. It is also meant to give you an overview of existing solutions and/or measures, but you'll 
-soon notice that neuropil messaging layer draws from many sources and creates its own unique value proposition.
+soon notice that neuropil cybersecurity mesh draws from many sources and creates its own unique value proposition.
 
 
 Digital Identities
@@ -152,7 +152,7 @@ category             neuropil             |MQTT|                 |TCP/TLS|      
 Another big plus for neuropil: because our protocol covers the application layer as well, you can
 add payload encryption signatures easily. When sending a multicast message, you can encrypt the credit
 card number for one of the receivers, and then send the message to all receivers. The sending system just
-has to send the message once, it will be duplicated by the neuropil messaging layer.
+has to send the message once, it will be duplicated by the neuropil cybersecurity mesh.
 
 All other components leave you in the dark: please use an additional standard ...
 
@@ -248,7 +248,7 @@ After having shared our thoughts and insights: Did we leave something unmentione
 some of the details with us? We are open to criticism, suggestions and your feedback! 
 
 To get in touch, just send us a short email. 
-If you have no questions: when and where will you give the neuropil messaging layer a shot? Just curious ...
+If you have no questions: when and where will you give the neuropil cybersecurity mesh a shot? Just curious ...
 
 
   [1]: MQTT: https://MQTT.org

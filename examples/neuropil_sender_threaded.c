@@ -14,7 +14,7 @@
 
 /**
    First and foremost, we have to include header file which defines the API for
-   the neuropil messaging layer.
+   the neuropil cybersecurity mesh.
 
    .. code-block:: c
 
@@ -38,7 +38,7 @@ void handle_input(struct input_thread_args *args);
 int main (void)
 {
 	/**
-	   To initialize the neuropil messaging layer, we prepare a
+	   To initialize the neuropil cybersecurity mesh, we prepare a
 	   :c:type:`np_settings` by populating it with the default settings
 	   using :c:func:`np_default_settings`, and create a new
 	   application context with :c:func:`np_new_context`.

@@ -3,11 +3,11 @@
 ..
   SPDX-License-Identifier: OSL-3.0
   
-What is the neuropil messaging layer ?
+What is the neuropil cybersecurity mesh ?
 ======================================
 
 We find it really hard to explain our cyber security approach, and often we experience that people
-misunderstand our intention or the full potential of the neuropil messaging layer. One important misunderstanding
+misunderstand our intention or the full potential of the neuropil cybersecurity mesh. One important misunderstanding
 is that we have implemented a kind of a blockchain, probably because we are using hashing and a distributed hash
 table. neuropil is not a blockchain! 
 
@@ -22,7 +22,7 @@ and details are based one of these two main aspects: de-centralized security and
 
 As you'll see, the neuropil is a structure that sits in between all systems using it. It is and will be designed to 
 enable interoperability between all connected devices, applications, processes and users. Of we go with some other 
-explanation to grasp what the neuropil messaging is or can be.
+explanation to grasp what the neuropil cybersecurity mesh is or can be.
 
 
 Mathematical: the implementation of a 256bit hypercube graph
@@ -59,7 +59,7 @@ Security: an obfuscated data space with a flat address structure to reduce the a
 ---------------------------------------------------------------------------------------------
 
 Each hash value that is visible refers to "something that you know" and enables the users of the 
-messaging layer to make sense and to share information. Structures thus become visible to a 
+cybersecurity mesh to make sense and to share information. Structures thus become visible to a 
 specific user (group) only, which in parts reverts the current approach of how the internet works. 
 
 Our model enforces coopetition between involved parties. Central structures are only needed to build 

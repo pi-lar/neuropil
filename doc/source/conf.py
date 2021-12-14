@@ -307,7 +307,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ( master_doc, 'neuropil', u'neuropil Documentation',
-   author, 'neuropil', 'secure / distributed M2M messaging layer',
+   author, 'neuropil', 'secure / distributed M2M cybersecurity mesh',
    'Miscellaneous' ),
 ]
 
