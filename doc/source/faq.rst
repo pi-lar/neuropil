@@ -3,12 +3,13 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
+===============================================================================
 FAQ
-***
+===============================================================================
 
 
 Why do you not use SSL certificates ?
--------------------------------------
+===============================================================================
 
 When the internal project started several bugs like heartbleet were discovered. This led to the decision to use a modern
 encryption library. In addition, certificates are not easy to parse, to add user supplied data is difficult (in comparison
@@ -20,7 +21,7 @@ gpg encryption ... maybe both ?
 
 
 What about project <xxx>, why did you re-invent the wheel ?
------------------------------------------------------------
+===============================================================================
 
 From our point of view there are some other projects doing similar things, but none like neuropil. Many projects focus
 on user to user interaction only, some focus on a secure network infrastructure. None of them focus on the exchange of
@@ -29,7 +30,7 @@ I2P and GNUnet)
 
 
 Why can't we do a direct integration of a device with our server infrastructure ?
----------------------------------------------------------------------------------
+=================================================================================
 
 Well, obviously you can! But you're exposing i.e. enterprise applications to the risk of public access.
 
@@ -51,7 +52,7 @@ Please, add some more resilience interoperability to your message queueing syste
 
 
 Why is it written in (insecure) c ?
------------------------------------
+===============================================================================
 
 Actually to enable the use of the library on as many systems as possible (many embedded systems still require the use of
 the c programming language).
@@ -63,7 +64,7 @@ library calls. We do run static code analysis tools to protect against errors.
 
 
 I cannot start a node on my laptop, what's wrong ?
---------------------------------------------------
+===============================================================================
 
 neuropil currently needs a valid DNS entry of your host to start up correctly. This is a consequence of the internal
 routing table. It requires that all nodes are addressable by means of IP and port. The only way to check this kind of
@@ -72,7 +73,7 @@ resolve to 127.0.0.1)
 
 
 This is all great, can I use it in production ?
------------------------------------------------
+===============================================================================
 
 please don't (for now). This is (still) an beta release ! We are not yet using memory protection routines from sodium 
 and there will be improvements to the protocol as well. But we think it is stable enough to play with it and the concepts.

@@ -3,9 +3,9 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
-************
+===============================================================================
 Introduction
-************
+===============================================================================
 
 neuropil is a small c-library which by default adds two layers of encryption to communication channels.
 It allows you to address identities (a device, an application, a service or a person) worldwide without compromise 
@@ -27,7 +27,7 @@ disconnect at any time, messages will still be transported to their destinations
 
 
 Use Cases
-*********
+===============================================================================
 
 * global and secure nano / micro-service driver
 * establishment of data ownerships based on distributed ACL/ABAC rules
@@ -40,7 +40,7 @@ Use Cases
 
 
 Features
-********
+===============================================================================
 
 * zero-trust framework to comply with high data protection and security laws
 * zero discovery of identities and data channels
@@ -61,7 +61,7 @@ Features
 
 
 Roadmap
-*******
+===============================================================================
 
 * implement realm concept
 * finalize message exchange pattern definitions (missing: one-to-subgroup only)
@@ -80,7 +80,7 @@ Roadmap
 
 
 Achieved goals
-**************
+===============================================================================
 
 * NGI ZeroDiscovery: a privacy preserving search index
 * pubsub group encryption is working

@@ -3,10 +3,18 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
-.. _protocol_token_structure:
+.. _protocol_token:
+
+===============================================================================
+Protocol token
+===============================================================================
+
+
+The following chapter describes the protocol token structures of the neuropil cybersecurity mesh.
 
 Token in general
-****************
+===============================================================================
+
 
 Within the neuropil library we us the aaatoken structure to fulfil authentication, authorization and accounting
 purposes. The usage and meaning of each token for/in each specific case is ambiguously and sometimes confusing 
@@ -58,7 +66,7 @@ on these four for the following chapter.
 
 
 Protocol token format
-*********************
+===============================================================================
 
 .. note::
    The protocol token format is work in progress. please be aware of possible changes
@@ -123,7 +131,7 @@ In addition to specifying a layout we must define the format and semantics of th
 
 
 Handshaking token
-*****************
+===============================================================================
 
 For the handshake we need to send some core information to the other node, so the above mentioned fields will
 contain:
@@ -160,7 +168,7 @@ A separate node token will be supplied in the join message to verify the use of 
 
 
 Join token
-**********
+===============================================================================
 
 The join message contains the token of the identity which is using a node. Identity token can be exported
 and imported and are available in the userspace.
@@ -214,7 +222,7 @@ sending a join message.
 
 
 Message intent token
-********************
+===============================================================================
 
 If an identity would like to exchange information with another identity in the network, it sends out its message
 intents, where we use token again.:
@@ -249,7 +257,7 @@ Again you have the three options above with the following restriction to the sec
 
 
 PKI / Web of trust / zero knowledge setups
-******************************************
+===============================================================================
 
 Sometimes it is desirable to choose a pki setup for the tokens that you use. For this case the issuer field of the
 token structure can be used. It indicates whether a token has been signed by another party. There is no pre-defined
@@ -268,7 +276,7 @@ person is able to contact your realm for allowance.
 
 
 The missing accounting tokens
-*****************************
+===============================================================================
 
 The chapters above have described the measures how you can authenticate and authorize token, but we have not yet
 covered how you can use tokens for accounting purposes. But basically it is very easy.
@@ -318,7 +326,7 @@ messages have travelled through the :term:`DHT` (via the uuid).
 
 
 Conclusion
-**********
+===============================================================================
 
 You can create arbitrary complex hierarchical token constructs and facilitate them in the way we have described them.
 Please do not overdo it! Setting up a new realm and rejoining your devices and applications is easier than creating

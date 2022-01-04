@@ -5,8 +5,9 @@
 
 .. _realms:
 
+===============================================================================
 Realms
-======
+===============================================================================
 
 When an identity references another identity as its *realm*, it allows itself
 to be subordinated to that identity. In this case, the former is called the 
@@ -27,7 +28,7 @@ more details towards an implementation.
 
 
 Step 0: bootstrapping
----------------------
+===============================================================================
 
 Any node may use so called bootstrapping nodes to connect to a larger system.
 A bootstrap node must only be used for authentication, it is not allowed to receive
@@ -38,14 +39,16 @@ central entity will be needed.
 
 
 Step 1: Registration
---------------------
+===============================================================================
+
 
 any node may register, or rather aplly for a registration at a realm. The realm 
 can decide on its own whether it would like to add the new node as a follower.
 
 
 Step 2: Attribute application
------------------------------
+===============================================================================
+
 
 If the node has been accepted by the realm, it will receive a set of attributes.
 This can happen for each subject, or for the identity token only. It will also receive a 
@@ -57,7 +60,8 @@ signatures.
 
 
 Step 3: Data exchange
----------------------
+===============================================================================
+
 
 In the initial step the security token or message intent token between the participating 
 nodes are exchanges. Each token has been equipped with the corresponding attributes and
@@ -65,7 +69,8 @@ signatures of the realm.
 
 
 Step 4: Realm validation request
---------------------------------
+===============================================================================
+
 
 Each node can forward the received token to their respective realm for inspection and
 authorization purposes. The local node is either freed from the decision, or it will 
@@ -73,7 +78,8 @@ receive a policy from their realm that allows the verification on its own.
 
 
 Step 5: Realm verification
---------------------------
+===============================================================================
+
 
 A realm may consult with another realm to see whether the infromation provided in the
 security token is correct. The communication could also happen upfront, that is a realm

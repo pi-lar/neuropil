@@ -3,8 +3,9 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
+===============================================================================
 Digital Identities
-==================
+===============================================================================
 
 neuropil uses digital identities to identify users, systems and to protect data content.
 The following section will define and explain how digital identities are used in the neuropil 
@@ -46,8 +47,8 @@ token can make sense of the resulting hahs values.
 More important is the way how identities are handled and can be used in neuropil. Let's begin with a 
 simple setup and then extend it step by step.
 
-identity identifiers
-********************
+Identity Identifiers
+===============================================================================
 
 consider that you need to create yourself an identity that you can use for any followup actions. As 
 you would like to be identifies, you may choose to create yourself an initial identity, that you can
@@ -98,8 +99,8 @@ So instead it is time to become a bit more careful to whom and about what you wo
 peers. So instead, it is time to create yourself a first pseudonym:
 
 
-pseudonyms
-**********
+Pseudonyms
+===============================================================================
 
 You may hide behind a pseudonym for data exchange to further obfuscate the attack space. There are two ways
 to create sub-identities for the initial one that we create above. 
@@ -161,8 +162,8 @@ current context that you are acting in. As each token has a limited lifetime, it
 data with a temporary identifier, that can be created before the access will actually happen, or on a short term adhoc basis.
 
 
-verifiable identifiers
-**********************
+Verifiable Credentials / Identifiers
+===============================================================================
 
 (see also https://www.w3.org/TR/vc-data-model/ and https://en.wikipedia.org/wiki/Attribute-based_access_control)
 

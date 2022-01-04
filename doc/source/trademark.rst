@@ -3,8 +3,9 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
+===============================================================================
 Trademark
-*********
+===============================================================================
 
 The neuropil cybersecurity mesh displayed on this website is a registered trademark and the property of pi-lar GmbH.
 As of now, you are not permitted to use this trademark without the prior written consent of pi-lar GmbH.

@@ -3,8 +3,9 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
+===============================================================================
 Zero Search / a Paradigm Shift
-==============================
+===============================================================================
 
 How do the overlay network and token structures mentioned in the core concepts and the ngi zero 
 discovery page relate to the "privacy by design" search capabilities of neuropil?
@@ -73,7 +74,7 @@ well so far, but unfortunately also with more or less privacy gaps and other rel
 
 
 Entering the Zero Search
-************************
+===============================================================================
 
 Our initial idea was simple: We can use the hash values of the DHT in neuropil as a kind of
 catchword index. For each single document we can distribute its metadata token to several
@@ -91,7 +92,7 @@ at no costs, because each participant will contribute a part of his resource to 
 
 
 Improvements for neuropil
-*************************
+===============================================================================
 
 The implementation of the LSH comparison matrix is a clear benefit for neuropil. 
 We do not have to compare each token with each other, but just the ones we have 
@@ -113,7 +114,7 @@ in our DHT.
 
 
 Starting point for search content
-*********************************
+===============================================================================
 
 This also opens the path to a first data definition that will be needed for search content. Our 
 main data object is the intent token, and this will already give a good data ownership. As most 
@@ -153,11 +154,11 @@ and data-dependant schemes, and they have all become part of the library.
 
 
 .. raw:: html
-    :file: ./search_process_1.svg
+   :file: ./search_process_1.svg
 
 
 Comparing search content
-************************
+===============================================================================
 
 In order to reduce the needed semantic complexity, the above intent token (plus it's attributes) will be 
 added to a bloom filter. Quite nicely, PPRL (privacy preserving record linkage) respectively CLKHash 
@@ -175,7 +176,7 @@ and even more important, in a privacy preserving way.
 
 
 New content index for search content
-************************************
+===============================================================================
 
 We still need a new rendezvous point for the above data structures. There are several LSH approaches
 out in the world, but we found most of them unsuitable for our specific approach. Either the targeted
@@ -256,7 +257,7 @@ hash distance that is used internally. As more nodes enter the scene, the hash d
 over time, meaning that it is also possible to evict data over time. 
 
 .. raw:: html
-    :file: ./search_process_2.svg
+   :file: ./search_process_2.svg
 
 
 The same applies for search content: Search content will be refreshed once a day (the exact timing 
@@ -298,7 +299,7 @@ role.
 
 
 New approach for search metrics
-*******************************
+===============================================================================
 
 In addition we could implement one optional feature: the search query item could be forwarded to the original author 
 of the search entry (the necessary data is contained in the intent token). Doing it would give each participant an 
@@ -313,7 +314,7 @@ could a) be beneficial for the user and b) be handled efficiently by the data ow
 
 
 Identities and searching
-************************
+===============================================================================
 
 There is a special problem in the way how neuropil interacts with each other, that is yet documented. If each participant
 in the neuropil network can add his search entries, then we open the black hole of authorizations, as we would have to 
@@ -346,7 +347,7 @@ by his own algorithms deployed locally.
 
 
 Final thoughts
-**************
+===============================================================================
 
 The NGI ZeroDiscovery project was a challenge for us. To implement our initial idea we had to re-read a lot of the Literature.
 Understanding the different algorithms and how they can be applied to solve a specific search problem was the key to build the
@@ -378,8 +379,7 @@ could be the role that we will be playing in the game ...).
 
 
 Links & Literature
-==================
-
+===============================================================================
 
 `[Approximate Nearest Neighbors.pdf] <http://www.corelab.ntua.gr/~ebamp/oldpage/material/Approximate%20Nearest%20Neighbors.pdf>`_ approximate nearest neighbour / removing the curse of dimensionality
 

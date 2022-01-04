@@ -3,8 +3,9 @@
 ..
   SPDX-License-Identifier: OSL-3.0
   
-What is the neuropil cybersecurity mesh ?
-======================================
+===============================================================================
+What is the neuropil cybersecurity mesh?
+===============================================================================
 
 We find it really hard to explain our cyber security approach, and often we experience that people
 misunderstand our intention or the full potential of the neuropil cybersecurity mesh. One important misunderstanding
@@ -26,7 +27,7 @@ explanation to grasp what the neuropil cybersecurity mesh is or can be.
 
 
 Mathematical: the implementation of a 256bit hypercube graph
-------------------------------------------------------------
+===============================================================================
 
 When using the library a "node" is created, which acts as a vertices of a hypercube graph. 
 Each network connection then is an edge, and in neuropil meaning each vertice can talk to another 
@@ -43,7 +44,7 @@ this may not be true in practice.
 
 
 Technical: a development framework for access control and secure data transfer
-------------------------------------------------------------------------------
+===============================================================================
 
 The technical reference implementation enforces the use of digital identities, SSI paradigms and
 modern encryption. When the internet was build, it was build with the assumption that there is no 
@@ -55,20 +56,29 @@ structures, and which entities do I authorize to exchange data with. Insecure da
 that that you authorize all recipients, but this still involves a consent phase between the interacting parties.
 
 
-Security: an obfuscated data space with a flat address structure to reduce the attack surface 
----------------------------------------------------------------------------------------------
+Security: an obfuscated data space with a flat address structure 
+===============================================================================
 
-Each hash value that is visible refers to "something that you know" and enables the users of the 
-cybersecurity mesh to make sense and to share information. Structures thus become visible to a 
-specific user (group) only, which in parts reverts the current approach of how the internet works. 
+The flat address space reduces the attack surface significantly. By enforcing 
+the use of random identities as the base layer, each attacker is forced into
+a specific position of the hash table and he may only see and use log(n) peers. 
+Scanning the whole address space is cumbersome and rather not feasible, trying to 
+obtain a specific hash value is equally difficult.
 
-Our model enforces coopetition between involved parties. Central structures are only needed to build 
-up or let entities emerge from the flat address space. neuropil increases and strengthens integrity, 
-confidentiality and availability measures, the important 'CIA' of cyber security. You may add a 'P'
-for privacy as an important additional concept.
+Each hash value that is or becomes visible refers to "something that you know" 
+and enables the users of the cybersecurity mesh to make sense and to share information. 
+Structures thus become visible to a specific user (group) only, which in parts 
+reverts the current approach of how the internet works. 
+
+Our model enforces coopetition between involved parties. Central structures are 
+only needed to build up or let entities emerge from the flat address space. 
+neuropil increases and strengthens integrity, confidentiality and availability 
+measures, the important 'CIA' of cyber security. You may add a 'P' for privacy as 
+an important additional concept.
 
 
-You'll find many of the above mentioned concepts in other products or services, but you will not find them
-in a self-contained small c library that scales like hell (in theory)!
+You'll find many of the above mentioned concepts in other products or services, 
+but you will not find them in a self-contained small c library that scales like 
+hell (in theory)!
 
 

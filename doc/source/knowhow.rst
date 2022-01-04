@@ -3,9 +3,9 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
-=======
+===============================================================================
 KnowHow
-=======
+===============================================================================
 
 .. _neuropil_knowhow:
 
@@ -14,7 +14,7 @@ looking at these papers/publications may provide some further information:
 
 
 Links for DHT (distributed hash tables)
-***************************************
+===============================================================================
 
 .. _neuropil_knowhow_dht:
 
@@ -30,7 +30,7 @@ January 2004, Vol. 22, No. 1, Pgs. 41-53.
    <hr width=200>
 
 Links about routing protocols
-*****************************
+===============================================================================
 
 .. _neuropil_knowhow_routing:
 
@@ -49,7 +49,7 @@ Dynamic Source Routing Protocol
    <hr width=200>
 
 Links about Bloom filter
-************************
+===============================================================================
 
 .. _neuropil_knowhow_bloomfilter:
 

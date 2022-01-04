@@ -3,8 +3,9 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
+===============================================================================
 Security discussion
-===================
+===============================================================================
 
 This page will give a brief overview about several security related questions and discussions.
 If you feel that there is something wrong or that we should include a chapter about specific topic,
@@ -12,7 +13,8 @@ please get in contact with us.
 
 
 Handshake messages
-------------------
+===============================================================================
+
 The handshake messages are the most vulnerable point of the neuropil protocol, because they are
 the only messages that are being send in plaintext (binary encoding). However, the information
 in this handshake message contains the public key and the hash value of the initiating node, and 
@@ -29,7 +31,8 @@ obviously also be detected by an network scan). Because the public key of the no
 to the identity, no additional information is disclosed.
 
 Join message information retrieval
-----------------------------------
+===============================================================================
+
 An attacker may try to connect to a node in order to retrieve some information about the identity.
 However, the attacker then is the first to disclose some information about himself, making him 
 visible in the network and detectable e.g. by SIEM tooling.
@@ -41,7 +44,8 @@ to add new participants (which could become important when you want to dynamical
 memberships or do release updates).
 
 DHT messages
-------------
+===============================================================================
+
 The messages to maintain and uphold the distributed hash table carry no more meaning than node information.
 Ping messages are used to measure latency between two hops. Update messages are send to introduce new 
 nodes into the network, the same applies to the piggy messages. Leave messages just indicate that a node
@@ -51,7 +55,8 @@ needs an explicit confirmation (and thus giving a hint about the importance of t
 However, acl messages and the initial message do not necessarily travel along the same route.
 
 Userspace messages
-------------------
+===============================================================================
+
 Before a message is sent, the neuropil cybersecurity mesh sends out pheromone messages. These pheromone messages
 only carry "scents" of a message exchange. The scent consists of a bloom filter based on the hash of the
 message subject, plus a bloom filter about other attributes. Only if a bloom filter has detected a match
@@ -69,7 +74,8 @@ thus detectable by SIEM tooling.
 
 
 Eclipse attack
----------------
+===============================================================================
+
 In our opinion an eclipse attack is not possible. The hashvalues that are generated are based 
 on a cryptographic algorithm, thus they should be distributed uniformly across the available 
 hash space. If an attacker tries to get as many connections to its target as possible, he will 
@@ -81,7 +87,8 @@ network as an attacker. This will continuously change the addressable hash space
 prevent an attacker from launching its attack.
 
 Sybil attack
-------------
+===============================================================================
+
 A sybil attack tries to get hold of the majority of hash nodes. If more than fifty percent of the 
 nodes belong to an attacker, he would be able to disturb the message flow significantly or he could 
 destroy the overall network by stopping all of his nodes at the same time.

@@ -13,8 +13,9 @@
    :http-equiv=Content-Type: text/html; charset=ISO-8859-1
 
 
+===============================================================================
 Welcome to neuropil !
-=====================
+===============================================================================
 
 neuropil is a small c-library which by default adds two layers of encryption to communication channels.
 It allows you to address identities (a device, an application, a service or a person) worldwide without compromise 
@@ -27,10 +28,12 @@ and souvereign data integration to easily comply with legal, organizational, ope
 and requirements.
 
 
-Contents:
+Contents
+===============================================================================
 
 .. toctree::
    :maxdepth: 2
+   :hidden:
 
    intro
    core_concepts
@@ -41,10 +44,12 @@ Contents:
    realms
    ngizerodiscovery
    ngizerosearch
+   ngiassure_ldts
+   ngiassure_dtma
    api
    protocol
    knowhow
-   contributers
+   contributors
    license
    trademark
    faq
@@ -53,7 +58,7 @@ Contents:
 
 
 Indices and tables
-==================
+===============================================================================
 
 * :ref:`genindex`
 * :ref:`modindex`

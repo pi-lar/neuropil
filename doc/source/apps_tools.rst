@@ -3,14 +3,15 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
+===============================================================================
 Apps & Tools
-************
+===============================================================================
 
 The following example programs may help you to develop your own solutions. The complete source code
 can be found in our examples folder.
 
 (App) Network support
----------------------
+===============================================================================
 
 .. _neuropil_hydra:
 
@@ -33,14 +34,14 @@ You can now illustrate the network at http://view.neuropil.io.
 
 
 (App) Echo service
-------------------
+===============================================================================
 
 - :ref:`neuropil_echo_client`
 - :ref:`neuropil_echo_server`
 
 .. _neuropil_echo_client:
 
-------
+
 Client
 ------
 
@@ -52,7 +53,7 @@ You can now use our demo service at https://demo.neuropil.io or your own server 
 
 .. _neuropil_echo_server:
 
-------
+
 Server
 ------
 
@@ -66,7 +67,7 @@ Server
 
 
 (App) Pingpong service
-----------------------
+===============================================================================
 
 .. _ping_pong:
 
@@ -82,7 +83,7 @@ As a next step we will now start a pingpong service to illustrate the callback f
 
 
 (Tool) Visualisation
---------------------
+===============================================================================
 
 .. _node_view:
 

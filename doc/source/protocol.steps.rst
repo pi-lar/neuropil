@@ -5,9 +5,14 @@
 
 .. _protocol_steps:
 
+===============================================================================
+Protocol steps
+===============================================================================
+
+The following chapter describes the protocol phases of the neuropil cybersecurity mesh.
 
 Step 1: handshake and Diffie-Hellman (DH) key exchange
-******************************************************
+===============================================================================
 
 The first message sent to another node is a *handshake message*. Its purpose is
 to exchange public and session keys with another node. The handshake message is
@@ -46,7 +51,7 @@ predefined fields are:
 
 
 Step 2: joining the network
-***************************
+===============================================================================
 
 The initiating node transmits a *join message* to its peer. The join message
 contains the identity that uses the node. This identity may or may not be
@@ -78,7 +83,7 @@ further messages with the nodes in the network.
 
 
 Step 3: growing the peer-to-peer network
-****************************************
+========================================
 
 Authenticated and authorized nodes exchange update and *piggy messages* in
 order to exchange information about other peers known to them. After receiving
@@ -92,7 +97,7 @@ inferred from latency).
 
 
 Step 4: message exchange: communicating message availability and interest
-*************************************************************************
+=========================================================================
 
 Two nodes in the network that would like to exchange information about a given
 *subject* get in touch as follows. Each node communicates their special
@@ -131,8 +136,8 @@ chaining approach that defines the final np_subject for a data channel.
    // you could push anything to the np_subject generation ...
 
 
-Step 5: Virtual MX: communicating intent, attributes and availability only
-**************************************************************************
+Step 4a: Virtual MX: communicating intent, attributes and availability only
+-------------------------------------------------------------------------------
 
 When using a virtual communication channel, the user merely send out their
 interest (the intent token) and the corresponding attributes to each peer
@@ -143,8 +148,8 @@ is a virtual data channel, no messages can be send. Even if somebody
 would do so, messages would just be discarded.
 
 
-Step 6: Public MX: open communication channels for groups
-*********************************************************
+Step 4b: Public MX: open communication channels for groups
+-------------------------------------------------------------------------------
 
 This is the usual standard: communicate on a given subject with one or more
 partners. Messages will be group encrypted for the authorized peers in 
@@ -153,8 +158,8 @@ authorized peers, and each node will use a different encryption for its
 messages.
 
 
-Step 6: Protected MX: communicating channel for mutual partners
-***************************************************************
+Step 4c: Protected MX: communicating channel for mutual partners
+-------------------------------------------------------------------------------
 
 The same as a public data channel, with the subtle difference: the audience
 field has to be filled with the fingerprint of a specific peer. The end 
@@ -163,8 +168,8 @@ do not match the fingerprint will not be passed on into the user space
 authorization handler.
 
 
-Step 7: Private MX: untraceable data channels with better access control
-************************************************************************
+Step 4d: Private MX: untraceable data channels with better access control
+-------------------------------------------------------------------------------
 
 First of all a private data channel lets you define a specific authorization 
 handler for each subject (all other modes before use the global authorization 

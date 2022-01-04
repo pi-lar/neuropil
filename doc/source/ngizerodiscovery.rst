@@ -3,8 +3,10 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
-Zero discovery / privacy by design
-==================================
+
+===============================================================================
+Zero Discovery / Privacy by Design
+===============================================================================
 
 
 How do the overlay network and token structures mentioned in the core concepts 
@@ -74,7 +76,7 @@ a set of attributes?
 
 
 Entering the Bloomiverse
-************************
+===============================================================================
 
 A while ago we stumbled upon :ref:`Bloom filter<neuropil_knowhow_bloomfilter>`, which can be
 used to identify a set of entities within a universe. The set of entities (the ones we would
@@ -92,7 +94,7 @@ node/entity/topic could have the same Bloom filter like you).
 
 
 Improvements for neuropil
-*************************
+===============================================================================
 
 We can use this to our advantage for a couple of improvements in neuropil:
 
@@ -135,11 +137,11 @@ We can use this to our advantage for a couple of improvements in neuropil:
 
 
 .. raw:: html
-    :file: ./pheromone.svg
+   :file: ./pheromone.svg
 
 
 First technical design
-**********************
+===============================================================================
 
 .. NOTE::
    The technical design to implement our neuropil bloom filter and the lookup table is work 
@@ -206,7 +208,8 @@ On the next step, we will show you how we can further improve our discovery.
 
 
 What are our nodes actually talking about?
-******************************************
+===============================================================================
+
 
 As shown in the paragraph above the bloom filter give us an different abstraction layer. It allows us to hide
 plaintext values behind bloom filters. On the downside of it is the fact that we now are unable to
@@ -236,19 +239,19 @@ plus a list of required and optional attributes:
 .. code-block:: JSON
 
    {
-     "iss": "a9624ed8",
-     "sub": "048271ba", // this field indicates the topic
-     "iat": 1516239022,
-     „pub“: <binary data>
-     required {
-       „max_size“: 3000,
-       "sessionid": 7201937673920183,
-       "roles": <bf(role)>
-       „usage“: „scientific“
-     }
-     optional {
-       license: „Creative Commons 4.0“
-     } 
+      "iss": "a9624ed8",
+      "sub": "048271ba", // this field indicates the topic
+      "iat": 1516239022,
+      „pub“: <binary data>
+      required {
+         „max_size“: 3000,
+         "sessionid": 7201937673920183,
+         "roles": <bf(role)>
+         „usage“: „scientific“
+      }
+      optional {
+         license: „Creative Commons 4.0“
+      } 
    } + sig
 
 
@@ -335,7 +338,7 @@ and we could establish highly dynamic delivery chains of data objects throughout
 
 
 More than just a bunch of strings
-*********************************
+===============================================================================
 
 In the example above we have only used simple strings for keys and values to illustrate the basic principles.
 In the real world you will have complex structures that need to be compared. For example you could use WS-Policy
@@ -385,7 +388,7 @@ another way to compare a set of words, and the algorithm is called "minhash".
 
 
 Minhashing data structures
-**************************
+===============================================================================
 
 The "minhash" algorithm basically creates a fingerprint of a document. This fingerprint is based on
 the calculation of the minimum hash values for a given input. Defining the input is a bit difficult.
@@ -479,7 +482,7 @@ only those that we are actually interested in.
 
 
 Technical design of the neuropil minhash signatures 
-***************************************************
+===============================================================================
 
 - If the value of an attribute is longer than 64 bytes, then we will create minhash signatures
   to compare against. For required attribute values we can expect a 100% match, for optional attributes
@@ -510,19 +513,15 @@ Technical design of the neuropil minhash signatures
   establish distributed filter sets for each data channels (yay)!
 
 
-
-
 This closes our first part of the NGI Zero Discovery implementation. I hope you found some information
 on this page useful. If you have any questions or comments, please do not hesitate to get in contact 
 with us.
 
 
-
-
 General Remarks
-***************
+===============================================================================
 
-- a 256bit hash of a string is not a good password encoding, i.e. it is not salted!
+- a 256bit hash of a string is not a good password encoding, e.g. it is not salted!
 - we still need to transport public keys for enable trust an confidentiality.
 
 

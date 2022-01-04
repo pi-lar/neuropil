@@ -5,8 +5,9 @@
 
 .. _core_concepts:
 
+===============================================================================
 Core Concepts
-=============
+===============================================================================
 
   *“All non-trivial abstractions, to some degree, are leaky.”*—Joel Spolsky
 
@@ -36,7 +37,7 @@ behavior of neuropil applications.
      by Ben Y. Zhao, John Kubiatowicz, and Anthony D. Joseph (2001)
 
 The Overlay Network
-*******************
+===============================================================================
 
 neuropil decouples routing from the physical network by implementing a
 so-called *overlay network*. In this logical network, the physical network
@@ -85,8 +86,8 @@ advance, but can instead discover them dynamically on demand.
    participate in cooperative routing without risk of confidentiality or
    integrity being compromised.
 
-Tokens
-******
+Token
+===============================================================================
 
 A *token*, sometimes specifically referred to as an *aaatoken*, is a record
 that represents the nodes of a directed acyclic graph. It consists of a number

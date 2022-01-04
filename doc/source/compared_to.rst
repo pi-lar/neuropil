@@ -5,9 +5,9 @@
 
 .. _compared_to:
 
-****************
+===============================================================================
 Comparison Chart
-****************
+===============================================================================
 
 This page gives you a short overview of how we compare the neuropil cybersecurity mesh to some of the other products / 
 standards on the market. It is also meant to give you an overview of existing solutions and/or measures, but you'll 
@@ -15,7 +15,7 @@ soon notice that neuropil cybersecurity mesh draws from many sources and creates
 
 
 Digital Identities
-******************
+===============================================================================
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|               |TCP/TLS|            |WeaveNet|
@@ -46,7 +46,7 @@ SAML / RBAC settings.
 
 
 Authentication
-**************
+===============================================================================
 
 Let's move on to a different topic, the ways to authenticate your partners:
 
@@ -83,7 +83,7 @@ And I just realized a to-do on our side: we need to add a secure remote password
 
 
 Authorization
-*************
+===============================================================================
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
@@ -108,7 +108,7 @@ for trouble. With neuropil you can remote-control those authorizations with a le
 
 
 Transport Encryption
-********************
+===============================================================================
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
@@ -139,7 +139,7 @@ Doing pub/sub with |MQTT| follows later on, and has it's very own quirk.
 
 
 Payload Encryption
-******************
+===============================================================================
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
@@ -158,7 +158,7 @@ All other components leave you in the dark: please use an additional standard ..
 
 
 Message Exchange Pattern
-************************
+===============================================================================
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
@@ -182,7 +182,7 @@ let you define the TLS connection per partner).
 
 
 Protocol Efficiency
-*******************
+===============================================================================
 
 ==================== ====================== ==================== ==================== ====================
 category             neuropil               |MQTT|               |TCP/TLS|            |WeaveNet|
@@ -197,7 +197,7 @@ an extra protocol definition on top (e.g. COAP).
 
 
 Cryptographic Primitives
-************************
+===============================================================================
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
@@ -213,7 +213,7 @@ are also a lot of old protocols implemented (even a NULL cipher).
 
 
 External Dependencies
-*********************
+===============================================================================
 
 ==================== ==================== ==================== ==================== ====================
 category             neuropil             |MQTT|                 |TCP/TLS|              |WeaveNet|
@@ -242,7 +242,7 @@ Neuropil is the only system that doesn't have restrictions for the mentioned top
 
 
 Your Conclusions?
-*****************
+===============================================================================
 
 After having shared our thoughts and insights: Did we leave something unmentioned or would you like to discuss
 some of the details with us? We are open to criticism, suggestions and your feedback! 

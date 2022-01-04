@@ -3,15 +3,21 @@
 ..
   SPDX-License-Identifier: OSL-3.0
 
-.. _protocol_message_structure:
+.. _protocol_msg_structure:
+
+===============================================================================
+Protocol Messages
+===============================================================================
+
+The following chapter gives a brief outline how neuropil messages are constructed and encrypted.
 
 .. note::
    The documentation of the message structure is work in progress. Documentation and implementation will
    change as we progress with a standardization of the neuropil protocol.
 
-   
+
 1024 byte structure of neuropil messages
-****************************************
+===============================================================================
 
 The neuropil cybersecurity mesh uses a layered approach as many other internet protocols
 as well. The general message format consists of seven distinct sections, which are shown below:
@@ -33,7 +39,7 @@ as well. The general message format consists of seven distinct sections, which a
 
 
 Node to node encryption details
-*******************************
+===============================================================================
 
 Messages between two nodes are encrypted with the following pattern, if the payload is already end-to-end encrypted:
 
@@ -63,7 +69,7 @@ Otherwise the transport encryption between two nodes uses the following layout:
 
 
 End to end encryption details
-*****************************
+===============================================================================
 
 The end-to-end encryption covers only the inner part of the message structure:
 
@@ -81,7 +87,7 @@ The end-to-end encryption covers only the inner part of the message structure:
 Even if no transport encryption is applied, the body contents are still safe. Only metadata hash values will be visible.
 
 Key exchange and messages
-*************************
+===============================================================================
 
   *  the n2n key generation is based on the PFS/DHKE by exchanging handshake messages. We plan to extend transport
      encryption with attribute based chained hmac values in the future.
@@ -96,7 +102,7 @@ Key exchange and messages
   *  we voluntarily do not use ratcheting. the possibility to do attribute based encryption brings us a greater benefit.
 
 Message encryption
-******************
+===============================================================================
 
 For the encryption the XCacha20 algorithms are used, for the signature the Poly1305 tags are added to the messages.
 Both are covered in the following libsodium function::
@@ -138,10 +144,11 @@ with:
 
 
 Protocol messages and signed / crypted content details
-******************************************************
+===============================================================================
 
-1.  Handshake message
-*********************
+
+1. Handshake message
+--------------------
 
 Handshake messages are exchanged to establish transport encryption layer.
 
@@ -151,8 +158,8 @@ Handshake messages are exchanged to establish transport encryption layer.
             | n2n crypted  (mlen=0 !!!)                           |
 
 
-2.  Pure node to node messages (join, leave)
-********************************************
+2. Pure node to node messages (join, leave)
+-------------------------------------------
 
 Join and leave messages to inform peers about starting/stopping nodes.
  
@@ -164,7 +171,7 @@ Join and leave messages to inform peers about starting/stopping nodes.
 
 
 3. Pure node to node messages (ping, piggy, ...)
-************************************************
+------------------------------------------------
 
 Simple messages for health-checks and exchange of peer nodes.
 
@@ -178,8 +185,8 @@ Simple messages for health-checks and exchange of peer nodes.
   *note*: node token 'from' header hash value must be used to verify signature of the node
 
 
-4.  forward modified node to node messages (update, ...)
-********************************************************
+4. forward modified node to node messages (update, ...)
+-------------------------------------------------------
 
 Some internal message types are forwarded to additional nodes but require a little modification.
 
@@ -197,8 +204,8 @@ Some internal message types are forwarded to additional nodes but require a litt
   *note*: node token and it's public key has been transmitted in the handshake message
 
 
-5.  Forward unmodified/discovery messages
-*****************************************
+5. Forward unmodified/discovery messages
+----------------------------------------
 
 Specific definition of discovery messages (additional MAC on the body of the message)
 
@@ -211,8 +218,8 @@ Specific definition of discovery messages (additional MAC on the body of the mes
   *  body contains signed message intent token
 
 
-6.  End-to-end encrypted messages
-*********************************
+6. End-to-end encrypted messages
+--------------------------------
 
 .. code-block:: c
 
@@ -222,7 +229,7 @@ Specific definition of discovery messages (additional MAC on the body of the mes
 
 
 Message serialization format
-****************************
+===============================================================================
 
 We use the :term:`msgpack` format to serialize messages. Some parts of the message can still be used directly, as the position
 in the 1024 byte blocks is always is the same. The message object can then be composed of the following parts:
@@ -249,12 +256,12 @@ Right now it is easier to keep msg protocol definitions to ba able to add furthe
 
 
 Message parts details
-*********************
+===============================================================================
 
 The following three sections define each single part of a message.
 
 Message header contents
-***********************
+-----------------------
 
 * `tstamp` | (int = 5 bytes) | int 3 bytes | sent timestamp of message (signed second + unsigned nanoseconds)
 
@@ -303,7 +310,8 @@ in total: 135 bytes
 
 
 Message instructions contents
-*****************************
+-----------------------------
+
 
 `_np.seq` | (uint32_t = 4 bytes) | intermediate node sequence number (always increasing)
 
@@ -334,7 +342,7 @@ Message instructions contents
 
 
 Message mac/nonce details
-*************************
+-------------------------
 
 `_np.nonce` | (24 bytes) | a unique nonce for each single message on the transport
 
