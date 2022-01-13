@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -215,7 +215,7 @@ void np_minhash_push_tree(np_minhash_t* minhash, const np_tree_t* tree, uint8_t 
             else
             {
                 for(uint8_t j = 0; j < _local_shingle_size; j++)
-                {
+                { 
                     strncat(target, val_part[j].str, 512);
                     // fprintf(stdout, "%d / %s:%s --> %s\n", pos, key_part[j].str, val_part[j].str, target);
                 }

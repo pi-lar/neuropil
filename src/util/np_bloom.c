@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include <stdio.h>
@@ -707,6 +707,8 @@ void _np_neuropil_bloom_age_decrement(np_bloom_t* bloom)
 void _np_neuropil_bloom_count_decrement(np_bloom_t* bloom) 
 {
     uint16_t block_size = (bloom->_size*bloom->_d/8);
+
+    if (bloom->_free_items == SCALE3D_FREE_ITEMS) return;
 
     for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k +=2 )
     {

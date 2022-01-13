@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -20,8 +20,8 @@ extern "C" {
 
 #define NEUROPIL_RELEASE	"neuropil_0.11.0"
 
-#define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2021 neuropil.org, Cologne, Germany"
-#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2021 pi-lar GmbH, Cologne, Germany"
+#define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2022 neuropil.org, Cologne, Germany"
+#define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2022 pi-lar GmbH, Cologne, Germany"
 
 
 /* just in case NULL is not defined */
@@ -316,10 +316,8 @@ extern "C" {
 
 /**
 
-
 Initialization
 --------------
-
 
 .. c:type:: void np_context
 

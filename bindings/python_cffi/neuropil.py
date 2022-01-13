@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 from _neuropil import lib as neuropil, ffi
 from typing import Union

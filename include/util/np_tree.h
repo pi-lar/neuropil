@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 // Original version taken from chimera project, copyright (C) 2001 James S. Plank

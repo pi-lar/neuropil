@@ -12,7 +12,7 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 # 
-# SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 # 
 
@@ -62,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'neuropil'
-copyright = u'2016-2021, pi-lar GmbH'
+copyright = u'2016-2022, pi-lar GmbH'
 author = u'pi-lar GmbH'
 
 # The version info for the project you're documenting, acts as replacement for

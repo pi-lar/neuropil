@@ -1,5 +1,5 @@
 ..
-  SPDX-FileCopyrightText: 2016-2021 by pi-lar GmbH
+  SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 ..
   SPDX-License-Identifier: OSL-3.0
 
@@ -19,7 +19,7 @@ year        name                         topic
 2017       @eugenia                     lua binding, documentation, abi design
 2020       @NGIZero                     financial sponsorship of pheromone routingq
                                         discovery and search algorithms
-2021       @NGIAssure                   financial sponsorship of distributed time,
+2022       @NGIAssure                   financial sponsorship of distributed time,
                                         linked-data time-stamping and efficiency measures
 2020       Carolin Zöbelein             math review for probability based routing
                                         development of simulator for pheromone distribution
