@@ -55,20 +55,20 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     entry->protocol = 0;
     entry->port = 0;
 
-    entry->session_key_is_set = false;
+    TSP_INITD(entry->session_key_is_set,false);
 
     entry->last_success = np_time_now();
     entry->success_win_index = 0;
-    entry->_handshake_status = 0;
+    entry->_handshake_status = np_node_status_Disconnected;
 
-    entry->_joined_status = 0;
+    entry->_joined_status = np_node_status_Disconnected;
     entry->handshake_send_at = 0.0;
     entry->join_send_at = 0.0;
     entry->joined_network = false;	
     entry->handshake_priority = randombytes_random();
     entry->connection_attempts = 0;
 
-    entry->next_routing_table_update = 0.0;
+    entry->next_routing_table_update = np_time_now() + MISC_SEND_PIGGY_REQUESTS_SEC;
     entry->is_in_routing_table = false;;
     entry->is_in_leafset = false;
 
@@ -78,16 +78,17 @@ void _np_node_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_
     
     for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
         entry->latency_win[i] = 0.01;
-    entry->latency = 0.01;
+    entry->latency = -1;
 }
 
 void _np_node_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* node)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_node_t_del(void* node){");
     np_node_t* entry = (np_node_t *) node;
-    if (entry->host_key) free (entry->host_key);
-    if (entry->dns_name) free (entry->dns_name);
-    if (entry->port) free (entry->port);
+    if (entry->host_key != NULL) free (entry->host_key);
+    if (entry->dns_name != NULL) free (entry->dns_name);
+    if (entry->port != NULL) free (entry->port);
+    TSP_DESTROY(entry->session_key_is_set);
 }
 
 struct __node_from_string_s {
@@ -122,7 +123,7 @@ struct __node_from_string_s __get_node_details_from_string(np_state_t* context, 
     ret.s_hostname = delimiter[1]+1; *delimiter[1] = '\0';
     ret.s_port     = delimiter[2]+1; *delimiter[2] = '\0';
     
-    log_debug_msg(LOG_DEBUG, "s_hostkey %s / %s / %s / %s", ret.s_dhkey, ret.s_protocol, ret.s_hostname, ret.s_port);
+    log_debug_msg(LOG_SERIALIZATION, "s_hostkey %s / %s / %s / %s", ret.s_dhkey, ret.s_protocol, ret.s_hostname, ret.s_port);
 
     return ret;
 }
@@ -176,16 +177,16 @@ void _np_node_encode_to_jrb (np_tree_t* data, np_key_t* node_key, bool include_s
  **/
 np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 {
-    assert (key != 0);
+    ASSERT (key != NULL,"Cannot decode from null string");
 
     char *key_dup = NULL, *to_parse = NULL;
     key_dup = to_parse = strndup(key, 255);
-    assert (key_dup != NULL);
+    ASSERT (key_dup != NULL, "Could not allocate space to parse string");
 
-    log_debug_msg(LOG_DEBUG, "## now decoding node from key string: %s", key);
+    log_debug_msg(LOG_SERIALIZATION, "## now decoding node from key string: %s", key);
 
     uint16_t iLen = strlen(key);
-    assert (iLen > 0);
+    ASSERT (iLen > 0,"Cannot decode from empty string");
 
     struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, true);
 
@@ -197,8 +198,8 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
 
     if (FLAG_CMP(proto, UNKNOWN_PROTO) || details.s_hostname == NULL || details.s_port == NULL)
     {
-        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s orginal: %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port,to_parse);
-        free(to_parse);
+        log_debug_msg(LOG_ERROR, "error (code: insufficient data) decoding node from token str: %s / %s / %s / %s orginal: %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port,key);
+        free(key_dup);
         return NULL;
     }
 
@@ -206,12 +207,12 @@ np_node_t* _np_node_decode_from_str (np_state_t* context, const char *key)
     np_dhkey_t _null_dhkey = {0};
     np_dhkey_t node_dhkey = np_dhkey_create_from_hash(details.s_dhkey);
     if (_np_dhkey_equal(&_null_dhkey, &node_dhkey)) {
-        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s orginal: %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port,to_parse);
+        log_warn(LOG_SERIALIZATION, "indirect wildcard (code: nullkey) decoding node from token str: %s / %s / %s / %s orginal: %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port,key);
         details.s_dhkey[0] = '*';
         details.s_dhkey[1] = '\0';
     }
 
-    log_debug_msg(LOG_DEBUG, "decoding result node from token str: %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+    log_debug_msg(LOG_SERIALIZATION, "decoding result node from token str: %s / %s : %s : %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
 
     // string encoded data contains key, eventually plus hostname and hostport
     np_node_t* new_node;
@@ -283,15 +284,16 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
     np_ctx_memory(token);
     
     if (FLAG_CMP(token->type, expected_type) == false) {
-        log_debug_msg(LOG_DEBUG, "## decoding node from token str: %s", token->subject);
+        log_debug_msg(LOG_SERIALIZATION, "## decoding node from token str: %s", token->subject);
         return NULL;
     }
 
     char *to_free = NULL, *to_parse = NULL;
-    to_free = to_parse = strndup(&token->subject[strlen(_NP_URN_NODE_PREFIX)-2], 255);
+    char * key = &token->subject[strlen(_NP_URN_NODE_PREFIX)-2];
+    to_free = to_parse = strndup(key, 255);
     // "-2" is an ugly hack to have at least one character in front of the connection string
 
-    log_debug_msg(LOG_DEBUG, "## decoding node from token string: %s", to_parse);
+    log_debug_msg(LOG_SERIALIZATION, "## decoding node from token string: %s", to_parse);
     struct __node_from_string_s details = __get_node_details_from_string(context, to_parse, false);
 
     uint16_t i_host_proto = UNKNOWN_PROTO;
@@ -302,21 +304,27 @@ np_node_t* _np_node_from_token(np_handshake_token_t* token, np_aaatoken_type_e e
 
     if (FLAG_CMP(i_host_proto, UNKNOWN_PROTO) || details.s_hostname == NULL || details.s_port == NULL)
     {
-        log_debug_msg(LOG_ERROR, "error decoding node from token str: %i / %p / %p", i_host_proto, details.s_hostname, details.s_port);
+        log_debug_msg(LOG_ERROR, "error (code: insufficient data/2) decoding node from token str: %i / %s / %s orginal: %s/%s", i_host_proto, details.s_hostname, details.s_port, key,token->subject);
         free(to_parse);
         return NULL;
     }
 
     // key string is not mandatory, could be a wildcard
-    np_dhkey_t _null_dhkey = {0};
     np_dhkey_t node_dhkey = np_dhkey_create_from_hash(details.s_dhkey);
-    if (_np_dhkey_equal(&_null_dhkey, &node_dhkey)) {
-        log_debug_msg(LOG_ERROR, "error decoding node from token str: %s / %s / %s / %s", details.s_dhkey, details.s_protocol, details.s_hostname, details.s_port);
+    if (_np_dhkey_equal(&dhkey_zero, &node_dhkey)) {
+        log_debug_msg(LOG_ROUTING, 
+            "assuming wildcard token. warning (code: nullkey/2) decoding node from token str: %s / %s / %s / %s orginal: %s/%s", 
+            details.s_dhkey,
+            details.s_protocol,
+            details.s_hostname,
+            details.s_port,
+            key,token->subject
+        );
         details.s_dhkey[0] = '*';
         details.s_dhkey[1] = '\0';
     }
 
-    log_debug_msg(LOG_DEBUG, "decodeded node from token: %d/%s:%s", i_host_proto, details.s_hostname, details.s_port);
+    log_debug_msg(LOG_SERIALIZATION, "decodeded node from token: %d/%s:%s", i_host_proto, details.s_hostname, details.s_port);
     
     np_node_t* new_node = NULL;
     np_new_obj(np_node_t, new_node, FUNC);
@@ -377,21 +385,16 @@ sll_return(np_node_ptr) _np_node_decode_multiple_from_jrb (np_state_t* context, 
 
 int _np_node_cmp(np_node_t* a, np_node_t* b) 
 {
-    int ret = ( (a == NULL) || (b == NULL) );
+    int ret = ( (a == NULL) || (b == NULL) ) ? 1 : 0;
     
     if (ret == 0) {
         ret = strcmp(a->dns_name, b->dns_name);
     }
-    else 
-    {
-        if (ret == 0) {
-            ret = strcmp(a->port, b->port);
-        }
-        else {
-            if (ret == 0) {
-                ret = a->protocol == b->protocol;
-            }
-        }
+    if (ret == 0) {
+        ret = strcmp(a->port, b->port);
+    }
+    if (ret == 0) {
+        ret = (a->protocol == b->protocol) ? 0 : 1;
     }
     return ret;
 }
@@ -410,7 +413,7 @@ void _np_node_update (np_node_t* node, enum socket_type proto, char *hn, char* p
 
     if (FLAG_CMP(proto, PASSIVE)) 
     {
-        node->handshake_priority = 0;
+        //node->handshake_priority = 0;
     } 
 }
 

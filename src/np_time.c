@@ -24,6 +24,13 @@ np_module_struct(time)
 double _np_time_force_now() {
     return ev_time();
 }
+
+double _np_time_force_now_nsec() {
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    return ts.tv_sec + (ts.tv_nsec/1000000000.);
+}
+
 bool _np_time_init(np_state_t* context)
 {
     bool ret = false;

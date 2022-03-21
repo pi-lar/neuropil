@@ -59,7 +59,6 @@ Test(np_jobqueue, _np_jobqueue, .description = "test the jobqueue module of the 
 		cr_expect( NULL != context->np_module_jobqueue->job_list, "jobqueue job list should be initialized");
 
 		cr_expect( NULL != context->np_module_jobqueue->job_list->elements, "jobqueue job elements should not be NULL");
-		cr_expect(  512 == context->np_module_jobqueue->job_list->size, "jobqueue size should be 512 elements");
 
 		size_t count = context->np_module_jobqueue->job_list->count;
 		cr_expect( 5 < count < 12, "jobqueue count equals default (number of jobs is %d)", count);

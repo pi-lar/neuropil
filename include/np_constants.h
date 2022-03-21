@@ -13,7 +13,6 @@
 extern "C" {
 #endif
 
-	#define ref_message_in_send_system				"ref_message_in_send_system"
 	#define ref_message_bin_static					"ref_message_bin_static"
 	#define ref_msgpartcache						"ref_msgpartcache"
 	#define ref_state_nodekey						"ref_state_nodekey"
@@ -68,21 +67,23 @@ extern "C" {
 	...
 	99... defines the last job to execute
 	*/
-#define PRIORITY_MOD_HIGHEST (0.0)
 
-#define PRIORITY_MOD_LEVEL_0 (PRIORITY_MOD_HIGHEST)
+#define PRIORITY_MOD_LEVEL_0 (0)
 
-#define PRIORITY_MOD_LEVEL_1 (1.0)
+#define PRIORITY_MOD_LEVEL_1 (1)
 
-#define PRIORITY_MOD_LEVEL_2 (2.0)
+#define PRIORITY_MOD_LEVEL_2 (2)
 
-#define PRIORITY_MOD_LEVEL_3 (3.0)
+#define PRIORITY_MOD_LEVEL_3 (3)
 
-#define PRIORITY_MOD_LEVEL_4 (4.0)
+#define PRIORITY_MOD_LEVEL_4 (4)
 
-#define PRIORITY_MOD_LEVEL_5 (5.0)
-
-#define PRIORITY_MOD_LEVEL_6 (6.0)
+#define NP_PRIORITY_HIGHEST (PRIORITY_MOD_LEVEL_0)
+#define NP_PRIORITY_HIGH    (PRIORITY_MOD_LEVEL_1)
+#define NP_PRIORITY_MEDIUM  (PRIORITY_MOD_LEVEL_2)
+#define NP_PRIORITY_LOW		(PRIORITY_MOD_LEVEL_3)
+#define NP_PRIORITY_LOWEST  (PRIORITY_MOD_LEVEL_4)
+#define NP_PRIORITY_MAX_QUEUES (NP_PRIORITY_LOWEST)
 
 
 /*

@@ -34,6 +34,7 @@ parser.add_argument('-p', nargs='?', default=False, help='port type')
 parser.add_argument('-ps', nargs='?', default=False, help='port type server')
 parser.add_argument('-pc', nargs='?', default=False, help='port type clients')
 parser.add_argument('-s', nargs='?', default=1, help='Statistics View')
+parser.add_argument('--ui_type', nargs='?', default=1, help='UI View')
 parser.add_argument('-b', nargs='?', default=3000, help='Port to start from')
 parser.add_argument('-j', nargs='?', default="", help='Join to ')
 parser.add_argument('--path', nargs='?', default="", help='Path to build folder (shortcut for --bin_path and --lib_path)")')
@@ -106,7 +107,7 @@ else:
             prefix_bootstrap = 'perf record --call-graph dwarf -a '
         if args.lib_path:
             nb.attached_pane.send_keys(f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{args.lib_path}')
-        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.bin_path + f'neuropil_node -b {port} -t {threads} -p {port_type_server}  -d {loglevel} -u {publish_domain} -o {sysinfo} {httpdomain} -s {statistics} {autoclose} ')
+        nb.attached_pane.send_keys("  " + prefix_bootstrap + args.bin_path + f'neuropil_node -y {statistics} -b {port} -t {threads} -p {port_type_server}  -d {loglevel} -u {publish_domain} -o {sysinfo} {httpdomain} -s {args.ui_type} {autoclose} ')
         if args.v or args.vs:
             time.sleep(4)
         else:
@@ -127,7 +128,7 @@ else:
             if args.lib_path:
                 nn.attached_pane.send_keys(f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{args.lib_path}')
             nn.attached_pane.send_keys("  " + ('valgrind --leak-check=full ' if args.v or args.vc else  ('gdb -ex run --args ' if args.g or args.gc else  '')) + args.bin_path +
-            f'neuropil_node -b {node_port} -u {publish_domain} -t {threads} -p {port_type_client} -o {sysinfo_client} -d {loglevel} {join_client} {httpdomain} -e {node_http_port} -s {statistics} {autoclose}')
+            f'neuropil_node -y {statistics} -b {node_port} -u {publish_domain} -t {threads} -p {port_type_client} -o {sysinfo_client} -d {loglevel} {join_client} {httpdomain} -e {node_http_port} -s {args.ui_type} {autoclose}')
 
     if not args.k:
         if args.sd_prometheus:

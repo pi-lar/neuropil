@@ -48,7 +48,7 @@ extern "C" {
         np_ctx_decl(np_ctx_by_memory(a));
 
 
-#define NP_CTX_MODULES route, memory, threads, events, statistics, keycache, http, sysinfo, log, jobqueue, shutdown, bootstrap, time, msgproperties, pheromones, attributes, search, files
+#define NP_CTX_MODULES route, memory, threads, events, statistics, keycache, http, sysinfo, log, jobqueue, shutdown, bootstrap, time, msgproperties, pheromones, attributes, search, files, network
 
 /**
 \toggle_keepwhitespaces
@@ -71,14 +71,14 @@ extern "C" {
         context->np_module_member_name(m) = _module
 
 #define np_module_free(m) 														    \
-        free(context->np_module_member_name(m));                                    \
+        free(_module);                                    \
         context->np_module_member_name(m) = NULL
 
 #define np_module(m) (context->np_module_member_name(m))
 #define np_module_init_null(m) context->np_module_member_name(m) = NULL;
 
-#define np_module_initiated(m) (context->np_module_member_name(m) != NULL)
-#define np_module_not_initiated(m) (context->np_module_member_name(m) == NULL)
+#define np_module_initiated(m) (context != NULL && context->np_module_member_name(m) != NULL)
+#define np_module_not_initiated(m) (context == NULL || context->np_module_member_name(m) == NULL)
 
 #define np_ctx_cast(ac)				\
     assert(ac != NULL);				\
@@ -97,6 +97,7 @@ MAP(np_module_typedef, NP_CTX_MODULES);
 */
 struct np_state_s
 {
+    TSP(bool, _shutdown_started);
     TSP(enum np_status, status);
     struct np_settings* settings;
     //void* modules[np_modules_END];
@@ -112,7 +113,10 @@ struct np_state_s
     np_tree_t* msg_part_cache;
     np_bloom_t* msg_part_filter;
 
+    TSP(np_bloom_t *, msg_forward_filter);
+
     int thread_count;
+    char  hostname[255];
 
     bool enable_realm_server; // act as a realm server for other nodes or not
     bool enable_realm_client; // act as a realm client and ask server for aaatokens

@@ -50,7 +50,7 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port);
     for(																						  \
         uint8_t _CTX_i##__LINE__=0;                                                               \
         (_CTX_i##__LINE__ < 1) && NULL != (ID = _np_test_ctx(NAME, DESC, PORTTYPE, PORT)); 		  \
-        fprintf(stdout, "running test case %s\n", FUNC), fflush(stdout),                          \
+        /*fprintf(stdout, "running test case %s\n", FUNC), fflush(stdout),                          */\
         np_destroy(ID, false),																	  \
         _CTX_i##__LINE__++																		  \
     )																							  \
@@ -77,7 +77,7 @@ np_state_t* _np_test_ctx(char* name, char* desc, char* porttype, int port) {
     ret = np_new_context(settings);
     cr_assert(ret != NULL);
     cr_expect(np_stopped == np_get_status(ret), "np_get_status returned %"PRIu8, np_get_status(ret) );
-    cr_expect(np_ok      == np_listen(ret, porttype, "localhost", port));
+    cr_expect(np_ok      == np_listen(ret, porttype, "localhost", port, NULL));
     cr_expect(np_stopped == np_get_status(ret), "np_get_status returned %"PRIi8, np_get_status(ret) );
     cr_expect(np_ok      == np_run(ret, 0));
     cr_expect(np_running == np_get_status(ret), "np_get_status returned %"PRIi8, np_get_status(ret) );

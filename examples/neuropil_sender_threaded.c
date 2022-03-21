@@ -66,7 +66,7 @@ int main (void)
 
 	   \code
 	 */
-	assert(np_ok == np_listen(ac, "udp4", "localhost", 1234));
+	assert(np_ok == np_listen(ac, "udp4", "localhost", 1234, NULL));
         /**
 	   \endcode
 	*/

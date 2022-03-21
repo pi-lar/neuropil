@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "sodium.h"
 #include "tree/tree.h"
@@ -30,6 +31,7 @@
 #include "np_settings.h"
 #include "np_threads.h"
 #include "np_util.h"
+#include "np_eventqueue.h"
 
 // RB_HEAD(rbt_msgproperty, np_msgproperty_s);
 // RB_PROTOTYPE(rbt_msgproperty, np_msgproperty_s, link, property_comp);
@@ -104,6 +106,32 @@ np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t search_dhk
     return (key);
 }
 
+bool _np_keycache_exists(np_state_t* context, np_dhkey_t search_dhkey, np_key_ro_t * readonly_buffer) {
+
+    bool ret = false;
+    np_key_t* return_key = NULL;
+    np_key_t search_key = { .dhkey = search_dhkey };
+
+    _LOCK_MODULE(np_keycache_t)
+    {
+        return_key = RB_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
+        if (NULL != return_key)
+        {
+            ret = true;
+
+            if(readonly_buffer != NULL){
+                np_ref_obj(np_key_t, return_key, FUNC);
+            }
+        }
+    }
+    if(readonly_buffer != NULL && return_key != NULL){
+        _np_key_readonly_copy(context, readonly_buffer,return_key);
+        np_unref_obj(np_key_t, return_key, FUNC);
+    }
+    return ret;
+
+}
+
 np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey)
 {
     log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
@@ -118,23 +146,6 @@ np_key_t* _np_keycache_create(np_state_t* context, np_dhkey_t search_dhkey)
     _np_keycache_add(context, key);
     
     return key;
-}
-
-bool _np_keycache_contains(np_state_t* context, const np_dhkey_t search_dhkey)
-{
-    bool ret = false;
-    np_key_t* return_key = NULL;
-    np_key_t search_key = { .dhkey = search_dhkey };
-
-    _LOCK_MODULE(np_keycache_t)
-    {
-        return_key = RB_FIND(st_keycache_s, np_module(keycache)->__key_cache, &search_key);
-        if (NULL != return_key)
-        {
-            ret = true;
-        }
-    }
-    return ret;
 }
 
 np_key_t* _np_keycache_find(np_state_t* context, const np_dhkey_t search_dhkey)
@@ -220,7 +231,7 @@ np_key_t* _np_keycache_find_by_details(
     return (ret);
 }
 
-bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t args) 
+bool _np_keycache_exists_state(np_state_t* context, np_util_event_t args) 
 {
     np_key_t *iter = NULL;
     uint16_t i = 0;
@@ -236,12 +247,15 @@ bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t arg
                 _np_dhkey_assign(&np_module(keycache)->_check_state_iterator, &iter->dhkey);
 
             // fast forward to dhkey and then begin to execute state changes
-            if ( (_np_dhkey_equal(&iter->dhkey, &np_module(keycache)->_check_state_iterator) || true == process_state_check) &&
-                 i < _NP_KEYCACHE_ITERATION_STEPS )
-            {
+            if ((
+                    _np_dhkey_equal(&iter->dhkey, &np_module(keycache)->_check_state_iterator) ||
+                    true == process_state_check
+                ) &&
+                i < _NP_KEYCACHE_ITERATION_STEPS 
+            ) {
                 log_debug(LOG_KEYCACHE, "iteration on key %s", _np_key_as_str(iter));
                 process_state_check = true;
-                // log_debug_msg(LOG_DEBUG, "start: void _np_keycache_check_state(...) { %p", iter);
+                // log_trace_msg(LOG_TRACE, "start: void _np_keycache_exists_state(...) { %p", iter);
                 sll_append(np_dhkey_t, tmp_to_transition, iter->dhkey);
 
                 // The following debug message should only be active if we want to debug the state machine
@@ -264,10 +278,17 @@ bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t arg
     }
 
     sll_iterator(np_dhkey_t) transition_iter = sll_first(tmp_to_transition);
+    char buf[100];
     while(transition_iter!=NULL)
     {
-        np_util_event_t noop_event = { .context=context, .type = evt_noop, .user_data=NULL };
-        _np_keycache_handle_event(context, transition_iter->val, noop_event, true);
+        np_util_event_t noop_event = { .type = evt_noop, .user_data=NULL };
+        //_np_event_runtime_add_event(context, args.current_run,  transition_iter->val, noop_event);        
+        _np_event_runtime_start_with_event(context, transition_iter->val, noop_event);
+        /* POSSIBLE ASYNC POINT
+        snprintf(buf, 100, "urn:np:job:event:noop:%s", np_id_str(buf, &transition_iter->val));
+        np_jobqueue_submit_event(context, 0, transition_iter->val, noop_event, buf);
+        */
+
         sll_next(transition_iter);
     }
     sll_free(np_dhkey_t, tmp_to_transition);
@@ -308,25 +329,6 @@ np_key_t* _np_keycache_find_deprecated(np_state_t* context)
     return (return_key);
 }
 
-sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey)
-{
-    np_ctx_memory(forKey);
-    np_sll_t(np_key_ptr, ret) = sll_init(np_key_ptr, ret);
-    np_key_t *iter = NULL;
-    _LOCK_MODULE(np_keycache_t)
-    {
-        RB_FOREACH(iter, st_keycache_s, np_module(keycache)->__key_cache)
-        {
-            if (_np_key_cmp(iter->parent_key, forKey) == 0)
-            {
-                np_ref_obj(np_key_t, iter);
-                sll_append(np_key_ptr, ret, iter);
-            }
-        }
-    }
-    return (ret);
-}
-
 sll_return(np_key_ptr) _np_keycache_get_all(np_state_t* context)
 {
     np_sll_t(np_key_ptr, ret) = sll_init(np_key_ptr, ret);
@@ -354,6 +356,7 @@ np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t search_dhkey)
         if (NULL != rem_key) {
             RB_REMOVE(st_keycache_s, np_module(keycache)->__key_cache, rem_key);
             rem_key->is_in_keycache = false;
+
             np_unref_obj(np_key_t, rem_key, ref_keycache);
             np_module(keycache)->__last_udpate = np_time_now();
         }
@@ -378,20 +381,37 @@ np_key_t* _np_keycache_add(np_state_t* context, np_key_t* subject_key)
     return subject_key;
 }
 
-void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_event_t event, bool force) 
+/**
+ * @brief Execute a event in a given keys context/lock
+ * 
+ * @param context The application Context to work in
+ * @param dhkey The target key to lock
+ * @param event  The event configuration
+ */
+void _np_keycache_execute_event(np_state_t* context, np_dhkey_t dhkey, np_util_event_t event)
 {
-    log_trace_msg(LOG_TRACE, "start: void _np_keycache_handle_event(...){");
+    log_trace_msg(LOG_TRACE, "start: void _np_keycache_execute_event(...){");
 
     np_key_t* key = _np_keycache_find(context, dhkey);
     if (key != NULL)
     {
-        _np_key_handle_event(key, event, force);
+        if (event.type != evt_noop){
+            log_info(LOG_KEYCACHE|LOG_EVENT, "key to handle event_type: %"PRIu8" key_type: %"PRIu32, event.type, key->type);
+        }
+        _np_key_handle_event(key, event);
         np_unref_obj(np_key_t, key, "_np_keycache_find");
     } else {
         if (NULL != event.user_data) {
-            log_debug_msg(LOG_WARN, "event not handled, deleting attached datatype: %u", np_memory_get_type(event.user_data) );
-            //np_memory_unref_obj(context, event.user_data, "");
+            log_debug_msg(LOG_ERROR,
+                "event not handled (eventtype: %"PRIu8", datatype: %"PRId16" keytype: %"PRId16")",
+                event.type, (int16_t) (event.user_data? np_memory_get_type(event.user_data):-1), (int16_t)(key ? key->type:-1)
+            );
+            log_info(LOG_EXPERIMENT,
+                "event not handled (eventtype: %"PRIu8", datatype: %"PRId16" keytype: %"PRId16")",
+                event.type, (int16_t) (event.user_data? np_memory_get_type(event.user_data):-1), (int16_t)(key ? key->type:-1)
+            );
         }
+        log_info(LOG_KEYCACHE|LOG_EVENT, "no key to handle event %"PRIu8, event.type );
     }
 }
 
@@ -421,7 +441,7 @@ np_key_t* _np_keycache_find_closest_key_to (np_state_t* context,  np_sll_t(np_ke
 
     if (sll_size(list_of_keys) == 0)
     {
-        log_msg(LOG_KEY | LOG_WARN, "minimum size for closest key calculation not met !");
+        log_msg(LOG_KEY | LOG_WARNING, "minimum size for closest key calculation not met !");
     }
     return (min_key);
 }
@@ -515,24 +535,7 @@ void _np_keycache_sort_keys_kd (np_sll_t(np_key_ptr, list_of_keys), const np_dhk
 
         }
     } while (swap);
-/*
-#ifdef DEBUG
-    char* str = NULL;
-    char dhkey_str[65] = { 0 };
-    _np_dhkey_str(key, dhkey_str);
-    str = np_str_concatAndFree(str, "Base: %s %"PRIu32" ", dhkey_str, key->t[0]);
-    str = np_str_concatAndFree(str, "DISTANCE SORTED KEYs (key/dist): ");
-
-    curr = sll_first(list_of_keys);
-    while (curr != NULL) {
-        _np_dhkey_distance(&dif1, &curr->val->dhkey, key);
-        _np_dhkey_str(&dif1, dhkey_str);
-        str = np_str_concatAndFree(str, "%s / %s, ", _np_key_as_str(curr->val), dhkey_str);
-        sll_next(curr);
-    }
-    log_debug_msg(LOG_DEBUG, "%s", str);
-    free(str);
-#endif
-*/
 }
+
+
 

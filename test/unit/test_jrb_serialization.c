@@ -274,7 +274,7 @@ Test(test_serialization, np_tree_serialize, .description = "test the serializati
 
 		// np_jrb_t* node = NULL;
 		// cmp_write_array(&cmp_empty, 1);
-		// if (!cmp_write_map(&cmp_empty, test_jrb->size*2 )) log_msg(LOG_WARN, cmp_strerror(&cmp_empty));
+		// if (!cmp_write_map(&cmp_empty, test_jrb->size*2 )) log_msg(LOG_WARNING, cmp_strerror(&cmp_empty));
 		// node = test_jrb;
 		// log_msg(LOG_DEBUG, "for %p; %p!=%p; %p=%p", test_jrb->flink, node, test_jrb, node, node->flink);
 		//	jrb_traverse(node, test_jrb) {

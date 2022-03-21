@@ -26,7 +26,8 @@
 #include "../examples/example_helper.h"
 
 #include "np_conversion.c"
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_jobqueue.h"
 #include "np_key.h"
 #include "np_legacy.h"
@@ -34,7 +35,6 @@
 #include "np_threads.h"
 #include "neuropil_log.h"
 #include "np_log.h"
-#include "np_event.h"
 #include "np_memory.h"
 #include "np_messagepart.h"
 #include "np_statistics.h"
@@ -346,8 +346,9 @@ struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context,
     _np_threads_mutex_init(context, &ret->access, mutex_str);
 
     int h = ud->term_height_bottom, w = width/*140*/, x = 0/*, y = 39*/;
-    ret->win = newwin(h, w, y, x);
-    wbkgd(ret->win, color_pair);
+    ret->win = newwin(h, w, y, x);    
+    ASSERT(OK == wbkgd(ret->win, color_pair),"Could not init window");
+
     scrollok(ret->win, true);
 
     __np_switchwindow_update_buffer(context, ret, "initiated", 0);
@@ -356,14 +357,17 @@ struct __np_switchwindow_scrollable * __np_switchwindow_new(np_context* context,
 }
 
 void __np_switchwindow_del(np_context* context, struct __np_switchwindow_scrollable * self) {
-    example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    free(self->buffer);
-    _LOCK_ACCESS(&self->access) {
-        if (ud->_current == self) ud->_current = NULL;
-        delwin(self->win);
-    }
-    _np_threads_mutex_destroy(context, &self->access);
-    free(self);
+    if(self != NULL) {
+        example_user_context* ud = ((example_user_context*)np_get_userdata(context));
+        assert(ud != NULL);
+        free(self->buffer);
+        _LOCK_ACCESS(&self->access) {
+            if (ud->_current == self) ud->_current = NULL;
+            delwin(self->win);
+        }
+        _np_threads_mutex_destroy(context, &self->access);
+        free(self)
+    ;}
 }
 
 void np_print_startup(np_context*context);
@@ -427,6 +431,11 @@ void np_example_print(np_context * context, FILE * stream, const char * format_i
     }
 }
 
+void np_example_print_console_wrapper(np_context * context, struct np_log_entry e)
+{
+    np_example_print(context, stdout, "%.*s", e.string_length, e.string);
+}
+
 char* np_get_startup_str(np_state_t* context) {
     char* ret = NULL;
     char* new_line = "\n";
@@ -470,15 +479,32 @@ bool __np_example_helper_authorize_everyone (np_context* ac, struct np_token* to
     np_ctx_cast(ac);
     char buffer[65]={0};
     log_error("using DANGEROUS handler (authorize all) to allow authorization for: %s", token->subject );
-    np_example_print(context, stdout, "ALLOW authorize: %s / %s\n", token->subject, np_id_str(buffer, token->issuer));
+
+    char issuer_buffer[65]={0};
+    char token_fp_buffer[65]={0};
+    np_id token_fp;
+    np_token_fingerprint(ac, *token, false, &token_fp);
+    np_example_print(context, stdout, "ALLOW authorize:   issuer: %.10s...  token: %.10s... subject: %s", 
+        np_id_str(issuer_buffer, token->issuer),
+        np_id_str(token_fp_buffer, token_fp),
+        token->subject
+    );
+    
+
     return (true);
 }
-bool __np_example_helper_authenticate_everyone (np_context* ac, struct np_token* token)
+bool __np_example_helper_authenticate_everyone (np_context* ac, struct np_token * token)
 {
     np_ctx_cast(ac);
-    char buffer[65]={0};
-    log_error("using DANGEROUS handler (authorize all) to allow authenticate for: %s", token->subject );
-    np_example_print(context, stdout, "ALLOW authenticate:  %s / %s\n", token->subject, np_id_str(buffer, token->issuer));
+    char issuer_buffer[65]={0};
+    char token_fp_buffer[65]={0};
+    np_id token_fp;
+    np_token_fingerprint(ac, *token, false, &token_fp);
+    np_example_print(context, stdout, "ALLOW authenticate: token: %.10s... issuer: %.10s... subject: %s", 
+        np_id_str(token_fp_buffer, token_fp),
+        np_id_str(issuer_buffer, token->issuer),
+        token->subject
+    );
     return (true);
 }
 bool __np_example_helper_acc_everyone (np_context* ac, struct np_token* token)
@@ -643,7 +669,8 @@ example_user_context* parse_program_args(
     char** j_key,
     char** proto,
     char** port,
-    char** publish_domain,
+    char** hostname,
+    char** dns_name,
     int*  level,
     char** logpath,
     char* additional_fields_desc,
@@ -655,7 +682,7 @@ example_user_context* parse_program_args(
     bool ret = true;
     char* usage;
     asprintf(&usage,
-        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u publish_domain] [-d loglevel] [-l logpath] [-s display 0=Off 1=Console 2=Log 4=Ncurse] [-y statistic types 0=All 1=general 2=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-e http port] [-o sysinfo 0=none,2=server,3=client(default)] [-h description of node] %s",
+        "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) worker_thread_count ] [-u hostname ] [-r dns_name] [-d loglevel] [-l logpath] [-s display 0=Off 1=Ncurse 2=Log 4=Console] [-y statistic types (flag) 0=None 1=All 2=general 4=locks ] [-i identity filename] [-a passphrase for identity file]  [-w http domain] [-e http port] [-o sysinfo 0=none,2=server,3=client(default)] [-h description of node] %s",
         program, additional_fields_desc == NULL ? "" : additional_fields_desc
     );
     char* optstr;
@@ -681,6 +708,7 @@ example_user_context* parse_program_args(
         {
         case 'j':
             *j_key = strdup(optarg);
+            user_context->j_key = *j_key;
             break;
         case 't':
             (*no_threads) = atoi(optarg);
@@ -693,7 +721,10 @@ example_user_context* parse_program_args(
             *proto = strdup(optarg);
             break;
         case 'u':
-            *publish_domain = strdup(optarg);
+            *hostname = strdup(optarg);
+            break;
+        case 'r':
+            *dns_name = strdup(optarg);
             break;
         case 'w':
             user_context->opt_http_domain = strdup(optarg);
@@ -715,6 +746,7 @@ example_user_context* parse_program_args(
             break;
         case 'b':
             *port = strdup(optarg);
+            user_context->port = *port;
             break;
         case 'i':
             user_context->identity_opt_is_set = true;
@@ -767,16 +799,18 @@ example_user_context* parse_program_args(
              | LOG_ROUTING
             // | LOG_HTTP
             // | LOG_KEY
-            //| LOG_NETWORK
-            // | LOG_HANDSHAKE
-             | LOG_AAATOKEN
-             | LOG_MSGPROPERTY
-             | LOG_SYSINFO
+             | LOG_NETWORK
+             //| LOG_HANDSHAKE
+            //| LOG_AAATOKEN
+             //| LOG_MSGPROPERTY
+             //| LOG_SYSINFO
              | LOG_MESSAGE
             // | LOG_SERIALIZATION
             // | LOG_MEMORY
+             | LOG_EXPERIMENT
+             //| LOG_PHEROMONE
             // | LOG_MISC
-            // | LOG_EVENT
+             //| LOG_EVENT
             // | LOG_THREADS
             // | LOG_JOBS
             // | LOG_GLOBAL
@@ -786,10 +820,10 @@ example_user_context* parse_program_args(
             (*level) = LOG_ERROR | log_categories;
         }
         else if ((*level) == -2) { // production server
-            (*level) = LOG_ERROR | LOG_WARN | LOG_INFO | log_categories;
+            (*level) = LOG_ERROR | LOG_WARNING | LOG_INFO | log_categories;
         }
         else if ((*level) <= -3) { // debug
-            (*level) = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | log_categories;
+            (*level) = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | log_categories;
         }
 
         /**
@@ -900,7 +934,7 @@ void __np_example_inti_ncurse(np_context* context) {
             // term_height_bottom = 15
             int term_height_help = 1;
 
-            int term_height_logo = 20;
+            int term_height_logo = 19;
 
             term_width_top_left = fmin(term_current_width, fmax(100, term_current_width - ud->term_width_top_rigth));
             ud->term_width_top_rigth = term_current_width - term_width_top_left;
@@ -916,33 +950,33 @@ void __np_example_inti_ncurse(np_context* context) {
             timeout(0);
             start_color();
 
-            init_pair(1, COLOR_YELLOW, COLOR_BLUE);
-            init_pair(2, COLOR_BLUE, COLOR_YELLOW);
-            init_pair(3, COLOR_WHITE, COLOR_MAGENTA);
-            init_pair(4, COLOR_WHITE, COLOR_BLACK);
+            ASSERT(ERR != init_pair(1, COLOR_YELLOW, COLOR_BLUE),"Could not init color");
+            ASSERT(ERR != init_pair(2, COLOR_BLUE, COLOR_YELLOW),"Could not init color");
+            ASSERT(ERR != init_pair(3, COLOR_WHITE, COLOR_MAGENTA),"Could not init color");
+            ASSERT(ERR != init_pair(4, COLOR_WHITE, COLOR_BLACK),"Could not init color");
 
-            init_pair(5, COLOR_CYAN, COLOR_BLACK);
-            init_pair(6, COLOR_GREEN, COLOR_BLACK);
-            init_pair(7, COLOR_RED, COLOR_BLACK);
+            ASSERT(ERR != init_pair(5, COLOR_CYAN, COLOR_BLACK),"Could not init color");
+            ASSERT(ERR != init_pair(6, COLOR_GREEN, COLOR_BLACK),"Could not init color");
+            ASSERT(ERR != init_pair(7, COLOR_RED, COLOR_BLACK),"Could not init color");
 
             if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_general) == np_stat_general) {
                 ud->__np_top_left_win = newwin(term_height_top_left, term_width_top_left, 0, 0);
-                wbkgd(ud->__np_top_left_win, COLOR_PAIR(1));
+                ASSERT(OK == wbkgd(ud->__np_top_left_win, COLOR_PAIR(1)),"Could not init window");
             }
 
 
             ud->__np_top_logo_win = newwin(term_height_logo, ud->term_width_top_rigth, 0, term_width_top_left);
-            wbkgd(ud->__np_top_logo_win, COLOR_PAIR(4));
+            ASSERT(OK == wbkgd(ud->__np_top_logo_win, COLOR_PAIR(4)),"Could not init window");
 
 #ifdef NP_THREADS_CHECK_THREADING
             if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_locks) == np_stat_locks) {
                 ud->__np_top_right_win = newwin(term_height__top_right, ud->term_width_top_rigth, term_height_logo, term_width_top_left);
-                wbkgd(ud->__np_top_right_win, COLOR_PAIR(2));
+                ASSERT(OK == wbkgd(ud->__np_top_right_win, COLOR_PAIR(2)),"Could not init window");
             }
 #else
             if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_memory) == np_stat_memory) {
                 ud->__np_top_right_win = newwin(term_height__top_right, ud->term_width_top_rigth, term_height_logo, term_width_top_left);
-                wbkgd(ud->__np_top_right_win, COLOR_PAIR(2));
+                ASSERT(OK == wbkgd(ud->__np_top_right_win, COLOR_PAIR(2)),"Could not init window");
             }
 #endif
             // switchable windows
@@ -970,8 +1004,8 @@ void __np_example_inti_ncurse(np_context* context) {
                 }
             }
 
-            ud->__np_bottom_win_help = newwin(term_height_help, term_current_width, term_current_height - term_height_help, 0);
-            wbkgd(ud->__np_bottom_win_help, COLOR_PAIR(4));
+            ud->__np_bottom_win_help = newwin(term_height_help, term_current_width, term_current_height - term_height_help, 0);            
+            ASSERT(OK == wbkgd(ud->__np_bottom_win_help, COLOR_PAIR(4)),"Could not init window");
         }
     }
     else {
@@ -1081,6 +1115,22 @@ void _np_interactive_sysinfo_mode(np_context* context, char* buffer) {
     }
 }
 
+void __np_example_helper_loop_check_join(np_state_t* context, example_user_context* ud) {
+    
+    bool joined = np_has_joined(context);
+    if(joined != ud->join_status)
+    {
+        ud->join_status = joined;
+        np_example_print(context, stdout, "Join status of node changed to %sactive",(joined?"":"in"));
+
+        if(!joined && ud->j_key != NULL){
+            np_example_print(context, stdout, "Rejoining \"%s\"", ud->j_key);
+            if (np_ok != np_join(context, ud->j_key)) {
+                np_example_print(context, stderr, "ERROR: Node could not join");
+            }
+        }
+    }
+}
 void __np_example_helper_loop(np_state_t* context) {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
     if (ud->__np_ncurse_initiated == true && __np_terminal_resize_flag == true) {
@@ -1091,6 +1141,10 @@ void __np_example_helper_loop(np_state_t* context) {
     // Runs only once
     if (ud->started_at == 0) {
         ud->started_at = np_time_now();
+
+        if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
+            context->settings->log_write_fn = np_example_print_console_wrapper;
+        }
         np_example_helper_allow_everyone(context);
         np_shutdown_add_callback(context, example_helper_destroy);
 
@@ -1108,7 +1162,8 @@ void __np_example_helper_loop(np_state_t* context) {
         np_example_print(context, stdout, "Watch internal subjects\n");
         np_statistics_add_watch_internals(context);
     }
-
+    __np_example_helper_loop_check_join(context, ud);
+    
     double sec_since_start = np_time_now() - ud->started_at;
 
     if ((sec_since_start - ud->last_loop_run_at) > ud->output_intervall_sec)
@@ -1278,7 +1333,8 @@ void __np_example_helper_loop(np_state_t* context) {
             if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse) || FLAG_CMP(ud->user_interface, np_user_interface_console)) {
                 memory_str = np_statistics_print(context, false);
 
-                if (memory_str != NULL) {
+                //if (memory_str != NULL) 
+                {
                     if (FLAG_CMP(ud->user_interface, np_user_interface_ncurse)) {
                         unsigned int ev_backends = ev_backend(_np_event_get_loop_in(context));
                         char ev_polls[5];
@@ -1296,7 +1352,14 @@ void __np_example_helper_loop(np_state_t* context) {
 #else
                             "NON DEBUG and NON RELEASE"
 #endif
-                            " (%s)(EV:%s)(FPS: %4.0f / RT: %2.0fms)\n%s ", time, NEUROPIL_RELEASE, ev_polls, (1/ud->output_intervall_sec),ud->input_intervall_sec*1000, memory_str
+                            " (%s)(EV:%s)(FPS: %4.0f / RT: %2.0fms) port:%s\n%s ", 
+                            time, 
+                            NEUROPIL_RELEASE, 
+                            ev_polls, 
+                            (1/ud->output_intervall_sec),
+                            ud->input_intervall_sec*1000,
+                            ud -> port,
+                            memory_str
                         );
                     }
                     if (FLAG_CMP(ud->user_interface, np_user_interface_console)) {
@@ -1331,11 +1394,11 @@ void __np_example_helper_loop(np_state_t* context) {
             else {
                 switch (key) {
                 case 45: // -
-                    ud->output_intervall_sec = MAX(0.001, ud->output_intervall_sec - 0.001);
+                    ud->output_intervall_sec = MAX(0.001, ud->output_intervall_sec /10);
                     ud->input_intervall_sec = ud->output_intervall_sec / 10;
                     break;
                 case 43: // +
-                    ud->output_intervall_sec = MIN(5, ud->output_intervall_sec + 0.001);
+                    ud->output_intervall_sec = MIN(5, ud->output_intervall_sec * 10);
                     ud->input_intervall_sec = ud->output_intervall_sec / 10;
                     break;
                 case KEY_RESIZE:
@@ -1474,7 +1537,7 @@ bool example_http_server_init(np_context* context, char* http_domain, char* http
         }
         ret = _np_http_init(context, http_domain, http_port);
         if (ret == false) {
-            log_msg(LOG_WARN, "Node could not start HTTP interface");
+            log_msg(LOG_WARNING, "Node could not start HTTP interface");
             np_example_print(context, stdout, "Node could not start HTTP interface\n");
         }else{
             log_msg(LOG_INFO, "HTTP interface set to %s:%s", http_domain,http_port);

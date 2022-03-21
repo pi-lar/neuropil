@@ -24,7 +24,8 @@
 
 #include "np_key.h"
 #include "np_keycache.h"
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_threads.h"
 #include "np_legacy.h"
 #include "np_types.h"
@@ -38,7 +39,6 @@
 #include "np_memory.h"
 #include "np_statistics.h"
 
-
 #define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)                 \
     struct ev_loop * __loop_##LOOPNAME;                     \
     ev_idle  __idle_##LOOPNAME;                             \
@@ -51,8 +51,7 @@
 #define __NP_EVENT_EVLOOP_INIT(LOOPNAME)                                                                                 \
     np_module(events)->__loop_##LOOPNAME = ev_loop_new(EVFLAG_AUTO | EVFLAG_FORKCHECK);                                  \
     if (np_module(events)->__loop_##LOOPNAME == false) {                                                                 \
-        fprintf(stderr, "ERROR: cannot init "#LOOPNAME" event loop");                                                    \
-        abort();                                                                                                         \
+        ABORT("ERROR: cannot init "#LOOPNAME" event loop");                                                              \
     }                                                                                                                    \
     ev_async_init (&np_module(events)->__async_##LOOPNAME, async_cb);                                                    \
     ev_async_start(np_module(events)->__loop_##LOOPNAME, &np_module(events)->__async_##LOOPNAME);                        \
@@ -75,8 +74,7 @@
     static void _np_events_idle_##LOOPNAME (NP_UNUSED struct ev_loop *loop, NP_UNUSED ev_idle *w, NP_UNUSED int revents) \
     {                                                                                                                    \
         np_state_t * context = ev_userdata(EV_A);                                                                        \
-        TSP_GET(enum np_status, context->status, state);                                                                 \
-        if(state != np_running) {                                                                                        \
+        if(np_get_status(context) !=  np_running) {                                                                      \
             ev_break (EV_A_ EVBREAK_ALL);                                                                                \
         } else {                                                                                                         \
             ev_sleep(NP_PI/500);                                                                                         \
@@ -91,13 +89,19 @@
     {                                                                                                                    \
         np_state_t * context = ev_userdata(EV_A);                                                                        \
         _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);                                                \
+        if(np_get_status(context) >=  np_shutdown) {                                                                     \
+            ev_break (EV_A_ EVBREAK_ALL);                                                                                \
+        }                                                                                                                \
     }                                                                                                                    \
     void _l_invoke_##LOOPNAME(EV_P)                                                                                      \
     {                                                                                                                    \
         np_state_t * context = ev_userdata(EV_A);                                                                        \
-        if (ev_pending_count (EV_A)) {                                                                                   \
+        while (ev_pending_count (EV_A)) {                                                                                \
             ev_invoke_pending (np_module(events)->__loop_##LOOPNAME);                                                    \
-            _np_threads_module_condition_timedwait(context, np_event_##LOOPNAME##_t_lock, MISC_READ_EVENTS_SEC);         \
+        }                                                                                                                \
+        _np_threads_module_condition_timedwait(context, np_event_##LOOPNAME##_t_lock, NP_EVENT_IO_CHECK_PERIOD_SEC);     \
+        if(np_get_status(context) >=  np_shutdown) {                                                                     \
+            ev_break (EV_A_ EVBREAK_ALL);                                                                                \
         }                                                                                                                \
     }                                                                                                                    \
     bool _np_events_read_##LOOPNAME (np_state_t* context, NP_UNUSED np_util_event_t event)                               \
@@ -116,7 +120,7 @@
             ev_run( EV_A_(0) );                                                                                          \
         }                                                                                                                \
     }                                                                                                                    \
-    void _np_event_##LOOPNAME##_run_triggered(np_state_t *context, NP_UNUSED np_thread_t* thread_ptr)                    \
+    void _np_event_##LOOPNAME##_run_triggered(np_state_t *context, np_thread_t* thread)                    \
     {                                                                                                                    \
         enum np_status tmp_status;                                                                                       \
         EV_P = _np_event_get_loop_##LOOPNAME(context);                                                                   \
@@ -124,6 +128,7 @@
         _LOCK_MODULE(np_event_##LOOPNAME##_t) {                                                                          \
             ev_run( EV_A_(0) );                                                                                          \
         }                                                                                                                \
+        log_info(LOG_THREADS, "thread %"PRIsizet" type %"PRIsizet" stopping ...", thread->id, thread->thread_type);      \
     }                                                                                                                    \
     void _np_event_suspend_loop_##LOOPNAME(np_state_t* context)                                                          \
     {                                                                                                                    \
@@ -145,10 +150,12 @@
     }                                                                                                                    \
     void _np_event_invoke_##LOOPNAME(np_state_t *context)                                                                \
     {                                                                                                                    \
-        _LOCK_MODULE(np_event_##LOOPNAME##_t) {                                                                          \
+        if (0 == _np_threads_trylock_module(context, np_event_##LOOPNAME##_t_lock, "ev_out")) {                          \
             _np_threads_module_condition_signal(context, np_event_##LOOPNAME##_t_lock);                                  \
+            _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);                                            \
         }                                                                                                                \
     }                                                                                                                    \
+
 
 
 np_module_struct(events) {

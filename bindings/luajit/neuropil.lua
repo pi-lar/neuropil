@@ -26,8 +26,8 @@ local function np_assert (result)
    assert(neuropil.np_ok == result, neuropil.np_error_str(result))
 end
 
-function Context:listen (protocol, host, port)
-   np_assert(neuropil.np_listen(self.ac, protocol, host, port or 0))
+function Context:listen (protocol, host, port, dns_name)
+   np_assert(neuropil.np_listen(self.ac, protocol, host, port or 0, dns_name))
 end
 
 function Context:get_address ()

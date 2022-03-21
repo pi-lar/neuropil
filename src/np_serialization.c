@@ -84,7 +84,7 @@ bool _np_buffer_container_reader(struct cmp_ctx_s* ctx, void* data, size_t limit
 
 		ctx->error = 14;// LENGTH_READING_ERROR
 						/*
-		log_msg(LOG_WARN,
+		log_msg(LOG_WARNING,
 			"Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Read size: %zu",
 			wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
 			*/
@@ -114,7 +114,7 @@ bool _np_buffer_container_skipper(struct cmp_ctx_s* ctx, size_t limit)
 	if (nextCount > wrapper->bufferMaxCount) {
 		ctx->error = 14;// LENGTH_READING_ERROR
 						/*
-		log_msg(LOG_WARN,
+		log_msg(LOG_WARNING,
 			"Read size exceeds buffer. May be invoked due to changed key (see: kb) Current size: %zu; Max size: %zu; Skip size: %zu",
 			wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
 			*/
@@ -142,7 +142,7 @@ size_t _np_buffer_container_writer(struct cmp_ctx_s* ctx, const void* data, size
 		count = 0;
 		ctx->error = 15;// LENGTH_WRITING_ERROR
 		/*
-		log_debug_msg(LOG_WARN,
+		log_debug_msg(LOG_WARNING,
 			"Write size exceeds buffer. Current size: %zu; Max size: %zu; Read size: %zu",
 			wrapper->bufferCount, wrapper->bufferMaxCount, nextCount);
 			*/

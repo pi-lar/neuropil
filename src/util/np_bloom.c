@@ -6,7 +6,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include <math.h>
 
@@ -57,7 +59,7 @@ void _np_bloom_free(np_bloom_t* bloom)
 
 void _np_standard_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
 {    
-    if (bloom->_free_items == 0) abort();
+    if (bloom->_free_items == 0){ABORT("");}
     
     for (uint8_t k = 0; k < 8; ++k)
     {
@@ -109,11 +111,11 @@ bool _np_standard_bloom_check(np_bloom_t* bloom, np_dhkey_t id)
 
 bool _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first)
 {
-    assert(first->_type == standard_bf);
-    assert(first->_type == result->_type);
-    assert(first->_size == result->_size);
-    assert(first->_d == result->_d);
-    assert(first->_num_blocks == result->_num_blocks);
+    ASSERT(first->_type == standard_bf,"");
+    ASSERT(first->_type == result->_type,"");
+    ASSERT(first->_size == result->_size,"");
+    ASSERT(first->_d == result->_d,"");
+    ASSERT(first->_num_blocks == result->_num_blocks,"");
 
     // simplified max elements calculation
     result->_free_items = 0; // not altered, we cannot further intersect this filter
@@ -128,14 +130,14 @@ bool _np_standard_bloom_intersect(np_bloom_t* result, np_bloom_t* first)
 
 void _np_standard_bloom_union(np_bloom_t* result, np_bloom_t* first)
 {
-    assert(first->_type == standard_bf);
-    assert(first->_type == result->_type);
-    assert(first->_size == result->_size);
-    assert(first->_d == result->_d);
-    assert(first->_num_blocks == result->_num_blocks);
+    ASSERT(first->_type == standard_bf,"");
+    ASSERT(first->_type == result->_type,"");
+    ASSERT(first->_size == result->_size,"");
+    ASSERT(first->_d == result->_d,"");
+    ASSERT(first->_num_blocks == result->_num_blocks,"");
 
     // simplified max elements calculation
-    assert(first->_free_items + result->_free_items >= result->_size/16);
+    ASSERT(first->_free_items + result->_free_items >= result->_size/16,"");
     result->_free_items += (first->_free_items - result->_size/16);
     
     for (uint16_t k = 0; k < result->_size/8*result->_d; ++k)
@@ -150,6 +152,7 @@ void _np_standard_bloom_clear(np_bloom_t* res)
     // res->_d = 1;
     // res->_p = 0;
     // res->_num_blocks = 1;
+    if(res->_bitset != NULL) free(res->_bitset);
     res->_bitset = calloc(1, (res->_size/8)*res->_d);
     res->_free_items = res->_size * res->_d / 16;
     
@@ -178,8 +181,8 @@ void _np_stable_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
     uint32_t _as_number = 0;
     uint32_t _killed_bits = 0;
     
-    if (bloom->_free_items == 0) abort();
-    
+    if (bloom->_free_items == 0){ABORT("");}    
+
     for (uint8_t p = 0; p < bloom->_p; ++p)
     {
         // shameless stolen from bind9 random() implementation
@@ -368,7 +371,7 @@ void _np_decaying_bloom_decay(np_bloom_t* bloom)
 
 void _np_decaying_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
 {   
-    if (bloom->_free_items == 0) abort();
+    if (bloom->_free_items == 0){ABORT("");}    
     
     for (uint8_t k = 0; k < 8; ++k)
     {
@@ -461,7 +464,7 @@ void _np_counting_bloom_clear(np_bloom_t* res)
 
 void _np_counting_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
 {    
-    if (bloom->_free_items == 0) abort();
+    if (bloom->_free_items == 0){ABORT("");}    
     
     for (uint8_t k = 0; k < 8; ++k)
     {
@@ -484,7 +487,7 @@ void _np_counting_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
 
 void _np_counting_bloom_remove(np_bloom_t* bloom, np_dhkey_t id)
 {    
-    if (bloom->_free_items == 0) abort();
+    if (bloom->_free_items == 0){ABORT("");}    
     
     for (uint8_t k = 0; k < 8; ++k)
     {
@@ -604,7 +607,7 @@ void _np_neuropil_bloom_clear(np_bloom_t* res)
 
 void _np_neuropil_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
 {
-    if (bloom->_free_items == 0) abort();
+    if (bloom->_free_items == 0){ABORT("");}    
 
     uint8_t block_index = 1;
     uint16_t block_size = (bloom->_size*bloom->_d)/8;
@@ -633,7 +636,7 @@ void _np_neuropil_bloom_add(np_bloom_t* bloom, np_dhkey_t id)
 
 void _np_neuropil_bloom_remove(np_bloom_t* bloom, np_dhkey_t id)
 {    
-    if (bloom->_free_items == 0) abort();
+    if (bloom->_free_items == 0){ABORT("");}    
 
     uint8_t block_index = 1;
     uint16_t block_size = (bloom->_size*bloom->_d)/8;
@@ -706,16 +709,16 @@ void _np_neuropil_bloom_age_decrement(np_bloom_t* bloom)
 
 void _np_neuropil_bloom_count_decrement(np_bloom_t* bloom) 
 {
-    uint16_t block_size = (bloom->_size*bloom->_d/8);
+    if (bloom->_free_items < SCALE3D_FREE_ITEMS) {
+        uint16_t block_size = (bloom->_size*bloom->_d/8);
 
-    if (bloom->_free_items == SCALE3D_FREE_ITEMS) return;
-
-    for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k +=2 )
-    {
-        uint8_t* _current_count  = &bloom->_bitset[k+1];
-        if (*_current_count > 0) (*_current_count)--;
+        for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k +=2 )
+        {
+            uint8_t* _current_count  = &bloom->_bitset[k+1];
+            if (*_current_count > 0) (*_current_count)--;
+        }
+        bloom->_free_items++;
     }
-    bloom->_free_items++;
 }
 
 float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
@@ -750,13 +753,13 @@ float _np_neuropil_bloom_get_heuristic(np_bloom_t* bloom, np_dhkey_t id)
 
 bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* to_intersect)
 {
-    assert(result->_type == neuropil_bf);
-    assert(result->_type == to_intersect->_type);
-    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(result->_size == to_intersect->_size);
-    assert(result->_d    == to_intersect->_d);
-    assert(result->_num_blocks == to_intersect->_num_blocks);    
-    assert(to_intersect->_free_items + result->_free_items >= SCALE3D_FREE_ITEMS);
+    ASSERT(result->_type == neuropil_bf,"");
+    ASSERT(result->_type == to_intersect->_type,"");
+    ASSERT(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z,"");
+    ASSERT(result->_size == to_intersect->_size,"");
+    ASSERT(result->_d    == to_intersect->_d,"");
+    ASSERT(result->_num_blocks == to_intersect->_num_blocks,"");
+    ASSERT(to_intersect->_free_items + result->_free_items >= SCALE3D_FREE_ITEMS,"");
 
     result->_free_items = 0; // an intersection cannot be used for further data addition
     uint16_t i = 0;
@@ -778,12 +781,12 @@ bool _np_neuropil_bloom_intersect(np_bloom_t* result, np_bloom_t* to_intersect)
 
 bool _np_neuropil_bloom_intersect_test(np_bloom_t* result, np_bloom_t* to_intersect)
 {
-    assert(result->_type == neuropil_bf);
-    assert(result->_type == to_intersect->_type);
-    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(result->_size == to_intersect->_size);
-    assert(result->_d    == to_intersect->_d);
-    assert(result->_num_blocks == to_intersect->_num_blocks);
+    ASSERT(result->_type == neuropil_bf,"");
+    ASSERT(result->_type == to_intersect->_type,"");
+    ASSERT(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z,"");
+    ASSERT(result->_size == to_intersect->_size,"");
+    ASSERT(result->_d    == to_intersect->_d,"");
+    ASSERT(result->_num_blocks == to_intersect->_num_blocks,"");
 
     uint16_t i = 0, j = 0;
     
@@ -807,12 +810,12 @@ bool _np_neuropil_bloom_intersect_test(np_bloom_t* result, np_bloom_t* to_inters
 
 float _np_neuropil_bloom_intersect_age(np_bloom_t* result, np_bloom_t* to_intersect)
 {
-    assert(result->_type == neuropil_bf);
-    assert(result->_type == to_intersect->_type);
-    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(result->_size == to_intersect->_size);
-    assert(result->_d    == to_intersect->_d);
-    assert(result->_num_blocks == to_intersect->_num_blocks);
+    ASSERT(result->_type == neuropil_bf,"type is %"PRIu8, result->_type);
+    ASSERT(result->_type == to_intersect->_type,"intersect type is %"PRIu8, to_intersect->_type);
+    ASSERT(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z," size is %"PRIsizet, result->_size);
+    ASSERT(result->_size == to_intersect->_size,"intersect size is %"PRIsizet,to_intersect->_size);
+    ASSERT(result->_d    == to_intersect->_d,"");
+    ASSERT(result->_num_blocks == to_intersect->_num_blocks,"");
 
     float ret = 1.0;
     uint8_t i = 0;
@@ -847,13 +850,13 @@ float _np_neuropil_bloom_intersect_age(np_bloom_t* result, np_bloom_t* to_inters
 
 bool _np_neuropil_bloom_intersect_ignore_age(np_bloom_t* result, np_bloom_t* to_intersect)
 {
-    assert(result->_type == neuropil_bf);
-    assert(result->_type == to_intersect->_type);
-    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(result->_size == to_intersect->_size);
-    assert(result->_d    == to_intersect->_d);
-    assert(result->_num_blocks == to_intersect->_num_blocks);    
-    assert(to_intersect->_free_items + result->_free_items >= SCALE3D_FREE_ITEMS);
+    ASSERT(result->_type == neuropil_bf,"");
+    ASSERT(result->_type == to_intersect->_type,"");
+    ASSERT(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z,"");
+    ASSERT(result->_size == to_intersect->_size,"");
+    ASSERT(result->_d    == to_intersect->_d,"");
+    ASSERT(result->_num_blocks == to_intersect->_num_blocks,"");
+    ASSERT(to_intersect->_free_items + result->_free_items >= SCALE3D_FREE_ITEMS,"");
 
     result->_free_items = 0; // an intersection cannot be used for further data addition
     uint16_t i = 0;
@@ -870,14 +873,19 @@ bool _np_neuropil_bloom_intersect_ignore_age(np_bloom_t* result, np_bloom_t* to_
 
 void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* to_add)
 {
-    assert(result->_type == neuropil_bf);
-    assert(result->_type == to_add->_type);
-    assert(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(result->_size == to_add->_size);
-    assert(result->_d    == to_add->_d);
-    assert(result->_num_blocks == to_add->_num_blocks);
-    assert(result->_free_items + to_add->_free_items >= SCALE3D_FREE_ITEMS);
-
+    ASSERT(result->_type == neuropil_bf,"");
+    ASSERT(result->_type == to_add->_type,"");
+    ASSERT(result->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z,"");
+    ASSERT(result->_size == to_add->_size,"");
+    ASSERT(result->_d    == to_add->_d,"");
+    ASSERT(result->_num_blocks == to_add->_num_blocks,"");
+    ASSERT(
+        (
+            (SCALE3D_FREE_ITEMS - result->_free_items) + 
+            (SCALE3D_FREE_ITEMS - to_add->_free_items)
+        )
+        <= SCALE3D_FREE_ITEMS,""
+    );
     result->_free_items = result->_free_items + to_add->_free_items - SCALE3D_FREE_ITEMS;
 
     for (uint16_t k = 0; k < result->_num_blocks*result->_size*result->_d/8; k+=2)
@@ -894,15 +902,14 @@ void _np_neuropil_bloom_union(np_bloom_t* result, np_bloom_t* to_add)
 
 void _np_neuropil_bloom_similarity(np_bloom_t* first, np_bloom_t* second, float* result)
 {
-    assert(first->_type == neuropil_bf);
-    assert(first->_type == second->_type);
-    assert(first->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(first->_size == second->_size);
-    assert(first->_d    == second->_d);
-    assert(first->_num_blocks == second->_num_blocks);
-
-    assert(first->_free_items  <= SCALE3D_FREE_ITEMS);
-    assert(second->_free_items <= SCALE3D_FREE_ITEMS);
+    ASSERT(first->_type == neuropil_bf,"");
+    ASSERT(first->_type == second->_type,"");
+    ASSERT(first->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z,"");
+    ASSERT(first->_size == second->_size,"");
+    ASSERT(first->_d    == second->_d,"");
+    ASSERT(first->_num_blocks == second->_num_blocks,"");
+    ASSERT(first->_free_items  <= SCALE3D_FREE_ITEMS,"");
+    ASSERT(second->_free_items <= SCALE3D_FREE_ITEMS,"");
 
     uint16_t union_count = 0;
     uint16_t intersection_count = 0; // prevent division by zero in line 773
@@ -935,15 +942,14 @@ void _np_neuropil_bloom_similarity(np_bloom_t* first, np_bloom_t* second, float*
 void _np_neuropil_bloom_containment(np_bloom_t* first, np_bloom_t* second, bool* result)
 {   
     // containment only uses the number of query elements (of first) for the union count
-    assert(first->_type == neuropil_bf);
-    assert(first->_type == second->_type);
-    assert(first->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(first->_size == second->_size);
-    assert(first->_d    == second->_d);
-    assert(first->_num_blocks == second->_num_blocks);
-
-    assert(first->_free_items  <= SCALE3D_FREE_ITEMS);
-    assert(second->_free_items <= SCALE3D_FREE_ITEMS);
+    ASSERT(first->_type == neuropil_bf,"");
+    ASSERT(first->_type == second->_type,"");
+    ASSERT(first->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z,"");
+    ASSERT(first->_size == second->_size,"");
+    ASSERT(first->_d    == second->_d,"");
+    ASSERT(first->_num_blocks == second->_num_blocks,"");
+    ASSERT(first->_free_items  <= SCALE3D_FREE_ITEMS,"");
+    ASSERT(second->_free_items <= SCALE3D_FREE_ITEMS,"");
 
     uint16_t union_count = 0;
     uint16_t intersection_count = 0; // prevent division by zero in line 773
@@ -1000,8 +1006,8 @@ void _np_neuropil_bloom_deserialize(np_bloom_t* filter, unsigned char * from, ui
     while (iter != NULL) 
     {
         uint16_t pos = iter->key.value.ui;
-        assert(pos >= 0);
-        assert(pos < filter->_num_blocks*filter->_size*filter->_d/8);
+        ASSERT(pos >= 0,"");
+        ASSERT(pos < filter->_num_blocks*filter->_size*filter->_d/8,"");
         filter->_bitset[pos  ] = (uint8_t) iter->val.value.a2_ui[0];
         filter->_bitset[pos+1] = (uint8_t) iter->val.value.a2_ui[1];
 
@@ -1012,9 +1018,9 @@ void _np_neuropil_bloom_deserialize(np_bloom_t* filter, unsigned char * from, ui
 
 void _np_neuropil_bloom_compress(np_bloom_t* filter, unsigned char** to, size_t* to_size)
 {
-    assert(*to_size == 0   );
-    assert( to      != NULL);
-    assert(*to      == NULL);
+    ASSERT(*to_size == 0   ,"");
+    ASSERT( to      != NULL,"");
+    ASSERT(*to      == NULL,"");
 
     size_t single_entry_size   =  sizeof(uint16_t) + 2*sizeof(uint8_t);
     uint8_t* _compressed_array = NULL;
@@ -1056,12 +1062,12 @@ void _np_neuropil_bloom_compress(np_bloom_t* filter, unsigned char** to, size_t*
 int _np_neuropil_bloom_cmp(np_bloom_t* a, np_bloom_t* b){
     int ret = 0;
 
-    assert(a->_type == neuropil_bf);
-    assert(a->_type == b->_type);
-    assert(a->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z);
-    assert(a->_size == b->_size);
-    assert(a->_d    == b->_d);
-    assert(a->_num_blocks == b->_num_blocks);
+    ASSERT(a->_type == neuropil_bf,"");
+    ASSERT(a->_type == b->_type,"");
+    ASSERT(a->_size == SCALE3D_X*SCALE3D_Y*SCALE3D_Z,"");
+    ASSERT(a->_size == b->_size,"");
+    ASSERT(a->_d    == b->_d,"");
+    ASSERT(a->_num_blocks == b->_num_blocks,"");
 
     for (uint16_t k = 0; k < a->_num_blocks*a->_size*a->_d/8; k+=2)
     {

@@ -17,6 +17,8 @@
 #include "np_keycache.h"
 #include "np_legacy.h"
 #include "neuropil_log.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_log.h"
 #include "np_message.h"
 #include "np_responsecontainer.h"
@@ -24,6 +26,7 @@
 #include "util/np_tree.h"
 #include "np_util.h"
 #include "util/np_event.h"
+#include "np_eventqueue.h"
 
 
 np_module_struct(bootstrap)
@@ -35,7 +38,7 @@ np_module_struct(bootstrap)
 void __np_bootstrap_on_timeout(const np_responsecontainer_t* const entry) 
 {
     // np_ctx_memory(entry);
-    // log_msg(LOG_WARN | LOG_ROUTING, "Bootstrap Node (%s) not reachable anymore. Try to reconnect", _np_key_as_str(entry->dest_dhkey));
+    // log_msg(LOG_WARNING | LOG_ROUTING, "Bootstrap Node (%s) not reachable anymore. Try to reconnect", _np_key_as_str(entry->dest_dhkey));
     // char* reconnect = np_get_connection_string_from(entry->dest_key, true);
     // np_send_join(context, reconnect);
     // free(reconnect);
@@ -57,17 +60,18 @@ bool __np_bootstrap_reconnect(np_state_t* context, NP_UNUSED  np_util_event_t ar
 
                 // issue ping messages
                 np_message_t* msg_out = NULL;
-                np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
+                np_new_obj(np_message_t, msg_out, FUNC);
 
                 np_dhkey_t ping_dhkey = { 0 };
                 np_generate_subject(&ping_dhkey, _NP_MSG_PING_REQUEST, 16);
                 _np_message_create(msg_out, bootstrap_key->dhkey, context->my_node_key->dhkey, ping_dhkey, NULL);
 
                 np_dhkey_t ping_out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, ping_dhkey);
-                np_util_event_t ping_event = { .type=(evt_internal|evt_message), .target_dhkey=bootstrap_key->dhkey, .user_data=msg_out, .context=context };
-                _np_keycache_handle_event(context, ping_out_dhkey, ping_event, false);
+                np_util_event_t ping_event = { .type=(evt_internal|evt_message), .target_dhkey=bootstrap_key->dhkey, .user_data=msg_out};                
+                _np_event_runtime_add_event(context, args.current_run, ping_out_dhkey, ping_event);
+                np_unref_obj(np_message_t, msg_out, FUNC);
 
-                log_debug_msg(LOG_DEBUG, "submitted ping to bootstrap target key %s / %p", _np_key_as_str(bootstrap_key), bootstrap_key);
+                log_debug_msg(LOG_ROUTING, "submitted ping to bootstrap target key %s / %p", _np_key_as_str(bootstrap_key), bootstrap_key);
             }
             iter = RB_NEXT(np_tree_s, np_module(bootstrap)->bootstrap_points, iter);
         }
@@ -92,7 +96,7 @@ bool _np_bootstrap_init(np_state_t* context)
         np_spinlock_unlock(&np_module(bootstrap)->bootstrap_points_lock);
 
         np_jobqueue_submit_event_periodic(context,
-            PRIORITY_MOD_LOWEST, 
+            NP_PRIORITY_LOWEST, 
             NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL, NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL,
             __np_bootstrap_reconnect,
             "__np_bootstrap_reconnect" 

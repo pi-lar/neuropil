@@ -56,7 +56,8 @@ int main(int argc, char **argv)
 	char *j_key = NULL;
 	char* proto = "udp4";
 	char* port = NULL;
-	char* publish_domain = NULL;
+	char* hostname = NULL;
+    char* dns_name = NULL;
 	int level = -2;
 	char* logpath = ".";
 	char* required_nodes_opt = NULL;
@@ -74,7 +75,8 @@ int main(int argc, char **argv)
 		&j_key,
 		&proto,
 		&port,
-		&publish_domain,
+		&hostname,
+        &dns_name,
 		&level,
 		&logpath,
 		"[-n nr_of_nodes] [-z (double|\"default\")speed of node creation] [-k kill a node every x sec]",
@@ -107,10 +109,10 @@ int main(int argc, char **argv)
 	if (true == create_bootstrap) {
 		// Get the current pid and shift it to be a viable port.
 		// This way the application may be used for multiple instances on one system
-		if(publish_domain == NULL)
-			publish_domain = strdup("localhost");
+		if(hostname == NULL)
+			hostname = strdup("localhost");
 
-		bootstrap_hostnode_default = np_build_connection_string("*", proto, publish_domain, port, true);
+		bootstrap_hostnode_default = np_build_connection_string("*", proto, hostname, port, true);
 
 		j_key = bootstrap_hostnode_default;
 
@@ -144,8 +146,8 @@ int main(int argc, char **argv)
 
 			np_context * context = np_new_context(settings);
 			np_set_userdata(context, user_context);
-			if (np_ok != np_listen(context, proto, publish_domain, atoi(port))) {
-				np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
+			if (np_ok != np_listen(context, proto, hostname, atoi(port), dns_name)) {
+				np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, hostname, port);
 				exit(EXIT_FAILURE);
 			}
 
@@ -286,11 +288,12 @@ int main(int argc, char **argv)
 
    				np_context * context = np_new_context(settings);
 				np_set_userdata(context, user_context);
+
 				char* protocols[] = { "udp4", "udp6", "tcp4", "tcp6", "pas4", "pas6" };
     			srand ( atoi(port) );
 				char* choosen_protocol = protocols[rand()%6];
-				if (np_ok != np_listen(context, choosen_protocol, publish_domain, atoi(port))) {
-					np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
+				if (np_ok != np_listen(context, choosen_protocol, hostname, atoi(port), dns_name)) {
+					np_example_print(context, stderr, "ERROR: Node could not listen to %s:%s:%s",proto, hostname, port);
 					exit(EXIT_FAILURE);
 				}
 

@@ -62,6 +62,7 @@ typedef enum np_network_type_e {
 struct np_network_s
 {
     bool initialized;
+    bool is_multiuse_socket;
     int socket;
     ev_io watcher_in;
     ev_io watcher_out;
@@ -87,9 +88,17 @@ struct np_network_s
     np_mutex_t access_lock;
     TSP(bool, can_be_enabled);
 
+    // np_dhkey_t __tcp_alias_dhkey;
+
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_network_t);
+
+ 
+NP_API_INTERN
+bool _np_network_module_init(np_state_t* context);
+NP_API_INTERN
+void _np_network_module_destroy(np_state_t* context);
 
 // parse protocol string of the form "tcp4://..." and return the correct @see socket_type
 NP_API_INTERN
@@ -118,6 +127,9 @@ void _np_network_start(np_network_t* ng, bool force);
 NP_API_INTERN
 bool _np_network_init (np_network_t* network, bool create_socket, enum socket_type type, char* hostname, char* service, int prepared_socket_fd, enum socket_type passive_socket_type);
 
+
+NP_API_INTERN
+bool _np_network_send_data(np_state_t * context, np_network_t* network, void* data_to_send) ;
 /**
  ** _np_network_append_msg_to_out_queue:
  ** Sends a message to host
@@ -135,7 +147,6 @@ NP_API_INTERN
 void _np_network_enable(np_network_t* self);
 NP_API_INTERN
 void _np_network_set_key(np_network_t* self, np_dhkey_t key);
-
 #ifdef __cplusplus
 }
 #endif

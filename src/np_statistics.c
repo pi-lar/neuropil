@@ -72,6 +72,32 @@ bool _np_statistics_receive_msg_on_watched(np_state_t* context, np_util_event_t 
     return true;
 }
 
+
+/*
+ * ggT berechnet den groessten gemeinsamen Teiler
+ * zweier natuerlicher Zahlen nach Euklid.
+ */
+size_t ggT( size_t a, size_t b)
+{
+  size_t c;
+  do
+  {
+    c = a % b;     /* Rest der ganzzahligen Division */
+    a = b; b = c;           /* Vertauschen der Werte */
+  } while( c != 0);
+
+  return a;
+}
+
+/*
+ * kgV berechnet das kleinste gemeinsamen Vielfache
+ * zweier natuerlicher Zahlen mittels ggT.
+ */
+size_t kgV( size_t a, size_t b)
+{
+  return a * b / ggT( a, b);
+}
+
 bool _np_statistics_send_msg_on_watched(np_state_t* context, np_util_event_t event)
 {
     NP_CAST(event.user_data, np_message_t, msg);
@@ -135,6 +161,8 @@ bool _np_statistics_init(np_state_t* context) {
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"network_out_bytes");
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_neighbor_count] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"routing_neighbor_count");
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_routing_route_count] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"routing_route_count");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_pheromones_inhale] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"pheromones_inhale");
+        _module->_prometheus_metrics[np_prometheus_exposed_metrics_pheromones_exhale] = prometheus_register_metric(_module->_prometheus_context, NP_STATISTICS_PROMETHEUS_PREFIX"pheromones_exhale");
 
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_in_per_sec] = prometheus_register_sub_metric_time(_module->_prometheus_metrics[np_prometheus_exposed_metrics_network_in],1);
         _module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out_per_sec] = prometheus_register_sub_metric_time(_module->_prometheus_metrics[np_prometheus_exposed_metrics_network_out],1);
@@ -156,14 +184,14 @@ bool _np_statistics_init(np_state_t* context) {
 #endif
 #ifdef NP_BENCHMARKING
         for(int container_idx = 0; container_idx < np_statistics_performance_point_END; container_idx++){
-            np_statistics_performance_point_t container = _module->performance_points[container_idx];
-            container.durations_idx = 0;
-            container.durations_count = 0;
-            container.hit_count = 0;
+            np_statistics_performance_point_t * container = &_module->performance_points[container_idx];
+            container->durations_idx = 0;
+            container->durations_count = 0;
+            container->hit_count = 0;
             char mutex_str[64];
             snprintf(mutex_str, 63, "urn:np:statistics:%s:%s", "perfpoint", np_statistics_performance_point_str[container_idx]);
-            _np_threads_mutex_init(context, &container.access, mutex_str);
-            container.name = np_statistics_performance_point_str[container_idx];
+            _np_threads_mutex_init(context, &container->access, mutex_str);
+            container->name = np_statistics_performance_point_str[container_idx];
         }
 #endif
         _np_add_http_callback(context, "metrics", htp_method_GET, context, _np_http_handle_metrics);
@@ -175,7 +203,7 @@ void _np_statistics_update(np_state_t* context) {
 }
 bool _np_statistics_enable(np_state_t* context) {
 
-        np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,0.,
+        np_jobqueue_submit_event_periodic(context, NP_PRIORITY_LOWEST,0.,
                                           NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL,
                                           __np_statistics_gather_data_clb,
                                           "__np_statistics_gather_data_clb");
@@ -541,26 +569,29 @@ char* np_statistics_print(np_state_t* context, bool asOneLine)
                 current_sec_received = container->last_sec_received;
                 current_sec_send = container->last_sec_send;
             }
+            char subject_buffer[65]={0};
+            np_regenerate_subject(context, subject_buffer, 65, &iter_subjects->val);
 
             // per sec calc end
             if (container->watch_receive) {
                 all_total_received += container->total_received;
                 ret = np_str_concatAndFree(ret,
-                    "received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %08x:%08x %s",
+                    "received total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
                     container->total_received,
                     current_sec_received, container->last_secdiff_received,
                     current_min_received, container->last_mindiff_received,
-                    iter_subjects->val.t[0], iter_subjects->val.t[1], new_line);
+                    subject_buffer, new_line);
             }
 
             if (container->watch_send) {
                 all_total_send += container->total_send;
                 ret = np_str_concatAndFree(ret,
-                    "send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %08x:%08x%s",
+                    "send     total: %7"PRIu32" (%5.1f[%+5.1f] per sec) (%7.1f[%+7.1f] per min) %s%s",
                     container->total_send,
                     current_sec_send, container->last_secdiff_send,
                     current_min_send, container->last_mindiff_send,
-                    iter_subjects->val.t[0], iter_subjects->val.t[1], new_line
+                    subject_buffer,                    
+                    new_line
                 );
             }
             container->last_total_received = container->total_received;
@@ -589,16 +620,33 @@ char* np_statistics_print(np_state_t* context, bool asOneLine)
     snprintf(tmp_format, 512, "%-17s %%%"PRId32""PRIu32" Identity: %%s%%s", "send     total:", tenth);
     ret = np_str_concatAndFree(ret, tmp_format, all_total_send, ((context->my_identity == NULL) ? "-" : _np_key_as_str(context->my_identity)), new_line);
 
-    snprintf(tmp_format, 512, "%-17s %%%"PRId32""PRIu32" Jobs:     %%"PRIu32" Forwarded Msgs: %%8.0f%%s", "total:", tenth);
+    snprintf(tmp_format, 512, "%-17s %%%"PRId32""PRIu32" Jobs:     %%4"PRIu32" Forwarded Msgs: %%8.0f Pheromones inhale: %%8.0f exhale: %%8.0f (%%3.1f:%%-3.1f)%%s", "total:", tenth);
     
-     double __fw_counter_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs]);
+    double __fw_counter_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs]);
+    double __pheromones_inhale_counter_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_pheromones_inhale]);
+    double __pheromones_exhale_counter_r = prometheus_metric_get(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_pheromones_exhale]);
 
+    size_t __pheromones_ggt = 1;
+    double __pheromones_factor_inhale  = 0;
+    double __pheromones_factor_exhale  = 0;
+    if(__pheromones_inhale_counter_r > 0 && __pheromones_exhale_counter_r>0){
+        //__pheromones_ggt = ggT(__pheromones_inhale_counter_r, __pheromones_exhale_counter_r);
+        double __pheromones_factor  = MIN(__pheromones_exhale_counter_r , __pheromones_inhale_counter_r);
+        __pheromones_factor_exhale  = (__pheromones_exhale_counter_r /__pheromones_factor);
+        __pheromones_factor_inhale  = (__pheromones_inhale_counter_r / __pheromones_factor);
+    }
+     
     ret = np_str_concatAndFree(ret,
         tmp_format,
         all_total_send + all_total_received,
         np_jobqueue_count(context),
         __fw_counter_r,
-        new_line);
+        __pheromones_inhale_counter_r,
+        __pheromones_exhale_counter_r,
+        __pheromones_factor_inhale,
+        __pheromones_factor_exhale,
+        new_line
+    );
 
     snprintf(tmp_format, 512, "%-17s %%"PRIu32"%%s", "Reachable nodes:");
     ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/"  ");
@@ -645,6 +693,18 @@ void __np_increment_forwarding_counter(np_state_t* context, NP_UNUSED np_dhkey_t
         prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_forwarded_msgs], 1);
     }
 }
+
+void __np_statistics_increment_pheromones_inhale(np_state_t* context){
+    if (np_module_initiated(statistics)) {
+        prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_pheromones_inhale], 1);
+    }
+}
+void __np_statistics_increment_pheromones_exhale(np_state_t* context){
+    if (np_module_initiated(statistics)) {
+        prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_pheromones_exhale], 1);
+    }
+}
+
 void __np_increment_received_msgs_counter(np_state_t* context, np_dhkey_t subject){
 if (np_module_initiated(statistics)) {
         prometheus_metric_inc(np_module(statistics)->_prometheus_metrics[np_prometheus_exposed_metrics_received_msgs], 1);
@@ -695,11 +755,16 @@ char* __np_statistics_debug_print(np_state_t * context) {
     _LOCK_MODULE(np_utilstatistics_t) {
         sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
 
-        ret = np_str_concatAndFree(ret, "%85s --> %8s / %8s / %8s / %10s \n", "name", "min", "avg", "max", "hits");
+        ret = np_str_concatAndFree(ret, 
+            "%100s --> %8s / %8s / %8s / %10s \n", 
+            "name", "min", "avg", "max", "hits"
+        );
         while (iter != NULL) {
             _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;
-            ret = np_str_concatAndFree(ret, "%x%x%x%x --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
-                item->key[0], item->key[1], item->key[2], item->key[3], item->min, item->avg, item->max, item->count);
+            ret = np_str_concatAndFree(ret, 
+                "%100.255s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
+                item->key, item->min, item->avg, item->max, item->count
+            );
             sll_next(iter);
         }
     }
@@ -719,7 +784,7 @@ _np_statistics_debug_t* _np_statistics_debug_add(np_state_t * context, char* key
             item->min = DBL_MAX;
             item->max = 0;
             item->avg = 0;
-            memcpy(item->key, key, strnlen(key, 254));
+            strncpy(item->key, key, 254);
             char mutex_str[64];
             snprintf(mutex_str, 63, "%s", "urn:np:statistics:access");
             _np_threads_mutex_init(context, &item->lock, mutex_str);

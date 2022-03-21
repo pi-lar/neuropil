@@ -9,6 +9,11 @@
 #define _NP_INTERFACE_H_
 
 #ifndef _NP_DO_NOT_USE_DEFAULT_H_FILES
+
+#ifdef DEBUG 
+   #include <execinfo.h>
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -135,6 +140,17 @@ extern "C" {
     // otherwise the same as np_get_id
     enum np_return np_generate_subject(np_subject (*subject_id), const char* subject, size_t length);
 
+   enum np_return np_regenerate_subject(np_context* ac, const char * subject_buffer, size_t buffer_length, np_subject * subject);
+
+    struct np_log_entry {
+      char * string;
+      size_t string_length;
+      double timestamp;
+      char level[20];
+    } NP_PACKED(1);
+
+    typedef void (*np_log_write_callback)(np_context* ac, struct np_log_entry entry);
+
     struct np_token {
         char uuid[NP_UUID_BYTES];
         char subject[255];
@@ -167,7 +183,9 @@ extern "C" {
         char log_file[256];
         uint32_t log_level;
         uint8_t leafset_size;
-        uint16_t jobqueue_size;
+        np_log_write_callback log_write_fn;
+        size_t jobqueue_size;
+        size_t max_msgs_per_sec;
         // ...
     } NP_PACKED(1);
 
@@ -194,10 +212,9 @@ extern "C" {
    enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
 
    NP_API_EXPORT
-   enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
-
+   enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port, const char * dns_name) ;
    NP_API_EXPORT
-   enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) ;
+   enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
 
    // Get “connect string”. Signals error if connect string is unavailable (i.e.,
    // no listening interface is configured.)
@@ -300,6 +317,8 @@ extern "C" {
    NP_API_EXPORT
       bool np_id_equals(np_id first, np_id second);
 
+   NP_API_EXPORT
+      uint32_t np_get_route_count(np_context* ac);
 #ifdef __cplusplus
 }
 #endif
@@ -402,8 +421,7 @@ Identity management
 Starting up
 -----------
 
-
-.. c:function:: enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port)
+.. c:function:: enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port, const char * dns_name)
 
    Binds a neuropil application context to a listening address.
 
@@ -411,6 +429,7 @@ Starting up
    :param protocol: a string denoting the underlying protocol to be used. Currently, only `"udp4"` is supported.
    :param host: the hostname to listen on. I.e., `"localhost"` to listen on the loopback interface.
    :param port: the port to listen on. If *port* is zero, the default port 3141 is used.
+   :param dns_name: the dns name to publish, same as hostname if NULL.
    :return:        :c:data:`np_ok` on success.
 
    ===============================  ===========================================

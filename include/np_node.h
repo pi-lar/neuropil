@@ -24,15 +24,13 @@ extern "C" {
 #endif
 
 	enum np_node_status {
-		np_status_Disconnected    = 0,
-		np_status_SelfInitiated   = 1,
-		np_status_RemoteInitiated = 1,
-		np_status_Connected       = 2,
+		np_node_status_Disconnected    		= 0,
+		np_node_status_Initiated   	   		= 1,
+		np_node_status_Connected       		= 2,
 	};
 	static const char* np_node_status_str[] = {
 		"Disconnected",
-		"SelfInitiated",
-		"RemoteInitiated",
+		"Initiated",
 		"Connected",
 	};
 
@@ -56,7 +54,7 @@ struct np_node_s
 	uint8_t connection_attempts;
 
 	np_crypto_session_t session;
-	bool session_key_is_set;
+	TSP(bool, session_key_is_set);
 
 	double next_routing_table_update;
 	bool is_in_routing_table;
@@ -75,7 +73,7 @@ struct np_node_s
 
 	// load average of the node
 	float load;
-
+	
 } NP_API_INTERN;
 
 // generate new and del method for np_node_t

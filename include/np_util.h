@@ -52,20 +52,38 @@ extern "C" {
 #define STRINGIFY(x) #x
 #define TO_STRING(x) STRINGIFY(x)
 
-#ifdef DEBUG
-#define ASSERT(expression, onfail_msg, ...)												\
-	if(!(expression)){																	\
-		fprintf(stderr, "Assert ERROR: "onfail_msg"\r\n", ##__VA_ARGS__);				\
-		fflush(NULL);																	\
-		assert((expression));															\
-	}
+#define ABORT(onfail_msg, ...) {													\
+	fprintf(stderr, "Abort ERROR in %s: "onfail_msg"\n",FUNC, ##__VA_ARGS__);		\
+	fflush(NULL);																	\
+	abort();																		\
+}
+#ifdef DEBUG 
+#define PRINT_BACKTRACE()                                                               \
+		int nptrs;																		\
+		void *buffer[100];																\
+		char **strings;																	\
+		nptrs = backtrace(buffer, 100);													\
+		printf("backtrace() returned %d addresses\n", nptrs);							\
+		strings = backtrace_symbols(buffer, nptrs);										\
+		if (strings == NULL) {															\
+			perror("backtrace_symbols");												\
+			fflush(NULL);																\
+			exit(EXIT_FAILURE);															\
+		}																				\
+		for (int j = 0; j < nptrs; j++)													\
+			fprintf(stderr, "%s\n", strings[j]);										\
+		free(strings);																	\
+		fflush(NULL);																	
 #else
+	#define PRINT_BACKTRACE()
+#endif
+
 #define ASSERT(expression, onfail_msg, ...)												\
 	if (!(expression)) {																\
-			log_debug_msg(LOG_ERROR, onfail_msg, ##__VA_ARGS__);						\
+		fprintf(stderr, "Assert ERROR: "onfail_msg"\n", ##__VA_ARGS__);					\
+		PRINT_BACKTRACE();																\
 	}                                                                                   \
 	assert(expression);
-#endif
 
 #ifndef MAX
 	#define MAX(a, b) ((a) > (b) ? (a) : (b))

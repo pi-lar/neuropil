@@ -32,7 +32,7 @@
 #include "unit/test_statemachine.c"
 #include "unit/test_pheromone.c"
 
-#include "unit/test_m_jobqueue.c"
+//#include "unit/test_m_jobqueue.c" // TODO: does currently not hold any meaningful test
 #include "unit/test_m_identity.c"
 #include "unit/test_neuropil_data.c"
 

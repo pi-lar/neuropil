@@ -19,6 +19,7 @@ int main (void)
 {
 	struct np_settings cfg;
 	np_default_settings(&cfg);
+	strncpy(cfg.log_file, "controller.log", 255);
 
 	np_context *ac = np_new_context(&cfg);
 
@@ -41,7 +42,7 @@ int main (void)
 
 	   \code
 	*/
-	assert(np_ok == np_listen(ac, "udp4", "localhost", 2345));
+	assert(np_ok == np_listen(ac, "udp4", "localhost", 2345, NULL));
 	/**
 	   \endcode
 

@@ -16,7 +16,8 @@
 
 #include "neuropil.h"
 #include "np_dhkey.h"
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_glia.h"
 #include "np_http.h"
 #include "np_jobqueue.h"
@@ -410,7 +411,7 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
             else {
                 // we may need to wait for the output buffer to be free
                 if(EAGAIN != errno){
-                    log_msg(LOG_HTTP | LOG_WARN, "Sending http data error. %s", strerror(errno));
+                    log_msg(LOG_HTTP | LOG_WARNING, "Sending http data error. %s", strerror(errno));
                     retry++;
                 }
             }
@@ -420,7 +421,7 @@ void _np_http_write_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int even
             log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http body success");
         }
         else {
-            log_msg(LOG_HTTP | LOG_WARN, "send http body NO success (%"PRIu32"/%"PRIu32")", bytes_send, s_contentlength);
+            log_msg(LOG_HTTP | LOG_WARNING, "send http body NO success (%"PRIu32"/%"PRIu32")", bytes_send, s_contentlength);
         }
 
         if (client->ht_response.cleanup_body) {
@@ -471,7 +472,7 @@ void _np_http_read_callback(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event
         }
 
     } else {
-        // log_debug_msg(LOG_DEBUG, "local http status now %d, but should be %d or %d",
+        // log_debug_msg(LOG_MISC, "local http status now %d, but should be %d or %d",
         // np_module(http)->status, CONNECTED, REQUEST);
     }
 }
@@ -514,7 +515,7 @@ void _np_http_accept(struct ev_loop* loop, NP_UNUSED ev_io* ev, NP_UNUSED int ev
         if (new_client->client_fd < 0) {
             free(new_client);
 
-            log_msg(LOG_HTTP | LOG_WARN, "Could not accept http connection. %s", strerror(errno));
+            log_msg(LOG_HTTP | LOG_WARNING, "Could not accept http connection. %s", strerror(errno));
         }
         else {
             sll_append(np_http_client_ptr, np_module(http)->clients, new_client);
@@ -577,7 +578,7 @@ void _np_http_module_init(np_state_t* context){
         CHECK_MALLOC(_module);
 
         _module->user_hooks = np_tree_create();
-        _module->network == NULL;
+        _module->network = NULL;
 
 
         _module->hooks = (htparse_hooks*) malloc(sizeof(htparse_hooks));
@@ -605,9 +606,10 @@ void _np_http_module_init(np_state_t* context){
     }
 }
 
-bool _np_http_init(np_state_t* context, char* domain, char* port)
+bool _np_http_init(np_state_t* context, char* in_domain, char* port)
 {
-    if (domain == NULL) {
+    char* domain = in_domain;
+    if (in_domain == NULL) {
         domain = strdup("localhost");
     }
 
@@ -639,6 +641,11 @@ bool _np_http_init(np_state_t* context, char* domain, char* port)
         _module->network->watcher_in.data = _module;
         ev_io_start(EV_A_&_module->network->watcher_in);
         _np_event_resume_loop_http(context);
+
+        np_jobqueue_submit_event_periodic(context, NP_PRIORITY_LOWEST, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
+    }
+    if (in_domain == NULL) {
+        free(domain);
     }
     return true;
 }
@@ -647,11 +654,13 @@ void _np_http_destroy(np_state_t* context)
 {
     if (np_module_initiated(http))
     {
+        np_module_var(http);
+
         EV_P = _np_event_get_loop_http(context);
         _np_event_suspend_loop_http(context);
-        ev_io_stop(EV_A_&np_module(http)->network->watcher_in);
+        ev_io_stop(EV_A_&_module->network->watcher_in);
 
-        sll_iterator(np_http_client_ptr) iter = sll_first(np_module(http)->clients);
+        sll_iterator(np_http_client_ptr) iter = sll_first(_module->clients);
         while(iter != NULL)
         {
             np_http_client_t* client = iter->val;
@@ -676,16 +685,16 @@ void _np_http_destroy(np_state_t* context)
             free(client);
             sll_next(iter);
         }
-        sll_free(np_http_client_ptr, np_module(http)->clients);
+        sll_free(np_http_client_ptr, _module->clients);
 
         _np_event_resume_loop_http(context);
 
-        np_tree_free( np_module(http)->user_hooks);
+        np_tree_free( _module->user_hooks);
 
         free(np_module(http)->hooks);
 
         // _np_network_disable(np_module(http)->network);
-        np_unref_obj(np_network_t, np_module(http)->network, ref_obj_creation);
+        np_unref_obj(np_network_t, _module->network, ref_obj_creation);
         // np_module(http)->network->watcher_in.data = NULL;
 
         np_module_free(http);

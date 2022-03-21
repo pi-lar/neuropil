@@ -92,7 +92,7 @@ Test(np_route_t, _route_create, .description = "test the insert of keys into the
 
 
 		// TODO: seems to run forever with no check for i :-/ better reduce the loglevel to save my laptop
-		np_log_setlevel(context, LOG_ERROR | LOG_WARN | LOG_ROUTING | LOG_DEBUG | LOG_INFO | LOG_MEMORY);
+		np_log_setlevel(context, LOG_ERROR | LOG_WARNING | LOG_ROUTING | LOG_DEBUG | LOG_INFO | LOG_MEMORY);
 		// TODO: check whether routing table implementation is correct
 		// even with 4M generated dhkeys there are only 55 entries in the table ...
 		uint64_t i = 0;

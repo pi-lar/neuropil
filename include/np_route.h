@@ -61,6 +61,9 @@ sll_return(np_key_ptr) _np_route_neighbors (np_state_t* context);
  **/
 NP_API_INTERN
 sll_return(np_key_ptr) _np_route_row_lookup (np_state_t* context, np_dhkey_t dhkey);
+NP_API_INTERN
+sll_return(np_key_ptr) _np_route_neighbour_lookup (np_state_t* context, np_dhkey_t dhkey);
+
 
 /** route_get_table:
  ** returns all the entries in the routing table in an array of ChimeraHost.
@@ -84,6 +87,9 @@ NP_API_INTERN
 uint32_t _np_route_my_key_count_neighbors(np_state_t* context, uint32_t* left, uint32_t* right);
 NP_API_INTERN
 np_key_t* _np_route_get_key(np_state_t* context);
+NP_API_INTERN
+bool __np_route_periodic_log(np_state_t* context, NP_UNUSED np_util_event_t event);
+
 #ifdef __cplusplus
 }
 #endif

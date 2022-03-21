@@ -193,7 +193,7 @@ bool _np_in_sysinfo(np_state_t* context, struct np_message* msg)
     np_tree_elem_t* source = np_tree_find_str(&payload, _NP_SYSINFO_SOURCE);
     if (NULL == source)
     {
-        log_msg(LOG_WARN | LOG_SYSINFO,
+        log_msg(LOG_WARNING | LOG_SYSINFO,
                 "received sysinfo request w/o source key information.");
         return false;
     }
@@ -349,6 +349,30 @@ np_tree_t* _np_sysinfo_get_from_cache(np_state_t* context, const char* const has
     return ret;
 }
 
+
+void _np_sysinfo_cache_interval(np_state_t* context)
+{
+    bool clean = false;
+    _LOCK_MODULE(np_sysinfo_t)
+    {
+        do{
+            clean = false;
+            np_tree_elem_t* iter = RB_MIN(np_tree_s, np_module(sysinfo)->_cache);
+            while (iter != NULL) {
+                if (iter->val.value.tree != NULL) {
+                    np_tree_elem_t* ts = np_tree_find_str(iter->val.value.tree, _NP_SYSINFO_MY_NODE_TIMESTAMP);
+                    if(np_time_now() > (ts->val.value.d + (SYSINFO_PROACTIVE_SEND_IN_SEC*3))){
+                        RB_REMOVE(np_tree_s, np_module(sysinfo)->_cache, iter);
+                        clean = true;
+                        break;
+                    }
+                }
+                iter = RB_NEXT(np_tree_s, np_module(sysinfo)->_cache, iter);
+            }
+        } while(clean);
+    }
+}
+
 np_tree_t* np_sysinfo_get_all(np_state_t* context)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");
@@ -360,6 +384,8 @@ np_tree_t* np_sysinfo_get_all(np_state_t* context)
 
     np_tree_insert_int( ret, count++, np_treeval_new_tree(tmp));
     np_tree_free( tmp);
+
+    _np_sysinfo_cache_interval(context);
 
     _LOCK_MODULE(np_sysinfo_t)
     {

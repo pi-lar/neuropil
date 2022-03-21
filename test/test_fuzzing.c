@@ -18,11 +18,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
     struct np_settings* settings = np_default_settings(NULL);
     snprintf(settings->log_file, 256, "./logs/neuropil_fuzzing.log");
-    settings->log_level = LOG_DEBUG | LOG_INFO | LOG_WARN | LOG_ERROR;
+    settings->log_level = LOG_DEBUG | LOG_INFO | LOG_WARNING | LOG_ERROR;
     settings->n_threads = 1;
 
     ctx = np_new_context(settings);
-    np_listen(ctx, "udp4", "localhost", 5555);
+    np_listen(ctx, "udp4", "localhost", 5555,NULL);
 
     char* input_string = malloc(sizeof(char)*Size+1);
     memcpy(input_string, Data, Size);

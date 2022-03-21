@@ -43,7 +43,7 @@ extern "C" {
         typedef struct TYPE##_binheap_node_s TYPE##_binheap_node_t;                                             \
         struct TYPE##_binheap_node_s {                                                                          \
             uint16_t id;                                                                                        \
-            uint16_t priority;                                                                                  \
+            size_t priority;                                                                                  \
             bool sentinel;                                                                                      \
             TYPE data;                                                                                          \
         };                                                                                                      \
@@ -66,7 +66,7 @@ extern "C" {
         void               TYPE##_binheapify(TYPE##_binheap_t* heap, uint16_t i);                               \
         bool               TYPE##_binheap_compare_priority(TYPE##_binheap_node_t* i, TYPE##_binheap_node_t* j); \
         extern bool        TYPE##_compare(TYPE i, TYPE j);                                                      \
-        extern uint16_t    TYPE##_binheap_get_priority(TYPE element);                                           \
+        extern size_t    TYPE##_binheap_get_priority(TYPE element);                                           \
         extern uint16_t    TYPE##_binheap_get_id(TYPE element);                                                 \
 
 

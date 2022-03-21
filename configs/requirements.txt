@@ -13,3 +13,4 @@ Jinja2
 requests
 twine
 cryptography
+gprof2dot==2021.2.21

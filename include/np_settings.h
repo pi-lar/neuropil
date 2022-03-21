@@ -26,14 +26,19 @@ extern "C" {
      - NP_STATISTICS                    enables all of the following NP_STATISTICS* switches
      - NP_STATISTICS_COUNTER			in/out bytes, forwarding counter statistics
      - NP_STATISTICS_THREADS			thread statistics
+     - CATCH_SEGFAULT                   Caches an segfault signal and tries to print a backtrace for further debugging
+     - CONSOLE_BACKUP_LOG               Logs entries to console if no log system is available
 */
 #ifdef DEBUG
     #define DEBUG_CALLBACKS 1
-    #define NP_MEMORY_CHECK_MEMORY_REFFING 1
     #define NP_MEMORY_CHECK_MAGIC_NO
-     //#define NP_THREADS_CHECK_THREADING 1
+    #define NP_MEMORY_CHECK_MEMORY_REFFING 1
+    //#define NP_THREADS_CHECK_THREADING 1
     #define NP_BENCHMARKING 4096
+    //#define CONSOLE_BACKUP_LOG
+    //#define CONSOLE_LOG 1
 #endif // DEBUG
+//#define CATCH_SEGFAULT
 
 #define NP_STATISTICS
 
@@ -105,6 +110,9 @@ extern "C" {
     #define TOKEN_GRACETIME (10)
 #endif
 
+#ifndef NP_TOKEN_MIN_RESEND_INTERVAL_SEC
+    #define NP_TOKEN_MIN_RESEND_INTERVAL_SEC (10)
+#endif
 /*
  * The minimum lifetime of a node before it is refreshed
  */
@@ -164,7 +172,7 @@ extern "C" {
     #define MISC_RENEW_NODE_SEC (NP_PI*1000)
 #endif
 #ifndef MISC_READ_EVENTS_SEC
-    #define MISC_READ_EVENTS_SEC (NP_PI/500)
+    #define MISC_READ_EVENTS_SEC (NP_PI/1000)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
     #define MISC_SEND_PINGS_SEC (NP_PI*10)
@@ -188,63 +196,28 @@ extern "C" {
     #define BAD_LINK_REMOVE_GRACETIME (MISC_SEND_PINGS_SEC*3)
 #endif
 
-#ifndef PRIORITY_MOD_LOWEST
-#define PRIORITY_MOD_LOWEST (PRIORITY_MOD_LEVEL_6)
-#endif
-
-#ifndef PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_0_SHOULD_HAVE_OWN_THREAD (true)
-#endif
-#ifndef PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_1_SHOULD_HAVE_OWN_THREAD (true)
-#endif
-#ifndef PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_2_SHOULD_HAVE_OWN_THREAD (true)
-#endif
-#ifndef PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_3_SHOULD_HAVE_OWN_THREAD (true)
-#endif
-#ifndef PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_4_SHOULD_HAVE_OWN_THREAD (true)
-#endif
-#ifndef PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_5_SHOULD_HAVE_OWN_THREAD (true)
-#endif
-#ifndef PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD
-#define PRIORITY_MOD_LEVEL_6_SHOULD_HAVE_OWN_THREAD (true)
-#endif
-
 #ifndef PRIORITY_MOD_USER_DEFAULT
-#define PRIORITY_MOD_USER_DEFAULT (PRIORITY_MOD_LOWEST)
+#define PRIORITY_MOD_USER_DEFAULT (NP_PRIORITY_LOWEST)
 #endif
 
-#ifndef JOBQUEUE_PRIORITY_MOD_BASE_STEP
-#define JOBQUEUE_PRIORITY_MOD_BASE_STEP (100)
-#endif
-
-#ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN
-    #define JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_IN (PRIORITY_MOD_LEVEL_3 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
-#endif
-#ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT
-    #define JOBQUEUE_PRIORITY_MOD_SUBMIT_MSG_OUT (PRIORITY_MOD_LEVEL_3 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
-#endif
 #ifndef JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE
-    #define JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE (PRIORITY_MOD_LEVEL_2 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
+    #define JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE (NP_PRIORITY_LOW)
 #endif
 #ifndef JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG
-    #define JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG (PRIORITY_MOD_LEVEL_4 * JOBQUEUE_PRIORITY_MOD_BASE_STEP)
+    #define JOBQUEUE_PRIORITY_MOD_TRANSFORM_MSG (NP_PRIORITY_LOW)
+#endif
+
+#ifndef NP_JOBQUEUE_MIN_WORKER_FOR_MANAGER
+    #define NP_JOBQUEUE_MIN_WORKER_FOR_MANAGER (5)
 #endif
 
 #ifndef JOBQUEUE_MAX_SIZE
-#define JOBQUEUE_MAX_SIZE (512)
+    // Should never exceed USHRT_MAX (65535)
+    #define JOBQUEUE_MAX_SIZE (512)
 #endif
 
 #ifndef LOG_ROTATE_COUNT
     #define LOG_ROTATE_COUNT (3)
-#endif
-
-#ifndef LOG_ROW_SIZE
-    #define LOG_ROW_SIZE (5000)
 #endif
 
 #ifndef LOG_ROTATE_AFTER_BYTES
@@ -264,7 +237,11 @@ extern "C" {
 #endif
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN_IN
-    #define NP_NETWORK_MAX_MSGS_PER_SCAN_IN (5)
+    #define NP_NETWORK_MAX_MSGS_PER_SCAN_IN (1)
+#endif
+
+#ifndef NP_NETWORK_DEFAULT_MAX_MSGS_PER_SEC
+    #define NP_NETWORK_DEFAULT_MAX_MSGS_PER_SEC (0)
 #endif
  // indirect #define NP_NETWORK_MAX_BYTES_PER_SCAN (NP_NETWORK_MAX_MSGS_PER_SCAN*1024)
 #ifndef NETWORK_RECEIVING_TIMEOUT_SEC
@@ -273,7 +250,7 @@ extern "C" {
 
 
 #ifndef MUTEX_WAIT_SEC
-    #define MUTEX_WAIT_SEC  ((const ev_tstamp )4.0)
+    #define MUTEX_WAIT_SEC  ((const ev_tstamp )10.0)
 #endif
 
 #ifndef MUTEX_WAIT_MAX_SEC
@@ -286,7 +263,7 @@ extern "C" {
 #ifndef NP_EVENT_IO_CHECK_PERIOD_SEC
     // the optimal libev run interval remains to be seen
     // if set too low, base cpu usage increases on no load
-    #define NP_EVENT_IO_CHECK_PERIOD_SEC (NP_PI/1000)
+    #define NP_EVENT_IO_CHECK_PERIOD_SEC (NP_PI/100)
 #endif
 
 /*
@@ -311,10 +288,17 @@ extern "C" {
 #define NP_ROUTES_MAX_ENTRIES __MAX_ENTRY
 #define NP_ROUTES_TABLE_SIZE (__MAX_ROW * __MAX_COL * __MAX_ENTRY)
 
-#define NP_LEAFSET_MAX_ENTRIES __MAX_COL
+#define NP_LEAFSET_MAX_ENTRIES (__MAX_COL/2)
 
 #ifndef NP_PHEROMONES_MAX_NEXTHOP_KEYS
     #define NP_PHEROMONES_MAX_NEXTHOP_KEYS 13
+#endif
+
+#ifndef NP_MSG_PART_FILTER_SIZE_INTERVAL
+    #define NP_MSG_PART_FILTER_SIZE_INTERVAL 8192
+#endif
+#ifndef NP_MSG_FORWARD_FILTER_SIZE
+    #define NP_MSG_FORWARD_FILTER_SIZE 8192
 #endif
 
 #ifdef __cplusplus

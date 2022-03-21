@@ -96,6 +96,8 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                         print("ERROR sending Data")
                 
                 sender_1.run(0.01)
+                if self.payload_1_received:
+                    break
 
         finally:
             sender_1.shutdown()
@@ -165,6 +167,8 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                         print("ERROR sending Data")
 
                 sender_1.run(0.01)
+                if self.payload_1_received:
+                    break
 
         finally:
             sender_1.shutdown()
@@ -244,6 +248,8 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                         print("ERROR sending Data")
 
                 sender_1.run(0.01)
+                if self.payload_1_received and self.payload_2_received:
+                    break
         finally:
             sender_1.shutdown()
             sender_2.shutdown()
@@ -256,14 +262,14 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
         self.assertTrue(self.payload_2_received)
 
 
-    def test_policy_2sender_2receiver_2_channel_4er_cloud(self):
+    def test_policy_2sender_2receiver_2_channel_cloud(self):
         self.abort_test = Value(c_bool, False)
         self.cause = ""
         self.payload_1_received = False
         self.payload_2_received = False
 
         fn = inspect.stack()[0][3]
-        cloud = NeuropilCluster(4, 4050,log_file_prefix=f"logs/smoke_{fn}_cloud",)
+        cloud = NeuropilCluster(1, 4050,log_file_prefix=f"logs/smoke_{fn}_cloud",)
         sender_1 = NeuropilNode(4001, proto="pas4", log_file=f"logs/smoke_{fn}_sender_1.log", auto_run=False)
         sender_2 = NeuropilNode(4002, proto="pas4", log_file=f"logs/smoke_{fn}_sender_2.log", auto_run=False)
         receiver_1 = NeuropilNode(4003, proto="pas4", log_file=f"logs/smoke_{fn}_receiver_1.log", auto_run=False)
@@ -316,7 +322,7 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
         receiver_2.join(c_prev_addr)
         sender_1.join(c_prev_addr)
 
-        timeout = 190 #sec
+        timeout = 290 #sec
 
         t1 = time.time()
         elapsed = 0.
@@ -333,6 +339,8 @@ class MsgPolicyDeliveryTest(unittest.TestCase):
                         print("ERROR sending Data")
 
                 sender_1.run(0.01)
+                if self.payload_1_received and self.payload_2_received:
+                    break
         finally:
             sender_1.shutdown()
             sender_2.shutdown()

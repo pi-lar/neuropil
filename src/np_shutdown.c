@@ -30,6 +30,7 @@
 #include "np_message.h"
 #include "np_settings.h"
 #include "np_constants.h"
+#include "np_eventqueue.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_destroycallback_t);
 NP_SLL_GENERATE_IMPLEMENTATION(np_destroycallback_t);
@@ -44,8 +45,18 @@ np_module_struct(shutdown) {
     TSP(sll_return(np_destroycallback_t), on_destroy);
     bool invoke;
     struct sigaction sigact;
+    #ifdef CATCH_SEGFAULT
+    struct sigaction segfault_act;
+    #endif
 };
 
+#ifdef CATCH_SEGFAULT
+static void __np_shutdown_signal_handler_segfault(int sig)
+{
+    PRINT_BACKTRACE();
+    exit(EXIT_FAILURE);
+}
+#endif
 static void __np_shutdown_signal_handler(int sig)
 {
     sll_iterator(np_state_ptr) iter = NULL;
@@ -75,15 +86,6 @@ void np_shutdown_add_callback(np_context*ac, np_destroycallback_t clb) {
     np_spinlock_unlock(&np_module(shutdown)->on_destroy_lock);
 }
 
-bool np_shutdown_check(np_state_t* context, NP_UNUSED np_util_event_t event)
-{
-    if (np_module(shutdown)->invoke) {
-        log_warn(LOG_MISC, "Received terminating process signal. Shutdown in progress.");
-        np_destroy(context, false);
-    }
-    return true;
-}
-
 void _np_shutdown_init(np_state_t* context) {
 
     if (np_module_not_initiated(shutdown)) {
@@ -94,15 +96,23 @@ void _np_shutdown_init(np_state_t* context) {
         np_module_malloc(shutdown);
         TSP_INITD(_module->on_destroy, sll_init_part(np_destroycallback_t));
         _module->invoke = false;
-
+        
+        /*
         memset(&_module->sigact, 0, sizeof(_module->sigact));
         _module->sigact.sa_handler = __np_shutdown_signal_handler;
         sigemptyset(&_module->sigact.sa_mask);
         _module->sigact.sa_flags = 0;
         int res = sigaction(__NP_SHUTDOWN_SIGNAL, &_module->sigact, NULL);
         log_debug(LOG_MISC, "Init signal %d", res);
-
-        np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_LEVEL_5, 0.05, 0.05, np_shutdown_check, "np_shutdown_check");
+        */
+#ifdef CATCH_SEGFAULT
+        memset(&_module->segfault_act, 0, sizeof(_module->segfault_act));
+        _module->segfault_act.sa_handler = __np_shutdown_signal_handler_segfault;
+        sigemptyset(&_module->segfault_act.sa_mask);
+        _module->segfault_act.sa_flags = 0;
+        int res = sigaction(SIGSEGV, &_module->segfault_act, NULL);
+        log_debug(LOG_MISC, "Init signal %d", res);
+#endif
     }
 }
 
@@ -137,7 +147,7 @@ void _np_shutdown_run_callbacks(np_context*ac)
 
 void _np_shutdown_notify_others(np_context* ctx) 
 {
-    NP_CAST(ctx, np_state_t, context);
+    NP_CAST_RAW(ctx, np_state_t, context);
 
     np_sll_t(np_key_ptr, routing_table)  = _np_route_get_table(context);
     np_sll_t(np_key_ptr, neighbours_table) = _np_route_neighbors(context);
@@ -147,8 +157,8 @@ void _np_shutdown_notify_others(np_context* ctx)
     while (iter_keys != NULL)
     {
         np_dhkey_t leave_dhkey = iter_keys->val->dhkey;
-        np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .context=context, .user_data=NULL, .target_dhkey=leave_dhkey };
-        _np_keycache_handle_event(context, leave_dhkey, shutdown_evt, true);
+        np_util_event_t shutdown_evt = { .type=(evt_internal|evt_shutdown), .user_data=NULL, .target_dhkey=leave_dhkey };
+        _np_event_runtime_start_with_event(context, leave_dhkey, shutdown_evt);
         sll_next(iter_keys);
     }
     // TODO: wait for node components to switch state to IN_DESTROY

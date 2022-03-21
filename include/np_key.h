@@ -44,6 +44,12 @@ struct np_key_entity_s {
 	void* ptr;
 };
 
+struct np_key_ro_s{
+    np_dhkey_t dhkey;
+    enum np_key_type type;
+    np_dhkey_t parent_dhkey;
+
+};
 struct np_key_s
 {
     // link to memory management and ref counter
@@ -64,13 +70,12 @@ struct np_key_s
 
     enum np_key_type type;
 
-    np_key_t* parent_key; // reference to parent/partner key
+    np_dhkey_t parent_dhkey; // reference to parent/partner key
     // np_sll_t(void_ptr, entities); // link to components attached to this key id
 
     void_ptr entity_array[8];
 
     np_mutex_t key_lock;
-
 } NP_API_INTERN;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_key_t);
@@ -88,7 +93,7 @@ NP_API_INTERN
 char* _np_key_as_str(np_key_t * key);
 
 NP_API_INTERN
-void _np_key_handle_event(np_key_t* key, np_util_event_t event, bool force);
+void _np_key_handle_event(np_key_t* key, np_util_event_t event);
 
 struct __np_node_trinity {
     np_aaatoken_t  *token;
@@ -104,6 +109,9 @@ NP_API_INTERN
 np_node_t* _np_key_get_node(np_key_t* key);
 NP_API_INTERN
 np_aaatoken_t* _np_key_get_token(np_key_t* key);
+
+NP_API_INTERN
+void _np_key_readonly_copy(np_state_t *context, np_key_ro_t * buffer, np_key_t * source) ;
 
 
 #ifdef __cplusplus

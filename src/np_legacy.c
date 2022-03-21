@@ -25,7 +25,8 @@
 #include "np_constants.h"
 #include "np_dendrit.h"
 #include "np_dhkey.h"
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_glia.h"
 #include "np_jobqueue.h"
 #include "np_legacy.h"
@@ -52,6 +53,7 @@
 
 #include "dtime.h"
 
+#include "np_eventqueue.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_usercallback_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_usercallback_ptr);
@@ -67,8 +69,8 @@ NP_SLL_GENERATE_IMPLEMENTATION(np_evt_callback_t);
 bool _np_default_authorizefunc (np_context* ac, struct np_token* token )
 {
     np_ctx_cast(ac);
-    log_msg(LOG_WARN, "using default handler (authorize none) to reject authorization for: %s", token->subject );
-    // log_msg(LOG_WARN, "do you really want the default authorize handler (allow all) ???");
+    log_msg(LOG_WARNING, "using default handler (authorize none) to reject authorization for: %s", token->subject );
+    // log_msg(LOG_WARNING, "do you really want the default authorize handler (allow all) ???");
 
     return (false);
 }
@@ -99,8 +101,8 @@ bool _np_aaa_authorizefunc (np_context* ac, struct np_token* token )
 bool _np_default_authenticatefunc (np_context* ac, struct np_token* token )
 {
     np_ctx_cast(ac);
-    log_msg(LOG_WARN, "using default handler (authn all) to authenticate %s", token->subject);
-    // log_msg(LOG_WARN, "do you really want the default authenticate handler (trust all) ???");
+    log_msg(LOG_WARNING, "using default handler (authn all) to authenticate %s", token->subject);
+    // log_msg(LOG_WARNING, "do you really want the default authenticate handler (trust all) ???");
 
     return (true);
 }
@@ -132,8 +134,8 @@ bool _np_aaa_authenticatefunc (np_context*ac, struct np_token* token)
 bool _np_default_accountingfunc (np_context* ac, struct np_token* token )
 {
     np_ctx_cast(ac);
-    log_msg(LOG_WARN, "using default handler to deny accounting for: %s", token->subject );
-    // log_msg(LOG_WARN, "do you really want the default accounting handler (account nothing) ???");
+    log_msg(LOG_WARNING, "using default handler to deny accounting for: %s", token->subject );
+    // log_msg(LOG_WARNING, "do you really want the default accounting handler (account nothing) ???");
 
     return (false);
 }
@@ -342,8 +344,8 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
     np_dhkey_t search_key = np_aaatoken_get_fingerprint(identity, false);
     np_key_t* my_identity_key = _np_keycache_find_or_create(context, search_key);
 
-    np_util_event_t ev = { .type=(evt_internal|evt_token), .context=ac, .user_data=identity, .target_dhkey=search_key };
-    _np_key_handle_event(my_identity_key, ev, false);
+    np_util_event_t ev = { .type=(evt_internal|evt_token), .user_data=identity, .target_dhkey=search_key };    
+    _np_event_runtime_start_with_event(context, search_key, ev);
 
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }
@@ -376,7 +378,9 @@ char* np_get_connection_string_from(np_key_t* node_key, bool includeHash)
     np_ctx_memory(node_key);
     log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string_from(np_key_t* node_key, bool includeHash){");
 
-    assert (FLAG_CMP(node_key->type, np_key_type_node) || FLAG_CMP(node_key->type, np_key_type_wildcard) );
+    // "can only extract connection string from node or wildcard. type is: %"PRIu32,node_key->type
+    if(!(FLAG_CMP(node_key->type, np_key_type_node) || FLAG_CMP(node_key->type, np_key_type_wildcard)))
+        return NULL;
 
     np_node_t* node_data = _np_key_get_node(node_key);
     if (node_data) 
@@ -427,6 +431,13 @@ void np_send_join(np_context*ac, const char* node_string)
     np_node_t* new_node = _np_node_decode_from_str(context, node_string);
     if (new_node == NULL) return;
     
+    if( new_node->protocol ==  _np_key_get_node(context->my_node_key)->protocol &&
+        (strncmp(new_node->dns_name, _np_key_get_node(context->my_node_key)->dns_name, 255) == 0 ||
+        strncmp(new_node->dns_name, context->hostname, 255) == 0) &&    
+        strncmp(new_node->port,_np_key_get_node(context->my_node_key)->port, 10) == 0
+    ){
+        return;
+    }
     np_dhkey_t search_key = {0};
     if (new_node->host_key[0] == '*') 
     {
@@ -444,7 +455,7 @@ void np_send_join(np_context*ac, const char* node_string)
 
     if (FLAG_CMP(new_node->protocol, PASSIVE) ) 
     {
-        log_msg(LOG_WARN, "user requests to join passive node at %u:%s:%s!", new_node->protocol, new_node->dns_name, new_node->port);
+        log_msg(LOG_WARNING, "user requests to join passive node at %u:%s:%s!", new_node->protocol, new_node->dns_name, new_node->port);
         np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");    
         return;
     }
@@ -453,13 +464,18 @@ void np_send_join(np_context*ac, const char* node_string)
         log_msg(LOG_INFO, "user request to join %u:%s:%s", new_node->protocol, new_node->dns_name, new_node->port);
     }
 
+    // enum np_node_status old_e = new_node->_handshake_status;
+    // new_node->_handshake_status = np_node_status_Initiated;
+    // log_info(LOG_HANDSHAKE,"set %s %s _handshake_status: %"PRIu8" -> %"PRIu8,
+    //     FUNC, new_node->dns_name, old_e , new_node->_handshake_status
+    // );
+
     np_key_t* node_key = _np_keycache_find_or_create(context, search_key);
 
-    np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, 
+    np_util_event_t new_node_evt = { .type=(evt_internal), 
                                      .user_data=new_node, .target_dhkey=search_key };
-    _np_keycache_handle_event(context, search_key, new_node_evt, false);
+    _np_event_runtime_start_with_event(context, search_key, new_node_evt);
 
     np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");    
     np_unref_obj(np_key_t, node_key, "_np_keycache_find_or_create");    
 }
-

@@ -442,7 +442,7 @@ void np_tree_insert_dbl(np_tree_t* tree, double dkey, np_treeval_t val)
 	}
 	else
 	{
-		// log_msg(LOG_WARN, "not inserting double key (%f) into jtree", dkey );
+		// log_msg(LOG_WARNING, "not inserting double key (%f) into jtree", dkey );
 	}
 }
 
@@ -730,7 +730,7 @@ bool np_tree_deserialize( np_state_t* context, np_tree_t* jtree, cmp_ctx_t* cmp)
 	}
 
 	if (ret == false) {
-		log_debug_msg(LOG_SERIALIZATION | LOG_TREE | LOG_WARN, "Deserialization error: unspecified error");
+		log_debug_msg(LOG_SERIALIZATION | LOG_TREE | LOG_WARNING, "Deserialization error: unspecified error");
 	}
 	else {
 		if (jtree->attr.in_place == true) {
@@ -872,11 +872,11 @@ void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_c
 	case np_treeval_type_float_array_2:
 	case np_treeval_type_char_array_8:
 	case np_treeval_type_unsigned_char_array_8:
-		log_msg(LOG_WARN, "please implement serialization for type %"PRIu8, val.type);
+		log_msg(LOG_WARNING, "please implement serialization for type %"PRIu8, val.type);
 		break;
 
 	case np_treeval_type_void:
-		log_msg(LOG_WARN, "please implement serialization for type %"PRIu8, val.type);
+		log_msg(LOG_WARNING, "please implement serialization for type %"PRIu8, val.type);
 		break;
 	case np_treeval_type_bin:
 		cmp_write_bin32(cmp, val.value.bin, val.size);
@@ -901,12 +901,12 @@ void __np_tree_serialize_write_type(np_state_t* context, np_treeval_t val, cmp_c
 		// write the serialized tree to the upper level buffer
 		if (!cmp_write_ext32(cmp, np_treeval_type_jrb_tree, buf_size, buf_ptr))
 		{
-			log_msg(LOG_WARN, "couldn't write tree data -- ignoring for now");
+			log_msg(LOG_WARNING, "couldn't write tree data -- ignoring for now");
 		}
 	}
 	break;
 	default:
-		log_msg(LOG_WARN, "please implement serialization for type %hhd", val.type);
+		log_msg(LOG_WARNING, "please implement serialization for type %hhd", val.type);
 		break;
 	}
 }
@@ -919,7 +919,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 		case CMP_TYPE_FIXMAP:
 		case CMP_TYPE_MAP16:
 		case CMP_TYPE_MAP32:
-			log_msg(LOG_WARN,
+			log_msg(LOG_WARNING,
 				"error de-serializing message to normal form, found map type");
 			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
@@ -934,7 +934,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 			break;
 		case CMP_TYPE_ARRAY16:
 		case CMP_TYPE_ARRAY32:
-			log_msg(LOG_WARN,
+			log_msg(LOG_WARNING,
 				"error de-serializing message to normal form, found array type");
 			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
@@ -989,12 +989,12 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 		}
 
 		case CMP_TYPE_NIL:
-			log_msg(LOG_WARN, "unknown de-serialization for given type (cmp NIL) ");
+			log_msg(LOG_WARNING, "unknown de-serialization for given type (cmp NIL) ");
 			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
 
 		case CMP_TYPE_BOOLEAN:
-			log_msg(LOG_WARN,
+			log_msg(LOG_WARNING,
 				"unknown de-serialization for given type (cmp boolean) ");
 			cmp->error = 13; // INVALID_TYPE_ERROR
 			break;
@@ -1067,7 +1067,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 					"Cannot deserialize ext type %"PRIi8" (size: %"PRIu32")",
 					obj->as.ext.type, obj->as.ext.size);
 
-				log_msg(LOG_TREE | LOG_SERIALIZATION | LOG_WARN,
+				log_msg(LOG_TREE | LOG_SERIALIZATION | LOG_WARNING,
 					"Unknown de-serialization for given extension type %"PRIi8, obj->as.ext.type);
 				_np_buffer_set_buffer(cmp, target_buffer);
 
@@ -1146,7 +1146,7 @@ void __np_tree_deserialize_read_type(np_state_t* context, np_tree_t* tree, cmp_o
 	#endif
 		default:
 			value->type = np_treeval_type_undefined;
-			log_msg(LOG_WARN, "unknown deserialization for given type");
+			log_msg(LOG_WARNING, "unknown deserialization for given type");
 			break;
 	}
 }
@@ -1204,11 +1204,11 @@ bool np_tree_check_field(np_state_t* context, np_tree_t* tree, const char* field
 	if (NULL == (tmp = np_tree_find_str(tree, field_name))) {
 		ret = false;
 		if (NULL != (tmp = np_tree_find_str(tree, _NP_MSG_HEADER_SUBJECT))) {
-			log_msg(LOG_WARN,"Missing field \"%s\" in message for \"%s\"",
+			log_msg(LOG_WARNING,"Missing field \"%s\" in message for \"%s\"",
 				field_name,
 				np_treeval_to_str(tmp->val,NULL));
 		}else {
-			log_msg(LOG_WARN,"Missing field \"%s\" in tree", field_name);
+			log_msg(LOG_WARNING,"Missing field \"%s\" in tree", field_name);
 		}
 	}
 	if(buffer != NULL) *buffer = tmp;

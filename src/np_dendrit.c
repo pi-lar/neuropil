@@ -53,11 +53,13 @@
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
 #include "np_axon.h"
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_constants.h"
 #include "np_responsecontainer.h"
 #include "np_serialization.h"
 #include "neuropil.h"
+#include "np_eventqueue.h"
 
 
 bool _check_and_send_destination_ack(np_state_t* context, np_util_event_t msg_event)
@@ -79,13 +81,15 @@ bool _check_and_send_destination_ack(np_state_t* context, np_util_event_t msg_ev
             np_tree_insert_str(msg_body, _NP_MSG_INST_RESPONSE_UUID, np_treeval_new_s(msg->uuid) );
 
             np_message_t* msg_out   = NULL;
-            np_new_obj(np_message_t, msg_out, ref_message_in_send_system);
+            np_new_obj(np_message_t, msg_out, FUNC);
             _np_message_create(msg_out, target_dhkey, context->my_node_key->dhkey, ack_subject, msg_body);
 
-            log_msg(LOG_INFO, "ack of message %s with %s", msg->uuid, msg_out->uuid);
+            log_info(LOG_ROUTING, "ack of message %s with %s", msg->uuid, msg_out->uuid);
 
-            np_util_event_t ack_event = { .context=context, .type=evt_message|evt_internal, .target_dhkey=ack_out_dhkey, .user_data=msg_out };
-            _np_keycache_handle_event(context, ack_out_dhkey, ack_event, false);
+            np_util_event_t ack_event = { .type=evt_message|evt_internal, .target_dhkey=ack_out_dhkey, .user_data=msg_out };
+            _np_event_runtime_add_event(context, msg_event.current_run, ack_out_dhkey, ack_event);
+            np_unref_obj(np_message_t, msg_out, FUNC);
+
         }
     }
     return true;
@@ -96,7 +100,7 @@ bool _np_in_ping(np_state_t* context, np_util_event_t msg_event)
     log_trace_msg(LOG_TRACE, "start: bool _np_in_ping(...) {");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
-    log_debug_msg(LOG_DEBUG, "_np_in_ping for message uuid %s", msg->uuid);
+    log_debug_msg(LOG_ROUTING, "_np_in_ping for message uuid %s", msg->uuid);
     // for now: nothing more to do. work is done only on the sending end
     // ack handling happens in a separate callback
 
@@ -120,7 +124,7 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
     o_piggy_list = _np_node_decode_multiple_from_jrb(context, msg->body);
 
-    log_debug_msg(LOG_DEBUG, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
+    log_debug_msg(LOG_ROUTING, "received piggy msg (%"PRIu32" nodes)", sll_size(o_piggy_list));
 
     while (NULL != (node_entry = sll_head(np_node_ptr, o_piggy_list)))
     {
@@ -129,7 +133,15 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
             np_unref_obj(np_node_t, node_entry, "_np_node_decode_from_jrb");
             continue;
         }
-
+        // ignore myself (use hash?)
+        if( node_entry->protocol ==  _np_key_get_node(context->my_node_key)->protocol &&
+            (strncmp(node_entry->dns_name, _np_key_get_node(context->my_node_key)->dns_name, 255) == 0 ||
+             strncmp(node_entry->dns_name, context->hostname, 255) == 0) &&
+            strncmp(node_entry->port,_np_key_get_node(context->my_node_key)->port, 10) == 0
+        ){
+            np_unref_obj(np_node_t, node_entry, "_np_node_decode_from_jrb");
+            continue;
+        }
         // add entries in the message to our routing table
         // routing table is responsible to handle possible double entries
         np_dhkey_t search_key = np_dhkey_create_from_hash(node_entry->host_key);
@@ -156,10 +168,16 @@ bool _np_in_piggy(np_state_t* context, np_util_event_t msg_event)
 
             if (send_join)
             {   
+
+                // enum np_node_status old_e = node_entry->_handshake_status;
+                // node_entry->_handshake_status = np_node_status_Initiated;
+                // log_info(LOG_HANDSHAKE,"set %s %s _handshake_status: %"PRIu8" -> %"PRIu8,
+                //     FUNC, node_entry->dns_name, old_e , node_entry->_handshake_status
+                // );
                 piggy_key = _np_keycache_find_or_create(context, search_key);
-                np_util_event_t new_node_evt = { .type=(evt_internal), .context=context, .user_data=node_entry };
-                _np_keycache_handle_event(context, search_key, new_node_evt, false);
-                log_msg(LOG_INFO, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
+                np_util_event_t new_node_evt = { .type=(evt_internal), .user_data=node_entry };
+                _np_event_runtime_add_event(context, msg_event.current_run, search_key, new_node_evt);
+                log_info(LOG_ROUTING, "node %s is qualified for a piggy join.", _np_key_as_str(piggy_key));
                 np_unref_obj(np_key_t, piggy_key,"_np_keycache_find_or_create");
             }
             np_key_unref_list(sll_of_keys, "_np_route_row_lookup");
@@ -213,19 +231,19 @@ bool _np_in_callback_wrapper(np_state_t* context, np_util_event_t msg_event)
     np_key_t*  prop_in_key   = _np_keycache_find(context, prop_in_dhkey);
     
     np_aaatoken_t* sender_token = _np_intent_get_sender_token(prop_in_key, msg_from.value.dhkey);
+    if(sender_token != NULL) {
+        ret = _np_message_decrypt_payload(msg_in, sender_token);
+        if(ret && msg_in->decryption_token == NULL){
+            np_ref_obj(np_aaatoken_t, sender_token,"np_message_t.decryption_token");
+            msg_in->decryption_token = sender_token;
+        }
 
-    ret = _np_message_decrypt_payload(msg_in, sender_token);
-    log_msg(LOG_INFO, "decrypt result for message(%08"PRIx32":%08"PRIx32"/%s) from sender %s / token:%s ret: %"PRIu8, msg_subject_ele.value.dhkey.t[0], msg_subject_ele.value.dhkey.t[1], msg_in->uuid, sender_token->issuer, sender_token->uuid, ret);
-    if(ret && msg_in->decryption_token == NULL){
-        np_ref_obj(np_aaatoken_t, sender_token,"np_message_t.decryption_token");
-        msg_in->decryption_token = sender_token;
+        np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token");
     }
-
-    np_unref_obj(np_aaatoken_t, sender_token,"_np_intent_get_sender_token"); // _np_aaatoken_get_sender_token
     np_unref_obj(np_key_t, prop_in_key, "_np_keycache_find");
 
     __np_cleanup__: {}
-
+    if(!ret) log_info(LOG_ROUTING|LOG_MESSAGE, "Cound not decrypt data (msg: %s)",msg_in->uuid);
     return ret;
 }
 
@@ -245,18 +263,18 @@ bool _np_in_leave(np_state_t* context, np_util_event_t msg_event)
         np_aaatoken_t* node_token = np_token_factory_read_from_tree(context, node_token_ele->val.value.tree);
         if (node_token != NULL) {
 
-            np_util_event_t shutdown_event = { .context=context, .type=evt_shutdown|evt_external };
+            np_util_event_t shutdown_event = { .type=evt_shutdown|evt_external };
             shutdown_event.user_data=node_token;
             
             np_dhkey_t search_key   = np_aaatoken_get_fingerprint(node_token, false);
 
             shutdown_event.target_dhkey=search_key;
             // shutdown node
-            _np_keycache_handle_event(context, search_key, shutdown_event, false);
+            _np_event_runtime_add_event(context, msg_event.current_run, search_key, shutdown_event);
 
             shutdown_event.target_dhkey=msg_event.target_dhkey;
             // shutdown alias
-            _np_keycache_handle_event(context, msg_event.target_dhkey, shutdown_event, false);
+            _np_event_runtime_add_event(context, msg_event.current_run, msg_event.target_dhkey, shutdown_event);
 
             np_unref_obj(np_aaatoken_t, node_token, "np_token_factory_read_from_tree");
         }
@@ -281,7 +299,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     np_dhkey_t join_ident_dhkey = { 0 };
     np_ident_public_token_t* join_ident_token = NULL;
 
-    np_util_event_t authn_event = { .context=context, .type=evt_authn|evt_external|evt_token };
+    np_util_event_t authn_event = { .type=evt_authn|evt_external|evt_token };
     
     np_tree_elem_t* node_token_ele = np_tree_find_str(msg->body, _NP_URN_NODE_PREFIX);
     if (node_token_ele == NULL) 
@@ -298,9 +316,9 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         goto __np_cleanup__;
     }
 
-    if (!_np_aaatoken_is_valid(join_node_token, np_aaatoken_type_node)) {
+    if (!_np_aaatoken_is_valid(context, join_node_token, np_aaatoken_type_node)) {
         // silently exit join protocol for invalid token type
-        log_debug_msg(LOG_WARN, "JOIN request: invalid node token");
+        log_debug_msg(LOG_WARNING, "JOIN request: invalid node token");
         goto __np_cleanup__;
     }
 
@@ -314,7 +332,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     {   
         join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
         if (NULL  == join_ident_token || 
-            false == _np_aaatoken_is_valid(join_ident_token, np_aaatoken_type_identity)) 
+            false == _np_aaatoken_is_valid(context, join_ident_token, np_aaatoken_type_identity)) 
         {
             // silently exit join protocol for invalid identity token
             log_debug(LOG_TRACE, "JOIN request: invalid identity token");
@@ -331,7 +349,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
             char fp_n[65], fp_p[65];
             _np_dhkey_str(&join_node_dhkey, fp_n);
             _np_dhkey_str(&partner_of_ident_dhkey, fp_p);
-            log_msg(LOG_WARN,
+            log_msg(LOG_WARNING,
                 "JOIN request: node fingerprint must match partner fingerprint in identity token. (node: %s / partner: %s)",
                 fp_n, fp_p
             );
@@ -345,7 +363,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
             char fp_i[65], fp_p[65];
             _np_dhkey_str(&join_ident_dhkey, fp_i);
             _np_dhkey_str(&partner_of_node_dhkey, fp_p);
-            log_msg(LOG_WARN,
+            log_msg(LOG_WARNING,
                 "JOIN request: identity fingerprint must match partner fingerprint in node token. (identity: %s / partner: %s)",
                 fp_i, fp_p
             );
@@ -354,7 +372,7 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
 
 #ifdef DEBUG
         char tmp[65]={0};
-        log_debug_msg(LOG_DEBUG, "JOIN request: identity %s would like to join", np_id_str(tmp, &partner_of_node_dhkey));
+        log_debug_msg(LOG_ROUTING, "JOIN request: identity %s would like to join", np_id_str(tmp, &partner_of_node_dhkey));
 #endif
         // everything is fine and we can continue
         authn_event.target_dhkey = msg_event.target_dhkey;
@@ -365,38 +383,36 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     if (join_node_key == NULL) 
     {
         // no handshake before join ? exit join protocol ...
-        log_debug_msg(LOG_DEBUG, "JOIN request: no corresponding node key found");
+        log_debug_msg(LOG_ROUTING, "JOIN request: no corresponding node key found");
         goto __np_cleanup__;
     } 
     else if (join_node_key != NULL && join_ident_token == NULL)
     {   // pure node join without additional identity :-(
-        log_debug_msg(LOG_DEBUG, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
+        log_debug_msg(LOG_ROUTING, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
         authn_event.target_dhkey = msg_event.target_dhkey;
         authn_event.user_data = join_node_token;
-        _np_keycache_handle_event(context, join_node_key->dhkey, authn_event, false); // needed to create initial node structure
-        _np_keycache_handle_event(context, context->my_identity->dhkey, authn_event, false);
+        _np_event_runtime_add_event(context, msg_event.current_run, join_node_key->dhkey, authn_event); // needed to create initial node structure
+        _np_event_runtime_add_event(context, msg_event.current_run, context->my_identity->dhkey, authn_event);
     }
     else if(join_node_key != NULL && join_ident_token != NULL)
     {   // update node token and wait for identity authentication
-        log_debug_msg(LOG_DEBUG, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
-        np_util_event_t token_event = { .context=context, .type=evt_token|evt_external };
+        log_debug_msg(LOG_ROUTING, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
+        np_util_event_t token_event = { .type=evt_token|evt_external };
         token_event.target_dhkey    = join_node_dhkey;
         token_event.user_data       = join_node_token;
         // update node token
-        _np_keycache_handle_event(context, join_node_key->dhkey, token_event, false);
+        _np_event_runtime_add_event(context, msg_event.current_run, join_node_key->dhkey, token_event);
         // identity authn
-        _np_keycache_handle_event(context, context->my_identity->dhkey, authn_event, false);
+        _np_event_runtime_add_event(context, msg_event.current_run, context->my_identity->dhkey, authn_event);
     }
     else
     {   // silently exit join protocol as we already joined this key
-        log_debug_msg(LOG_DEBUG, "JOIN request: no corresponding identity key found");
+        log_debug_msg(LOG_ROUTING, "JOIN request: no corresponding identity key found");
     }
         
     __np_cleanup__:
-        if (join_ident_token != NULL) {
-            // np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
-        }
-        // np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
+        np_unref_obj(np_aaatoken_t, join_node_token, "np_token_factory_read_from_tree");
+        np_unref_obj(np_aaatoken_t, join_ident_token, "np_token_factory_read_from_tree");
         np_unref_obj(np_key_t, join_node_key, "_np_keycache_find");
 
     return true;
@@ -418,12 +434,12 @@ bool _np_in_ack(np_state_t* context, np_util_event_t msg_event)
     if(response_entry != NULL)
     {   // just an acknowledgement of own messages send out earlier
         NP_CAST(response_entry->val.value.v, np_responsecontainer_t, response);
-        log_debug_msg(LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s", msg->uuid, np_treeval_to_str(ack_uuid, NULL) );
+        log_debug_msg(LOG_ROUTING|LOG_MESSAGE, "msg (%s) is acknowledgment of uuid=%s", msg->uuid, np_treeval_to_str(ack_uuid, NULL) );
         response->received_at = np_time_now();
     }
     else 
     {
-        log_debug_msg(LOG_DEBUG, "msg (%s) is acknowledgment of uuid=%s but we do not know of this msg",
+        log_debug_msg(LOG_ROUTING|LOG_MESSAGE, "msg (%s) is acknowledgment of uuid=%s but we do not know of this msg",
                                 msg->uuid, np_treeval_to_str(ack_uuid, NULL) );
     }
 
@@ -440,7 +456,7 @@ bool _np_in_ack(np_state_t* context, np_util_event_t msg_event)
 // receive information about new nodes in the network and try to contact new nodes
 bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_DEBUG, "start: bool _np_in_update(...){");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_update(...){");
 
     NP_CAST(msg_event.user_data, np_message_t, msg);
 
@@ -451,32 +467,32 @@ bool _np_in_update(np_state_t* context, np_util_event_t msg_event)
 
     np_aaatoken_decode(update_tree, update_token);
 
-    if (false == _np_aaatoken_is_valid(update_token, np_aaatoken_type_node))
+    if (false == _np_aaatoken_is_valid(context, update_token, np_aaatoken_type_node))
     {
         np_unref_obj(np_aaatoken_t, update_token, ref_obj_creation);
         return false;
     }
 
     np_dhkey_t update_dhkey = np_aaatoken_get_fingerprint(update_token, false);
-    np_util_event_t update_event = { .type=(evt_external|evt_token), .context=context, .user_data=update_token, .target_dhkey=update_dhkey};
+    np_util_event_t update_event = { .type=(evt_external|evt_token), .user_data=update_token, .target_dhkey=update_dhkey};
 
         // potentially create the new node
-    if (!_np_keycache_contains(context, update_dhkey)) 
+    if (!_np_keycache_exists(context, update_dhkey, NULL)) 
     {
         np_key_t* update_key = _np_keycache_find_or_create(context, update_dhkey);
-        _np_keycache_handle_event(context, update_dhkey, update_event, false);
+        _np_event_runtime_add_event(context, msg_event.current_run, update_dhkey, update_event);
         np_unref_obj(np_key_t, update_key,"_np_keycache_find_or_create");
-
     }
 
-        // and forward the token to another hop
-        np_dhkey_t update_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
-        update_event.type = (evt_message|evt_internal);
-        update_event.user_data = msg;
-        update_event.target_dhkey = update_prop_dhkey;
-        np_ref_obj(np_message_t, msg, ref_message_in_send_system);
+    // and forward the token to another hop
+    np_dhkey_t update_prop_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_UPDATE_REQUEST);
+    update_event.type = (evt_message|evt_internal);
+    update_event.user_data = msg;
+    update_event.target_dhkey = update_prop_dhkey;
+    np_ref_obj(np_message_t, msg, FUNC);
 
-        _np_keycache_handle_event(context, update_prop_dhkey, update_event, false);
+    _np_event_runtime_add_event(context, msg_event.current_run, update_prop_dhkey, update_event);
+    np_unref_obj(np_message_t, msg, FUNC);
 
     np_unref_obj(np_aaatoken_t, update_token, ref_obj_creation);
 
@@ -492,7 +508,6 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
 
     // extract e2e encryption details for sender
     np_message_intent_public_token_t* msg_token = NULL;
-
     msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
     if (msg_token)
     {
@@ -501,8 +516,12 @@ bool _np_in_available_sender(np_state_t* context, np_util_event_t msg_event)
         np_str_id((np_id*) &subject_dhkey, msg_token->subject);
         np_dhkey_t available_msg_type = _np_msgproperty_tweaked_dhkey(INBOUND, subject_dhkey);
 
-        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-        _np_keycache_handle_event(context, available_msg_type, authz_event, false);
+        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .user_data=msg_token, .target_dhkey=available_msg_type };
+        _np_event_runtime_add_event(context, msg_event.current_run, available_msg_type, authz_event);
+        log_debug(LOG_ROUTING,"Received sender token (%s) via msg (%s).",msg_token->uuid, available_msg_in->uuid);
+        np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
+    }else{
+        log_warn(LOG_ROUTING,"Received NO sender token (%s) via msg (%s).", available_msg_in->uuid);
     }
     return true;
 }
@@ -515,7 +534,6 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
 
     // extract e2e encryption details for sender
     np_message_intent_public_token_t* msg_token = NULL;
-
     msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
     if (msg_token)
     {
@@ -524,15 +542,19 @@ bool _np_in_available_receiver(np_state_t* context, np_util_event_t msg_event)
         np_str_id(&subject_dhkey, msg_token->subject);
         np_dhkey_t available_msg_type = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
 
-        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .context=context, .user_data=msg_token, .target_dhkey=available_msg_type };
-        _np_keycache_handle_event(context, available_msg_type, authz_event, false);
-    }
+        np_util_event_t authz_event = { .type=(evt_token|evt_external|evt_authz), .user_data=msg_token, .target_dhkey=available_msg_type };
+        _np_event_runtime_add_event(context, msg_event.current_run, available_msg_type, authz_event);
+        log_debug(LOG_ROUTING,"Received receiver token (%s) via msg (%s).",msg_token->uuid, available_msg_in->uuid);
+        np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
+    }else{
+        log_warn(LOG_ROUTING,"Received NO receiver token (%s) via msg (%s).", available_msg_in->uuid);
+    }    
     return true;
 }
 
 bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
 {
-    log_debug_msg(LOG_DEBUG, "start: bool _np_in_pheromone(...) {");
+    log_trace_msg(LOG_TRACE, "start: bool _np_in_pheromone(...) {");
 
     NP_CAST(msg_event.user_data, np_message_t, pheromone_msg_in);
 
@@ -567,7 +589,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         // float _in_age = _np_neuropil_bloom_get_heuristic(_scent, msg_to.value.dhkey);
         if (_in_age == 0.0)
         {
-            log_debug_msg(LOG_DEBUG, "dropping pheromone trail message, {msg uuid: %s) age now %f",
+            log_debug_msg(LOG_ROUTING, "dropping pheromone trail message, {msg uuid: %s) age now %f",
                                      pheromone_msg_in->uuid, _in_age);
             _np_bloom_free(_scent);
             continue;
@@ -583,7 +605,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         {
             ASSERT(0 > tmp->key.value.i && tmp->key.value.i >= -257,
                    "index must be negative and between 0 and -257 (including)");
-            log_debug_msg(LOG_DEBUG, "update of send pheromone trail message, {msg uuid: %s) receiver age now %f",
+            log_debug_msg(LOG_PHEROMONE, "update of send pheromone trail message, {msg uuid: %s) receiver age now %f",
                                     pheromone_msg_in->uuid, _in_age);
             _np_pheromone_snuffle_receiver(context, result_list, msg_to.value.dhkey, &_old_age);
             _pheromone._sender = _last_hop_dhkey;
@@ -592,13 +614,13 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
         {
             ASSERT(0 < tmp->key.value.i && tmp->key.value.i <= 257,
                    "index must be positive and between 0 and  257 (including)");
-            log_debug_msg(LOG_DEBUG, "update of recv pheromone trail message, {msg uuid: %s) sender age now %f",
+            log_debug_msg(LOG_ROUTING, "update of recv pheromone trail message, {msg uuid: %s) sender age now %f",
                                     pheromone_msg_in->uuid, _in_age);
             _np_pheromone_snuffle_sender(context, result_list, msg_to.value.dhkey, &_old_age);
             _pheromone._receiver = _last_hop_dhkey;
         }
 
-        log_msg(LOG_DEBUG, "update of pheromone trail: age in : %f, but have age : %f / %d", _pheromone._pos, _in_age, _old_age);
+        log_debug(LOG_PHEROMONE, "update of pheromone trail: age in : %"PRId16", but have age : %f / %f", _pheromone._pos, _in_age, _old_age);
         forward_pheromone_update |= _np_pheromone_inhale(context, _pheromone);
         
         _np_bloom_free(_scent);
@@ -608,15 +630,14 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
     {   // forward the received pheromone
         np_message_t* msg_out = pheromone_msg_in;
 
-        log_debug_msg(LOG_DEBUG, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
+        log_debug_msg(LOG_ROUTING|LOG_PHEROMONE, "forward pheromone trail message, {msg uuid: %s)", msg_out->uuid);
 
         np_dhkey_t pheromone_dhkey = _np_msgproperty_dhkey(OUTBOUND, _NP_MSG_PHEROMONE_UPDATE);
-        np_util_event_t pheromone_event = { .type=(evt_internal|evt_message), .context=context, .target_dhkey=msg_to.value.dhkey };
+        np_util_event_t pheromone_event = { .type=(evt_internal|evt_message), .target_dhkey=msg_to.value.dhkey };
         pheromone_event.user_data = msg_out;
         
         // forward to axon sending unit with main direction "mgs_to"
-        np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
-        _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
+        _np_event_runtime_add_event(context, msg_event.current_run, pheromone_dhkey, pheromone_event);
 
         // forward to axon sending unit with main direction set to existing trails
         sll_iterator(np_dhkey_t) iter = sll_first(result_list);
@@ -627,8 +648,7 @@ bool _np_in_pheromone(np_state_t* context, np_util_event_t msg_event)
                 !_np_dhkey_equal(&iter->val, &context->my_node_key->dhkey) )  // our own node dhkey
             {
                 pheromone_event.target_dhkey = iter->val;
-                np_ref_obj(np_message_t, msg_out, ref_message_in_send_system);
-                _np_keycache_handle_event(context, pheromone_dhkey, pheromone_event, false);
+                _np_event_runtime_add_event(context, msg_event.current_run, pheromone_dhkey, pheromone_event);
             }
             sll_next(iter);
         }
@@ -655,14 +675,14 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     
     handshake_token = np_token_factory_read_from_tree(context, msg->body);
 
-    if (handshake_token == NULL || !_np_aaatoken_is_valid(handshake_token, np_aaatoken_type_handshake)) 
+    if (handshake_token == NULL || !_np_aaatoken_is_valid(context, handshake_token, np_aaatoken_type_handshake)) 
     {
         log_msg(LOG_ERROR, "incorrect handshake signature in message");
         goto __np_cleanup__;
     }
     else
     {
-        log_debug_msg(LOG_DEBUG,
+        log_debug_msg(LOG_HANDSHAKE,
                     "decoding of handshake message from %s / %s (i:%f/e:%f) complete",
                     handshake_token->subject, handshake_token->issuer, handshake_token->issued_at, handshake_token->expires_at);
     }    
@@ -680,40 +700,42 @@ bool _np_in_handshake(np_state_t* context, np_util_event_t msg_event)
     np_util_event_t hs_event = msg_event;
     hs_event.user_data = handshake_token;
     hs_event.type = (evt_external | evt_token);
-    _np_keycache_handle_event(context, search_dhkey, hs_event, false);
-    
-    log_debug_msg(LOG_DEBUG, "Update node key done! %p", msg_source_key);
+    _np_event_runtime_start_with_event(context, search_dhkey, hs_event);
+    /* 
+        Sollte eigentlich _np_event_runtime_add_event sein, aber der folgende code muss dann in eine 
+        cleanup methode o.ä. ausgelagert werden da so nicht auf asyncronität ausgelegt        
+    */    
+    log_debug_msg(LOG_HANDSHAKE, "Update node key done! %p", msg_source_key);
 
     // network init could have failed
     if (FLAG_CMP(msg_source_key->type, np_key_type_node))
     {
         // setup inbound decryption session with the alias key
         hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
-        hs_alias_key->parent_key = msg_source_key;
+        hs_alias_key->parent_dhkey = msg_source_key->dhkey;
 
         hs_event.type = (evt_internal | evt_token);
-        _np_keycache_handle_event(context, hs_alias_key->dhkey, hs_event, false);
+        _np_event_runtime_add_event(context, msg_event.current_run, hs_alias_key->dhkey, hs_event);
 
-        log_trace_msg(LOG_TRACE, "Update alias key done! %p", hs_alias_key);
+        log_trace_msg(LOG_HANDSHAKE, "Update alias key done! %p", hs_alias_key);
         np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
 
-        // finally delete possible wildcard key
-        char* tmp_connection_str = np_get_connection_string_from(msg_source_key, false);
+        // finally delete possible wildcard #
+        char* tmp_connection_str = handshake_token->subject + 12/*_NP_URN_NODE_PREFIX + Protocol*/+5;
         np_dhkey_t wildcard_dhkey = np_dhkey_create_from_hostport("*", tmp_connection_str);
         hs_wildcard_key = _np_keycache_find(context, wildcard_dhkey);
         if (NULL != hs_wildcard_key)
         {
-            hs_wildcard_key->parent_key = msg_source_key;
+            hs_wildcard_key->parent_dhkey = msg_source_key->dhkey;
 
             np_util_event_t hs_event = msg_event;
             hs_event.type = (evt_external | evt_token);
             hs_event.user_data = handshake_token;
-            _np_keycache_handle_event(context, hs_wildcard_key->dhkey, hs_event, false);
+            _np_event_runtime_add_event(context, msg_event.current_run, hs_wildcard_key->dhkey, hs_event);
             np_unref_obj(np_key_t, hs_wildcard_key, "_np_keycache_find");
 
             log_trace_msg(LOG_TRACE, "Update wildcard key done!");
         } 
-        free(tmp_connection_str);
     }
 
     __np_cleanup__:

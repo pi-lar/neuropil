@@ -29,7 +29,7 @@ struct np_job_s
     bool is_periodic;
     np_util_event_t evt;
     np_dhkey_t next;
-    double priority;
+    size_t priority;
 
     double search_min_priority;
     double search_max_priority;
@@ -53,19 +53,16 @@ NP_API_INTERN
     void _np_jobqueue_destroy(np_state_t* context);
 
 NP_API_INTERN
-    bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job);
+    bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job, bool exec_asap);
 
 NP_API_INTERN
     bool np_jobqueue_submit_event(np_state_t* context, double delay, np_dhkey_t next, np_util_event_t event, const char* ident);
 NP_API_INTERN
-    void np_jobqueue_submit_event_callbacks(np_state_t* context, double priority, np_dhkey_t next, np_util_event_t event, np_sll_t(np_evt_callback_t, callbacks), const char* ident);
+    bool np_jobqueue_submit_event_with_prio(np_state_t* context, double delay, np_dhkey_t next, np_util_event_t event, const char* ident, size_t priority);
 NP_API_INTERN
-    void np_jobqueue_submit_event_periodic(np_state_t* context, double delay, double first_delay, double interval, np_evt_callback_t callback, const char* ident);
-
+    void np_jobqueue_submit_event_callbacks(np_state_t* context, double delay, np_dhkey_t next, np_util_event_t event, np_sll_t(np_evt_callback_t, callbacks), const char* ident);
 NP_API_INTERN
-    void __np_jobqueue_run_manager(np_state_t* context, np_thread_t* my_thread);
-NP_API_INTERN
-    void __np_jobqueue_run_worker (np_state_t* context, np_thread_t* my_thread);
+    void np_jobqueue_submit_event_periodic(np_state_t* context, size_t priority, double first_delay, double interval, np_evt_callback_t callback, const char* ident);
 NP_API_INTERN
     void __np_jobqueue_run_jobs(np_state_t* context, np_thread_t* my_thread);
 

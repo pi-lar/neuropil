@@ -38,14 +38,22 @@ enum event_type {
     evt_disable   = 0x2000,
     evt_enable    = 0x4000,
 };
+typedef void (*np_event_cleanup_func) (void * context, np_util_event_t ev);
 
 struct np_util_event_s {
-    np_state_t* context; // really needed ?
-
+    np_dhkey_t __source_dhkey;
     np_dhkey_t target_dhkey;
     enum event_type type;
     void *user_data;
+    np_event_cleanup_func cleanup;
+
+    np_event_runtime_t * current_run;
+
+    #ifdef DEBUG
+    char * __fn_source;
+    #endif
 };
+
 
 #ifdef __cplusplus
 }

@@ -18,18 +18,169 @@
 # all tool names: Addrcheck,Memcheck,cachegrind,helgrind,massif
 
 #neuropil supressions
+
+{
+   <ignore thread upstart msgs>
+   Helgrind:Misc
+   fun:start_thread
+   fun:clone
+}
+{
+   <ignore np_destroy errors for now>
+   Helgrind:Misc
+   ...
+   fun:np_destroy
+   ...
+}
+{
+   <ignore np_destroy errors for now>
+   Helgrind:PthAPIerror
+   ...
+   fun:np_destroy
+   ...
+}
+
+{
+   <Cannot have a data race during the new creation (python memory issue)>
+   Helgrind:Race
+   ...
+   fun:np_memory_new
+}
+{
+   <Cannot have a data race during the memory clean (python memory issue)>
+   Helgrind:Race
+   fun:memset
+   fun:np_memory_clear_space
+   ...
+}
+{
+   <job lock may not be held>
+   Helgrind:Misc
+   ...
+   fun:__pthread_cond_wait_common
+   ...
+}
+{
+   <job lock may not be held>
+   Helgrind:Misc
+   ...
+   fun:PyEval_RestoreThread
+   fun:_cffi_f_np_run
+   ...
+}
+{
+   <no datarace in user readonly token>
+   Helgrind:Race
+   fun:cffi_call_python
+   fun:_py_auth*_cb
+   ...
+}
+
+# python integration
 {
    <insert_a_suppression_name_here>
-   Helgrind:Misc
-   obj:/usr/lib/valgrind/vgpreload_helgrind-amd64-linux.so
-   fun:__pthread_cond_wait_common
-   fun:pthread_cond_timedwait@@GLIBC_2.3.2
+   Helgrind:Race
+   fun:mempcpy
+   fun:_IO_default_xsputn
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr4
+   obj:/usr/bin/python3*
+   fun:Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/usr/bin/python3*
+   fun:Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   obj:/usr/bin/python3*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Helgrind:Race
+   obj:/usr/bin/python3*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr4
+   obj:/usr/bin/python3*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/usr/bin/python3*
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   obj:/usr/bin/python3*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Helgrind:Race
+   obj:/usr/bin/python3*
+   ...
 }
 
 {
    <insert_a_suppression_name_here>
+   Memcheck:Addr4
+   fun:Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
    Helgrind:Race
-   fun:PyEval_RestoreThread
+   fun:Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr4
+   fun:_Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_Py*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Helgrind:Race
+   fun:_Py*
+   ...
 }
 
 # default Python supressions:

@@ -61,36 +61,43 @@ void np_log_message(np_state_t* context, enum np_log_e level,
 
 #ifndef log_info
         #define log_info(level, msg, ...) \
-                 np_log_message(context, level | LOG_INFO, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
+                 log_msg(level | LOG_INFO, msg, ##__VA_ARGS__)
 #endif
-#ifndef log_warn
+#ifndef LOG_WARNING
         #define log_warn(level, msg, ...) \
-                 np_log_message(context, level | LOG_WARN, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
+                 log_msg(level | LOG_WARNING, msg, ##__VA_ARGS__)
 #endif
 #ifndef log_error
         #define log_error(msg, ...) \
-                 np_log_message(context, LOG_ERROR, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
+                 log_msg(LOG_ERROR, msg, ##__VA_ARGS__)
 #endif
 
-#ifndef log_debug_msg
-    #ifdef DEBUG
+#ifdef DEBUG
+    #ifndef log_debug_msg
         #define log_debug_msg(level, msg, ...) \
-                 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
-        #define log_debug(level, msg, ...) \
-                 np_log_message(context, level | LOG_DEBUG, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
-    #else
-        #define log_debug_msg(level, msg, ...)
-        #define log_debug(level, msg, ...)
+                 log_msg(level | LOG_DEBUG, msg, ##__VA_ARGS__)
     #endif
+    #ifndef log_debug
+        #define log_debug(level, msg, ...) \
+                 log_msg(level | LOG_DEBUG, msg, ##__VA_ARGS__)
+    #endif
+#else
+    #define log_debug_msg(level, msg, ...)
+    #define log_debug(level, msg, ...)
 #endif
 
-#ifndef log_trace_msg
-    #ifdef TRACE
+#ifdef TRACE
+    #ifndef log_trace_msg
         #define log_trace_msg(level, msg, ...) \
-                 np_log_message(context, LOG_TRACE| level, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
-    #else
-        #define log_trace_msg(level, msg, ...)
+                log_msg(level | LOG_TRACE, msg, ##__VA_ARGS__)
     #endif
+    #ifndef log_trace_msg
+        #define log_trace(level, msg, ...) \
+                log_msg(level | LOG_TRACE, msg, ##__VA_ARGS__)
+    #endif
+#else
+    #define log_trace_msg(level, msg, ...)
+    #define log_trace(level, msg, ...) 
 #endif
 
 

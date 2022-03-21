@@ -35,17 +35,17 @@ extern "C" {
 RB_HEAD(st_keycache_s, np_key_s);
 
 RB_PROTOTYPE(st_keycache_s, np_key_s, link, _np_key_cmp)
-
+ 
 NP_API_INTERN
 bool _np_keycache_init(np_state_t* context);
 NP_API_INTERN
 void _np_keycache_destroy(np_state_t* context);
 
 NP_API_INTERN
-bool _np_keycache_check_state(np_state_t* context, NP_UNUSED np_util_event_t args);
+bool _np_keycache_exists_state(np_state_t* context, NP_UNUSED np_util_event_t args);
 
 NP_API_INTERN
-void _np_keycache_handle_event(np_state_t* context, np_dhkey_t dhkey, np_util_event_t event, bool force);
+void _np_keycache_execute_event(np_state_t* context, np_dhkey_t dhkey, np_util_event_t event);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_or_create(np_state_t* context, np_dhkey_t key);
@@ -60,16 +60,21 @@ NP_API_INTERN
 np_key_t* _np_keycache_find(np_state_t* context, np_dhkey_t key);
 
 NP_API_INTERN
-bool _np_keycache_contains(np_state_t* context, const np_dhkey_t search_dhkey);
+/**
+ * @brief Checks if a given dhkey exists in the keycache and revives a read only copy if possible.
+ * 
+ * @param[in] context The application context.
+ * @param[in] search_dhkey The dhkey to search for.
+ * @param[out] readonly_buffer The buffer to save the read only data to. Set no NULL if not needed.
+ * @return True if the dhkey is available in the keycache. False if not.
+ */
+bool _np_keycache_exists(np_state_t* context, np_dhkey_t search_dhkey, np_key_ro_t * readonly_buffer);
 
 NP_API_INTERN
 np_key_t* _np_keycache_remove(np_state_t* context, np_dhkey_t key);
 
 NP_API_INTERN
 np_key_t* _np_keycache_find_deprecated(np_state_t* context);
-
-NP_API_INTERN
-sll_return(np_key_ptr) _np_keycache_find_aliase(np_key_t* forKey);
 
 // TODO: this needs to be refactored: closest distance clock- or counterclockwise ?
 // will have an important effect on routing decisions

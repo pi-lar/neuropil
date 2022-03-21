@@ -180,15 +180,19 @@ task_run() {
     shift;
   fi
   application="$application"
-
-  echo "./build/neuropil/bin/$application" "$@"
-  set +e
-  "./build/neuropil/bin/$application" "$@"
-  run=$?
-  set -e
-  if [ "$run" != 0 ] ; then
-    gdb "./build/neuropil/bin/$application" -c core*
-  fi
+  (
+    cd build
+    
+    echo "./neuropil/bin/$application" "$@"
+    set +e
+    "./neuropil/bin/$application" "$@"
+    run=$?
+    set -e
+    if [ "$run" != 0 ] ; then
+      reset
+      gdb "./neuropil/bin/$application" -c core*
+    fi
+  )
 
 }
 
@@ -233,6 +237,41 @@ task_helgrind() {
     return $ret
   )
 }
+task_callgrind() {
+  (
+    ensure_venv
+    task_install_python
+
+    cd build
+    mkdir -p logs
+
+    date > callgrind.log
+    set +e
+    valgrind --tool=callgrind  --callgrind-out-file=callgrind.out --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg test_pub_sub "$@" |& tee callgrind.log;
+    ret=${PIPESTATUS[0]}
+    gprof2dot --format=callgrind --output=callgrind.dot callgrind.out
+    dot -Tpng callgrind.dot -o callgrind.png
+    set -e
+    callgrind_annotate --show-percs=yes --include=include callgrind.out | grep "libneuropil.so"
+    return $ret
+  )
+}
+task_valgrind() {
+  (
+    ensure_venv
+    task_install_python
+
+    cd build
+    mkdir -p logs
+
+    date > valgrind.log
+    set +e
+    valgrind  --gen-suppressions=all --leak-check=full --show-leak-kinds=all --track-origins=yes --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" |& tee valgrind.log;
+    ret=${PIPESTATUS[0]}
+    set -e
+    return $ret
+  )
+}
 task_gdb() {
   (
     ensure_venv
@@ -265,6 +304,12 @@ task_run_script(){
     python "scripts/$script" "$@"
   )
 }
+task_run_bin(){
+  ensure_venv
+  (
+    "$@"
+  )
+}
 task_uninstall(){
   sudo rm -rf /usr/local/lib/*neuropil*
   sudo rm -rf /usr/local/include/neuropil*
@@ -276,13 +321,14 @@ task_pre_commit(){
   python3 scripts/util/build_helper.py --update_strings
 }
 task_search_log(){
-  
-
   grep --no-filename "$@" build/logs/* | sort -k2
-
+}
+task_grep() {
+  grep --with-filename "$@" | sort -k2,3 | ccze -A | less -S
+  return $?
 }
 usage() {
-  echo "$0  build | test | clean | package | coverage | script | deploy | smoke | doc | (r)un | ensure_dependencies | pre_commit | helgrind | analyze | gdb"
+  echo "$0  build | test | clean | package | coverage | script | deploy | smoke | doc | (r)un | ensure_dependencies | pre_commit | helgrind | analyze | gdb | grep"
   exit 1
 }
 
@@ -319,9 +365,15 @@ shift || true
     log) task_search_log "$@";;
     gdb) task_gdb "$@";;
     helgrind) task_helgrind "$@";;
+    valgrind) task_valgrind "$@";;
+    callgrind) task_callgrind "$@";;    
     analyze) task_analyze "$@";;
     script) task_run_script "$@";;
+    bin) task_run_bin "$@";;
     uninstall) task_uninstall "$@";;
+
+    grep) task_grep "$@";;
+    g) task_grep "$@";;
 
     *) usage ;;
   esac

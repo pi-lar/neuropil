@@ -35,7 +35,8 @@ int main(int argc, char **argv)
     char *j_key = NULL;
     char* proto = "udp4";
     char* opt_port = NULL;
-    char* publish_domain = NULL;
+    char* hostname = NULL;
+    char* dns_name = NULL;
     int level = -2;
     char* opt_cloud_size = "32";
     char* logpath = ".";
@@ -49,7 +50,8 @@ int main(int argc, char **argv)
         &j_key,
         &proto,
         &opt_port,
-        &publish_domain,
+        &hostname,
+        &dns_name,
         &level,
         &logpath,
         "[-n cloud size]",
@@ -90,7 +92,7 @@ int main(int argc, char **argv)
 
         np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
 
-        if (np_ok != (tmp = np_listen(nodes[i], proto, publish_domain, port))) {
+        if (np_ok != (tmp = np_listen(nodes[i], proto, hostname, port, dns_name))) {
             np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str(tmp));
         }
         else {

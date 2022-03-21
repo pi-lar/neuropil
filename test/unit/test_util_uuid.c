@@ -4,7 +4,8 @@
 //
 #include <criterion/criterion.h>
 
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_util.h"
 #include "neuropil_log.h"
 #include "np_log.h"

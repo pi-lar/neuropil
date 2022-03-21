@@ -17,14 +17,15 @@
 #define ESC '\033'
 
 enum np_statistic_types_e {
-    np_stat_all = 0x000,
-    np_stat_general         = 0x001,
-    np_stat_locks           = 0x002,
-    np_stat_msgpartcache    = 0x004,
-    np_stat_memory          = 0x008,
-    np_stat_performance     = 0x010,
-    np_stat_jobs            = 0x020,
-    np_stat_threads         = 0x040,
+    np_stat_none            = 0x000,
+    np_stat_all             = 0x001,
+    np_stat_general         = 0x002,
+    np_stat_locks           = 0x004,
+    np_stat_msgpartcache    = 0x008,
+    np_stat_memory          = 0x010,
+    np_stat_performance     = 0x020,
+    np_stat_jobs            = 0x040,
+    np_stat_threads         = 0x080,
 } typedef np_statistic_types_e;
 
 
@@ -106,12 +107,17 @@ typedef struct example_user_context {
     unsigned char key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
     bool key_is_gen;
 
+    bool join_status;
 
     char* opt_http_domain;
     char* opt_http_port;
     enum np_sysinfo_opt_e opt_sysinfo_mode;
 
     bool __shutdown;
+
+    char* port;
+
+    char * j_key;
 
 }example_user_context;
 

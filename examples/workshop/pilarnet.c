@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
 	np_context * ac = np_new_context(settings);
 
-	if (np_ok != np_listen(ac, "udp4", NULL, atoi(port))) {
+	if (np_ok != np_listen(ac, "udp4", NULL, atoi(port), NULL)) {
 		printf("ERROR: Node could not listen");
 		exit(EXIT_FAILURE);
 	}

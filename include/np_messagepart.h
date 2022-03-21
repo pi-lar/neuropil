@@ -9,6 +9,7 @@
 #include "np_memory.h"
 
 #include "np_types.h"
+#include "np_threads.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +25,7 @@ struct np_messagepart_s
 	char uuid[NP_UUID_BYTES];
 	uint32_t part;
 	void* msg_part;
+	np_mutex_t work_lock;
 } NP_API_INTERN;
 
 NP_PLL_GENERATE_PROTOTYPES(np_messagepart_ptr);

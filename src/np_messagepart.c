@@ -81,7 +81,7 @@ bool _np_messagepart_decrypt(np_state_t* context,
 #ifdef DEBUG
 		char public_key_hex[crypto_secretbox_KEYBYTES*2+1];
 		sodium_bin2hex(public_key_hex, crypto_secretbox_KEYBYTES*2+1, public_key, crypto_secretbox_KEYBYTES);
-		log_debug_msg(LOG_DEBUG, "couldn't decrypt msg part with session key %s", public_key_hex);
+		log_debug_msg(LOG_ROUTING, "couldn't decrypt msg part with session key %s", public_key_hex);
 #endif
 
 		log_debug_msg(LOG_ERROR, "couldn't decrypt msg part with session key");
@@ -152,7 +152,12 @@ void _np_messagepart_t_del(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
 	log_trace_msg(LOG_TRACE | LOG_MESSAGE, "start: void _np_messagepart_t_del(void* nw){");
 	np_messagepart_t* part = (np_messagepart_t*) nw;
 
-	if(part->msg_part != NULL) np_memory_free(context, part->msg_part);
+	if(part->msg_part != NULL) {
+		np_unref_obj(BLOB_1024, part->msg_part, ref_obj_creation);
+		//np_memory_free(context, part->msg_part);
+	}
+
+	_np_threads_mutex_destroy(context,&part->work_lock);
 }
 
 void _np_messagepart_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED  size_t size, void* nw)
@@ -162,6 +167,7 @@ void _np_messagepart_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSE
 
 	memset(part->uuid, 0, NP_UUID_BYTES);
 	part->msg_part  = NULL;
+	_np_threads_mutex_init(context, &part->work_lock,"urn:np:msgpart:worklock");
 }
 
 char* np_messagepart_printcache(np_state_t* context, bool asOneLine)
@@ -204,6 +210,7 @@ char* np_messagepart_printcache(np_state_t* context, bool asOneLine)
 void _np_messagepart_trace_info(char* desc, np_messagepart_t * msg_in) {
 
     np_ctx_memory(msg_in);
+
     char * info_str = NULL;
     info_str = np_str_concatAndFree(info_str, "MessagePartTrace_%s", desc);
 
@@ -216,7 +223,13 @@ void _np_messagepart_trace_info(char* desc, np_messagepart_t * msg_in) {
         RB_FOREACH(tmp, np_tree_s, (msg_in->header))
         {
             key = np_treeval_to_str(tmp->key, &free_key);
-            value = np_treeval_to_str(tmp->val, &free_value);
+            if(strcmp(key,_NP_MSG_HEADER_SUBJECT)==0) {
+				free_value = true;
+                value = malloc(100);
+                np_regenerate_subject(context, value,100, &tmp->val.value.dhkey);
+            }else{                	
+                value = np_treeval_to_str(tmp->val, &free_value);
+            }
             info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
             if (free_value) free(value);
             if (free_key) free(key);

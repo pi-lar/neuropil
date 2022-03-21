@@ -422,7 +422,7 @@ void __np_property_add_msg_to_cache(np_util_statemachine_t* statemachine, const 
 NP_API_INTERN
 void _np_msgproperty_check_msgcache(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event);
 NP_API_INTERN
-void _np_msgproperty_check_msgcache_for(np_util_statemachine_t* statemachine, const np_util_event_t event);
+void _np_msgproperty_check_msgcache_for(np_util_statemachine_t* statemachine, np_event_runtime_t * current_run, const np_util_event_t event);
 NP_API_INTERN
 void _np_msgproperty_cleanup_cache(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event);
 
@@ -431,7 +431,7 @@ void _np_msgproperty_cleanup_cache(np_util_statemachine_t* statemachine, NP_UNUS
  ** check redelivery of already encrypted messages
  **/
 NP_API_INTERN
-void __np_msgproperty_redeliver_messages(np_util_statemachine_t* statemachine, NP_UNUSED const np_util_event_t event);
+void __np_msgproperty_redeliver_messages(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 
 /**

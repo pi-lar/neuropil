@@ -41,6 +41,8 @@ enum np_prometheus_exposed_metrics {
     np_prometheus_exposed_metrics_network_in_per_sec,
     np_prometheus_exposed_metrics_network_out,
     np_prometheus_exposed_metrics_network_out_per_sec,
+    np_prometheus_exposed_metrics_pheromones_inhale,
+    np_prometheus_exposed_metrics_pheromones_exhale,
     np_prometheus_exposed_metrics_END
 };
 
@@ -98,7 +100,7 @@ char* np_statistics_prometheus_export(np_context*ac);
         np_module_struct(statistics) {
             np_state_t* context;
             np_simple_cache_table_t __cache;
-            np_sll_t(char_ptr, __watched_subjects);
+            np_sll_t(np_dhkey_t, __watched_subjects);
             prometheus_context* _prometheus_context;
             prometheus_metric* _prometheus_metrics[np_prometheus_exposed_metrics_END];
             double startup_time;
@@ -149,7 +151,11 @@ char* np_statistics_prometheus_export(np_context*ac);
             void __np_statistics_set_latency(np_state_t* context, np_dhkey_t id, float value);
         NP_API_INTERN
             void __np_statistics_set_success_avg(np_state_t* context, np_dhkey_t id, float value);
-
+        NP_API_INTERN        
+            void __np_statistics_increment_pheromones_inhale(np_state_t* context);
+        NP_API_INTERN        
+            void __np_statistics_increment_pheromones_exhale(np_state_t* context);
+            
         #define _np_set_latency(id, value) __np_statistics_set_latency(context, id, value)
         #define _np_set_success_avg(id, value) __np_statistics_set_success_avg(context, id, value)
         #define _np_increment_forwarding_counter(subject) __np_increment_forwarding_counter(context, subject)
@@ -157,6 +163,8 @@ char* np_statistics_prometheus_export(np_context*ac);
         #define _np_increment_send_msgs_counter(subject) __np_increment_send_msgs_counter(context, subject)
         #define _np_statistics_add_send_bytes(add) __np_statistics_add_send_bytes(context, add)
         #define _np_statistics_add_received_bytes(add) __np_statistics_add_received_bytes(context, add)
+        #define _np_statistics_increment_pheromones_inhale() __np_statistics_increment_pheromones_inhale(context)
+        #define _np_statistics_increment_pheromones_exhale() __np_statistics_increment_pheromones_exhale(context)
     #else
         #define _np_set_latency(id, value)
         #define _np_set_success_avg(id, value)
@@ -165,18 +173,19 @@ char* np_statistics_prometheus_export(np_context*ac);
         #define _np_increment_send_msgs_counter(subject)
         #define _np_statistics_add_send_bytes(add)
         #define _np_statistics_add_received_bytes(add)
+        #define _np_statistics_increment_pheromones_inhale()
+        #define _np_statistics_increment_pheromones_exhale()
     #endif // DEBUG
 
 
 
-    #ifdef NP_BENCHMARKING
+#ifdef NP_BENCHMARKING
     #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)			\
                 double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               \
                 for (uint16_t j = 0; j < max_size; j++)                                         \
                 {                                                                               \
                     min_v = fmin(min_v,(array[j]accessor));										\
                     max_v = fmax(max_v,(array[j]accessor));										\
-                    /*avg = (avg * max_size + array[j]accessor) / (max_size + 1);*/             \
                     avg_v += array[j]accessor;                                                  \
                 }                                                                               \
                 avg_v = avg_v / max_size;                                                       \
@@ -192,15 +201,21 @@ char* np_statistics_prometheus_export(np_context*ac);
 
     #define NP_PERFORMANCE_POINT_START(NAME)                                                                                                            \
         double t1_##NAME;                                                                                                                               \
-        np_statistics_performance_point_t container_##NAME = np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];        \
-        {                                                                                                                                               \
-            _LOCK_ACCESS(&container_##NAME.access) {                                                                                                   \
-                container_##NAME.hit_count++;                                                                                                          \
-            }                                                                                                                                           \
-            t1_##NAME = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/                                                                              \
-        }                                                                                                                                               \
+        np_statistics_performance_point_t container_##NAME;                                                                                             \
+        if(np_module_initiated(statistics))                                                                                                                 \
+        {                                                                                                                                                   \
+            container_##NAME = np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];                                          \
+            {                                                                                                                                               \
+                _LOCK_ACCESS(&container_##NAME.access) {                                                                                                    \
+                    container_##NAME.hit_count++;                                                                                                           \
+                }                                                                                                                                           \
+                t1_##NAME = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/                                                                              \
+            }                                                                                                                                               \
+        }
 
-    #define NP_PERFORMANCE_POINT_END(NAME) {																						\
+    #define NP_PERFORMANCE_POINT_END(NAME)  																						\
+        if(np_module_initiated(statistics))                                                                                         \
+        {                                                                                                                           \
             double t2_##NAME = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/								                    \
             {																						                                \
                 _LOCK_ACCESS(&container_##NAME.access) {																			\
@@ -212,13 +227,14 @@ char* np_statistics_prometheus_export(np_context*ac);
         }                                                                                                                           \
 
     #define __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container) 																\
-                _LOCK_ACCESS(&container.access) {																					\
-                    CALC_STATISTICS(container.durations, ,																			\
-                    (container.durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container.durations_idx),					\
-                        min_v, max_v, avg_v, stddev_v);																				\
-                    STR = np_str_concatAndFree(STR, "%30s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32" / %10"PRIu32"\n",			\
-                        container.name, min_v, avg_v, max_v, stddev_v, container.hit_count,container.durations_count);			\
-            }
+        _LOCK_ACCESS(&container.access) {																					\
+            CALC_STATISTICS(container.durations/*array*/,/*no accessor*/ ,													\
+            /*max_size*/(container.durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container.durations_idx),          \
+                min_v, max_v, avg_v, stddev_v);																				\
+            STR = np_str_concatAndFree(STR,                                                                                 \
+                "%100s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32" / %10"PRIu32"\n",			                        \
+                container.name, min_v, avg_v, max_v, stddev_v, container.hit_count, container.durations_count);			    \
+        }
 
     #ifdef DEBUG_CALLBACKS
     #define ___NP_PERFORMANCE_GET_POINTS_STR(STR)																				\
@@ -234,21 +250,23 @@ char* np_statistics_prometheus_export(np_context*ac);
         char* STR = NULL;																											\
         {																															\
             STR = np_str_concatAndFree(STR,																							\
-                    "%30s --> %8s / %8s / %8s / %8s / %10s / %10s \n", "name", "min", "avg", "max", "stddev", "hits", "completed");	\
+                    "%-100s --> %8s / %8s / %8s / %8s / %10s / %10s \n",                                                              \
+                    "name", "min", "avg", "max", "stddev", "hits", "completed"                                                      \
+            );	                                                                                                                    \
             for (int i = 0; i < np_statistics_performance_point_END; i++) {															\
-                np_statistics_performance_point_t container = np_module(statistics)->performance_points[i];						\
+                np_statistics_performance_point_t container = np_module(statistics)->performance_points[i];						    \
                 __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container);															\
             }																														\
             ___NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
         }
     #else
-    #define NP_PERFORMANCE_POINT_DESTROY()
-    #define NP_PERFORMANCE_POINT_START(name)
-    #define NP_PERFORMANCE_POINT_END(name)
-    #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\
-        char* STR = NULL;
-    #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
-            double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;
+        #define NP_PERFORMANCE_POINT_DESTROY()
+        #define NP_PERFORMANCE_POINT_START(name)
+        #define NP_PERFORMANCE_POINT_END(name)
+        #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\
+            char* STR = NULL;
+        #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
+                double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;
     #endif
 
 

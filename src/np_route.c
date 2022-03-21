@@ -26,7 +26,8 @@
 #include "np_threads.h"
 #include "np_types.h"
 #include "np_util.h"
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_settings.h"
 #include "np_constants.h"
 
@@ -55,6 +56,26 @@ np_module_struct(route)
 
 void _np_route_append_leafset_to_sll(np_key_ptr_sll_t* left_leafset, np_sll_t(np_key_ptr, result));
 
+bool __np_route_periodic_log(np_state_t* context, NP_UNUSED np_util_event_t event) {
+    if (np_module_initiated(route)) {
+
+        TSP_GET(uint32_t,np_module(route)->route_count,route_count);
+        TSP_GET(uint32_t,np_module(route)->leafset_left_count,leafset_left_count);
+        TSP_GET(uint32_t,np_module(route)->leafset_right_count,leafset_right_count);
+
+
+        log_info(LOG_EXPERIMENT, "[routing capacity] route total:%"PRIu32"/%"PRIu32"=%f%% leafset:%"PRIu32"+%"PRIu32"=%"PRIu32"/%"PRIu32"=%f",
+            route_count,
+            NP_ROUTES_TABLE_SIZE,
+            route_count/(NP_ROUTES_TABLE_SIZE+0.0),
+            leafset_left_count,
+            leafset_right_count,
+            leafset_left_count + leafset_right_count,
+            np_module(route)->leafset_size*2,
+            (leafset_left_count + leafset_right_count) / (0.0+np_module(route)->leafset_size*2)
+        );
+    }
+}
 /* route_init:
  * Initiates routing table and leafsets
  */
@@ -262,13 +283,13 @@ void _np_route_leafset_update (np_key_t* node_key, bool joined, np_key_t** delet
         if (add_to != NULL) {
             if (added != NULL) *added = add_to;
             np_ref_obj(np_key_t, add_to, ref_route_inleafset);
-            log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   leafset table.", _np_key_as_str(add_to));
+            log_info(LOG_ROUTING, "added   %s to   leafset table.", _np_key_as_str(add_to));
         }
 
         if (deleted_from != NULL) {
             if (deleted != NULL) *deleted = deleted_from;
             np_unref_obj(np_key_t, deleted_from, ref_route_inleafset);
-            log_msg(LOG_ROUTING | LOG_INFO, "removed %s from leafset table.", _np_key_as_str(deleted_from));
+            log_info(LOG_ROUTING, "removed %s from leafset table.", _np_key_as_str(deleted_from));
         }
 
         TSP_SET(
@@ -349,6 +370,56 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_state_t* context, np_dhkey_t dhk
             }
         }
 
+        // sll_append(np_key_ptr, sll_of_keys, np_module(route)->my_key);
+        np_key_ref_list(sll_of_keys, FUNC, NULL);
+    }
+
+    log_trace_msg(LOG_TRACE | LOG_ROUTING , ".end  .route_row_lookup");
+    return (sll_of_keys);
+}
+
+
+sll_return(np_key_ptr) _np_route_neighbour_lookup (np_state_t* context, np_dhkey_t dhkey)
+{
+    np_sll_t(np_key_ptr, sll_of_keys);
+    sll_init(np_key_ptr, sll_of_keys);
+
+    _LOCK_MODULE(np_routeglobal_t)
+    {
+        uint16_t col_index, row_index, entry_index;
+        col_index = _np_dhkey_index (&np_module(route)->my_key->dhkey, &dhkey);
+        row_index = _np_dhkey_hexalpha_at (context, &dhkey, col_index);
+        uint8_t max_count = 7;
+        uint32_t dhkey_start_index = col_index * row_index;
+
+        bool left_end = false, right_end = false;
+        uint32_t current_table_iterator = 0, current_table_index;
+        bool look_left = false;
+
+        while(sll_size(sll_of_keys) < max_count && !left_end && !right_end){                        
+            look_left = !look_left;
+            
+            if ((look_left && !left_end) || (!look_left && !right_end)){
+                for (entry_index = 0; entry_index < __MAX_ENTRY; entry_index++)
+                {
+                    current_table_index = dhkey_start_index +((look_left?-1:1) * current_table_iterator) + entry_index;
+
+                    np_key_t * _key = np_module(route)->table[current_table_index];
+                    if ( _key != NULL &&
+                        !_np_dhkey_equal(&_key->dhkey, &dhkey) )
+                    {
+                        sll_append(np_key_ptr, sll_of_keys, _key);
+                    }
+
+                    if(current_table_index == NP_ROUTES_TABLE_SIZE)
+                        right_end = true;
+                    else if(current_table_index == 0)
+                        left_end = true;
+                }
+            }
+            if(look_left)
+                current_table_iterator++;
+        }
         // sll_append(np_key_ptr, sll_of_keys, np_module(route)->my_key);
         np_key_ref_list(sll_of_keys, FUNC, NULL);
     }
@@ -587,7 +658,7 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
                 np_ref_obj(np_key_t, first->val);
             }
 
-            log_debug_msg(LOG_DEBUG, "route  key: %s", _np_key_as_str(sll_first(return_list)->val));
+            log_debug_msg(LOG_ROUTING, "route  key: %s", _np_key_as_str(sll_first(return_list)->val));
 
             // if (!key_comp(&dif1, &dif2) == 0) ret[0] = rg->me;
             // if (key_comp(&dif1, &dif2)  < 0) ret[0] = NULL;
@@ -740,83 +811,64 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
         np_key_t* deleted_from = NULL;
 
 
-        uint16_t i, j, k, found, pick;
+        uint16_t i, j, k, pick;
 
         i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &key->dhkey);
         j = _np_dhkey_hexalpha_at (context, &key->dhkey, i);
 
         int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
 
+        bool found_empty_routing_table_entry = false;
+        bool key_already_in_routing_table = false;
+        
         /* a node joins the routing table */
         if (true == joined)
         {
-            found = 0;
+            np_key_t * slowest_node = NULL;
+            np_key_t * k_node;
             for (k = 0; k < __MAX_ENTRY; k++)
             {
-                if (np_module(route)->table[index + k] != NULL &&
-                    _np_dhkey_equal (&np_module(route)->table[index + k]->dhkey, &key->dhkey))
-                {
-                    found = 0;
-                    break;
-                }
-
                 if (np_module(route)->table[index + k] == NULL)
                 {
                     np_module(route)->table[index + k] = key;
-                    found = 0;
+                    found_empty_routing_table_entry = true;
                     add_to = key;
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "%s added to routes->table[%d]",_np_key_as_str(key), index+k);
+                    log_debug_msg(LOG_ROUTING, "%s added to routes->table[%d]",_np_key_as_str(key), index+k);
                     break;
-                }
-                else if (np_module(route)->table[index + k] != NULL &&
-                         !_np_dhkey_equal (&np_module(route)->table[index + k]->dhkey, &key->dhkey ))
-                {
-                    found = 1;
+                }else{
+                    if (_np_dhkey_equal (&np_module(route)->table[index + k]->dhkey, &key->dhkey)) {
+                        key_already_in_routing_table = true;
+                        break;
+                    }
+
+                    k_node  = np_module(route)->table[index + k];
+                    if(slowest_node == NULL){
+                        pick = k;
+                        slowest_node  = np_module(route)->table[index + k];
+                    }else{
+                        // select slower node as pick_node
+                        if (_np_key_get_node(k_node)->latency > _np_key_get_node(slowest_node)->latency)
+                        {							
+                            log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d.%d: k.%f < p.%f",
+                                                                    index, pick, _np_key_get_node(k_node)->latency, _np_key_get_node(slowest_node)->latency);
+                            pick = k;
+                            slowest_node = k_node;
+                        }
+                    }
                 }
             }
 
             /* the entry array is full we have to get rid of one */
             /* replace the new node with the node with the highest latency in the entry array */
-            if (found)
+            if (!key_already_in_routing_table && !found_empty_routing_table_entry)
             {
-                pick = 0;
-                np_key_t *k_node;
-                np_key_t *pick_node = NULL;
-                // slowest node selection
-                for (k = 1; k < __MAX_ENTRY; k++)
+                double latency_diff = _np_key_get_node(slowest_node)->latency - _np_key_get_node(key)->latency;
+                if (latency_diff > NP_PI/1000) // the new node has a reasonably lower latency than slowest node
                 {
-                    pick_node = np_module(route)->table[index + pick];
-                    if (pick_node == NULL)
-                        break;
-                    
-                    k_node  = np_module(route)->table[index + k];
-                    if (k_node == NULL) 
-                    {
-                        pick = k;
-                        pick_node = np_module(route)->table[index + pick];
-                        break;
-                    }
-
-                    double latency_diff = _np_key_get_node(k_node)->latency - _np_key_get_node(pick_node)->latency;
-                    if (latency_diff > 0) // pick_node is slower than new node and
-                    {							
-                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replace latencies at index %d.%d: k.%f < p.%f",
-                                                                index, pick, _np_key_get_node(k_node)->latency, _np_key_get_node(pick_node)->latency);
-                        pick = k;
-                        pick_node = np_module(route)->table[index + pick];
-                    }
-                }
-
-                if (pick_node != NULL)       // we have a pick node
-                {
-                    double latency_diff = _np_key_get_node(pick_node)->latency - _np_key_get_node(key)->latency;
-                    if (latency_diff > NP_PI/1000) // pick_node has reasonably lower latency than new node
-                    {
-                        deleted_from = pick_node;
-                        np_module(route)->table[index + pick] = key;
-                        add_to = key;
-                        log_debug_msg(LOG_ROUTING | LOG_DEBUG, "replaced to routes->table[%"PRId32"]", index + pick);
-                    }
+                    deleted_from = slowest_node;
+                    np_module(route)->table[index + pick] = key;
+                    add_to = key;
+                    log_debug_msg(LOG_ROUTING, "replaced to routes->table[%"PRId32"] ", index + pick);
                 }
             }
         }
@@ -831,7 +883,7 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
                     deleted_from = key;
                     np_module(route)->table[index + k] = NULL;
 
-                    log_debug_msg(LOG_ROUTING | LOG_DEBUG, "deleted to routes->table[%d]", index+k);
+                    log_debug_msg(LOG_ROUTING, "deleted to routes->table[%"PRId32"]", index+k);
                     break;
                 }
             }
@@ -839,7 +891,7 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
 
         if(add_to != NULL) 
         {
-            log_msg(LOG_ROUTING | LOG_INFO, "added   %s to   routing table.", _np_key_as_str(add_to));
+            log_info(LOG_ROUTING | LOG_EXPERIMENT, "[routing disturbance] added to routing table: %s", _np_key_as_str(add_to));
             np_ref_obj(np_key_t, add_to, ref_route_inroute);
             if (added != NULL) *added = add_to;
             TSP_SET(
@@ -847,7 +899,7 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
         }
         
         if(deleted_from != NULL) {
-            log_msg(LOG_ROUTING | LOG_INFO, "removed %s from routing table.", _np_key_as_str(deleted_from));
+            log_info(LOG_ROUTING | LOG_EXPERIMENT, "[routing disturbance] deleted %s from routing table.", _np_key_as_str(deleted_from));
             np_unref_obj(np_key_t, deleted_from, ref_route_inroute);
             if (deleted != NULL) *deleted = deleted_from;
             TSP_SET(
@@ -866,6 +918,11 @@ uint32_t __np_route_my_key_count_routes(np_state_t* context, NP_UNUSED bool brea
     TSP_GET(uint32_t, np_module(route)->route_count, ret);
 
     return ret;
+}
+
+uint32_t np_get_route_count(np_context* ac){
+    np_ctx_cast(ac);
+    return __np_route_my_key_count_routes(context,false);
 }
 
 bool _np_route_my_key_has_connection(np_state_t* context) {

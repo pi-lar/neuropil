@@ -129,7 +129,8 @@ int main(int argc, char **argv)
 	char *j_key = NULL;
 	char* proto = "udp4";
 	char* port = NULL;
-	char* publish_domain = NULL;
+	char* hostname = NULL;
+    char* dns_name = NULL;
 	int level = -2;
 	char* logpath = ".";
 
@@ -142,7 +143,8 @@ int main(int argc, char **argv)
 		&j_key,
 		&proto,
 		&port,
-		&publish_domain,
+		&hostname,
+        &dns_name,
 		&level,
 		&logpath,
 		NULL,
@@ -213,13 +215,13 @@ int main(int argc, char **argv)
 	   \endcode
 	*/
 
-	if (np_ok != np_listen(context_1, proto, publish_domain, atoi(port) )) {
-		fprintf(stdout, "ERROR: Node could not listen to %s:%s:%s",proto, publish_domain, port);
+	if (np_ok != np_listen(context_1, proto, hostname, atoi(port), dns_name )) {
+		fprintf(stdout, "ERROR: Node could not listen to %s:%s:%s",proto, hostname, port);
 		exit(EXIT_FAILURE);
 	}
 
-	if (np_ok != np_listen(context_2, proto, publish_domain, atoi(port)+1 )) {
-		fprintf(stdout, "ERROR: Node could not listen to %s:%s:%d",proto, publish_domain, atoi(port)+1);
+	if (np_ok != np_listen(context_2, proto, hostname, atoi(port)+1, dns_name )) {
+		fprintf(stdout, "ERROR: Node could not listen to %s:%s:%d",proto, hostname, atoi(port)+1);
 		exit(EXIT_FAILURE);
 	}
 

@@ -21,10 +21,11 @@ int main (void)
 {
 	struct np_settings cfg;
 	np_default_settings(&cfg);
+	strncpy(cfg.log_file, "receiver.log", 255);
 
 	np_context *ac = np_new_context(&cfg);
 
-	assert(np_ok == np_listen(ac, "udp4", "localhost", 3456));
+	assert(np_ok == np_listen(ac, "udp4", "localhost", 3456, NULL));
 
 	assert(np_ok == np_run(ac, 0.0));
 

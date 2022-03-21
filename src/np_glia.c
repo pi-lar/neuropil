@@ -25,7 +25,8 @@
 #include "np_axon.h"
 #include "np_dendrit.h"
 #include "np_dhkey.h"
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_jobqueue.h"
 #include "np_key.h"
 #include "np_keycache.h"
@@ -92,7 +93,7 @@ void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
                 if (is_fully_acked || now > responsecontainer->expires_at) {
                     if (!is_fully_acked) {
                         _np_responsecontainer_set_timeout(responsecontainer);
-                        log_msg(LOG_WARN, "ACK_HANDLING timeout (table size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
+                        log_msg(LOG_WARNING, "ACK_HANDLING timeout (table size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
                             my_network->waiting->size,
                             jrb_ack_node->key.value.s, responsecontainer->msg->msg_property->msg_subject,
                             now, responsecontainer->expires_at
@@ -103,7 +104,7 @@ void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
             }
             else 
             {
-                log_debug_msg(LOG_DEBUG, "ACK_HANDLING (table size: %3d) message (%s) not found",
+                log_debug_msg(LOG_ROUTING, "ACK_HANDLING (table size: %3d) message (%s) not found",
                                          my_network->waiting->size, jrb_ack_node->key.value.s);
             }
             c++;
@@ -113,7 +114,7 @@ void _np_cleanup_ack_jobexec(np_state_t* context, NP_UNUSED  np_jobargs_t args)
     if (sll_size(to_remove) > 0) 
     {
         sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
-        log_debug_msg(LOG_WARN, "ACK_HANDLING removing %"PRIu32" (of %d) from ack table", sll_size(to_remove), c);
+        log_debug_msg(LOG_WARNING, "ACK_HANDLING removing %"PRIu32" (of %d) from ack table", sll_size(to_remove), c);
         while (iter_to_rm != NULL)
         {
             np_responsecontainer_t *responsecontainer = _np_responsecontainers_get_by_uuid(context, iter_to_rm->val);

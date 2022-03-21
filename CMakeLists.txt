@@ -40,7 +40,8 @@ add_library(libneuropil SHARED
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/np_route.c
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/np_util.c
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/np_threads.c
-                    ${CMAKE_CURRENT_SOURCE_DIR}/src/np_event.c
+                    ${CMAKE_CURRENT_SOURCE_DIR}/src/np_evqueue.c
+                    ${CMAKE_CURRENT_SOURCE_DIR}/src/np_evloop.c
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/np_messagepart.c
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/np_statistics.c
                     ${CMAKE_CURRENT_SOURCE_DIR}/src/np_responsecontainer.c

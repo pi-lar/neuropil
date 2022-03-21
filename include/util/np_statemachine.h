@@ -53,7 +53,6 @@ struct np_util_statemachine_s {
     void *_context;
 
     np_util_statemachine_state_t** _state_table;
-    // np_util_event_t* _input_event_list;
 };
 
 struct np_util_statemachine_result_s {

@@ -101,7 +101,7 @@ np_aaatoken_t* __np_token_factory_derive(np_aaatoken_t* source, enum np_aaatoken
         break;
     default:
         log_msg(LOG_ERROR, "scope to derive token to is unknown. scope: %"PRIu8, scope);
-        abort();
+        ABORT("scope to derive token to is unknown. scope: %"PRIu8, scope);
         break;
     }
     /// end of contract
@@ -254,18 +254,21 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
 
     np_handshake_token_t* ret = NULL;
 
-    np_aaatoken_t* my_node_token = _np_key_get_token(context->my_node_key);
-    log_debug_msg(LOG_DEBUG, "context->my_node_key =  %p %p %d", context->my_node_key, my_node_token, my_node_token->type);
+    _LOCK_ACCESS(&context->my_node_key->key_lock){
+        np_aaatoken_t* my_node_token = _np_key_get_token(context->my_node_key);
+        log_debug_msg(LOG_MISC, "context->my_node_key =  %p %p %d", context->my_node_key, my_node_token, my_node_token->type);
 
-    ASSERT(FLAG_CMP(my_node_token->type, np_aaatoken_type_node), "Can only derive handshake token from node token. current token type: %"PRIu8, my_node_token->type);
-    ASSERT(my_node_token->scope == np_aaatoken_scope_private, "Can only derive handshake token from private token. current token scope: %"PRIu8, my_node_token->scope);
+        ASSERT(FLAG_CMP(my_node_token->type, np_aaatoken_type_node), "Can only derive handshake token from node token. current token type: %"PRIu8, my_node_token->type);
+        ASSERT(my_node_token->scope == np_aaatoken_scope_private, "Can only derive handshake token from private token. current token scope: %"PRIu8, my_node_token->scope);
 
-    ret = __np_token_factory_derive(my_node_token, np_aaatoken_scope_private_available);
-    np_init_datablock(ret->attributes, sizeof(ret->attributes));
-    ret->type = np_aaatoken_type_handshake;
+        ret = __np_token_factory_derive(my_node_token, np_aaatoken_scope_private_available);
+        
+        np_init_datablock(ret->attributes, sizeof(ret->attributes));
+        ret->type = np_aaatoken_type_handshake;
 
-    np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token, false);
-    _np_dhkey_str(&node_dhkey, ret->issuer);
+        np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(my_node_token, false);
+        _np_dhkey_str(&node_dhkey, ret->issuer);
+    }
 
     np_node_t* my_node = _np_key_get_node(context->my_node_key);
     struct np_data_conf cfg;
@@ -280,13 +283,13 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
     char my_token_fp_s[65] = { 0 };
     np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(ret, false);
     _np_dhkey_str(&my_token_fp, my_token_fp_s);
-    log_debug_msg(LOG_DEBUG, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(context->my_node_key));
+    log_debug_msg(LOG_AAATOKEN| LOG_HANDSHAKE, "new handshake token fp: %s from node: %s", my_token_fp_s, _np_key_as_str(context->my_node_key));
     // ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key and handshake partner key has to be the same");
 #endif // DEBUG
 
 
 #ifdef DEBUG
-    bool valid = _np_aaatoken_is_valid(ret, np_aaatoken_type_handshake);
+    bool valid = _np_aaatoken_is_valid(context, ret, np_aaatoken_type_handshake);
 	char signature_hex[crypto_sign_BYTES * 2 + 1] = { 0 };
 	sodium_bin2hex(signature_hex, crypto_sign_BYTES * 2 + 1,
 		ret->signature, crypto_sign_BYTES);
@@ -295,7 +298,7 @@ np_handshake_token_t* _np_token_factory_new_handshake_token(np_state_t* context)
 	sodium_bin2hex(pk_hex, crypto_sign_PUBLICKEYBYTES * 2 + 1,
 		ret->crypto.ed25519_public_key, crypto_sign_PUBLICKEYBYTES);
 
-	log_debug_msg(LOG_DEBUG,
+	log_debug_msg(LOG_AAATOKEN,
 		"(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %"PRId32,
 		ret->uuid, (valid==true)?"":" not", pk_hex, signature_hex, ret);
 #endif
@@ -371,9 +374,9 @@ np_aaatoken_t* np_token_factory_read_from_tree(np_state_t* context, np_tree_t* t
     bool ok = false;
     np_new_obj(np_aaatoken_t, ret, FUNC);
     if (np_aaatoken_decode(tree, ret)) {
-        log_debug_msg(LOG_DEBUG, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
+        log_debug_msg(LOG_AAATOKEN, "imported token %s (type: %"PRIu8") from tree %p", ret->uuid, ret->type, tree);
 
-        if (_np_aaatoken_is_valid(ret, np_aaatoken_type_undefined)) {
+        if (_np_aaatoken_is_valid(context, ret, np_aaatoken_type_undefined)) {
             ASSERT(strlen(ret->subject) > 1, "tokens (%s) subject string (\"%s\") has incorrect size", ret->uuid, ret->subject);
             ok = true;
         }

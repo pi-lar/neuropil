@@ -43,7 +43,7 @@ else VAR_NAME = np_tree_find_str(TREE, FIELD_NAME)->val;
 #define CHECK_STR_FIELD_BOOL(TREE, FIELD_NAME, VAR_NAME, ERROR_MSG) 					            \
 np_tree_elem_t* VAR_NAME = NULL;                                                             \
 if(!np_tree_check_field(context, TREE, FIELD_NAME, _NP_MSG_HEADER_SUBJECT, &VAR_NAME)) {     \
-    log_debug(LOG_ERROR, ERROR_MSG);                                                         \
+    log_error(ERROR_MSG);                                             \
 } else
 
 /**

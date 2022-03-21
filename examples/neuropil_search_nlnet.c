@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 		np_default_settings(&settings);
 		settings.n_threads = 5;
 		snprintf(settings.log_file, 255, "%s%s_%d.log", logpath, "/neuropil_search_nlnet", i);
-		settings.log_level = LOG_INFO | LOG_WARN | LOG_ERROR;
+		settings.log_level = LOG_INFO | LOG_WARNING | LOG_ERROR;
 
 		context[i] = np_new_context(&settings);
 		np_set_userdata(context[i], user_context);
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 		np_set_authorize_cb(context[i], authorize);
 		np_set_authenticate_cb(context[i], authenticate);
 
-		if (np_ok != np_listen(context[i], "pas4", "localhost", atoi(port))) {
+		if (np_ok != np_listen(context[i], "pas4", "localhost", atoi(port), NULL)) {
 			np_example_print(context[i], stderr, "ERROR: Node could not listen to %s:%s:%s\n",proto, publish_domain, port);
 		}
 		// __np_example_helper_loop(context); // for the fancy ncurse display

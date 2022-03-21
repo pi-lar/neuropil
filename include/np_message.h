@@ -36,6 +36,7 @@ struct np_message_s
     // only used if the message has to be split up into chunks
     bool is_single_part;
     uint32_t no_of_chunks;
+    uint32_t no_of_chunk;
     np_pll_t(np_messagepart_ptr, msg_chunks);
     np_mutex_t msg_chunks_lock;
 
@@ -78,7 +79,7 @@ void _np_message_calculate_chunking(np_message_t* msg);
 NP_API_INTERN
 bool _np_message_serialize_header_and_instructions(np_state_t* context, np_message_t* msg);
 NP_API_INTERN
-bool _np_message_serialize_chunked(np_message_t * msg);
+bool _np_message_serialize_chunked(np_state_t* context, np_message_t * msg);
 
 NP_API_INTERN
 bool _np_message_deserialize_header_and_instructions(np_message_t* msg, void* buffer);
@@ -120,14 +121,14 @@ double _np_message_get_expiery(const np_message_t* const self);
 NP_API_INTERN
 bool _np_message_is_expired(const np_message_t* const msg_to_check);
 NP_API_INTERN
+bool _np_message_is_internal(np_state_t * context, np_message_t * msg);
+NP_API_INTERN
 void _np_message_mark_as_incomming(np_message_t* msg);
 NP_API_INTERN
 np_dhkey_t* _np_message_get_sender(const np_message_t* const self);
 
 NP_API_INTERN
-void _np_message_add_key_response_handler(const np_message_t* self);
-NP_API_INTERN
-void _np_message_add_msg_response_handler(const np_message_t* self);
+void _np_message_add_response_handler(const np_message_t* self, const np_util_event_t event, bool use_destination_from_header_to_field);
 
 NP_API_INTERN
 void _np_message_trace_info(char* desc, np_message_t * msg_in);
@@ -140,7 +141,6 @@ static const char* _NP_MSG_HEADER_FROM			= "_np.from";
 
 // msg instructions constants
 static const char* _NP_MSG_INST_SEND_COUNTER	= "_np.sendnr";
-static const char* _NP_MSG_INST_PART			= "_np.part";
 static const char* _NP_MSG_INST_PARTS			= "_np.parts";
 static const char* _NP_MSG_INST_ACK				= "_np.ack";
 static const char* _NP_MSG_INST_ACK_TO			= "_np.ack_to";

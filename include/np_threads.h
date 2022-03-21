@@ -99,7 +99,6 @@ static const char* np_thread_type_str[] =  {
 /** thread														**/
 struct np_thread_s
 {
-    uint8_t idx;
     size_t id;
     pthread_t thread_id;
 
@@ -107,10 +106,6 @@ struct np_thread_s
     this thread can only handle jobs up to the max_job_priority
     */
     double max_job_priority;
-    /**
-    this thread can only handle jobs down to the min_job_priority
-    */
-    double min_job_priority;
 
     bool _busy;
     enum np_thread_type_e thread_type;
@@ -128,6 +123,7 @@ struct np_thread_s
 
 #ifdef NP_STATISTICS_THREADS
     np_thread_stats_t *stats;
+    size_t run_iterations;
 #endif
 
 } NP_API_INTERN;
@@ -145,7 +141,7 @@ int _np_threads_lock_module(np_state_t* context, np_module_lock_type module_id, 
 NP_API_INTERN
 int _np_threads_unlock_module(np_state_t* context, np_module_lock_type module_id);
 NP_API_INTERN
-int _np_threads_unlock_modules(np_state_t* context, np_module_lock_type module_id_a, np_module_lock_type module_id_b);
+int _np_threads_trylock_module(np_state_t* context, np_module_lock_type module_id, const char* where);
 
 NP_API_INTERN
 int _np_threads_module_condition_broadcast(NP_UNUSED np_state_t* context, np_module_lock_type module_id);
@@ -159,11 +155,11 @@ int _np_threads_module_condition_wait(NP_UNUSED np_state_t* context, np_module_l
 NP_API_EXPORT
 int _np_threads_mutex_init(np_state_t*context, np_mutex_t* mutex, const char* desc);
 NP_API_EXPORT
-int _np_threads_mutex_lock(NP_UNUSED np_state_t*context, np_mutex_t* mutex, const char* where);
+int _np_threads_mutex_lock(np_state_t*context, np_mutex_t* mutex, const char* where);
 NP_API_INTERN
 int _np_threads_mutex_trylock(NP_UNUSED np_state_t*context, np_mutex_t* mutex, const char* where);
 NP_API_EXPORT
-int _np_threads_mutex_unlock(NP_UNUSED np_state_t*context, np_mutex_t* mutex);
+int _np_threads_mutex_unlock(np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
 void _np_threads_mutex_destroy(NP_UNUSED np_state_t*context, np_mutex_t* mutex);
 NP_API_INTERN
@@ -189,7 +185,7 @@ NP_API_INTERN
 void _np_threads_condition_destroy(NP_UNUSED np_state_t* context, np_cond_t* condition);
 
 NP_API_INTERN
-np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, uint8_t number,np_threads_worker_run fn, bool auto_run, enum np_thread_type_e type);
+np_thread_t * __np_createThread(NP_UNUSED np_state_t* context, np_threads_worker_run fn, bool auto_run, enum np_thread_type_e type);
 
 NP_API_INTERN
 np_thread_t*_np_threads_get_self(NP_UNUSED np_state_t* context);
@@ -237,6 +233,9 @@ _LOCK_ACCESS(&object->lock)
 */
 
 #define _LOCK_MODULE(TYPE) for(uint8_t _LOCK_MODULE_i##__LINE__=0; (_LOCK_MODULE_i##__LINE__ < 1) && 0 == _np_threads_lock_module(context, TYPE##_lock,FUNC); _np_threads_unlock_module(context, TYPE##_lock), _LOCK_MODULE_i##__LINE__++)
+
+#define _TRYLOCK_MODULE(TYPE) for(uint8_t _TRYLOCK_MODULE_i##LINE=0; (_TRYLOCK_MODULE_i##LINE < 1) && 0 == _np_threads_trylock_module(context, TYPE##_lock,FUNC); _np_threads_unlock_module(context, TYPE##_lock), _TRYLOCK_MODULE_i##LINE++)
+
 // protect access to a module in the rest of your code like this
 /*
 _LOCK_MODULE(np_keycache_t)
@@ -256,9 +255,11 @@ char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine, bool
     #define np_spinlock_t          os_unfair_lock
     #define np_spinlock_init(x,y)  (*x = OS_UNFAIR_LOCK_INIT)
     #define np_spinlock_destroy(x) 
-    #define np_spinlock_lock(x)    os_unfair_lock_lock(x)
+    #define np_spinlock_lock(x)    _np_spinlock_lock(x)
     #define np_spinlock_trylock(x) (true == os_unfair_lock_trylock(x))
-    #define np_spinlock_unlock(x)  os_unfair_lock_unlock(x)
+    #define np_spinlock_unlock(x)  _np_spinlock_unlock(x)
+    int _np_spinlock_lock(np_spinlock_t* x);
+    int _np_spinlock_unlock(np_spinlock_t* x);
 #else
     #define np_spinlock_t          pthread_spinlock_t
     #define np_spinlock_init(x, y) pthread_spin_init(x, y)
@@ -270,7 +271,7 @@ char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine, bool
 
 
 #define TSP(TYPE, NAME)                                                         \
-    TYPE NAME;                                                                  \
+    TYPE NAME;                                                         \
     np_spinlock_t NAME##_lock;                                                  \
 
 #define TSP_INITD(NAME, DEFAULT_VALUE)                                          \
@@ -295,7 +296,8 @@ char* np_threads_print_locks(NP_UNUSED np_state_t* context, bool asOneLine, bool
     np_spinlock_unlock(&NAME##_lock);                                           
 
 #define TSP_SCOPE(NAME)                                                         \
-    for(uint8_t _LOCK_i##__LINE__=0; np_spinlock_lock(&NAME##_lock), _LOCK_i##__LINE__ < 1; np_spinlock_unlock(&NAME##_lock), _LOCK_i##__LINE__++)
+    for(uint8_t _LOCK_i##__LINE__=0; (_LOCK_i##__LINE__ < 1) && 0 == np_spinlock_lock(&NAME##_lock); np_spinlock_unlock(&NAME##_lock), _LOCK_i##__LINE__++)
+
 
 
 void np_threads_busyness(np_state_t* context, np_thread_t* self, bool is_busy);

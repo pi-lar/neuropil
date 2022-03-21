@@ -117,17 +117,20 @@ extern "C" {
     NP_API_INTERN
         char* np_memory_get_id(void * item);
     NP_API_INTERN
-        uint8_t np_memory_get_type(void * item);
+        enum np_memory_types_e np_memory_get_type(void * item);
 
     NP_API_INTERN
         void _np_memory_delete_item(np_state_t * context, void* item, char* rm_reason, bool del_container);
+    NP_API_INTERN
+        bool np_memory_log(np_state_t* context, NP_UNUSED np_util_event_t event);
 
 // macro definitions to generate header prototype definitions
 #define _NP_GENERATE_MEMORY_PROTOTYPES(TYPE)												\
 void _##TYPE##_new(np_state_t * context, uint8_t type, size_t size, void* data);			\
 void _##TYPE##_del(np_state_t * context, uint8_t type, size_t size, void* data);			\
 
-#define NP_CAST(OBJ, TYPE, VAR) TYPE* VAR = (TYPE*) OBJ;
+#define NP_CAST_RAW(OBJ, TYPE, VAR) TYPE* VAR = (TYPE*) OBJ;
+#define NP_CAST(OBJ, TYPE, VAR) NP_CAST_RAW(OBJ, TYPE, VAR) ASSERT(VAR != NULL,"Cast obj is NULL"); ASSERT(_np_memory_rtti_check(VAR,np_memory_types_##TYPE), "Cannot cast object of type %s to type " #TYPE, np_memory_types_str[np_memory_get_type(VAR)]);
 
 // macro definitions to generate implementation of prototypes
 // empty by design, forces developers to write new and delete callback functions for memory types
@@ -184,7 +187,7 @@ bool ret = container != NULL
 #ifdef DEBUG
 #define CHECK_MALLOC(obj)		              																			\
 {                                             																			\
-    assert(NULL != obj &&"Could not allocate memory. Program is now in undefined state and should be shut down.");		\
+    ASSERT(NULL != obj, "Could not allocate memory. Program is now in undefined state and should be shut down.");		\
 }
 #else
 #define CHECK_MALLOC(obj)
@@ -224,6 +227,18 @@ bool ret = container != NULL
 }
 #endif
 
+
+#ifdef NP_MEMORY_CHECK_MEMORY_REFFING
+char * np_memory_export_reasons(np_state_t* context,void *item);
+void np_memory_debug_obj(np_state_t* context, void *item);
+void np_memory_assert_null(np_state_t* context, void *item);
+void np_memory_assert_reason_not_there(np_state_t* context, void *item, char* reason_to_avoid);
+#else 
+    #define np_memory_export_reasons(context,item)
+    #define np_memory_debug_obj(context,item)
+    #define np_memory_assert_null(context,item)
+    #define np_memory_assert_reason_not_there(context, item, reason_to_avoid)
+#endif
 
 
 #ifdef __cplusplus

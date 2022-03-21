@@ -138,10 +138,10 @@ int main()
     struct np_settings * settings = np_default_settings(NULL);
 
     snprintf(settings->log_file, 255, "np_raffle_receiver.log");
-    settings->log_level = LOG_ERROR | LOG_WARN;
+    settings->log_level = LOG_ERROR | LOG_WARNING;
 
     np_context* context = np_new_context(settings);
-    np_listen(context, "pas6", "localhost", 4444);
+    np_listen(context, "pas6", "localhost", 4444, NULL);
     np_time_sleep(5.);
     // np_sysinfo_enable_client(context);
 

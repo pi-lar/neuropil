@@ -1,0 +1,23 @@
+./do build --RELEASE shared_neuropil && ./do build --RELEASE python &&\
+docker build -t skpilar/neuropil-experiment -f configs/docker/neuropil-experiments.Dockerfile . &&\
+docker push skpilar/neuropil-experiment
+
+./do build --DEBUG shared_neuropil && ./do build --DEBUG python &&\
+docker build -t skpilar/neuropil-experiment -f configs/docker/neuropil-experiments.Dockerfile . &&\
+docker push skpilar/neuropil-experiment
+
+https://docs.docker.com/desktop/multi-arch/
+
+./do script kubernetes.py --main-controller 2 --group_count 12 --wave 1 &&  \
+microk8s.kubectl delete -l app=neuropil-experiment statefulsets.apps && \
+microk8s.kubectl delete -l app=neuropil-experiment pods && \
+microk8s.kubectl apply  -k "build/kubernetes/main-mesh" && sleep 5 &&  \
+microk8s.kubectl apply  -k "build/kubernetes/e2e-half-mesh"
+
+
+./do script kubernetes.py --main-controller 2 --group_count 50 --wave 1  && \
+kubectl delete -l app=neuropil-experiment statefulsets.apps && \
+kubectl delete -l app=neuropil-experiment pods && \
+kubectl apply  -k "build/kubernetes/main-mesh" && sleep 15 && \
+kubectl apply  -k "build/kubernetes/e2e-half-mesh"
+

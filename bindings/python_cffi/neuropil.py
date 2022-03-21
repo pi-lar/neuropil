@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 from _neuropil import lib as neuropil, ffi
+from datetime import datetime, timezone
 from typing import Union
 import time, copy, inspect
 
@@ -63,6 +64,16 @@ class np_id(object):
     def __str__(self):
         return self._hex
 
+class np_log_entry(object):
+    def __init__(self,node,  _cdata,  **entries):
+        self._ignore_at_conversion = ["_node","_cdata","_s"]
+        self._cdata = _cdata
+        self._node = node
+        self.__dict__.update(entries)
+        self.timestamp_as_datetime:datetime = datetime.fromtimestamp(int(self.timestamp),tz=timezone.utc)
+        
+    def __str__(self):
+        return self.string
 class np_subject(np_id):
     def __init__(self, id_cdata):
         super().__init__(id_cdata)
@@ -174,8 +185,11 @@ class np_message(object):
 
 class NeuropilCluster(object):
 
-    def __init__(self, count, port_range = 3000, host = b'localhost', proto= b'udp4', auto_run=True, log_file_prefix="", **settings):
+    def __init__(self, count, port_range = 3000, host = 'localhost', proto= b'udp4', auto_run=True, log_file_prefix="", custom_node_class=None, **settings):
         self.nodes = []
+
+        if not custom_node_class:
+            custom_node_class = NeuropilNode
 
         if count <= 0:
             raise ValueError("The `count` of a cluster needs to be greater than 0")
@@ -188,7 +202,7 @@ class NeuropilCluster(object):
         for c in range(0,count):
             port=port_range[c]
             log_file = f"{log_file_prefix}{host}_{port}.log"
-            node = NeuropilNode(port=port,host=host,proto=proto[c],auto_run=auto_run,log_file=log_file,**settings)
+            node = custom_node_class(port=port,host=host,proto=proto[c],auto_run=auto_run,log_file=log_file,**settings)
             self.nodes.append(node)
 
     def __getattr__ (self, name):
@@ -208,7 +222,7 @@ class NeuropilCluster(object):
 
 class NeuropilNode(object):
 
-    def __init__(self, port, host = b'localhost', proto= b'udp4', auto_run=True, **settings):
+    def __init__(self, port, host = b'localhost', proto= b'udp4', dns_name = None, auto_run=True, log_write_fn=None, **settings):
         # DEFAULTS START
         # ffi interaction variables
         self._ffi_handle = None
@@ -216,6 +230,7 @@ class NeuropilNode(object):
         self._context = None
         # python class variables
         self._host = host
+        self._dns_name = dns_name
         self._proto = proto
         self._port = port
         self._userdata = None
@@ -230,6 +245,10 @@ class NeuropilNode(object):
 
         self._ffi_handle = ffi.new_handle(self)
         self._settings = neuropil.np_default_settings(ffi.NULL)
+        if log_write_fn:
+            self._user_log_write_cb = log_write_fn
+            self._settings.log_write_fn = neuropil._py_log_write_cb
+
         setting_type=ffi.typeof(self._settings[0])
         for key, cdata in setting_type.fields:
             if key in settings:
@@ -238,7 +257,7 @@ class NeuropilNode(object):
         self._context = neuropil.np_new_context(self._settings)
         neuropil.np_set_userdata(self._context, self._ffi_handle)
 
-        self.listen(self._proto, self._host, self._port)
+        self.listen(self._proto, self._host, self._port, self._dns_name)
         if auto_run:
             self.run(0)
 
@@ -277,19 +296,22 @@ class NeuropilNode(object):
             self.__callback_info_dict__[subject_id].append(recv_callback)
         return ret
 
-    def listen(self, protocol:str, hostname:str, port:int):
+    def listen(self, protocol:str, hostname:str, port:int, dns_name:str):
         protocol = _NeuropilHelper.convert_from_python(protocol)
         hostname = _NeuropilHelper.convert_from_python(hostname)
+        dns_name = _NeuropilHelper.convert_from_python(dns_name)
         port     = _NeuropilHelper.convert_from_python(port)
 
         if not isinstance( protocol, bytes):
             raise ValueError(f"protocol needs to be of type `bytes` or `str`")
         if not isinstance( hostname, bytes):
             raise ValueError(f"hostname needs to be of type `bytes` or `str`")
+        if dns_name and not isinstance( dns_name, bytes):
+            raise ValueError(f"dns_name needs to be of type `bytes` or `str` on `None`")
         if not isinstance( port, int):
             raise ValueError(f"port needs to be of type `int`")
 
-        ret = neuropil.np_listen(self._context, protocol, hostname, port)
+        ret = neuropil.np_listen(self._context, protocol, hostname, port, dns_name)
         if ret is not neuropil.np_ok:
             raise NeuropilException('{error}'.format(error=ffi.string(neuropil.np_error_str(ret))),ret)
         return ret
@@ -333,7 +355,7 @@ class NeuropilNode(object):
         if secret_key == None:
             internal_secret_key = ffi.NULL
         else:
-            internal_secret_key = ffi.from_buffer(secret_key)
+            internal_secret_key = ffi.from_buffer('unsigned char(*)[64]', secret_key) # 64 = NP_SECRET_KEY_BYTES
         ffi_token = neuropil.np_new_identity(self._context, expires_at, internal_secret_key)
         ret = _NeuropilHelper.convert_to_python(self, ffi_token)
         return ret
@@ -383,7 +405,8 @@ class NeuropilNode(object):
 
     def has_joined(self):
         return neuropil.np_has_joined(self._context)
-
+    def get_route_count(self):
+        return neuropil.np_get_route_count(self._context)
     def np_has_receiver_for(self, subject:Union[str,bytes,np_subject]):
         subject = _NeuropilHelper.check_subject(subject)
 
@@ -436,7 +459,9 @@ class NeuropilNode(object):
 class _NeuropilHelper():
     @staticmethod
     def from_context(context):
-        return ffi.from_handle(neuropil.np_get_userdata(context))
+        handle = neuropil.np_get_userdata(context)
+        if handle == ffi.NULL: return None
+        return ffi.from_handle(handle)
 
     @staticmethod
     def __convert_struct_field(node:NeuropilNode, s, fields ):
@@ -472,7 +497,9 @@ class _NeuropilHelper():
             pass
         elif type.kind == 'struct':
             ret = dict(_NeuropilHelper.__convert_struct_field(node,  s, type.fields))
-            if type.cname == 'struct np_message':
+            if  type.cname == 'struct np_log_entry':
+                ret = np_log_entry(node, s, **ret)
+            elif type.cname == 'struct np_message':
                 ret = np_message(ret, s, **ret)
             elif  type.cname == 'struct np_token':
                 ret = np_token(node, s, **ret)
@@ -495,8 +522,22 @@ class _NeuropilHelper():
             else:
                 ret = [ _NeuropilHelper.convert_to_python(node, s[i]) for i in range(type.length) ]
         elif type.kind == 'primitive':
-            ret = int(s)
-        elif type.kind == 'pointer':
+            if type.item.cname == 'char':
+                ret = ffi.string(s)
+                try:
+                    ret = ret.decode("utf-8")
+                except UnicodeDecodeError:
+                    pass
+            else:
+                ret = int(s)
+        elif type.kind == 'pointer':            
+            if type.item.cname == 'char':
+                ret = ffi.string(s)
+                try:
+                    ret = ret.decode("utf-8")
+                except UnicodeDecodeError:
+                    pass
+            else:
                 ret = _NeuropilHelper.convert_to_python(node, s[0])
         else:
             print(f"NotImplementedError in _NeuropilHelper.convert_to_python: unknown {type.kind}. {type.name} {repr(type)}")
@@ -506,6 +547,8 @@ class _NeuropilHelper():
     @staticmethod
     def __convert_value_from_python(value):
         ret = value
+        if value == None:
+            ret = ffi.NULL
         if isinstance(value, str):
             ret = value.encode("utf-8")
         if isinstance(value, np_id):
@@ -552,6 +595,13 @@ def _py_subject_callback(context, message):
 def _py_authn_cb(context, token):
     myself = _NeuropilHelper.from_context(context)
     return bool(myself._user_authn_cb(myself, _NeuropilHelper.convert_to_python(myself, token)))
+
+@ffi.def_extern()
+def _py_log_write_cb(context, entry):
+    myself = _NeuropilHelper.from_context(context)
+    if myself:
+        myself._user_log_write_cb(myself, _NeuropilHelper.convert_to_python(myself, entry))
+    return None
 
 @ffi.def_extern()
 def _py_authz_cb(context, token):

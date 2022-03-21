@@ -280,7 +280,6 @@ enum np_data_return np_iterate_data(np_datablock_t * block, np_iterate_data_cb c
                 _conver_kv_to_conf(&data_conf, &data_value, &tmp);
                 if (!callback(&data_conf, &data_value, userdata)){
                     ret = np_invalid_arguments;
-                    printf("AAAAAAA  %s\n",data_conf.key);
                     break;
                 }
             }

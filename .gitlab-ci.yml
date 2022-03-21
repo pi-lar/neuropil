@@ -176,6 +176,47 @@ helgrind_tests:
     - job: test
       artifacts: false
 
+callgrind_tests:
+  stage: qa
+  script:
+      - ./do callgrind
+  allow_failure: true
+  timeout: 15m
+  artifacts:
+    when: always
+    name: callgrind
+    paths:
+      - build/callgrind.log
+      - build/callgrind.out
+      - build/callgrind.dot
+      - build/callgrind.png
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+  needs:
+    - docker_test_enviroment
+    - job: test
+      artifacts: false
+
+valgrind_tests:
+  stage: qa
+  script:
+      - ./do valgrind
+  allow_failure: true
+  timeout: 15m
+  artifacts:
+    when: always
+    name: valgrind
+    paths:
+      - build/valgrind.log
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+  needs:
+    - docker_test_enviroment
+    - job: test
+      artifacts: false
+
 code_analyze:
   stage: qa
   script:
@@ -220,6 +261,19 @@ publish:
     include:
       - artifact: .gitlab-ci-deployment.yml
         job: ci_configuration
+
+neuropil-k8s deployment:
+  stage: release
+  allow_failure: true
+  rules:
+    - if: $CI_MERGE_REQUEST_ID != null
+      when: never
+    - if: $CI_COMMIT_REF_PROTECTED
+      when: always
+  variables:
+    NP_GIT_COMMIT: $CI_COMMIT_SHA
+  trigger: 
+    project: "simonklampt/neuropil-k8s"
 
 update_latest_tag:
   stage: release

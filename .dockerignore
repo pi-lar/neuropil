@@ -1,0 +1,8 @@
+**/.git/**
+**/*.log
+**/*.log"
+**/vgcore*
+**/core.*
+build/*.png
+*venv
+.vscode

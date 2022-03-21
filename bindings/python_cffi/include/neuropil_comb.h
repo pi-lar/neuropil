@@ -35,6 +35,14 @@
    typedef np_id np_subject;
     void np_get_id(np_id (*id), const char* string, size_t length);
     enum np_return np_generate_subject(np_subject (*subject_id), const char* subject, size_t length);
+   enum np_return np_regenerate_subject(np_context* ac, const char * subject_buffer, size_t buffer_length, np_subject * subject);
+    struct np_log_entry {
+      char * string;
+      size_t string_length;
+      double timestamp;
+      char level[20];
+    } ;
+    typedef void (*np_log_write_callback)(np_context* ac, struct np_log_entry entry);
     struct np_token {
         char uuid[NP_UUID_BYTES];
         char subject[255];
@@ -64,7 +72,9 @@
         char log_file[256];
         uint32_t log_level;
         uint8_t leafset_size;
-        uint16_t jobqueue_size;
+        np_log_write_callback log_write_fn;
+        size_t jobqueue_size;
+        size_t max_msgs_per_sec;
     } ;
    struct np_settings * np_default_settings(struct np_settings *settings);
    np_context* np_new_context(struct np_settings *settings);
@@ -72,8 +82,8 @@
    enum np_return np_use_identity(np_context* ac, struct np_token identity);
    enum np_return np_sign_identity(np_context* ac, struct np_token* identity, bool self_sign);
    enum np_return np_token_fingerprint(np_context* ac, struct np_token identity, bool include_attributes, np_id (*id));
+   enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port, const char * dns_name) ;
    enum np_return np_node_fingerprint(np_context* ac, np_id (*id));
-   enum np_return np_listen(np_context* ac, const char* protocol, const char* host, uint16_t port) ;
    enum np_return np_get_address(np_context* ac, char* address, uint32_t max);
    enum np_return np_join(np_context* ac, const char* address);
    typedef bool (*np_aaa_callback)(np_context* ac, struct np_token* aaa_token);
@@ -81,10 +91,10 @@
    enum np_return np_set_authorize_cb(np_context* ac, np_aaa_callback callback);
    enum np_return np_set_accounting_cb(np_context* ac, np_aaa_callback callback);
     enum np_return np_run(np_context* ac, double duration);
-    enum np_mx_role { NP_MX_PROSUMER=0, NP_MX_PROVIDER, NP_MX_CONSUMER } ;
-    enum np_mx_cache_policy { NP_MX_FIFO_REJECT=0, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } ;
-    enum np_mx_ackmode { NP_MX_ACK_NONE=0, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } ;
-    enum np_mx_audience_type { NP_MX_AUD_PUBLIC=0, NP_MX_AUD_VIRTUAL, NP_MX_AUD_PROTECTED, NP_MX_AUD_PRIVATE } ;
+    enum np_mx_role { NP_MX_PROVIDER, NP_MX_CONSUMER, NP_MX_PROSUMER } ;
+    enum np_mx_cache_policy { NP_MX_FIFO_REJECT, NP_MX_FIFO_PURGE, NP_MX_LIFO_REJECT, NP_MX_LIFO_PURGE } ;
+    enum np_mx_ackmode { NP_MX_ACK_NONE, NP_MX_ACK_DESTINATION, NP_MX_ACK_CLIENT } ;
+    enum np_mx_audience_type { NP_MX_AUD_PUBLIC, NP_MX_AUD_VIRTUAL, NP_MX_AUD_PROTECTED, NP_MX_AUD_PRIVATE } ;
     struct np_mx_properties {
         enum np_mx_role role;
         enum np_mx_ackmode ackmode;
@@ -117,6 +127,7 @@
    typedef void (*np_callback)(np_context* ac);
       enum np_return np_add_shutdown_cb(np_context* ac, np_callback callback);
       bool np_id_equals(np_id first, np_id second);
+      uint32_t np_get_route_count(np_context* ac);
     enum np_data_return {
         np_data_ok = 0,
         np_key_not_found = 1,
@@ -180,32 +191,34 @@
     enum np_data_return np_set_mxp_attr_policy_bin(np_context *ac, np_subject subject, char key[255], unsigned char * value, size_t value_size);
    enum np_log_e
    {
-      LOG_NONE = 0x00000000U,
-      LOG_NOMOD = 0x00000000U,
-      LOG_ERROR = 0x00000001U,
-      LOG_WARN = 0x00000002U,
-      LOG_INFO = 0x00000004U,
-      LOG_DEBUG = 0x00000008U,
-      LOG_TRACE = 0x00000010U,
-      LOG_VERBOSE = 0x00000020U,
-      LOG_SERIALIZATION = 0x00000100U,
-      LOG_MUTEX = 0x00000200U,
-      LOG_KEY = 0x00000400U,
-      LOG_NETWORK = 0x00000800U,
-      LOG_ROUTING = 0x00001000U,
-      LOG_MESSAGE = 0x00002000U,
-      LOG_SECURE = 0x00004000U,
-      LOG_HTTP = 0x00008000U,
-      LOG_AAATOKEN = 0x00010000U,
-      LOG_MEMORY = 0x00020000U,
-      LOG_SYSINFO = 0x00040000U,
-      LOG_TREE = 0x00080000U,
-      LOG_THREADS = 0x00100000U,
-      LOG_MSGPROPERTY = 0x00200000U,
-      LOG_JOBS = 0x00400000U,
-      LOG_EVENT = 0x00800000U,
-      LOG_MISC = 0x01000000U,
-      LOG_HANDSHAKE = 0x02000000U,
-      LOG_KEYCACHE = 0x04000000U,
-      LOG_GLOBAL = 0x80000000U,
+      LOG_NONE = 0x000000000U,
+      LOG_NOMOD = 0x000000000U,
+      LOG_ERROR = 0x000000001U,
+      LOG_WARNING = 0x000000002U,
+      LOG_INFO = 0x000000004U,
+      LOG_DEBUG = 0x000000008U,
+      LOG_TRACE = 0x000000010U,
+      LOG_VERBOSE = 0x000000020U,
+      LOG_SERIALIZATION = 0x000000100U,
+      LOG_MUTEX = 0x000000200U,
+      LOG_KEY = 0x000000400U,
+      LOG_NETWORK = 0x000000800U,
+      LOG_ROUTING = 0x000001000U,
+      LOG_MESSAGE = 0x000002000U,
+      LOG_SECURE = 0x000004000U,
+      LOG_HTTP = 0x000008000U,
+      LOG_AAATOKEN = 0x000010000U,
+      LOG_MEMORY = 0x000020000U,
+      LOG_SYSINFO = 0x000040000U,
+      LOG_TREE = 0x000080000U,
+      LOG_THREADS = 0x000100000U,
+      LOG_MSGPROPERTY = 0x000200000U,
+      LOG_JOBS = 0x000400000U,
+      LOG_EVENT = 0x000800000U,
+      LOG_MISC = 0x001000000U,
+      LOG_HANDSHAKE = 0x002000000U,
+      LOG_KEYCACHE = 0x004000000U,
+      LOG_EXPERIMENT = 0x008000000U,
+      LOG_PHEROMONE = 0x010000000U,
+      LOG_GLOBAL = 0x800000000U,
    } ;

@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <unistd.h>
 #include <inttypes.h>
 #include <sys/time.h>
@@ -20,15 +21,19 @@
 #include "neuropil_log.h"
 #include "np_log.h"
 
-#include "np_event.h"
+#include "np_evloop.h"
+#include "util/np_event.h"
 #include "np_jobqueue.h"
 #include "np_legacy.h"
 #include "util/np_list.h"
 #include "np_memory.h"
 #include "np_settings.h"
 #include "np_util.h"
+#include "np_time.h"
 
-
+typedef struct np_log_entry * np_log_entry_ptr;
+NP_SLL_GENERATE_PROTOTYPES(np_log_entry_ptr);
+NP_SLL_GENERATE_IMPLEMENTATION(np_log_entry_ptr);
 typedef struct np_log_s
 {
     char original_filename[PATH_MAX+1];
@@ -39,11 +44,11 @@ typedef struct np_log_s
 
     // FILE *fp;
     uint32_t level;
-    np_sll_t(char_ptr, logentries_l);
+    np_sll_t(np_log_entry_ptr, logentries_l);
     uint32_t log_size;
     uint32_t log_count;
     bool log_rotate;
-
+    
     ev_io watcher;
 
 } np_log_t;
@@ -55,7 +60,42 @@ np_module_struct(log)
     np_state_t*   context;
     np_log_t*     __logger;
     np_spinlock_t __log_lock;
+    bool __init;
 };
+
+void _np_log_to_str(char * buffer, size_t buffer_size, enum np_log_e to_convert) {
+    size_t _buffer_size = buffer_size -1;
+    size_t _buffer_size_new = 0;
+    if(FLAG_CMP(to_convert, LOG_ERROR))           _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"ERROR ",           _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_WARNING))         _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"WARNING ",         _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_INFO))            _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"INFO ",            _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_DEBUG))           _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"DEBUG ",           _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_TRACE))           _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"TRACE ",           _buffer_size -_buffer_size_new ),_buffer_size);
+
+    if(FLAG_CMP(to_convert, LOG_KEY))             _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"KEY ",             _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_HTTP))            _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"HTTP ",            _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_TREE))            _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"TREE ",            _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_JOBS))            _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"JOBS ",            _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_MISC))            _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"MISC ",            _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_MUTEX))           _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"MUTEX ",           _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_EVENT))           _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"EVENT ",           _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_MEMORY))          _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"MEMORY ",          _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_SECURE))          _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"SECURE ",          _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_NETWORK))         _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"NETWORK ",         _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_ROUTING))         _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"ROUTING ",         _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_MESSAGE))         _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"MESSAGE ",         _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_SYSINFO))         _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"SYSINFO ",         _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_THREADS))         _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"THREADS ",         _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_AAATOKEN))        _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"AAATOKEN ",        _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_KEYCACHE))        _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"KEYCACHE ",        _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_HANDSHAKE))       _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"HANDSHAKE ",       _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_PHEROMONE))       _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"PHEROMONE ",       _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_EXPERIMENT))      _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"EXPERIMENT ",      _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_MSGPROPERTY))     _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"MSGPROPERTY ",     _buffer_size -_buffer_size_new ),_buffer_size);
+    if(FLAG_CMP(to_convert, LOG_SERIALIZATION))   _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"SERIALIZATION ",   _buffer_size -_buffer_size_new ),_buffer_size);
+
+    if(FLAG_CMP(to_convert, LOG_VERBOSE))         _buffer_size_new += strnlen(strncpy(buffer+_buffer_size_new,"VERBOSE ",         _buffer_size -_buffer_size_new ),_buffer_size);
+}
 
 void _np_log_evflush(struct ev_loop* loop, NP_UNUSED ev_io* ev, int event_type) {
     if ( FLAG_CMP(event_type, EV_WRITE) ) {
@@ -70,8 +110,11 @@ void __np_log_close_file(np_log_t* logger){
     }
 }
 
-void log_rotation(np_state_t* context, bool first_init)
+void log_rotation(np_state_t* context)
 {
+    bool first_init = !np_module(log)->__init;
+    np_module(log)->__init = true;
+
     np_log_t* logger = np_module(log)->__logger;
 
     logger->log_size = 0;
@@ -134,102 +177,95 @@ void log_rotation(np_state_t* context, bool first_init)
 
 void _np_log_rotate(np_state_t* context, bool force)
 {
-    if(np_module(log)->__logger->log_size >= LOG_ROTATE_AFTER_BYTES || force == true) {
-        log_rotation(context, false);
+    size_t log_size;
+    np_spinlock_lock(&np_module(log)->__log_lock);
+    {
+        log_size = np_module(log)->__logger->log_size;
     }
-}
-/*
-    buffer may be at least 12 char wide
-*/
-char * get_level_str(enum np_log_e level, char * buffer) {
-    
-    char ret[12] = { 0 };
-
-    if (FLAG_CMP(level, LOG_ERROR)) {
-        snprintf(ret, 12, "ERROR");
+    np_spinlock_unlock(&np_module(log)->__log_lock);
+    if(log_size >= LOG_ROTATE_AFTER_BYTES || force == true) {
+        log_rotation(context);
     }
-    else if (FLAG_CMP(level, LOG_WARN)) {
-        snprintf(ret, 12, "WARNING");
-    }
-    else if (FLAG_CMP(level, LOG_INFO)) {
-        snprintf(ret, 12, "INFO");
-    }
-    else if (FLAG_CMP(level, LOG_TRACE)) {
-        snprintf(ret, 12, "TRACE");
-    }
-
-    // mark debug entry 
-    if (FLAG_CMP(level, LOG_DEBUG)) {
-        if (ret[0] == 0) {
-            snprintf(ret, 12, "DEBUG");
-        }
-        else {
-            snprintf(ret, 12, "%s_D", ret);
-        }
-    }
-    // mark verbose entry
-    /*if (FLAG_CMP(level, LOG_VERBOSE)) {		
-        snprintf(ret, "%s_V", ret);
-    }
-    */
-    snprintf(buffer, 12, "%-11s", ret);
-
-    return buffer;
 }
 
 void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFile, const char* funcName, uint16_t lineno, const char* msg, ...)
 {
     if (!np_module_initiated(log) || np_module(log)->__logger == NULL) {
+#ifdef CONSOLE_BACKUP_LOG
+        va_list ap;
+        va_start(ap, msg);
+        vfprintf(stderr, msg, ap);
+        fprintf(stderr,"\n");
+        va_end(ap);
+#endif        
         return;
     }
     // include msg if log level is included into selected levels
     // and if the msg has a category and is included into selected categories
     // or if no category is provided for msg or the log level contains the LOG_GLOBAL flag
-    if ((level & LOG_LEVEL_MASK & np_module(log)->__logger->level) > LOG_NONE &&
+    if (((level & LOG_LEVEL_MASK & np_module(log)->__logger->level) > LOG_NONE &&
+        ((level & LOG_VERBOSE) <= (LOG_VERBOSE & np_module(log)->__logger->level)) &&        
         (
             (level & LOG_MODUL_MASK & np_module(log)->__logger->level) > LOG_NONE ||
             (np_module(log)->__logger->level & LOG_MODUL_MASK & LOG_GLOBAL) == LOG_GLOBAL ||
             (level & LOG_MODUL_MASK) == LOG_NONE
-        )
+        )) || FLAG_CMP(level, LOG_ERROR)  || FLAG_CMP(level, LOG_WARNING)
     )
-    {
-        struct timeval tval;
-        struct tm local_time;
-        gettimeofday(&tval, (struct timezone*)0);
-        int32_t millis = tval.tv_usec;
-        localtime_r(&tval.tv_sec, &local_time);
+    {       
+        np_log_entry_ptr new_log_entry = malloc(sizeof(struct np_log_entry));    
+        _np_log_to_str(new_log_entry->level, 20, level & LOG_LEVEL_MASK);
+        new_log_entry->timestamp = _np_time_force_now_nsec();
 
-        char* prefix = malloc(sizeof(char)*LOG_ROW_SIZE);
-        CHECK_MALLOC(prefix);
-        char tmp_buffer[20];
-        strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
-        int new_log_entry_length = strlen(prefix);
-        snprintf(prefix + new_log_entry_length, LOG_ROW_SIZE - new_log_entry_length,
-            ".%06d %-15lu %15.15s:%-5hd %-25.25s %5s ",
-            millis, (unsigned long)pthread_self(),
-            srcFile, lineno, funcName,
-            get_level_str(level & LOG_LEVEL_MASK, tmp_buffer));
-
-        static const char* suffix = "\n";
-
-        char* log_msg=NULL;
         va_list ap;
         va_start(ap, msg);
-        vasprintf(&log_msg, msg, ap);
+        new_log_entry->string_length = vasprintf(&new_log_entry->string, msg, ap);
         va_end(ap);
-        char* new_log_entry;
-        asprintf(&new_log_entry, "%s %s%s", prefix, log_msg, suffix);
-        free(prefix);
-        free(log_msg);
+        assert(new_log_entry->string_length > 0);
 
-#if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
-        fprintf(stdout, new_log_entry);
-        fprintf(stdout, "/n");
+#ifndef CONSOLE_LOG
+        if(context->settings->log_write_fn == NULL) {
+#endif
+            struct timeval tval;
+            struct tm local_time;
+            gettimeofday(&tval, (struct timezone*)0);
+            int32_t millis = tval.tv_usec;
+            localtime_r(&tval.tv_sec, &local_time);
+            
+            char prefix[500]={0};
+            strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
+
+            int new_log_entry_length = strlen(prefix);
+            sprintf(prefix + new_log_entry_length, 
+                ".%06d " /*millisec*/
+                "%-15lu " /*thread id*/
+                //"%15.15s:%-5hd %-25.25s " /* file desc*/
+                "%8s " /*Level*/,
+                millis, // millisec
+                (unsigned long)pthread_self(), // thread id
+                //srcFile, lineno, funcName, // file desc
+                new_log_entry->level
+            );
+            
+            _np_log_to_str(prefix+strlen(prefix), 500-strlen(prefix), level & LOG_MODUL_MASK);
+
+            char * buf;
+            new_log_entry->string_length = asprintf(&buf, "%s %s\n", prefix, new_log_entry->string);
+            free(new_log_entry->string);
+            new_log_entry->string =  buf;
+#ifndef CONSOLE_LOG
+        }
 #endif
 
+
+
+#if defined(CONSOLE_LOG) && CONSOLE_LOG == 1
+        fprintf(stdout, new_log_entry->string);
+#else
+        size_t log_size=0;
         np_spinlock_lock(&np_module(log)->__log_lock);
         {
-            sll_append(char_ptr, np_module(log)->__logger->logentries_l, new_log_entry);
+            sll_append(np_log_entry_ptr, np_module(log)->__logger->logentries_l, new_log_entry);
+            log_size = sll_size(np_module(log)->__logger->logentries_l);
         }
         np_spinlock_unlock(&np_module(log)->__log_lock);
 
@@ -242,18 +278,52 @@ void np_log_message(np_state_t* context, enum np_log_e level, const char* srcFil
             _np_log_fflush(context, true);
         }
 #else // DEBUG
-        else if (sll_size(np_module(log)->__logger->logentries_l) > MISC_LOG_FLUSH_AFTER_X_ITEMS) {
+        else if (log_size > MISC_LOG_FLUSH_AFTER_X_ITEMS) {
             _np_event_invoke_file(context);        
         }
 #endif // DEBUG
+
+#endif //CONSOLE_LOG
     }
 }
+void __np_log_write(np_state_t* context, np_log_entry_ptr entry) {
+    uint32_t bytes_witten = 0;
+    bool retry = false;
+    while(bytes_witten < entry->string_length)
+    {
+        int current_bytes_witten = 0;
 
+        if(context->settings->log_write_fn != NULL){
+            current_bytes_witten += entry->string_length;
+            context->settings->log_write_fn(context, *entry);
+        } else {
+            current_bytes_witten = write(np_module(log)->__logger->fp, entry->string + bytes_witten, entry->string_length - bytes_witten);
+        }
+        // if we write was not successful we reschedule the entry
+        // and break free from this iteration
+        if(current_bytes_witten < 0)
+        {
+            np_spinlock_lock(&np_module(log)->__log_lock);
+            sll_prepend(np_log_entry_ptr, np_module(log)->__logger->logentries_l, entry);
+            np_spinlock_unlock(&np_module(log)->__log_lock);
+            retry = true;
+            break;
+        }
+        bytes_witten += current_bytes_witten;
+    }
+    if(!retry){
+        free(entry->string);
+        free(entry);
+    }
+}
 void _np_log_fflush(np_state_t* context, bool force)
 {
     //log_trace_msg(LOG_TRACE, "start: void _np_log_fflush(){");
-    char* entry = NULL;
-    if (np_module(log)->__logger == NULL) {
+    np_log_entry_ptr entry = NULL;
+    int lock_result = 0;
+    if (!np_module_initiated(log) || np_module(log)->__logger == NULL ||
+        (np_module(log)->__logger->fp <= 0 && context->settings->log_write_fn == NULL)
+    ) {
         return;
     }
     /*
@@ -274,9 +344,9 @@ void _np_log_fflush(np_state_t* context, bool force)
                 }
 
                 if(flush_status == 0) {
-                    entry = sll_head(char_ptr, np_module(log)->__logger->logentries_l);
+                    entry = sll_head(np_log_entry_ptr, np_module(log)->__logger->logentries_l);
                     if (NULL != entry) {
-                        np_module(log)->__logger->log_size += strlen(entry);
+                        np_module(log)->__logger->log_size += entry->string_length;
                     }
                 }
             }
@@ -285,28 +355,7 @@ void _np_log_fflush(np_state_t* context, bool force)
 
         if (NULL != entry)
         {
-            uint32_t bytes_witten = 0;
-
-            while(bytes_witten  != strlen(entry))
-            {
-                int current_bytes_witten = write(np_module(log)->__logger->fp, entry + bytes_witten, strlen(entry) - bytes_witten);
-                // if we write was not successful we reschedule the entry
-                // and break free from this iteration
-                if(current_bytes_witten < 0)
-                {
-                    np_spinlock_lock(&np_module(log)->__log_lock);
-                    sll_append(char_ptr, np_module(log)->__logger->logentries_l, entry);
-                    np_spinlock_unlock(&np_module(log)->__log_lock);
-                    break;
-                }
-                bytes_witten += current_bytes_witten;
-            }
-
-            if(bytes_witten  == strlen(entry))
-            {
-                free(entry);
-                entry = NULL;
-            }
+            __np_log_write(context,entry);
         }
         else {
             flush_status = 1;
@@ -331,16 +380,16 @@ bool _np_log_init(np_state_t* context, const char* filename, uint32_t level)
     {
         np_module_malloc(log);
         TSP_INIT(np_module(log)->__log);
-        np_spinlock_init(&np_module(log)->__log_lock, PTHREAD_PROCESS_PRIVATE);
 
         np_log_t* __logger = (np_log_t *)calloc(1, sizeof(np_log_t));
         CHECK_MALLOC(__logger);
+        _module->__init = false;
 
         // init logsystem
         __logger->level = level;
         __logger->log_count = 0;
         __logger->log_size = UINT32_MAX; // for initial log_rotation start
-        __logger->log_rotate = LOG_ROTATE_ENABLE;
+        __logger->log_rotate = LOG_ROTATE_ENABLE && context->settings->log_write_fn == NULL;
 
         // detect filename_ext from filename (. symbol)
         char* suffix = strrchr(filename, '.');
@@ -358,12 +407,10 @@ bool _np_log_init(np_state_t* context, const char* filename, uint32_t level)
         realpath(new_filename, __logger->original_filename);
         realpath(new_filename, __logger->filename);
 
-        sll_init(char_ptr, __logger->logentries_l);
+        sll_init(np_log_entry_ptr, __logger->logentries_l);
         _module->__logger = __logger;
-
-        log_rotation(context, true);
-
-        log_debug_msg(LOG_DEBUG, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
+        log_rotation(context);
+        log_debug_msg(LOG_MISC, "initialized log system %p: %s / %x", __logger, __logger->filename, __logger->level);
     }
     return true;
 }
@@ -372,19 +419,20 @@ void _np_log_destroy(np_state_t* context)
 {
     if (np_module_initiated(log)) {
         np_module_var(log);
-
         _np_log_fflush(context, true);
+        np_module_init_null(log);
 
-        __np_log_close_file(np_module(log)->__logger);
-        TSP_DESTROY(np_module(log)->__log);
-        np_spinlock_destroy(&np_module(log)->__log_lock);
-        sll_iterator(char_ptr) logentries_l_item = sll_first(_module->__logger->logentries_l);
+
+        __np_log_close_file(_module->__logger);
+        TSP_DESTROY(_module->__log);
+        sll_iterator(np_log_entry_ptr) logentries_l_item = sll_first(_module->__logger->logentries_l);
         while(logentries_l_item != NULL){
+            free(logentries_l_item->val->string);
             free(logentries_l_item->val);
             sll_next(logentries_l_item);
         }
 
-        sll_free(char_ptr, _module->__logger->logentries_l);
+        sll_free(np_log_entry_ptr, _module->__logger->logentries_l);
         free(_module->__logger);
 
         np_module_free(log);

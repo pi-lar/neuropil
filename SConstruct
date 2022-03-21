@@ -104,6 +104,9 @@ else:
 
 if 'FreeBSD' in platform.system():
     default_env.Append(LIBS = ['util', 'm', 'pthread'] )
+    if GetOption("DEBUG"):
+        default_env.Append(LIBS = ['execinfo'] )
+
 
 if 'Darwin' in platform.system():
     # default_env.Append(CCFLAGS = ['-Wformat-security'])

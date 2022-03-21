@@ -34,9 +34,10 @@ include_dirs = [
 
 with open(os.path.join(PATH,"include", "neuropil_comb.h"),"r") as f:
     ffibuilder.cdef(f.read(), packed=True, override=True)
-
+    
 ffibuilder.cdef('''
     extern "Python" bool _py_subject_callback(np_context* context, struct np_message*);
+    extern "Python" void _py_log_write_cb(np_context* ac, struct np_log_entry entry);
     extern "Python" bool _py_authn_cb(np_context* context, struct np_token*);
     extern "Python" bool _py_authz_cb(np_context* context, struct np_token*);
     extern "Python" bool _py_acc_cb(np_context* context, struct np_token*);

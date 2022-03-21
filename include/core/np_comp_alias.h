@@ -40,6 +40,11 @@ NP_API_HIDDEN
 void __np_alias_set_node(np_util_statemachine_t* statemachine, const np_util_event_t event);
 
 NP_API_INTERN
+bool __is_unused(np_util_statemachine_t* statemachine, const np_util_event_t event);
+NP_API_HIDDEN
+void __np_alias_set_node_destroy(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
 void __np_create_session(np_util_statemachine_t* statemachine, const np_util_event_t event); // create node as well and "steal" network sructure
 
 NP_API_INTERN
@@ -85,6 +90,10 @@ void __np_alias_shutdown(np_util_statemachine_t* statemachine, const np_util_eve
 
 NP_API_INTERN
 void __np_alias_update(np_util_statemachine_t* statemachine, const np_util_event_t event);
+
+NP_API_INTERN
+void _np_alias_cleanup_msgpart_cache(np_state_t* context, NP_UNUSED np_util_event_t event);
+
 
 
 #ifdef __cplusplus

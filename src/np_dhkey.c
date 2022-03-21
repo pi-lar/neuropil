@@ -102,7 +102,7 @@ np_dhkey_t np_dhkey_create_from_hostport(const char* strOrig, const char* port)
 void _np_dhkey_encode(NP_UNUSED np_state_t* context, np_tree_t* jrb, np_dhkey_t* key)
 {
     log_trace_msg(LOG_TRACE, "start: void _np_dhkey_encode( context, np_tree_t* jrb, np_dhkey_t* key){");
-    // log_msg(LOG_KEY | LOG_WARN, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
+    // log_msg(LOG_KEY | LOG_WARNING, "encoding key %0lu %0lu %0lu %0lu", key->t[0], key->t[1], key->t[2], key->t[3]);
 
     np_tree_insert_str( jrb, "_np.key.0", np_treeval_new_ul(key->t[0]));
     np_tree_insert_str( jrb, "_np.key.1", np_treeval_new_ul(key->t[1]));
@@ -145,7 +145,7 @@ int8_t _np_dhkey_cmp (const np_dhkey_t* const k1, const np_dhkey_t* const k2)
 {
     if (k1 == NULL) return -1;
     if (k2 == NULL) return  1;
-
+    
     for (uint8_t i = 0; i < 8; i++)
     {
         if      (k1->t[i] > k2->t[i]) return ( 1);

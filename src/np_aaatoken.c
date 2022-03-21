@@ -88,15 +88,11 @@ void _np_aaatoken_t_new(np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED s
     aaa_token->type = np_aaatoken_type_undefined;
     aaa_token->scope = np_aaatoken_scope_undefined;
     aaa_token->issuer_token = aaa_token;
-
-    log_debug_msg(LOG_DEBUG, "token %p", aaa_token);
-
 }
 
 void _np_aaatoken_t_del (NP_UNUSED np_state_t *context, NP_UNUSED uint8_t type, NP_UNUSED size_t size, void* token)
 {
     np_aaatoken_t* aaa_token = (np_aaatoken_t*) token;
-    log_debug_msg(LOG_DEBUG, "token %p ", aaa_token);
 }
 
 void _np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token, bool trace)
@@ -284,13 +280,11 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t* self, bool include_extensi
     return ret;
 }
 
-bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_type)
+bool _np_aaatoken_is_valid(np_state_t* context, np_aaatoken_t* token, enum np_aaatoken_type expected_type)
 {
-    log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: bool _np_aaatoken_is_valid(np_aaatoken_t* token){");
+    log_trace_msg(LOG_TRACE | LOG_AAATOKEN, "start: bool _np_aaatoken_is_valid(context, np_aaatoken_t* token){");
 
     if (NULL == token) return false;
-
-    np_state_t* context = np_ctx_by_memory(token);
 
     log_debug(LOG_AAATOKEN, "checking token (%s) validity for token of type %"PRIu32" and scope %"PRIu32, token->uuid, token->type, token->scope);
 
@@ -318,7 +312,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
     double now = np_time_now();
     if (now > (token->expires_at))
     {
-        log_msg(LOG_WARN, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed",
+        log_info(LOG_AAATOKEN|LOG_ROUTING, "token (%s) for subject \"%s\": expired (%f = %f - %f). verification failed",
                 token->uuid, token->subject, token->expires_at - now, now, token->expires_at);
         token->state &= AAA_INVALID;
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
@@ -360,7 +354,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
 
             if (ret < 0)
             {
-                log_msg(LOG_WARN, "token (%s) for subject \"%s\": checksum verification failed", token->uuid, token->subject);
+                log_msg(LOG_WARNING, "token (%s) for subject \"%s\": checksum verification failed", token->uuid, token->subject);
                 log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
                 token->state &= AAA_INVALID;
                 return (false);
@@ -376,7 +370,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             size_t attr_data_size;
             bool ret = np_get_data_size(token->attributes, &attr_data_size) == np_ok;
             if (!ret) {
-                log_msg(LOG_WARN, "token (%s) for subject \"%s\": attributes do have no valid structure (total_size)", token->uuid, token->subject);
+                log_msg(LOG_WARNING, "token (%s) for subject \"%s\": attributes do have no valid structure (total_size)", token->uuid, token->subject);
             }
             unsigned char * hash = __np_aaatoken_get_attributes_hash(token);
             ret = ret && crypto_sign_verify_detached(token->attributes_signature, hash , crypto_generichash_BYTES, token->crypto.ed25519_public_key) == 0;
@@ -385,7 +379,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             if (!ret)
             {
                 _np_debug_log_bin(token->attributes_signature, sizeof(token->attributes_signature), LOG_AAATOKEN, "token (%s) attribute signature: %s",token->uuid)
-                log_msg(LOG_WARN, "token (%s) for subject \"%s\": attribute signature checksum verification failed", token->uuid, token->subject);
+                log_msg(LOG_WARNING, "token (%s) for subject \"%s\": attribute signature checksum verification failed", token->uuid, token->subject);
                 log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
                 token->state &= AAA_INVALID;
 
@@ -395,31 +389,6 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             token->is_signature_attributes_verified = true;
         }
     }
-    /*
-        If we received a full token we may already got a handshake token,
-        if so we need to validate the new tokens signature against the already received token sig
-        and an successfully verifying the new token identity is the same as in the handshake token
-    */
-    // if (FLAG_CMP(token->type, np_aaatoken_type_node))
-    // {   // check for already received handshake token
-	// 	np_dhkey_t handshake_token_dhkey = np_aaatoken_get_fingerprint(token, false);
-    //     np_key_t* handshake_key = _np_keycache_find(context, handshake_token_dhkey);
-    //     if (handshake_key != NULL)
-    //     {
-    //         np_aaatoken_t* existing_token = _np_key_get_token(handshake_key);
-    //         if (existing_token != NULL && existing_token != token /* reference compare! */ &&
-    //             FLAG_CMP(existing_token->type, np_aaatoken_type_handshake) /*&& _np_aaatoken_is_valid(handshake_token)*/)
-    //         {   // FIXME: Change to signature check with other tokens pub key
-    //             if (memcmp(existing_token->crypto.derived_kx_public_key, token->crypto.derived_kx_public_key, crypto_sign_PUBLICKEYBYTES *(sizeof(unsigned char))) != 0) 
-    //             {
-    //                 np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
-    //                 log_msg(LOG_WARN, "Someone tried to impersonate a token (%s). verification failed", token->uuid);
-    //                 return (false);
-    //             }
-    //         }
-    //         np_unref_obj(np_key_t, handshake_key, "_np_keycache_find");
-    //     }
-    // }
 
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "token checksum verification completed");
 
@@ -442,7 +411,7 @@ bool _np_aaatoken_is_valid(np_aaatoken_t* token, enum np_aaatoken_type expected_
             }
             else
             {
-                log_msg(LOG_WARN, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu32"<%"PRIu32, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
+                log_msg(LOG_WARNING, "verification failed. token (%s) for subject \"%s\": %s was already used, 0<=%"PRIu32"<%"PRIu32, token->uuid, token->subject, token->issuer, token_msg_threshold, token_max_threshold);
                 log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
                 token->state &= AAA_INVALID;
                 return (false);

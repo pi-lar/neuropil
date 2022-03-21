@@ -1057,13 +1057,13 @@ bool __check_remote_peer_distribution(np_context* ac, const np_message_t* const 
             np_dhkey_t target_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, localized_subject);
 
             np_message_t* cloned_msg = NULL;
-            np_new_obj(np_message_t, cloned_msg, ref_message_in_send_system);
+            np_new_obj(np_message_t, cloned_msg, FUNC);
             np_message_clone(cloned_msg, msg);
 
             np_tree_replace_str(cloned_msg->header, _NP_MSG_HEADER_SUBJECT, np_treeval_new_dhkey(localized_subject));
             np_tree_replace_str(cloned_msg->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(context->my_node_key->dhkey));
 
-            np_util_event_t send_event = { .type=(evt_internal | evt_message), .context=ac, .user_data=cloned_msg, .target_dhkey=dhkey_zero };
+            np_util_event_t send_event = { .type=(evt_internal | evt_message), .user_data=cloned_msg, .target_dhkey=dhkey_zero };
             // _np_keycache_handle_event(context, subject_dhkey, send_event, false);
             if(!np_jobqueue_submit_event(context, 0.0, target_dhkey, send_event, "event: userspace message delivery request"))
             {
@@ -1076,6 +1076,7 @@ bool __check_remote_peer_distribution(np_context* ac, const np_message_t* const 
                 log_msg(LOG_DEBUG,  "send new search object to peer: %"PRIx32" via channel %s (%s)",
                                    np_module(search)->searchnode.peers[j][best_index].t[0], tmp, msg->uuid);
             }
+            np_unref_obj(np_message_t, cloned_msg, FUNC);
             pipeline->remote_distribution_count++;
         } 
         
@@ -1355,7 +1356,8 @@ void np_searchnode_destroy(np_context* ac)
     {
         return;
     }
-    
+    np_module_var(search);
+
     for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count; i++)
     {
         np_bktree_destroy(np_module(search)->searchnode.tree[i]);

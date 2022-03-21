@@ -10,6 +10,9 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <inttypes.h>
+
 
 /**
    First and foremost, we have to include header file which defines the API for
@@ -40,6 +43,8 @@ int main (void)
 	*/
 	struct np_settings cfg;
 	np_default_settings(&cfg);
+	strncpy(cfg.log_file, "sender.log", 255);
+
 	np_context *ac = np_new_context(&cfg);
         /**
 	   \endcode
@@ -53,7 +58,7 @@ int main (void)
 
 	   \code
 	 */
-	assert(np_ok == np_listen(ac, "udp4", "localhost", 1234));
+	assert(np_ok == np_listen(ac, "udp4", "localhost", 1234, NULL));
         /**
 	   \endcode
 	*/
@@ -85,7 +90,7 @@ int main (void)
 	   \code
 	 */
 	assert(np_ok == np_set_authorize_cb(ac, authorize));
-        /**
+	/**
 	   \endcode
 	*/
 
@@ -120,11 +125,14 @@ int main (void)
        \code
      */
     enum np_return status;
+	uint64_t _i = 0;
     do {
         status = np_run(ac, 0);
         char message[100];
-        printf("Enter message (max 100 chars): ");
-        fgets(message, 200, stdin);
+        //printf("Enter message (max 100 chars): ");
+        //fgets(message, 200, stdin);
+		snprintf(message, 100, "msg %"PRIu64 , _i++);
+		sleep(0.01);
         // Remove trailing newline
         if ((strlen(message) > 0) && (message[strlen (message) - 1] == '\n'))
             message[strlen (message) - 1] = '\0';

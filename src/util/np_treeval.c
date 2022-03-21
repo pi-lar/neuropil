@@ -141,7 +141,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
         break;
     default:
         to.type = np_treeval_type_undefined;
-        //log_msg(LOG_WARN,"unsupported copy operation for np_treeval type %"PRIu8,from.type);
+        //log_msg(LOG_WARNING,"unsupported copy operation for np_treeval type %"PRIu8,from.type);
         break;
     }
     return to;

@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 
 	char log_file[256];
 	sprintf(log_file, "%s.log", "./ipv6_addrinfo");
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_NETWORK | LOG_KEY;
+	int level = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_NETWORK | LOG_KEY;
 
 	np_context * context = np_new_context(NULL);
 

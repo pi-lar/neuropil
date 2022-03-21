@@ -44,9 +44,26 @@ extern "C" {
         np_sll_t(np_dhkey_t, _recv_list);
 
     } np_pheromone_t;
+    enum np_pheromone_direction {
+        np_pheromone_direction_sender,
+        np_pheromone_direction_receiver,
+    } NP_CONST_ENUM;
+
+
+    /**
+     * @brief Returns the position of a given dhkey in the pheromonetable.
+     * 
+     * @param[in] target The dhkey to insert into the pheromonetable.
+     * @param[in] direction receiver results in negative position, sender in positive.
+     * @return int16_t the position in th epheromone table.
+     */
+    NP_API_INTERN
+    int16_t _np_pheromone_calc_table_position(np_dhkey_t  target, enum np_pheromone_direction direction);
 
     NP_API_INTERN
     bool _np_pheromone_inhale(np_state_t* context, np_pheromone_t pheromone);
+    NP_API_INTERN
+    bool _np_pheromone_inhale_target(np_state_t* context, np_dhkey_t target, np_dhkey_t pheromone_source, bool is_sender, bool is_receiver);
     NP_API_INTERN
     void _np_pheromone_inhale_scent(np_state_t* context, uint16_t pos, np_bloom_t scent);
 

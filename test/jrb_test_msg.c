@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
 	char log_file[256];
 	sprintf(log_file, "%s.log", "./jrb_test_msg");
-	int level = LOG_ERROR | LOG_WARN | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORK | LOG_KEY;
+	int level = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORK | LOG_KEY;
 	log_init(log_file, level);
 
 	np_tree_t* test_jrb_1 = np_tree_create();
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 
 	// np_jrb_t* node = NULL;
 	// cmp_write_array(&cmp_empty, 1);
-	// if (!cmp_write_map(&cmp_empty, test_jrb->size*2 )) log_msg(LOG_WARN, cmp_strerror(&cmp_empty));
+	// if (!cmp_write_map(&cmp_empty, test_jrb->size*2 )) log_msg(LOG_WARNING, cmp_strerror(&cmp_empty));
 	// node = test_jrb;
 	// log_msg(LOG_DEBUG, "for %p; %p!=%p; %p=%p", test_jrb->flink, node, test_jrb, node, node->flink);
 	//	jrb_traverse(node, test_jrb) {
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 
 	// unsigned int map_size = 0;
 	// cmp_err_out = cmp_read_map(&cmp_out, &map_size);
-	// if (!cmp_err_out) log_msg(LOG_WARN, cmp_strerror(&cmp_out));
+	// if (!cmp_err_out) log_msg(LOG_WARNING, cmp_strerror(&cmp_out));
 	// log_msg(LOG_INFO, "deserialized buffer contains %d elements", map_size);
 	_np_tree_deserialize( context, out_jrb, &cmp_out);
 
