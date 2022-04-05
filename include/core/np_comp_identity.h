@@ -25,7 +25,6 @@ extern "C" {
  * If no private key is present, the identity is used to maintain trust relations with peers, i.e.
  * one may import a pre-shared pki identity and use it to verify additional signatures.
  */
-
     NP_API_INTERN
     bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event);
 

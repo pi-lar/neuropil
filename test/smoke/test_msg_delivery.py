@@ -23,6 +23,9 @@ class MsgDeliveryTest(unittest.TestCase):
     protocol_receiver="udp4"
     token_timeout = 140 #sec
     send_timeout = 240 #sec
+    set_identity_sender = False
+    set_identity_receiver = False
+    set_identity_cluster = False
 
     def msg_received(self, node:NeuropilNode, message:np_message):
         self.msg_delivery_succ.value = True
@@ -35,13 +38,27 @@ class MsgDeliveryTest(unittest.TestCase):
         self.msg_delivery_succ = Value(c_bool, False)
         self.target_size = self.msg_size
         np_c = None
+
+        log_file_prefix = "logs/smoke_test_msg_delivery"
+        log_file_prefix += f"_{self.cluster_size}_sender:{self.protocol_sender}_receiver:{self.protocol_receiver}_"
+        log_file_prefix += f'{"senderident_" if self.set_identity_sender else "" }'
+        log_file_prefix += f'{"receiverident_" if self.set_identity_receiver else "" }'
+        log_file_prefix += f'{"clusterident" if self.set_identity_cluster else "" }'
+
         if self.cluster_size > 0:
-            np_c = NeuropilCluster(    self.cluster_size, proto=self.protocol_cluster, port_range=4001+port_index, auto_run=False, log_file_prefix=f"logs/smoke_test_msg_delivery_{self.cluster_size}_{self.protocol_sender}_{self.protocol_receiver}_cluster_")
+            np_c = NeuropilCluster(    self.cluster_size, proto=self.protocol_cluster, port_range=4001+port_index, auto_run=False, log_file_prefix=f"{log_file_prefix}_cluster_")
+            if self.set_identity_cluster:
+                np_c.use_identity(np_1.new_identity())
         port_index += self.cluster_size
-        np_1 = NeuropilNode(4002 + port_index, proto=self.protocol_sender,   log_file=f"logs/smoke_test_msg_delivery_{self.cluster_size}_{self.protocol_sender}_{self.protocol_receiver}_sender.log", auto_run=False)
+        np_1 = NeuropilNode(4002 + port_index, proto=self.protocol_sender,   log_file=f"{log_file_prefix}_sender.log", auto_run=False)
         port_index += 1
-        np_2 = NeuropilNode(4003 + port_index, proto=self.protocol_receiver, log_file=f"logs/smoke_test_msg_delivery_{self.cluster_size}_{self.protocol_sender}_{self.protocol_receiver}_receiver.log",auto_run=False)
+        np_2 = NeuropilNode(4003 + port_index, proto=self.protocol_receiver, log_file=f"{log_file_prefix}_receiver.log",auto_run=False)
         port_index += 1
+
+        if self.set_identity_sender:
+            np_1.use_identity(np_1.new_identity())
+        if self.set_identity_receiver:
+            np_2.use_identity(np_2.new_identity())           
 
         subject = b"NP.TEST.msg_delivery"
         mxp1 = np_1.get_mx_properties(subject)
@@ -124,3 +141,9 @@ class MsgDeliveryTest_1k(MsgDeliveryTest):
     msg_size = 1000
 class MsgDeliveryTest_10k(MsgDeliveryTest):
     msg_size = 1000*10
+
+class MsgDeliveryTest_udp4_udp4_ident_s_r(MsgDeliveryTest):
+    protocol_sender="udp4"
+    protocol_receiver="udp4"
+    set_identity_sender = True
+    set_identity_receiver = True

@@ -826,18 +826,18 @@ bool _np_out_join(np_state_t* context, const np_util_event_t event)
 
     // 4: send over the message parts
 
+    #ifdef DEBUG
+    np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
+    if (target_key!= NULL)
+    {
+        log_debug(LOG_ROUTING, "submitting join request (%s) to target key %s / %p", join_msg->uuid, _np_key_as_str(target_key), target_key);
+        np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+    }
+    #endif // DEBUG
     _LOCK_ACCESS(&join_msg->msg_chunks_lock)
     {
         pll_iterator(np_messagepart_ptr) iter = pll_first(join_msg->msg_chunks);
         while (NULL != iter) {
-    #ifdef DEBUG
-            np_key_t* target_key = _np_keycache_find(context, event.target_dhkey);
-            if (target_key!= NULL)
-            {
-                log_debug(LOG_ROUTING, "submitting join request (%s) to target key %s / %p", join_msg->uuid, _np_key_as_str(target_key), target_key);
-                np_unref_obj(np_key_t, target_key, "_np_keycache_find");
-            }
-    #endif // DEBUG
             memcpy(iter->val->uuid, join_msg->uuid, NP_UUID_BYTES);
             np_util_event_t join_event = { .type=(evt_internal|evt_message), .user_data=iter->val, .target_dhkey=event.target_dhkey};
             _np_event_runtime_add_event(context, event.current_run, event.target_dhkey, join_event);

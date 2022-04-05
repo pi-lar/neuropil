@@ -652,8 +652,19 @@ void __np_node_handle_completion(np_util_statemachine_t* statemachine, const np_
     np_msgproperty_conf_t* hs_prop   = _np_msgproperty_conf_get(context, OUTBOUND, hs_dhkey);
     np_msgproperty_conf_t* join_prop = _np_msgproperty_conf_get(context, OUTBOUND, join_dhkey);
 
-    log_debug_msg(LOG_ROUTING | LOG_HANDSHAKE, "node handshake status: %d %f // %p", trinity.node->_handshake_status, trinity.node->handshake_send_at, hs_prop);
-    log_debug_msg(LOG_ROUTING, "node join      status: %d %f // %p", trinity.node->_joined_status,    trinity.node->join_send_at, join_prop);
+    log_debug(LOG_HANDSHAKE,
+        "node handshake status: %d %f // %p %"PRIu8,
+        trinity.node->_handshake_status,
+        trinity.node->handshake_send_at,
+        hs_prop,
+        node_key->type
+    );
+    log_debug(LOG_HANDSHAKE,
+        "node join      status: %d %f // %p", 
+        trinity.node->_joined_status,
+        trinity.node->join_send_at,
+        join_prop
+    );
 
     np_message_t* msg_out = NULL;
     TSP_GET(bool, trinity.node->session_key_is_set,session_key_is_set);

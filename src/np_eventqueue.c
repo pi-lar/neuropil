@@ -22,6 +22,7 @@
 #include "neuropil_log.h"
 #include "np_log.h"
 
+#include "np_aaatoken.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "util/np_event.h"
@@ -89,16 +90,19 @@ void __np_event_runtime_add_event(np_state_t* context, np_event_runtime_t * runt
     np_key_t * __source_key = _np_keycache_find(context, dhkey);
 
     if(__source_key != NULL){
-        log_info(LOG_EVENT|LOG_VERBOSE, "ADDING event@%"PRIu8" event_type: %"PRIu32" key: %s key_type: %"PRIu32" userdata_type: %"PRIu32" id: %s",
-            runtime->__chained_events_size, event.type, _np_key_as_str(__source_key), __source_key->type,
-            np_memory_get_type(event.user_data),
-            event.user_data != NULL &&  _np_memory_rtti_check(event.user_data,np_memory_types_np_message_t) ? 
+        log_debug(LOG_EVENT, "ADDING event@%"PRIu8" event_type: %"PRIu32" key: %s key_type: %"PRIu8" userdata_type: %"PRIu32" id: %s",
+            runtime->__chained_events_size, 
+            event.type,
+            _np_key_as_str(__source_key),
+            __source_key->type,
+            np_memory_get_type(event.user_data),            
+            (event.user_data != NULL &&  _np_memory_rtti_check(event.user_data,np_memory_types_np_message_t) ? 
             ((np_message_t*)event.user_data)->uuid : 
-            (
-                event.user_data != NULL &&  _np_memory_rtti_check(event.user_data,np_memory_types_np_messagepart_t) ? 
-                ((np_messagepart_t*)event.user_data)->uuid :
-                "no id"
-            )
+            (event.user_data != NULL &&  _np_memory_rtti_check(event.user_data,np_memory_types_np_messagepart_t) ? 
+            ((np_messagepart_t*)event.user_data)->uuid :
+            (event.user_data != NULL &&  _np_memory_rtti_check(event.user_data,np_memory_types_np_aaatoken_t) ? 
+            ((np_aaatoken_t*)event.user_data)->uuid :
+            "no id")))
         ); 
         np_unref_obj(np_key_t,__source_key,"_np_keycache_find");
     }

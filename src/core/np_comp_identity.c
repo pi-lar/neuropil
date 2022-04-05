@@ -28,7 +28,6 @@
 #include "util/np_statemachine.h"
 #include "np_eventqueue.h"
 
-
 // IN_SETUP -> IN_USE transition condition / action #1
 bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_event_t event) {
 
@@ -42,8 +41,9 @@ bool __is_identity_aaatoken(np_util_statemachine_t* statemachine, const np_util_
     if ( ret) 
     {
         NP_CAST(event.user_data, np_aaatoken_t, identity);
-        ret &= (  identity->type == np_aaatoken_type_identity                             ) ||
-               ( (identity->type == np_aaatoken_type_node) && identity->private_key_is_set);
+        ret &=  FLAG_CMP(identity->type, np_aaatoken_type_identity) ||
+                FLAG_CMP(identity->type, np_aaatoken_type_node);
+        ret &= identity->private_key_is_set;
 
         ret &= _np_aaatoken_is_valid(context, identity, identity->type);
     }
@@ -389,16 +389,24 @@ void __np_identity_handle_authn(np_util_statemachine_t* statemachine, const np_u
         log_debug_msg(LOG_ROUTING, "now checking (join/ident) authentication of token");
         struct np_token tmp_user_token = { 0 };
         bool join_allowed = context->authenticate_func(context, np_aaatoken4user(&tmp_user_token, authn_token));
-        log_debug_msg(LOG_ROUTING, "authentication of token: %"PRIu8, join_allowed);
+        log_info(LOG_ROUTING, "authentication of token (%s): %sOK, issuer: %s", authn_token->uuid, join_allowed?"":"NOT ", authn_token->issuer);
 
         if (true == join_allowed && context->enable_realm_client == false)
         {
             // authn_token->state |= AAA_AUTHENTICATED;
-            np_dhkey_t ident_dhkey = np_aaatoken_get_fingerprint(authn_token,false);
-            np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .user_data=authn_token, .target_dhkey=ident_dhkey};
-            _np_event_runtime_add_event(context, event.current_run, ident_dhkey, authn_event);
+            np_dhkey_t node_dhkey = np_aaatoken_get_fingerprint(authn_token, false);
+
+            if(!FLAG_CMP(authn_token->type,np_aaatoken_type_node)){
+                node_dhkey = np_aaatoken_get_partner_fp(authn_token);
+            }
+
+            np_util_event_t authn_event = { .type=(evt_internal|evt_token|evt_authn), .user_data=authn_token, .target_dhkey=node_dhkey};
+
+            _np_event_runtime_add_event(context, event.current_run, node_dhkey, authn_event);
 
             _np_event_runtime_add_event(context, event.current_run, event.target_dhkey, authn_event);
+            
+            //np_unref_obj(np_aaanp_key_ttoken_t, join_ident_key, "_np_keycache_find_or_create");
 
             _np_key_get_node(context->my_node_key)->joined_network = true;
         }

@@ -402,9 +402,11 @@ void _np_keycache_execute_event(np_state_t* context, np_dhkey_t dhkey, np_util_e
         np_unref_obj(np_key_t, key, "_np_keycache_find");
     } else {
         if (NULL != event.user_data) {
+            char buf[65]={0};
+            _np_dhkey_str(&dhkey, buf);
             log_debug_msg(LOG_ERROR,
-                "event not handled (eventtype: %"PRIu8", datatype: %"PRId16" keytype: %"PRId16")",
-                event.type, (int16_t) (event.user_data? np_memory_get_type(event.user_data):-1), (int16_t)(key ? key->type:-1)
+                "event not handled (eventtype: %"PRIu8", datatype: %"PRId16" keytype: %"PRId16" key: %s)",
+                event.type, (int16_t) (event.user_data? np_memory_get_type(event.user_data):-1), (int16_t)(key ? key->type:-1), buf
             );
             log_info(LOG_EXPERIMENT,
                 "event not handled (eventtype: %"PRIu8", datatype: %"PRId16" keytype: %"PRId16")",

@@ -299,8 +299,9 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     np_dhkey_t join_ident_dhkey = { 0 };
     np_ident_public_token_t* join_ident_token = NULL;
 
-    np_util_event_t authn_event = { .type=evt_authn|evt_external|evt_token };
-    
+    np_util_event_t authn_event = { .type=evt_authn|evt_external|evt_token };    
+    authn_event.target_dhkey = msg_event.target_dhkey;
+
     np_tree_elem_t* node_token_ele = np_tree_find_str(msg->body, _NP_URN_NODE_PREFIX);
     if (node_token_ele == NULL) 
     {
@@ -329,13 +330,13 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
     np_tree_elem_t* ident_token_ele = np_tree_find_str(msg->body, _NP_URN_IDENTITY_PREFIX);	
 
     if (ident_token_ele != NULL)
-    {   
+    {
         join_ident_token = np_token_factory_read_from_tree(context, ident_token_ele->val.value.tree);
         if (NULL  == join_ident_token || 
             false == _np_aaatoken_is_valid(context, join_ident_token, np_aaatoken_type_identity)) 
         {
             // silently exit join protocol for invalid identity token
-            log_debug(LOG_TRACE, "JOIN request: invalid identity token");
+            log_msg(LOG_WARNING, "JOIN request: invalid identity token");
             goto __np_cleanup__;
         }
         log_debug(LOG_AAATOKEN | LOG_ROUTING, "join token is valid");
@@ -372,10 +373,13 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
 
 #ifdef DEBUG
         char tmp[65]={0};
-        log_debug_msg(LOG_ROUTING, "JOIN request: identity %s would like to join", np_id_str(tmp, &partner_of_node_dhkey));
+        char tmp2[65]={0};
+        log_debug_msg(LOG_ROUTING,
+            "JOIN request: identity %s would like to join", 
+            np_id_str(tmp, &partner_of_node_dhkey)
+        );
 #endif
         // everything is fine and we can continue
-        authn_event.target_dhkey = msg_event.target_dhkey;
         authn_event.user_data = join_ident_token;
     }
 
@@ -386,23 +390,28 @@ bool _np_in_join(np_state_t* context, np_util_event_t msg_event)
         log_debug_msg(LOG_ROUTING, "JOIN request: no corresponding node key found");
         goto __np_cleanup__;
     } 
-    else if (join_node_key != NULL && join_ident_token == NULL)
+    else if (join_ident_token == NULL)
     {   // pure node join without additional identity :-(
         log_debug_msg(LOG_ROUTING, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
-        authn_event.target_dhkey = msg_event.target_dhkey;
         authn_event.user_data = join_node_token;
-        _np_event_runtime_add_event(context, msg_event.current_run, join_node_key->dhkey, authn_event); // needed to create initial node structure
+         
+         // needed to create initial node structure
+        _np_event_runtime_add_event(context, msg_event.current_run, join_node_key->dhkey, authn_event);
+
+        // Authenticate token by main identity 
         _np_event_runtime_add_event(context, msg_event.current_run, context->my_identity->dhkey, authn_event);
     }
-    else if(join_node_key != NULL && join_ident_token != NULL)
+    else if(join_ident_token != NULL)
     {   // update node token and wait for identity authentication
         log_debug_msg(LOG_ROUTING, "JOIN request: node     %s would like to join", _np_key_as_str(join_node_key));
+        
         np_util_event_t token_event = { .type=evt_token|evt_external };
         token_event.target_dhkey    = join_node_dhkey;
         token_event.user_data       = join_node_token;
         // update node token
         _np_event_runtime_add_event(context, msg_event.current_run, join_node_key->dhkey, token_event);
-        // identity authn
+        
+        // Authenticate token by main identity 
         _np_event_runtime_add_event(context, msg_event.current_run, context->my_identity->dhkey, authn_event);
     }
     else
