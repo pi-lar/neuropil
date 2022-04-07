@@ -356,6 +356,7 @@ sll_return(np_key_ptr) _np_route_row_lookup (np_state_t* context, np_dhkey_t dhk
     {
         uint16_t i, j, k;
         i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &dhkey);
+        ASSERT(i < __MAX_ROW, "index out of routing table bounds.");
         for (j = 0; j < __MAX_COL; j++)
         {
             int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
@@ -388,6 +389,7 @@ sll_return(np_key_ptr) _np_route_neighbour_lookup (np_state_t* context, np_dhkey
     {
         uint16_t col_index, row_index, entry_index;
         col_index = _np_dhkey_index (&np_module(route)->my_key->dhkey, &dhkey);
+        ASSERT(col_index < __MAX_ROW, "index out of routing table bounds.");
         row_index = _np_dhkey_hexalpha_at (context, &dhkey, col_index);
         uint8_t max_count = 7;
         uint32_t dhkey_start_index = col_index * row_index;
@@ -498,6 +500,8 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
         /* check to see if there is a matching next hop (for fast routing) */
         i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &key);
+        ASSERT(i < __MAX_ROW, "index out of routing table bounds.");
+
         match_col = _np_dhkey_hexalpha_at (context, &key, i);
 
         int index = __MAX_ENTRY * (match_col + (__MAX_COL* (i)));
@@ -567,6 +571,8 @@ sll_return(np_key_ptr) _np_route_lookup(np_state_t* context, np_dhkey_t key, uin
 
         /* find the longest prefix match */
         i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &key);
+        ASSERT(i < __MAX_ROW, "index out of routing table bounds.");
+
         for (j = 0; j < __MAX_COL; j++)
         {
             int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));
@@ -814,6 +820,8 @@ void _np_route_update (np_key_t* key, bool joined, np_key_t** deleted, np_key_t*
         uint16_t i, j, k, pick;
 
         i = _np_dhkey_index (&np_module(route)->my_key->dhkey, &key->dhkey);
+        ASSERT(i < __MAX_ROW, "index out of routing table bounds.");
+
         j = _np_dhkey_hexalpha_at (context, &key->dhkey, i);
 
         int index = __MAX_ENTRY * (j + (__MAX_COL* (i)));

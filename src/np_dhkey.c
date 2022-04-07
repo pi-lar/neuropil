@@ -380,38 +380,35 @@ void _np_dhkey_midpoint (np_dhkey_t* mid, const np_dhkey_t* key)
     log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_midpoint");
 }
 
-/*
- * calculates the position within the routing table where a new entry will be inserted.
+
+/**
+ * @brief calculates the position of the first not matching halfbyte of both @ref np_dhkey_t instances
+ * 
+ * @param[in] a Operand 1
+ * @param[in] b Operand 2
+ * @return uint16_t Returns a value from 0 - 64 (max is sizeof(np_dhkey_t)*2 and indicates full dhkey matching).
  */
-uint16_t _np_dhkey_index (const np_dhkey_t* mykey, const np_dhkey_t* otherkey)
+uint16_t _np_dhkey_index (const np_dhkey_t* a, const np_dhkey_t* b)
 {
-    log_trace_msg ( LOG_TRACE | LOG_KEY, ".start._dhkey_index");
-    uint16_t i = 0, max_len = 64;
+    // iterate over each halfbyte of the dhkeys to determine the position of the first difference
 
-    for (uint8_t k = 0; k < 8; ++k)
+    // use uint8_t instead of unsigned char as uint8_t is guaranteed to be 8 bits long
+    uint8_t * _pos_a = (uint8_t *)a;
+    uint8_t * _pos_b = (uint8_t *)b;
+    
+    uint8_t ret = 0;
+    for (uint8_t k = 0; k < sizeof(np_dhkey_t); k++)
     {
-        uint32_t bit_mask = 0xf0000000;
-        for (uint8_t j = 0; j < 8; ++j)
-        {
-            uint32_t t1 = mykey->t[k]    & bit_mask;
-            uint32_t t2 = otherkey->t[k] & bit_mask;
-            //log_debug_msg(LOG_KEY | LOG_DEBUG, "key_index: %d me: %08"PRIx32" other: %08"PRIx32" mask: %08"PRIx32, i, t1, t2, bit_mask);
-            if (t1 != t2)
-            {
-                log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_index");
-                return i;
-            }
-            else
-            {
-                bit_mask = bit_mask >> 4;
-            }
-            i++;
-        }
+        // check heach half byte for a diff
+        if((*_pos_a & 0xf0) != (*_pos_b & 0xf0)) break;
+        ret++;
+        if((*_pos_a & 0x0f) != (*_pos_b & 0x0f)) break;
+        ret++;
+        // move pointers one byte 
+        _pos_a += 1;
+        _pos_b += 1;
     }
-
-    if (i == max_len) i = max_len - 1;
-    log_trace_msg ( LOG_TRACE | LOG_KEY, ".end  ._dhkey_index");
-    return i;
+    return ret;
 }
 /*
     Returns a specific position from the dhkey

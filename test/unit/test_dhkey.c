@@ -109,6 +109,31 @@ Test(np_dhkey_t, _dhkey_equals, .description = "test for equal dhkey's")
 	}
 }
 
+Test(np_dhkey_t, _np_dhkey_str, .description = "test the str conversion")
+{
+	CTX() {
+		char subject[] = "this.is.a.test";
+
+		np_dhkey_t key_1 = np_dhkey_create_from_hostport( subject, "1");
+		np_dhkey_t key_2 = np_dhkey_create_from_hostport( subject, "2");
+		np_dhkey_t key_3 = np_dhkey_create_from_hostport( subject, "3");
+		np_dhkey_t key_4 = np_dhkey_create_from_hostport( subject, "4");
+		np_dhkey_t key_5 = np_dhkey_create_from_hostport( subject, "5");
+		
+		char buf[65]={0};
+		_np_dhkey_str(&key_1, buf);
+		cr_expect( 0 == strncmp(buf,"d3e7fd4c57d9d1589097da6fe70ec6bad3619fa34b94bf04efc9446e4e1baf81", 64));
+		_np_dhkey_str(&key_2, buf);
+		cr_expect( 0 == strncmp(buf,"688f55430688c12f8f647605bb7a07ce41f79d5dd7dfb7404c80b1840ad1f8a1", 64));
+		_np_dhkey_str(&key_3, buf);
+		cr_expect( 0 == strncmp(buf,"f5bca4d5c778f72a2fb26cfe5c51e4cfaf7b50bc325ea1265f4bfbcafa183cf4", 64));
+		_np_dhkey_str(&key_4, buf);
+		cr_expect( 0 == strncmp(buf,"9bf52721f6ae268eb925e90a74d2fd7ba998b3482f6898acda4fb2cabd4b02cf", 64));
+		_np_dhkey_str(&key_5, buf);
+		cr_expect( 0 == strncmp(buf,"937ce5cb7df1b1f011f21dd77cd89cb1b02d83ef1cfb5ee867a919a7bd7e7c31", 64));
+	}
+}
+
 Test(np_dhkey_t, _dhkey_index, .description = "test the common prefix length of two keys")
 {
 	CTX() {
@@ -119,13 +144,12 @@ Test(np_dhkey_t, _dhkey_index, .description = "test the common prefix length of 
 		np_dhkey_t key_3 = np_dhkey_create_from_hostport( subject, "3");
 		np_dhkey_t key_4 = np_dhkey_create_from_hostport( subject, "4");
 		np_dhkey_t key_5 = np_dhkey_create_from_hostport( subject, "5");
-
-		cr_expect(63 == _np_dhkey_index(&key_1, &key_1), "expected index to be 63, but received %d", _np_dhkey_index(&key_1, &key_1));
-		cr_expect(1 == _np_dhkey_index(&key_1, &key_2), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_2));
-		cr_expect(0 == _np_dhkey_index(&key_1, &key_3), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_3));
-		cr_expect(0 == _np_dhkey_index(&key_1, &key_4), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_4));
-		cr_expect(0 == _np_dhkey_index(&key_1, &key_5), "expected index to be  1, but received %d", _np_dhkey_index(&key_1, &key_5));
-
+		uint16_t val;
+		cr_expect( 0 == (val = _np_dhkey_index(&key_5, &key_1)), "expected index to be  0, but received %"PRIu16, val);
+		cr_expect( 0 == (val = _np_dhkey_index(&key_5, &key_2)), "expected index to be  0, but received %"PRIu16, val);
+		cr_expect( 0 == (val = _np_dhkey_index(&key_5, &key_3)), "expected index to be  0, but received %"PRIu16, val);
+		cr_expect( 1 == (val = _np_dhkey_index(&key_5, &key_4)), "expected index to be  1, but received %"PRIu16, val);
+		cr_expect(64 == (val = _np_dhkey_index(&key_5, &key_5)), "expected index to be 63, but received %"PRIu16, val);
 	}
 }
 
