@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NEUROPIL_RELEASE	"neuropil_0.12.1"
+#define NEUROPIL_RELEASE	"neuropil_0.12.2"
 
 #define NEUROPIL_COPYRIGHT	"copyright (C) 2016-2022 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK  "trademark (TM) 2016-2022 pi-lar GmbH, Cologne, Germany"
