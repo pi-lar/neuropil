@@ -14,4 +14,4 @@ COPY ./neuropil/bin /usr/local/bin
 COPY ./neuropil/lib /usr/local/lib
 COPY ./neuropil/include /usr/local/include
 
-RUN apt-get update && apt-get install libsodium23 && ldconfig
+RUN apt-get update && apt-get install libsodium23 libncurses5-dev && ldconfig
