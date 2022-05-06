@@ -172,7 +172,7 @@ extern "C" {
     #define MISC_RENEW_NODE_SEC (NP_PI*1000)
 #endif
 #ifndef MISC_READ_EVENTS_SEC
-    #define MISC_READ_EVENTS_SEC (NP_PI/1000)
+    #define MISC_READ_EVENTS_SEC (NP_PI/100)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
     #define MISC_SEND_PINGS_SEC (NP_PI*10)
