@@ -81,6 +81,7 @@ int main(int argc, char **argv)
 
         example_user_context* user_context = malloc(sizeof(example_user_context));
         memcpy(user_context, user_context_template, sizeof(example_user_context));
+        if (i > 0) user_context->user_interface = np_user_interface_off;
 
         if(user_context_template->node_description[0] != 0){
             snprintf(user_context->node_description, 255, "%s_ci_%d", user_context_template->node_description, i);
@@ -114,7 +115,10 @@ int main(int argc, char **argv)
             }else{
                 sprintf(port_tmp,"%d", HTTP_PORT + i);
             }
-            user_context->_np_httpserver_active = example_http_server_init(nodes[i], user_context_template->opt_http_domain,port_tmp);
+            example_user_context* ud = ((example_user_context*)np_get_userdata(nodes[i]));
+            ud->opt_http_port = port_tmp;
+
+            user_context->_np_httpserver_active = example_http_server_init(nodes[i]);
             example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
         }
     }

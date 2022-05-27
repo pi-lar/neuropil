@@ -19,7 +19,7 @@ RUN apt-get update && \
         python3 python3-dev python3-pip python3-venv \
         libxml2-dev libxslt-dev \
         ninja-build libgit2-dev pkg-config automake libtool \
-        libncurses5-dev libncursesw5-dev libsqlite3-dev \
+        libncurses5 libncurses5-dev libsqlite3-dev \
         graphviz
 
 ENV LANG C.UTF-8

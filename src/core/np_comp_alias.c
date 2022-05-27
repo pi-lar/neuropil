@@ -559,8 +559,12 @@ void __np_alias_decrypt(np_util_statemachine_t* statemachine, const np_util_even
 
         // POSSIBLE ASYNC POINT
         
-        char buf[100];
-        snprintf(buf, 100, "urn:np:message:toalias:%s", msg_in->uuid);
+        #ifdef DEBUG
+            char buf[100];
+            snprintf(buf, 100, "urn:np:message:toalias:%s", msg_in->uuid);
+        #else
+            const char buf[100] = "urn:np:message:toalias";
+        #endif
         double job_prio = JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE;
         bool is_internal = _np_message_is_internal(context, msg_in);
         if(is_internal){

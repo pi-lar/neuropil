@@ -141,6 +141,10 @@ bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job, bool exec_asap)
 {
     ASSERT(np_module_initiated(jobqueue),"Jobqueue needs to be iniated before we can add things there.");
     ASSERT(new_job.priority <= NP_PRIORITY_MAX_QUEUES,"jobs priority does not match a jobqueue.");
+    // if there is only the user loop we need to priorize
+    // all jobs in one queue as 
+    if(context->settings->n_threads <= 0)
+        new_job.priority = NP_PRIORITY_HIGHEST;
 
     NP_PERFORMANCE_POINT_START(jobqueue_insert);
     
@@ -164,7 +168,7 @@ bool _np_jobqueue_insert(np_state_t* context, np_job_t new_job, bool exec_asap)
         }
     }
 
-#ifdef DEBUG
+#ifdef DEBUG_CALLBACKS
     if (ret == false) { log_error("Discarding Job %s", new_job.ident); }
 #else 
     if (ret == false) { log_msg(LOG_WARNING, "Discarding Job. Build with DEBUG for further info."); }
@@ -200,11 +204,12 @@ void np_jobqueue_submit_event_callbacks(np_state_t* context, double delay, np_dh
     new_job.processorFuncs = callbacks;
     new_job.__del_processorFuncs = false;
 
-#ifdef DEBUG
-    memset(new_job.ident, 0, 255);
-    if (ident != NULL) {
-        memcpy(new_job.ident, ident, strnlen(ident, 254));
-    }
+#ifdef DEBUG_CALLBACKS
+    ASSERT (ident != NULL && strlen(ident) > 0 && strlen(ident) < 255, 
+        "You need to define a valid identificator for this job"
+    );
+    memcpy(new_job.ident, ident, strnlen(ident, 254));
+    log_debug(LOG_JOBS,"Created Job %s",new_job.ident);
 #endif
 
     if (!_np_jobqueue_insert(context, new_job, delay == 0)) {
@@ -230,12 +235,14 @@ void np_jobqueue_submit_event_periodic(np_state_t * context, size_t priority, do
     new_job.is_periodic = true;
     new_job.__del_processorFuncs = true;
 
-#ifdef DEBUG
-    memset(new_job.ident, 0, 255);
-    if (ident != NULL) {
-        memcpy(new_job.ident, ident, strnlen(ident, 254));
-    }
+#ifdef DEBUG_CALLBACKS
+    ASSERT (ident != NULL && strlen(ident) > 0 && strlen(ident) < 255, 
+        "You need to define a valid identificator for this job"
+    );
+    memcpy(new_job.ident, ident, strnlen(ident, 254));
+    log_debug(LOG_JOBS,"Created Job %s",new_job.ident);
 #endif
+
     TSP_SET(np_module(jobqueue)->periodic_jobs, np_module(jobqueue)->periodic_jobs++);
 
 
@@ -267,9 +274,11 @@ bool np_jobqueue_submit_event_with_prio(np_state_t* context, double delay, np_dh
     new_job.processorFuncs = NULL;
     new_job.__del_processorFuncs = false;
 
-#ifdef DEBUG
-    memset(new_job.ident, 0, 255);
-    memcpy(new_job.ident, ident, strnlen(ident, 254));
+#ifdef DEBUG_CALLBACKS
+    ASSERT (ident != NULL && strlen(ident) > 0 && strlen(ident) < 255, 
+        "You need to define a valid identificator for this job"
+    );
+    memcpy(new_job.ident, ident, strlen(ident));
     log_debug(LOG_JOBS,"Created Job %s",new_job.ident);
 #endif
 
@@ -587,7 +596,7 @@ void __np_jobqueue_run_once(np_state_t* context, np_job_t job_to_execute)
             job_to_execute.processorFuncs,
             job_to_execute.priority,
             job_to_execute.exec_not_before_tstamp,
-            #ifdef DEBUG
+            #ifdef DEBUG_CALLBACKS
             job_to_execute.ident
             #else
             "<only in debug build>"

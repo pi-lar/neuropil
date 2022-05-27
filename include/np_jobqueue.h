@@ -38,7 +38,7 @@ struct np_job_s
     bool __del_processorFuncs;
     sll_return(np_evt_callback_t) processorFuncs;
 
-#ifdef DEBUG
+#ifdef DEBUG_CALLBACKS
     char ident[255];
 #endif
 };

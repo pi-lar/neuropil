@@ -685,13 +685,12 @@ void np_memory_free(np_state_t*context, void* item)
         np_memory_itemconf_t* config = GET_CONF(item);
         np_memory_container_t* container = config->container;
 
-        NP_PERFORMANCE_POINT_START(memory_free);
-
         bool rm = false;
         TSP_SCOPE(config->access)
         {
             rm = (config->ref_count == 0 && !config->persistent) && config->in_use;
             if (rm) {
+                NP_PERFORMANCE_POINT_START(memory_free);
                 assert(config->in_use);
                 config->in_use = false;
 
@@ -711,6 +710,7 @@ void np_memory_free(np_state_t*context, void* item)
                         sll_append(np_memory_itemconf_ptr, container->refreshed_items, config);
                     }
                 } 
+                NP_PERFORMANCE_POINT_END(memory_free);
            }
         }
 
@@ -721,7 +721,6 @@ void np_memory_free(np_state_t*context, void* item)
                 container->current_in_use -= 1;
             }
         }
-        NP_PERFORMANCE_POINT_END(memory_free);
     }
 }
 
@@ -1158,6 +1157,8 @@ void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, cons
 {
     assert(item != NULL);
     np_check_magic_no(item);
+    NP_PERFORMANCE_POINT_START(memory_ref);
+
     np_memory_itemconf_t* config = GET_CONF(item);
 
     _NP_REF_REASON(reason, reason_desc, reason2);
@@ -1173,7 +1174,7 @@ void np_memory_ref_obj(np_state_t* context, void* item, const char* reason, cons
 #endif
     }
     np_spinlock_unlock(&config->access_lock);
-
+    NP_PERFORMANCE_POINT_END(memory_ref);
 }
 
 void* np_memory_waitref_obj(np_state_t* context, void* item, const char* reason, const char* reason_desc) {
@@ -1225,6 +1226,7 @@ uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason
     uint32_t ret = 0;	
     if (item != NULL) {
         np_check_magic_no(item);
+        NP_PERFORMANCE_POINT_START(memory_unref);
         np_memory_itemconf_t* config = GET_CONF(item);        
 
         np_spinlock_lock(&config->access_lock);
@@ -1235,6 +1237,8 @@ uint32_t np_memory_unref_obj(np_state_t* context, void* item, const char* reason
         np_spinlock_unlock(&config->access_lock);
 
         np_memory_free(context, item);
+
+        NP_PERFORMANCE_POINT_END(memory_unref);
     }
     return ret;
 }

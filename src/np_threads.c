@@ -961,7 +961,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
         pool_size--;
         special_thread = __np_createThread(context, _np_event_in_run, true, np_thread_type_eventloop);
 
-#ifdef DEBUG
+#ifdef DEBUG_CALLBACKS
         strncpy(special_thread->job.ident, "_np_event_in_run", 255);
 #endif
     } else {
@@ -972,7 +972,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
     {
         pool_size--;
         special_thread = __np_createThread(context, _np_event_out_run, true, np_thread_type_eventloop);
-#ifdef DEBUG
+#ifdef DEBUG_CALLBACKS
         strncpy(special_thread->job.ident, "_np_event_out_run",255);
 #endif
     } else {
@@ -982,7 +982,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t* context, uint8_t pool_size)
     if (pool_size > worker_threads) {
         pool_size--;
         special_thread = __np_createThread(context, _np_event_file_run_triggered, true, np_thread_type_eventloop);
-#ifdef DEBUG
+#ifdef DEBUG_CALLBACKS
         strncpy(special_thread->job.ident, "_np_event_file_run",255);
 #endif
     } else {

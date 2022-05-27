@@ -752,20 +752,22 @@ _np_statistics_debug_t* __np_statistics_debug_get(np_state_t * context, char* ke
 }
 char* __np_statistics_debug_print(np_state_t * context) {
     char* ret = NULL;
-    _LOCK_MODULE(np_utilstatistics_t) {
-        sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
+    if(np_module_initiated(statistics)){
+        _LOCK_MODULE(np_utilstatistics_t) {
+            sll_iterator(void_ptr) iter = sll_first(np_module(statistics)->__np_debug_statistics);
 
-        ret = np_str_concatAndFree(ret, 
-            "%100s --> %8s / %8s / %8s / %10s \n", 
-            "name", "min", "avg", "max", "hits"
-        );
-        while (iter != NULL) {
-            _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;
             ret = np_str_concatAndFree(ret, 
-                "%100.255s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
-                item->key, item->min, item->avg, item->max, item->count
+                "%-10s %89s --> %8s / %8s / %8s / %10s \n", 
+                "(generic)", "name", "min", "avg", "max", "hits"
             );
-            sll_next(iter);
+            while (iter != NULL) {
+                _np_statistics_debug_t* item = (_np_statistics_debug_t*)iter->val;
+                ret = np_str_concatAndFree(ret, 
+                    "%100.255s --> %8.6f / %8.6f / %8.6f / %10"PRIu32"\n",
+                    item->key, item->min, item->avg, item->max, item->count
+                );
+                sll_next(iter);
+            }
         }
     }
     return ret;
@@ -784,6 +786,7 @@ _np_statistics_debug_t* _np_statistics_debug_add(np_state_t * context, char* key
             item->min = DBL_MAX;
             item->max = 0;
             item->avg = 0;
+            ASSERT(key != NULL,"Statistics key cannot be NULL");
             strncpy(item->key, key, 254);
             char mutex_str[64];
             snprintf(mutex_str, 63, "%s", "urn:np:statistics:access");

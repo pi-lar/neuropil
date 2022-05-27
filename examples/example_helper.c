@@ -98,7 +98,7 @@ example_user_context* example_new_usercontext() {
 
     user_context->_printed_startup = false;
     user_context->user_interface = np_user_interface_ncurse;
-    user_context->statistic_types = 0;
+    user_context->statistic_types = np_stat_all;
 
     user_context->term_width_top_rigth = 41;
     user_context->term_height_bottom = 15;
@@ -375,57 +375,59 @@ void np_print_startup(np_context*context);
 void np_example_print(np_context * context, FILE * stream, const char * format_in, ...)
 {
     example_user_context* ud = ((example_user_context*)np_get_userdata(context));
-    np_print_startup(context);
-    va_list args;
-    va_start(args, format_in);
+    if(ud->user_interface != np_user_interface_off) {
+        np_print_startup(context);
+        va_list args;
+        va_start(args, format_in);
 
-    char tmp_time[200];
-    char format[LOG_BUFFER_SIZE - 201] = { 0 };
-    char buffer[LOG_BUFFER_SIZE - 1] = { 0 };
-    reltime_to_str(tmp_time, np_time_now() - ud->started_at);
+        char tmp_time[200];
+        char format[LOG_BUFFER_SIZE - 201] = { 0 };
+        char buffer[LOG_BUFFER_SIZE - 1] = { 0 };
+        reltime_to_str(tmp_time, np_time_now() - ud->started_at);
 
-    // render msg
-    vsnprintf(format, LOG_BUFFER_SIZE - 201, format_in, args);
-    // add time string
-    int to_add_size =
-        snprintf(buffer, LOG_BUFFER_SIZE - 1, "%s -%s%s", tmp_time,(strlen(format) > 200? "\n":" "), format);
+        // render msg
+        vsnprintf(format, LOG_BUFFER_SIZE - 201, format_in, args);
+        // add time string
+        int to_add_size =
+            snprintf(buffer, LOG_BUFFER_SIZE - 1, "%s -%s%s", tmp_time,(strlen(format) > 200? "\n":" "), format);
 
-    va_end(args);
+        va_end(args);
 
-    if (to_add_size > 0) {
-        if (ud->__log_mutex == NULL) {
-            ud->__log_mutex = malloc(sizeof(np_mutex_t));
-            char mutex_str[64];
-            snprintf(mutex_str, 63, "%s", "urn:np:example:logger");
-            _np_threads_mutex_init(context, ud->__log_mutex, mutex_str);
-        }
-        _LOCK_ACCESS(ud->__log_mutex)
-        {
-            if (ud->__log_buffer == NULL) ud->__log_buffer = calloc(1, LOG_BUFFER_SIZE); // TODO: move to an init
-
-            // count lines to scroll accordingly
-            int line_count = 0;
-            for (int c = 0; c < to_add_size; c++) {
-                if (buffer[c] == '\n') line_count++;
+        if (to_add_size > 0) {
+            if (ud->__log_mutex == NULL) {
+                ud->__log_mutex = malloc(sizeof(np_mutex_t));
+                char mutex_str[64];
+                snprintf(mutex_str, 63, "%s", "urn:np:example:logger");
+                _np_threads_mutex_init(context, ud->__log_mutex, mutex_str);
             }
+            _LOCK_ACCESS(ud->__log_mutex)
+            {
+                if (ud->__log_buffer == NULL) ud->__log_buffer = calloc(1, LOG_BUFFER_SIZE); // TODO: move to an init
 
-            int total_to_add_size = to_add_size + 1; // '\n' append
-            int rescued_buffer_size = LOG_BUFFER_SIZE - total_to_add_size - 1/*NULL Term*/;
+                // count lines to scroll accordingly
+                int line_count = 0;
+                for (int c = 0; c < to_add_size; c++) {
+                    if (buffer[c] == '\n') line_count++;
+                }
 
-            // move existing memory
-            memmove(&ud->__log_buffer[total_to_add_size], ud->__log_buffer, rescued_buffer_size);
-            // copy new
-            memcpy(ud->__log_buffer, buffer, to_add_size);
-            // append \n
-            memset(&ud->__log_buffer[to_add_size], '\n', 1);
-            // always terminate string
-            memset(&ud->__log_buffer[LOG_BUFFER_SIZE - 1], '\0', 1);
+                int total_to_add_size = to_add_size + 1; // '\n' append
+                int rescued_buffer_size = LOG_BUFFER_SIZE - total_to_add_size - 1/*NULL Term*/;
 
-            if (ud->__np_ncurse_initiated) {
-                __np_switchwindow_update_buffer(context, ud->__np_switch_log, ud->__log_buffer, -1 * line_count);
-            } else {
-                fputs(buffer, stream);
-                fflush(stream);
+                // move existing memory
+                memmove(&ud->__log_buffer[total_to_add_size], ud->__log_buffer, rescued_buffer_size);
+                // copy new
+                memcpy(ud->__log_buffer, buffer, to_add_size);
+                // append \n
+                memset(&ud->__log_buffer[to_add_size], '\n', 1);
+                // always terminate string
+                memset(&ud->__log_buffer[LOG_BUFFER_SIZE - 1], '\0', 1);
+
+                if (ud->__np_ncurse_initiated) {
+                    __np_switchwindow_update_buffer(context, ud->__np_switch_log, ud->__log_buffer, -1 * line_count);
+                } else {
+                    fputs(buffer, stream);
+                    fflush(stream);
+                }
             }
         }
     }
@@ -845,7 +847,6 @@ example_user_context* parse_program_args(
                 port_pid += 1024;
             }
             asprintf(port, "%d", port_pid);
-            user_context->opt_http_port = *port;
         }
         /** \endcode */
     }
@@ -976,7 +977,8 @@ void __np_example_inti_ncurse(np_context* context) {
 #else
             if (ud->statistic_types == np_stat_all || (ud->statistic_types & np_stat_memory) == np_stat_memory) {
                 ud->__np_top_right_win = newwin(term_height__top_right, ud->term_width_top_rigth, term_height_logo, term_width_top_left);
-                ASSERT(OK == wbkgd(ud->__np_top_right_win, COLOR_PAIR(2)),"Could not init window");
+                ASSERT(NULL != ud->__np_top_right_win,"Could not init window");
+                ASSERT(OK == wbkgd(ud->__np_top_right_win, COLOR_PAIR(2)),"Could not init color for windows %p",ud->__np_top_right_win);
             }
 #endif
             // switchable windows
@@ -1061,7 +1063,7 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
         }
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain,ud->opt_http_port);
+        ud->_np_httpserver_active = example_http_server_init(context);
     }
     else {
         np_example_print(context, stdout, "Setting http domain to \"%s\" and (re)starting HTTP server.", buffer);
@@ -1070,7 +1072,7 @@ void _np_interactive_http_mode(np_context* context, char* buffer) {
         if (ud->_np_httpserver_active) {
             example_http_server_destroy(context);
         }
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
+        ud->_np_httpserver_active = example_http_server_init(context);
 
     }
 }
@@ -1155,7 +1157,7 @@ void __np_example_helper_loop(np_state_t* context) {
 
         np_print_startup(context);
         // starting the example http server to support the http://view.neuropil.io application
-        ud->_np_httpserver_active = example_http_server_init(context, ud->opt_http_domain, ud->opt_http_port);
+        ud->_np_httpserver_active = example_http_server_init(context);
         example_sysinfo_init(context,ud->opt_sysinfo_mode);
         np_statistics_set_node_description(context, ud->node_description);
 
@@ -1408,15 +1410,18 @@ void __np_example_helper_loop(np_state_t* context) {
                     break;
                 case 99:	// c
                 case 67:	// C
-                    __np_switchwindow_show(context, ud->__np_switch_msgpartcache);
+                    if (ud->statistic_types == np_stat_all || FLAG_CMP(ud->statistic_types, np_stat_msgpartcache))
+                        __np_switchwindow_show(context, ud->__np_switch_msgpartcache);
                     break;
                 case 112:	// p
                 case 80:	// P
-                    __np_switchwindow_show(context, ud->__np_switch_performance);
+                    if (ud->statistic_types == np_stat_all || FLAG_CMP(ud->statistic_types, np_stat_performance))
+                        __np_switchwindow_show(context, ud->__np_switch_performance);
                     break;
                 case 109:	// m
                 case 77:	// M
-                    __np_switchwindow_show(context, ud->__np_switch_memory_ext);
+                    if (ud->statistic_types == np_stat_all || FLAG_CMP(ud->statistic_types, np_stat_memory))
+                        __np_switchwindow_show(context, ud->__np_switch_memory_ext);
                     break;
                 case 108:	// l
                 case 76:	// L
@@ -1424,11 +1429,13 @@ void __np_example_helper_loop(np_state_t* context) {
                     break;
                 case 111:	// o
                 case 79:	// O
-                    __np_switchwindow_show(context, ud->__np_switch_jobs);
+                    if (ud->statistic_types == np_stat_all || FLAG_CMP(ud->statistic_types, np_stat_jobs))
+                        __np_switchwindow_show(context, ud->__np_switch_jobs);
                     break;
                 case 116:	// t
                 case 84:	// T
-                    __np_switchwindow_show(context, ud->__np_switch_threads);
+                    if (ud->statistic_types == np_stat_all || FLAG_CMP(ud->statistic_types, np_stat_threads))
+                        __np_switchwindow_show(context, ud->__np_switch_threads);
                     break;
                 case 102:	// f
                 case 70:	// F
@@ -1518,33 +1525,35 @@ void example_http_server_destroy(np_context* context) {
     _np_http_destroy(context);
 }
 
-bool example_http_server_init(np_context* context, char* http_domain, char* http_port) {
+bool example_http_server_init(np_context* context) {
+    example_user_context* ud = ((example_user_context*)np_get_userdata(context));
+    
     bool ret = false;
     bool free_http_domain=false;
-    if (http_domain == NULL || (strncmp("none", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("false", http_domain, 5) != 0 && strncmp("0", http_domain, 2) != 0)) {
-        if (http_domain == NULL) {
-            http_domain = calloc(1, sizeof(char) * 255);
-            CHECK_MALLOC(http_domain);
-            if (np_get_local_ip(context, http_domain, 255) == false) {
-                free(http_domain);
-                http_domain = NULL;
+    if (ud->opt_http_domain == NULL || (strncmp("none", ud->opt_http_domain, 5) != 0 && strncmp("false", ud->opt_http_domain, 5) != 0 && strncmp("false", ud->opt_http_domain, 5) != 0 && strncmp("0", ud->opt_http_domain, 2) != 0)) {
+        if (ud->opt_http_domain == NULL) {
+            ud->opt_http_domain = calloc(1, sizeof(char) * 255);
+            CHECK_MALLOC(ud->opt_http_domain);
+            if (np_get_local_ip(context, ud->opt_http_domain, 255) == false) {
+                free(ud->opt_http_domain);
+                ud->opt_http_domain = NULL;
             } else {
                 free_http_domain=true;
             }
         }
-        if(http_port==NULL){
-            if(http_port == NULL) http_port = TO_STRING(HTTP_PORT);
+        if(ud->opt_http_port==NULL){
+            if(ud->opt_http_port == NULL) ud->opt_http_port = TO_STRING(HTTP_PORT);
         }
-        ret = _np_http_init(context, http_domain, http_port);
+        ret = _np_http_init(context, ud->opt_http_domain, ud->opt_http_port);
         if (ret == false) {
             log_msg(LOG_WARNING, "Node could not start HTTP interface");
             np_example_print(context, stdout, "Node could not start HTTP interface\n");
         }else{
-            log_msg(LOG_INFO, "HTTP interface set to %s:%s", http_domain,http_port);
-            np_example_print(context, stdout, "HTTP interface set to %s:%s\n", http_domain, http_port);
+            log_msg(LOG_INFO, "HTTP interface set to http://%s:%s", ud->opt_http_domain, ud->opt_http_port);
+            np_example_print(context, stdout, "HTTP interface set to http://%s:%s\n", ud->opt_http_domain, ud->opt_http_port);
         }
     }
-    if(free_http_domain) free(http_domain);
+    if(free_http_domain) free(ud->opt_http_domain);
 
     return ret;
 }

@@ -49,63 +49,65 @@ enum np_prometheus_exposed_metrics {
 
 char* np_statistics_prometheus_export(np_context*ac);
 
-        #ifdef NP_BENCHMARKING
-            struct np_statistics_performance_point_s {
-                char* name;
-                double durations[NP_BENCHMARKING];
-                uint16_t durations_idx;
-                uint32_t hit_count;
-                uint32_t durations_count;
-                np_mutex_t access;
-            };
+    #ifdef NP_BENCHMARKING
+        struct np_statistics_performance_point_s {
+            char* name;
+            double durations[NP_BENCHMARKING];
+            uint16_t durations_idx;
+            uint32_t hit_count;
+            uint32_t durations_count;
+            np_mutex_t access;
+        };
 
-            typedef struct np_statistics_performance_point_s np_statistics_performance_point_t;
-            GENERATE_ENUM_STR(np_statistics_performance_point,
-                memory_new,
-                memory_free,
-                memory_management,
-                msg_discovery_out,
-                jobs_management_select,
-                network_start_access_lock,
-                network_start_in_events_lock,
-                network_start_out_events_lock,
-                message_serialize_chunked,
-                tokenfactory_new_handshake,
-                event_resume_io,
-                event_resume_in,
-                event_resume_out,
-                event_resume_http,
-                event_resume_file,
-                event_suspend_io,
-                event_suspend_in,
-                event_suspend_out,
-                event_suspend_http,
-                event_suspend_file,
-                is_dht_message,
-                is_usr_in_message,
-                is_discovery_message,
-                handshake_out,
-                handshake_out_lock,
-                handshake_out_network,
-                handshake_out_msg_chunks_lock,
-                handshake_out_events_lock,
-                jobqueue_insert,
-                jobqueue_run,
-                jobqueue_manager_distribute_job,
-                message_decrypt
-            )
+        typedef struct np_statistics_performance_point_s np_statistics_performance_point_t;
+        GENERATE_ENUM_STR(np_statistics_performance_point,
+            memory_new,
+            memory_ref,
+            memory_unref,
+            memory_free,
+            memory_management,
+            msg_discovery_out,
+            jobs_management_select,
+            network_start_access_lock,
+            network_start_in_events_lock,
+            network_start_out_events_lock,
+            message_serialize_chunked,
+            tokenfactory_new_handshake,
+            event_resume_io,
+            event_resume_in,
+            event_resume_out,
+            event_resume_http,
+            event_resume_file,
+            event_suspend_io,
+            event_suspend_in,
+            event_suspend_out,
+            event_suspend_http,
+            event_suspend_file,
+            is_dht_message,
+            is_usr_in_message,
+            is_discovery_message,
+            handshake_out,
+            handshake_out_lock,
+            handshake_out_network,
+            handshake_out_msg_chunks_lock,
+            handshake_out_events_lock,
+            jobqueue_insert,
+            jobqueue_run,
+            jobqueue_manager_distribute_job,
+            message_decrypt
+        )
 
-        #endif
+    #endif
 
-        np_module_struct(statistics) {
-            np_state_t* context;
-            np_simple_cache_table_t __cache;
-            np_sll_t(np_dhkey_t, __watched_subjects);
-            prometheus_context* _prometheus_context;
-            prometheus_metric* _prometheus_metrics[np_prometheus_exposed_metrics_END];
-            double startup_time;
-            np_tree_t* _per_subject_metrics;
-            np_tree_t* _per_dhkey_metrics;
+    np_module_struct(statistics) {
+        np_state_t* context;
+        np_simple_cache_table_t __cache;
+        np_sll_t(np_dhkey_t, __watched_subjects);
+        prometheus_context* _prometheus_context;
+        prometheus_metric* _prometheus_metrics[np_prometheus_exposed_metrics_END];
+        double startup_time;
+        np_tree_t* _per_subject_metrics;
+        np_tree_t* _per_dhkey_metrics;
 
     #ifdef DEBUG_CALLBACKS
             np_sll_t(void_ptr, __np_debug_statistics);
@@ -179,9 +181,10 @@ char* np_statistics_prometheus_export(np_context*ac);
 
 
 
-#ifdef NP_BENCHMARKING
-    #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)			\
-                double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;               \
+    #ifdef NP_BENCHMARKING
+        #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)			    \
+            double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;                   \
+            if (max_size > 0) {                                                                 \
                 for (uint16_t j = 0; j < max_size; j++)                                         \
                 {                                                                               \
                     min_v = fmin(min_v,(array[j]accessor));										\
@@ -193,80 +196,86 @@ char* np_statistics_prometheus_export(np_context*ac);
                     stddev_v += pow((array[j]accessor) - avg_v, 2);                             \
                 }                                                                               \
                 stddev_v = sqrt(stddev_v/(max_size-1));                                         \
+            } else {                                                                            \
+                min_v = 0, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;                            \
+            }
 
-    #define NP_PERFORMANCE_POINT_DESTROY()											                        \
-        for(int i=0; i < np_statistics_performance_point_END; i++) {                                        \
-            _np_threads_mutex_destroy(context, &np_module(statistics)->performance_points[i].access);	    \
-        }
+        #define NP_PERFORMANCE_POINT_DESTROY()											                        \
+            for(int i=0; i < np_statistics_performance_point_END; i++) {                                        \
+                _np_threads_mutex_destroy(context, &np_module(statistics)->performance_points[i].access);	    \
+            }
 
-    #define NP_PERFORMANCE_POINT_START(NAME)                                                                                                            \
-        double t1_##NAME;                                                                                                                               \
-        np_statistics_performance_point_t container_##NAME;                                                                                             \
-        if(np_module_initiated(statistics))                                                                                                                 \
-        {                                                                                                                                                   \
-            container_##NAME = np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];                                          \
-            {                                                                                                                                               \
-                _LOCK_ACCESS(&container_##NAME.access) {                                                                                                    \
-                    container_##NAME.hit_count++;                                                                                                           \
-                }                                                                                                                                           \
-                t1_##NAME = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/                                                                              \
-            }                                                                                                                                               \
-        }
+        #define NP_PERFORMANCE_POINT_START(NAME)                                                                                                            \
+            double t1_##NAME;                                                                                                                               \
+            np_statistics_performance_point_t * container_##NAME;                                                                                             \
+            if(np_module_initiated(statistics))                                                                                                                 \
+            {                                                                                                                                                   \
+                container_##NAME = &np_module(statistics)->performance_points[np_statistics_performance_point_##NAME];                                          \
+                {                                                                                                                                               \
+                    _LOCK_ACCESS(&container_##NAME->access) {                                                                                                    \
+                        ASSERT(container_##NAME->hit_count < UINT32_MAX,"max hitcount of %s reached",container_##NAME->name);                                     \
+                        container_##NAME->hit_count++;                                                                                                           \
+                    }                                                                                                                                           \
+                    t1_##NAME = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/                                                                              \
+                }                                                                                                                                               \
+            }
 
-    #define NP_PERFORMANCE_POINT_END(NAME)  																						\
-        if(np_module_initiated(statistics))                                                                                         \
-        {                                                                                                                           \
-            double t2_##NAME = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/								                    \
-            {																						                                \
-                _LOCK_ACCESS(&container_##NAME.access) {																			\
-                    container_##NAME.durations[container_##NAME.durations_idx] = t2_##NAME - t1_##NAME;							    \
-                    container_##NAME.durations_idx = (container_##NAME.durations_idx + 1)  % NP_BENCHMARKING;						\
-                    container_##NAME.durations_count++;																			    \
-                }																													\
-            }																														\
-        }                                                                                                                           \
+        #define NP_PERFORMANCE_POINT_END(NAME)  																						\
+            if(np_module_initiated(statistics))                                                                                         \
+            {                                                                                                                           \
+                double t2_##NAME = np_time_now(); /*(double)clock()/CLOCKS_PER_SEC;*/								                    \
+                {																						                                \
+                    _LOCK_ACCESS(&container_##NAME->access) {																			\
+                        container_##NAME->durations[container_##NAME->durations_idx] = t2_##NAME - t1_##NAME;							    \
+                        container_##NAME->durations_idx = (container_##NAME->durations_idx + 1)  % NP_BENCHMARKING;						\
+                        container_##NAME->durations_count++;																			    \
+                    }																													\
+                }																														\
+            }                                                                                                                           \
 
-    #define __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container) 																\
-        _LOCK_ACCESS(&container.access) {																					\
-            CALC_STATISTICS(container.durations/*array*/,/*no accessor*/ ,													\
-            /*max_size*/(container.durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container.durations_idx),          \
-                min_v, max_v, avg_v, stddev_v);																				\
-            STR = np_str_concatAndFree(STR,                                                                                 \
-                "%100s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32" / %10"PRIu32"\n",			                        \
-                container.name, min_v, avg_v, max_v, stddev_v, container.hit_count, container.durations_count);			    \
-        }
+        #define __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container) 																\
+            _LOCK_ACCESS(&container.access) {																					\
+                CALC_STATISTICS(container.durations/*array*/,/*no accessor*/ ,													\
+                /*max_size*/(container.durations_count > NP_BENCHMARKING ? NP_BENCHMARKING : container.durations_idx),          \
+                    min_v, max_v, avg_v, stddev_v);																				\
+                STR = np_str_concatAndFree(STR,                                                                                 \
+                    "%100s --> %8.6f / %8.6f / %8.6f / %8.6f / %10"PRIu32" / %10"PRIu32"\n",			                    \
+                    container.name, min_v, avg_v, max_v, stddev_v, container.hit_count, container.durations_count);			    \
+            }
 
-    #ifdef DEBUG_CALLBACKS
-    #define ___NP_PERFORMANCE_GET_POINTS_STR(STR)																				\
-        char * stats = __np_statistics_debug_print(context);																    \
-        STR = np_str_concatAndFree(STR, stats);																					\
-        free(stats);
-    #else
-    #define ___NP_PERFORMANCE_GET_POINTS_STR(STR) ;
-    #endif
-
-
-    #define NP_PERFORMANCE_GET_POINTS_STR(STR) 																						\
-        char* STR = NULL;																											\
-        {																															\
-            STR = np_str_concatAndFree(STR,																							\
-                    "%-100s --> %8s / %8s / %8s / %8s / %10s / %10s \n",                                                              \
-                    "name", "min", "avg", "max", "stddev", "hits", "completed"                                                      \
-            );	                                                                                                                    \
-            for (int i = 0; i < np_statistics_performance_point_END; i++) {															\
-                np_statistics_performance_point_t container = np_module(statistics)->performance_points[i];						    \
-                __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container);															\
-            }																														\
-            ___NP_PERFORMANCE_GET_POINTS_STR(STR)																					\
-        }
+        #define NP_PERFORMANCE_GET_POINTS_STR(STR) 																						\
+            char* STR = NULL;																											\
+            {																															\
+                STR = np_str_concatAndFree(STR,																							\
+                        "%-10s %89s --> %8s / %8s / %8s / %8s / %10s / %10s \n",                                                        \
+                        "(constant)","name", "min", "avg", "max", "stddev", "hits", "completed"                                         \
+                );	                                                                                                                    \
+                for (int i = 0; i < np_statistics_performance_point_END; i++) {															\
+                    np_statistics_performance_point_t container = np_module(statistics)->performance_points[i];						    \
+                    __NP_PERFORMANCE_GET_POINTS_STR_CONTAINER(STR, container);															\
+                }																														\
+                char * stats = __np_statistics_debug_print(context);																    \
+                STR = np_str_concatAndFree(STR, stats);																					\
+                free(stats);                                                                                                            \
+            }
     #else
         #define NP_PERFORMANCE_POINT_DESTROY()
         #define NP_PERFORMANCE_POINT_START(name)
         #define NP_PERFORMANCE_POINT_END(name)
-        #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\
-            char* STR = NULL;
         #define CALC_STATISTICS(array, accessor, max_size, min_v, max_v, avg_v, stddev_v)		\
                 double min_v = DBL_MAX, max_v = 0.0, avg_v = 0.0, stddev_v = 0.0;
+        #ifdef DEBUG_CALLBACKS
+            #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\
+                char* STR = NULL;																									    \
+                {                                                                                                                       \
+                    char * stats = __np_statistics_debug_print(context);															    \
+                    STR = np_str_concatAndFree(STR, stats);																			    \
+                    free(stats);                                                                                                        \
+                }
+        #else
+            #define NP_PERFORMANCE_GET_POINTS_STR(STR)												\
+                char* STR = NULL;
+        #endif
     #endif
 
 

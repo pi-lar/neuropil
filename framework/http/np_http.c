@@ -642,7 +642,7 @@ bool _np_http_init(np_state_t* context, char* in_domain, char* port)
         ev_io_start(EV_A_&_module->network->watcher_in);
         _np_event_resume_loop_http(context);
 
-        np_jobqueue_submit_event_periodic(context, NP_PRIORITY_LOWEST, 0.0, MISC_READ_EVENTS_SEC, _np_events_read_http, "_np_events_read_http");
+        np_jobqueue_submit_event_periodic(context, NP_PRIORITY_LOWEST, 0.0, MISC_READ_HTTP_SEC, _np_events_read_http, "_np_events_read_http");
     }
     if (in_domain == NULL) {
         free(domain);

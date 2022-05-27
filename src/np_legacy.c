@@ -346,6 +346,7 @@ void _np_set_identity(np_context*ac, np_aaatoken_t* identity)
 
     np_util_event_t ev = { .type=(evt_internal|evt_token), .user_data=identity, .target_dhkey=search_key };    
     _np_event_runtime_start_with_event(context, search_key, ev);
+    _np_statistics_update(context);
 
     np_unref_obj(np_key_t, my_identity_key,"_np_keycache_find_or_create");
 }

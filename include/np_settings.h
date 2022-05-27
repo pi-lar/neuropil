@@ -34,7 +34,7 @@ extern "C" {
     #define NP_MEMORY_CHECK_MAGIC_NO
     #define NP_MEMORY_CHECK_MEMORY_REFFING 1
     //#define NP_THREADS_CHECK_THREADING 1
-    #define NP_BENCHMARKING 4096
+    #define NP_BENCHMARKING 1024
     //#define CONSOLE_BACKUP_LOG
     //#define CONSOLE_LOG 1
 #endif // DEBUG
@@ -43,6 +43,7 @@ extern "C" {
 #define NP_STATISTICS
 
 #ifdef NP_STATISTICS
+    #define DEBUG_CALLBACKS 1
     #define NP_STATISTICS_COUNTER
     #define NP_STATISTICS_THREADS
 #endif
@@ -173,6 +174,9 @@ extern "C" {
 #endif
 #ifndef MISC_READ_EVENTS_SEC
     #define MISC_READ_EVENTS_SEC (NP_PI/100)
+#endif
+#ifndef MISC_READ_HTTP_SEC
+    #define MISC_READ_HTTP_SEC (NP_PI/10)
 #endif
 #ifndef MISC_SEND_PINGS_SEC
     #define MISC_SEND_PINGS_SEC (NP_PI*10)
