@@ -261,6 +261,8 @@ publish:
     include:
       - artifact: .gitlab-ci-deployment.yml
         job: ci_configuration
+  needs:
+    - ci_configuration
 
 neuropil-k8s deployment:
   stage: release
