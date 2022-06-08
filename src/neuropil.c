@@ -208,13 +208,12 @@ np_context* np_new_context(struct np_settings * settings_in)
         log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
         status = np_startup;
     }
-    else if (_np_statistics_init(context) == false)
-    {
-        log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
-        status = np_startup;
-    }
     else if (_np_threads_init(context) == false) {
         log_msg(LOG_ERROR, "neuropil_init: could not init threading mutexes");
+        status = np_startup;
+    }
+    else if (_np_statistics_init(context) == false) {
+        log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
         status = np_startup;
     }
     else if (_np_event_init(context) == false)
