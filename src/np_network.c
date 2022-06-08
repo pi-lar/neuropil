@@ -992,7 +992,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
         }
         else
         {
-            ng->socket = socket(ng->addr_in->ai_family, ng->addr_in->ai_socktype, ng->addr_in->ai_protocol);
+            ng->socket = socket(ng->addr_in->ai_family, ng->addr_in->ai_socktype | SOCK_NONBLOCK, ng->addr_in->ai_protocol);
             if (0 > ng->socket)
             {
                 log_error("could not create socket: %s", strerror(errno));
@@ -1057,7 +1057,7 @@ bool _np_network_init(np_network_t* ng, bool create_server, enum socket_type typ
                 {
                     // As we do have a async connection (and TCP may need longer due to
                     // handshake packages) we need to check the connection status for a moment
-                    log_debug(LOG_NETWORK|LOG_VERBOSE, "trying connect: %"PRIi32" (%s)", connection_status, strerror(l_errno) );
+                    log_debug(LOG_NETWORK|LOG_VERBOSE, "trying connect: %"PRId32" (%s)", connection_status, strerror(l_errno) );
                     np_time_sleep(NP_PI / 100);
                 }
             } while (0 != connection_status && retry_connect-- > 0 && l_errno != EISCONN);
