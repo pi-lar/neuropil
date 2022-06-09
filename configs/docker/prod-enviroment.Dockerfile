@@ -4,7 +4,7 @@
 #
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ARG GITLAB_USER_EMAIL
 

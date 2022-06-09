@@ -1,11 +1,11 @@
 setuptools
 wheel
 libtmux==0.8.0
-scons==3.0.1
+scons==4.*
 Sphinx
 sphinxcontrib-cmtinc
 sphinxcontrib-websupport
-cffi==1.13.2
+cffi==1.15.0
 nose2==0.9.1
 plantuml
 meson

@@ -5,169 +5,199 @@
 /**
  *.. NOTE::
  *
- *   If you are not yet familiar with the neuropil initialization procedure please refer to the :ref:`tutorial`
+ *   If you are not yet familiar with the neuropil initialization procedure
+ *please refer to the :ref:`tutorial`
  */
 
-#include <stdio.h>
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <assert.h>
-
-#include "neuropil.h"
-#include "np_constants.h"
-#include "neuropil_log.h"
-#include "np_log.h"
+#include <stdio.h>
 
 #include "example_helper.c"
 
-void make_wildcard(char* s) {
-    s[0] = '*';
+#include "neuropil.h"
+#include "neuropil_log.h"
 
-    for (size_t i = 64; i <= strlen(s); i++) {
-        s[i - 63] = s[i];
-    }
+#include "np_constants.h"
+#include "np_log.h"
+
+void make_wildcard(char *s) {
+  s[0] = '*';
+
+  for (size_t i = 64; i <= strlen(s); i++) {
+    s[i - 63] = s[i];
+  }
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 
-    int no_threads = 3;
-    char *j_key = NULL;
-    char* proto = "udp4";
-    char* opt_port = NULL;
-    char* hostname = NULL;
-    char* dns_name = NULL;
-    int level = -2;
-    char* opt_cloud_size = "32";
-    char* logpath = ".";
+  int   no_threads     = 3;
+  char *j_key          = NULL;
+  char *proto          = "udp4";
+  char *opt_port       = NULL;
+  char *hostname       = NULL;
+  char *dns_name       = NULL;
+  int   level          = -2;
+  char *opt_cloud_size = "32";
+  char *logpath        = ".";
 
-    example_user_context* user_context_template = NULL;
-    if ((user_context_template = parse_program_args(
-        __FILE__,
-        argc,
-        argv,
-        &no_threads,
-        &j_key,
-        &proto,
-        &opt_port,
-        &hostname,
-        &dns_name,
-        &level,
-        &logpath,
-        "[-n cloud size]",
-        "n:",
-        &opt_cloud_size
-    )) == NULL) {
-        exit(EXIT_FAILURE);
+  example_user_context *user_context_template = NULL;
+  if ((user_context_template = parse_program_args(__FILE__,
+                                                  argc,
+                                                  argv,
+                                                  &no_threads,
+                                                  &j_key,
+                                                  &proto,
+                                                  &opt_port,
+                                                  &hostname,
+                                                  &dns_name,
+                                                  &level,
+                                                  &logpath,
+                                                  "[-n cloud size]",
+                                                  "n:",
+                                                  &opt_cloud_size)) == NULL) {
+    exit(EXIT_FAILURE);
+  }
+
+  int cloud_size = atoi(opt_cloud_size);
+
+  np_context **nodes = calloc(cloud_size, sizeof(np_context *));
+
+  char     addr[500];
+  uint16_t tmp;
+  int      port = 4000;
+  if (opt_port != NULL) {
+    port = atoi(opt_port);
+  }
+  for (int i = 0; i < cloud_size; i++) {
+    port += 1;
+    struct np_settings *settings = np_default_settings(NULL);
+    settings->n_threads          = no_threads;
+
+    snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
+    settings->log_level = level;
+
+    example_user_context *user_context = malloc(sizeof(example_user_context));
+    memcpy(user_context, user_context_template, sizeof(example_user_context));
+    if (i > 0) user_context->user_interface = np_user_interface_off;
+
+    if (user_context_template->node_description[0] != 0) {
+      snprintf(user_context->node_description,
+               255,
+               "%s_ci_%d",
+               user_context_template->node_description,
+               i);
     }
 
-    int cloud_size = atoi(opt_cloud_size);
+    nodes[i] = np_new_context(settings); // use default settings
+    np_set_userdata(nodes[i], user_context);
 
-    np_context** nodes = calloc(cloud_size, sizeof(np_context*));
+    np_example_print(nodes[0],
+                     stdout,
+                     "INFO: Starting Node %" PRIsizet "\n",
+                     i);
 
-    char addr[500];
-    uint16_t tmp;
-    int port = 4000;
-    if (opt_port != NULL) {
-        port = atoi(opt_port);
+    if (np_ok != (tmp = np_listen(nodes[i], proto, hostname, port, dns_name))) {
+      np_example_print(nodes[0],
+                       stderr,
+                       "ERROR: Node %" PRIsizet " could not listen. %s\n",
+                       i,
+                       np_error_str(tmp));
+    } else {
+      if (np_ok != (tmp = np_get_address(nodes[i], addr, SIZE(addr)))) {
+        np_example_print(nodes[0],
+                         stderr,
+                         "ERROR: Could not get address of node %" PRIsizet
+                         ". %s\n",
+                         i,
+                         np_error_str(tmp));
+      }
+      np_example_print(nodes[0],
+                       stdout,
+                       "INFO: Node %" PRIsizet " aka  (%s) listens\n",
+                       i,
+                       addr);
     }
-    for (int i=0; i < cloud_size; i++) {
-        port += 1;
-        struct np_settings * settings = np_default_settings(NULL);
-        settings->n_threads =  no_threads;
 
-        snprintf(settings->log_file, 255, "neuropil_cloud_%d.log", port);
-        settings->log_level = level;
+    if (i == 0) {
+      __np_example_helper_loop(nodes[i]);
+    } else {
+      np_example_helper_allow_everyone(nodes[i]);
+      np_statistics_set_node_description(nodes[i],
+                                         user_context->node_description);
+      char port_tmp[8] = {0};
+      if (user_context_template->opt_http_port != NULL) {
+        sprintf(port_tmp, "%d", atoi(user_context_template->opt_http_port) + i);
+      } else {
+        sprintf(port_tmp, "%d", HTTP_PORT + i);
+      }
+      example_user_context *ud =
+          ((example_user_context *)np_get_userdata(nodes[i]));
+      ud->opt_http_port = port_tmp;
 
-        example_user_context* user_context = malloc(sizeof(example_user_context));
-        memcpy(user_context, user_context_template, sizeof(example_user_context));
-        if (i > 0) user_context->user_interface = np_user_interface_off;
-
-        if(user_context_template->node_description[0] != 0){
-            snprintf(user_context->node_description, 255, "%s_ci_%d", user_context_template->node_description, i);
-        }
-
-        nodes[i] = np_new_context(settings); // use default settings
-        np_set_userdata(nodes[i], user_context);
-
-
-        np_example_print(nodes[0], stdout, "INFO: Starting Node %"PRIsizet"\n", i);
-
-        if (np_ok != (tmp = np_listen(nodes[i], proto, hostname, port, dns_name))) {
-            np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not listen. %s\n", i, np_error_str(tmp));
-        }
-        else {
-            if (np_ok != (tmp = np_get_address(nodes[i], addr, SIZE(addr)))) {
-                np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str(tmp));
-            }
-            np_example_print(nodes[0], stdout, "INFO: Node %"PRIsizet" aka  (%s) listens\n", i, addr);
-        }
-
+      user_context->_np_httpserver_active = example_http_server_init(nodes[i]);
+      example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
+    }
+  }
+  if (j_key != NULL) {
+    np_join(nodes[0], j_key);
+  }
+  int  iteration = 0;
+  bool shutdown  = false;
+  while (!shutdown) {
+    iteration++;
+    for (int i = 0; i < cloud_size; i++) {
+      if (np_ok != (tmp = np_run(nodes[i], 0))) {
+        np_example_print(nodes[0],
+                         stderr,
+                         "ERROR: Node %" PRIsizet " could not run. %s\n",
+                         i,
+                         np_error_str(tmp));
+      } else {
         if (i == 0) {
-            __np_example_helper_loop(nodes[i]);
-        }
-        else {
-            np_example_helper_allow_everyone(nodes[i]);
-            np_statistics_set_node_description(nodes[i], user_context->node_description);
-            char port_tmp[8]={0};
-            if(user_context_template->opt_http_port != NULL){
-                sprintf(port_tmp,"%d", atoi(user_context_template->opt_http_port)+i);
-            }else{
-                sprintf(port_tmp,"%d", HTTP_PORT + i);
-            }
-            example_user_context* ud = ((example_user_context*)np_get_userdata(nodes[i]));
-            ud->opt_http_port = port_tmp;
+          __np_example_helper_loop(nodes[i]);
 
-            user_context->_np_httpserver_active = example_http_server_init(nodes[i]);
-            example_sysinfo_init(nodes[i], np_sysinfo_opt_force_client);
-        }
-    }
-    if (j_key != NULL) {
-        np_join(nodes[0], j_key);
-    }
-    int iteration = 0;
-    bool shutdown = false;
-    while (!shutdown)
-    {
-        iteration++;
-        for (int i = 0; i < cloud_size; i++) {
-            if (np_ok != (tmp = np_run(nodes[i], 0))) {
-                np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not run. %s\n", i, np_error_str(tmp));
+          if (np_get_status(nodes[i]) != np_running) {
+            shutdown = true;
+            for (int s = 1; s < cloud_size; s++) {
+              np_destroy(nodes[s], false);
             }
-            else {
-                if (i == 0) {
-                    __np_example_helper_loop(nodes[i]);
-
-                    if (np_get_status(nodes[i]) != np_running) {
-                        shutdown = true;
-                        for (int s = 1; s < cloud_size; s++) {
-                            np_destroy(nodes[s], false);
-                        }
-                    }
-                }
-                if (i > 0 && iteration < cloud_size && !np_has_joined(nodes[i - 1])) {
-                    // get connection str of previous node
-                    if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
-                        np_example_print(nodes[0], stderr, "ERROR: Could not get address of node %"PRIsizet". %s\n", i, np_error_str(tmp));
-                    }
-                    // for fun and testing make every second join a wildcard join
-                    // currently all via wildcard as of bug "hash join"
-                    //if (i % 2 == 0)
-                    {
-                        make_wildcard(addr);
-                    }
-                    // join previous node
-                    if (np_ok != (tmp = np_join(nodes[i], addr))) {
-                        np_example_print(nodes[0], stderr, "ERROR: Node %"PRIsizet" could not join. %s\n", i, np_error_str(tmp));
-                    }
-                    else {
-                        np_example_print(nodes[0], stdout, "INFO: Node %"PRIsizet" joins %s\n", i, addr);
-                    }
-                }
-            }
+          }
         }
-        np_time_sleep(0.0); // slow down
+        if (i > 0 && iteration < cloud_size && !np_has_joined(nodes[i - 1])) {
+          // get connection str of previous node
+          if (np_ok != (tmp = np_get_address(nodes[i - 1], addr, SIZE(addr)))) {
+            np_example_print(nodes[0],
+                             stderr,
+                             "ERROR: Could not get address of node %" PRIsizet
+                             ". %s\n",
+                             i,
+                             np_error_str(tmp));
+          }
+          // for fun and testing make every second join a wildcard join
+          // currently all via wildcard as of bug "hash join"
+          // if (i % 2 == 0)
+          { make_wildcard(addr); }
+          // join previous node
+          if (np_ok != (tmp = np_join(nodes[i], addr))) {
+            np_example_print(nodes[0],
+                             stderr,
+                             "ERROR: Node %" PRIsizet " could not join. %s\n",
+                             i,
+                             np_error_str(tmp));
+          } else {
+            np_example_print(nodes[0],
+                             stdout,
+                             "INFO: Node %" PRIsizet " joins %s\n",
+                             i,
+                             addr);
+          }
+        }
+      }
     }
+    np_time_sleep(0.0); // slow down
+  }
 
-    np_example_print(nodes[0], stderr, "!!! DONE WITH EVERYTHING !!!");
+  np_example_print(nodes[0], stderr, "!!! DONE WITH EVERYTHING !!!");
 }

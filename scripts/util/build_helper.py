@@ -10,7 +10,7 @@ try:
 except:
     from urllib import quote_plus
 
-rx = re.compile(r'#define NEUROPIL_RELEASE	"(.*(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+).*)"')
+rx = re.compile(r'#define NEUROPIL_RELEASE\s+"(.*(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+).*)"')
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))

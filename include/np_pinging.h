@@ -5,16 +5,15 @@
 #ifndef _NP_PINGING_H
 #define _NP_PINGING_H
 
-#include <stdint.h>
 #include <assert.h>
+#include <stdint.h>
 
-#include "np_types.h"
 #include "np_jobqueue.h"
+#include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 // NP_API_INTERN
 // void _np_in_ping(np_state_t* context, np_jobargs_t args);

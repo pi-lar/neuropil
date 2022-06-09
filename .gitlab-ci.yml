@@ -108,7 +108,7 @@ docker_production_enviroment:
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null
 
-test:
+unit_tests:
   stage: test
   script: ./do test
   retry:
@@ -122,6 +122,40 @@ test:
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
+  needs:
+    - docker_test_enviroment
+
+code_tidy:
+  stage: test
+  script:
+      - ./do tidy
+  allow_failure: true
+  artifacts:
+    when: always
+    name: tidy-logs
+    paths:
+      - build/tidy.log
+      - build/tidy-clean.log
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_TAG == null'
+  needs:
+    - docker_test_enviroment
+
+code_format:
+  stage: test
+  script:
+      - ./do pipeline_format
+  artifacts:
+    when: always
+    name: format-logs
+    paths:
+      - build/format.log
+      - build/format-errors-clean.log
+      - build/format-warnings-clean.log
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_TAG == null'
   needs:
     - docker_test_enviroment
 
@@ -144,7 +178,7 @@ smoke_tests:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
     - docker_test_enviroment
-    - job: test
+    - job: unit_tests
       artifacts: false
 
 nixos_tests:
@@ -173,7 +207,7 @@ helgrind_tests:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
     - docker_test_enviroment
-    - job: test
+    - job: unit_tests
       artifacts: false
 
 callgrind_tests:
@@ -195,7 +229,7 @@ callgrind_tests:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
     - docker_test_enviroment
-    - job: test
+    - job: unit_tests
       artifacts: false
 
 valgrind_tests:
@@ -214,7 +248,7 @@ valgrind_tests:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
     - docker_test_enviroment
-    - job: test
+    - job: unit_tests
       artifacts: false
 
 code_analyze:
@@ -232,7 +266,7 @@ code_analyze:
     - if: '$CI_COMMIT_TAG == null'
   needs:
     - docker_test_enviroment
-    - job: test
+    - job: unit_tests
       artifacts: false
 
 pages:

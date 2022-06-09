@@ -40,8 +40,8 @@ task_build() {
   unsorted=$(cat "$tmpfile_sorted")
   rm "$tmpfile_sorted"
 
-  warnings=$( echo "$unsorted" | grep 'warning:'                                                                     |sort|grep -v "/event/"|uniq)
-    errors=$( echo "$unsorted" | grep 'error:\|scons: building terminated because of errors\|undefined reference to' |sort|grep -v "/event/"|uniq)
+  warnings=$( echo "$unsorted" | grep ': warning:'                                                                     |sort|grep -v "/event/"|uniq)
+    errors=$( echo "$unsorted" | grep ': error:\|scons: building terminated because of errors\|undefined reference to' |sort|grep -v "/event/"|uniq)
 
   warn_no=$( echo "$warnings" | wc -l)
   err_no=$( echo "$errors" | wc -l)
@@ -62,6 +62,94 @@ task_build() {
   printf "Errors:\t\t%s\n" "$err_no"
   set -e
   return $ret
+}
+
+task_tidy() {
+  ensure_venv
+  ret=-1
+  (
+    rm -rf build/tidy*
+    set +e
+    find src/ -iname '*.c' | xargs -i clang-tidy --warnings-as-errors="*" {} -- -Iinclude -Iext_tools -Iframework -Ibuild/ext_tools/libsodium/include -std=gnu99 | tee build/tidy.log
+    ret=${PIPESTATUS[1]}
+    grep ": error: " build/tidy.log > build/tidy-clean.log
+    echo "Total issues: $(cat build/tidy-clean.log | wc -l)"
+    ret=$?
+    set -e
+  )
+  return $ret
+}
+
+
+
+_task_format() {
+  local ret=0
+  local doEcho=$1
+  shift;
+   
+  shopt -s globstar;
+  tmpfile=$(mktemp /tmp/clang-format-test.XXXXXX)
+  clang-format-14 --style=filse $@ "$tmpfile"
+  rm "$tmpfile"
+  
+  set +e
+  rm -rf build/format*;
+  touch build/format.log
+  files=()
+  files+="$(find ./framework -type f -iname *.h -o -iname *.c | paste -d ' ') "
+  files+="$(find ./examples -type f -iname *.h -o -iname *.c | paste -d ' ') "
+  files+="$(find ./include -type f -iname *.h -o -iname *.c | paste -d ' ') "
+  files+="$(find ./src -type f -iname *.h -o -iname *.c | paste -d ' ') "
+  files=$(echo $files  )
+
+  clang-format-14 --style=file $@ $files 2>&1 | tee -a build/format.log
+  
+  grep ": warning: " build/format.log > build/format-warnings-clean.log
+  warnings=$(cat build/format-warnings-clean.log | sort | uniq | wc -l);
+  cat build/format-warnings-clean.log | sort | uniq > build/format-warnings-clean.log
+  grep ": error: " build/format.log > build/format-errors-clean.log
+  cat build/format-errors-clean.log | sort | uniq > build/format-errors-clean.log
+  errors=$(cat build/format-errors-clean.log  | wc -l);
+  set -e
+
+  sum=($warnings + $errors);
+  if [ "$doEcho" == "true" ]
+  then
+    printf "    Warnings: %6d\n" "$warnings"
+    printf "      Errors: %6d\n" "$errors"
+    printf "Total issues: %6d\n" "$sum"
+  fi
+  if [ $errors -gt 0 ]
+  then
+    ret=1
+  fi
+  if [ $sum -gt 0 ]
+  then
+    ret=2
+  fi
+  
+  return $ret
+}
+
+task_pipeline_format() {
+  _task_format true --dry-run $@
+  return "$?"
+}
+
+task_format() {
+  set +e
+  task_pipeline_format $@
+  local ret=$?
+  set -e
+
+  echo "task_pipeline_format: $ret"
+  if [ $ret -ne 0 ]
+  then
+    echo -n "Correcting now ..."
+    _task_format false -i $@
+    echo " done"
+  fi
+  return "$?"
 }
 
 task_analyze() {
@@ -317,8 +405,8 @@ task_uninstall(){
 task_pre_commit(){
   ensure_venv
 
-  task_build --RELEASE python
-  python3 scripts/util/build_helper.py --update_strings
+  task_format;
+  python3 scripts/util/build_helper.py --update_strings;
 }
 task_search_log(){
   grep --no-filename "$@" build/logs/* | sort -k2
@@ -368,6 +456,9 @@ shift || true
     valgrind) task_valgrind "$@";;
     callgrind) task_callgrind "$@";;    
     analyze) task_analyze "$@";;
+    tidy) task_tidy "$@";;
+    format) task_format "$@";;
+    pipeline_format) task_pipeline_format "$@";;
     script) task_run_script "$@";;
     bin) task_run_bin "$@";;
     uninstall) task_uninstall "$@";;
@@ -377,5 +468,5 @@ shift || true
 
     *) usage ;;
   esac
-  exit $?
+  exit "$?"
 )

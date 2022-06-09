@@ -313,7 +313,7 @@ bindings_alias = neuropil_env.Alias(f'bindings', [bindings_python_sdist, binding
 all_aliases_targets+=[bindings_alias]
 
 test_env = default_env.Clone()
-test_env.Append(LIBPATH = [glob.glob(os.path.join(project_root_path,'build','ext_tools','Criterion','usr','local','lib','*'))] )
+test_env.Append(LIBPATH = [glob.glob(os.path.join(project_root_path,'build','ext_tools','Criterion','usr','local','lib'))] )
 test_env.Append(CPPPATH = [os.path.join(project_root_path,'build','ext_tools','Criterion','usr','local','include')])
 
 test_env_conf = Configure(test_env)
@@ -382,7 +382,7 @@ programs = [
     (False, 'echo_client',    ['neuropil','ncurses','sodium']),
     (False, 'raspberry',      ['neuropil','ncurses','sodium']),
     (False, 'demo_service',   ['neuropil','ncurses','sodium']),
-    (False, 'raffle',         ['neuropil','ncurses','sodium','sqlite3']),
+    #(False, 'raffle',         ['neuropil','ncurses','sodium','sqlite3']),
 ]
 
 for default, program, libs in programs:
