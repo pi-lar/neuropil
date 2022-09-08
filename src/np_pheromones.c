@@ -77,6 +77,7 @@ bool __np_pheromones_periodic_log(np_state_t               *context,
 
   return true;
 }
+
 void __init_pheromones(np_state_t *context) {
   np_module_malloc(pheromones);
   np_module(pheromones)->context = context;
@@ -98,6 +99,7 @@ void __init_pheromones(np_state_t *context) {
                                     __np_pheromones_periodic_log,
                                     "__np_pheromones_periodic_log");
 }
+
 int16_t
 _np_pheromone_calc_table_position(np_dhkey_t                  target,
                                   enum np_pheromone_direction direction) {
@@ -117,6 +119,11 @@ bool _np_pheromone_inhale_target(np_state_t *context,
                                  np_dhkey_t  pheromone_source,
                                  bool        find_sender,
                                  bool        find_receiver) {
+
+  if (np_module_not_initiated(pheromones)) {
+    __init_pheromones(context);
+  }
+
   np_bloom_t *_scent = _np_neuropil_bloom_create();
   _np_neuropil_bloom_add(_scent, target);
   bool ret = find_sender | find_receiver;

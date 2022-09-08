@@ -312,7 +312,6 @@ Test(np_pheromone_t, _pheromone_minimum_subject_capacity, .description="test the
     
         uint32_t minimim_capacity = _capacity_selector[capacity_selector];
     
-        __init_pheromones(context);
         uint32_t exhale=0;
         char* random_bytes[32] = {0};
         char tmp_dhkey_s[65] = {0};

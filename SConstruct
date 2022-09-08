@@ -69,13 +69,14 @@ default_env.Append(ENV = {
     'LD_LIBRARY_PATH': os.getenv("LD_LIBRARY_PATH","") #f"{os.getenv('LD_LIBRARY_PATH','')}:{os.path.join(project_root_path,'ext_tools','libsodium','src','libsodium','.libs')}:{os.path.join(project_root_path,'ext_tools','Criterion','build','src')}"
 })
 
-variantDir = os.path.join(buildDir,'obj')
+objDir = os.path.join(buildDir,'obj')
 
-default_env.VariantDir(os.path.join(variantDir, 'src'),         os.path.join(project_root_path,'src'), duplicate=0)
-default_env.VariantDir(os.path.join(variantDir, 'test'),        os.path.join(project_root_path,'test'), duplicate=0)
-default_env.VariantDir(os.path.join(variantDir, 'examples'),    os.path.join(project_root_path,'examples'), duplicate=0)
-default_env.VariantDir(os.path.join(variantDir, 'framework'),   os.path.join(project_root_path,'framework'), duplicate=0)
-default_env.VariantDir(os.path.join(variantDir, 'ext_tools'),   os.path.join(project_root_path,'ext_tools'), duplicate=0)
+default_env.VariantDir(os.path.join(objDir, 'src'),         os.path.join(project_root_path,'src'), duplicate=0)
+default_env.VariantDir(os.path.join(objDir, 'test'),        os.path.join(project_root_path,'test'), duplicate=0)
+default_env.VariantDir(os.path.join(objDir, 'examples'),    os.path.join(project_root_path,'examples'), duplicate=0)
+default_env.VariantDir(os.path.join(objDir, 'framework'),   os.path.join(project_root_path,'framework'), duplicate=0)
+default_env.VariantDir(os.path.join(objDir, 'ext_tools'),   os.path.join(project_root_path,'ext_tools'), duplicate=0)
+default_env.VariantDir(os.path.join(objDir, 'ext_tools','qcbor'),   os.path.join(project_root_path,'ext_tools','qcbor','src'), duplicate=0)
 
 #default_env.Decider('MD5')
 
@@ -149,6 +150,7 @@ default_env.Append(CPPPATH = [
         os.path.join(project_root_path,'include'),
         os.path.join(project_root_path,'framework'),
         os.path.join(project_root_path,"ext_tools"),
+        os.path.join(project_root_path,"ext_tools", "qcbor", "inc"),
         os.path.join(project_root_path,'build','ext_tools','libsodium','include')
 ])
 default_env.Append(LIBPATH = [os.path.join(project_root_path, 'build','ext_tools','libsodium','lib')])
@@ -210,19 +212,34 @@ SOURCES  += glob.glob(os.path.join("..", "src", "core",         "*.c"))
 SOURCES += ['../framework/prometheus/prometheus.c', '../framework/sysinfo/np_sysinfo.c', '../framework/http/np_http.c', '../framework/files/file.c']
 SOURCES += ['../framework/search/np_index.c', '../framework/search/np_bktree.c', '../framework/search/np_search.c', '../framework/http/urldecode.c']
 
-SOURCES = [os.path.abspath(os.path.join(variantDir, "src" , os.path.relpath(s))) for s in SOURCES]
+SOURCES = [os.path.abspath(os.path.join(objDir, "src" , os.path.relpath(s))) for s in SOURCES]
 
 # source code 3rd party libraries
-neuropil_conf = Configure(neuropil_conf.Finish())
-if not neuropil_conf.CheckLib("parson"):
-    DEPENDENCIES  = [os.path.join(variantDir,"ext_tools","parson","parson.c")]
 
-if not neuropil_conf.CheckLib("cmp"):
-    DEPENDENCIES += [os.path.join(variantDir,"ext_tools","msgpack","cmp.c")]
-
-DEPENDENCIES += [os.path.join(variantDir,"ext_tools","event","ev.c")]
-
+DEPENDENCIES = [os.path.join(objDir,'ext_tools','event','ev.c')]
 SOURCES += DEPENDENCIES
+
+if not neuropil_conf.CheckLib("parson"):
+    DEPENDENCIES  = [os.path.join(objDir,'ext_tools','parson','parson.c')]
+    SOURCES += DEPENDENCIES
+
+# TODO: remove when cbor implementaton is complete
+if not neuropil_conf.CheckLib("cmp"):
+    DEPENDENCIES = [os.path.join(objDir,'ext_tools','msgpack','cmp.c')]
+    SOURCES += DEPENDENCIES
+
+if not neuropil_conf.CheckLib("qcbor"):
+    DEPENDENCIES  = [os.path.join(objDir,'ext_tools','qcbor','UsefulBuf.c')]
+    DEPENDENCIES += [os.path.join(objDir,'ext_tools','qcbor','qcbor_encode.c')]
+    DEPENDENCIES += [os.path.join(objDir,'ext_tools','qcbor','qcbor_decode.c')]
+    DEPENDENCIES += [os.path.join(objDir,'ext_tools','qcbor','ieee754.c')]
+    DEPENDENCIES += [os.path.join(objDir,'ext_tools','qcbor','qcbor_err_to_str.c')]
+
+    neuropil_env.Append(CCFLAGS = ['-DQCBOR_DISABLE_ENCODE_USAGE_GUARDS'])
+    neuropil_env.Append(CCFLAGS = ['-DQCBOR_DISABLE_INDEFINITE_LENGTH_STRINGS'])
+    neuropil_env.Append(CCFLAGS = ['-DQCBOR_DISABLE_INDEFINITE_LENGTH_ARRAYS'])
+    
+    SOURCES += DEPENDENCIES
 
 neuropil_env = neuropil_conf.Finish()
 
@@ -348,12 +365,12 @@ if GetOption("CODE_COVERAGE"):
 test_env.Append(LIBS = [ 'sodium', 'neuropil'])
 test_suite = test_env.Program(
                     os.path.join(buildDir,'bin','neuropil_test_suite'),
-                    os.path.join(variantDir,'test','test_suite.c'),
+                    os.path.join(objDir,'test','test_suite.c'),
 )
 Depends(test_suite, np_dylib)
 if criterion_build:
     Depends(test_suite, criterion_build)
-test_unit = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_units'),     os.path.join(variantDir,'test','test_units.c'))
+test_unit = test_env.Program(os.path.join(buildDir,'bin','neuropil_test_units'),     os.path.join(objDir,'test','test_units.c'))
 Depends(test_unit, np_dylib)
 if criterion_build:
     Depends(test_unit, criterion_build)
@@ -390,7 +407,7 @@ for default, program, libs in programs:
     program_env.Append(LIBS = libs)
 
     target = os.path.join(buildDir, 'bin',f'neuropil_{program}')
-    prg_np = program_env.Program(target, os.path.join(variantDir,'examples',f'neuropil_{program}.c'))
+    prg_np = program_env.Program(target, os.path.join(objDir,'examples',f'neuropil_{program}.c'))
     Depends(prg_np, np_dylib)
     program_alias = program_env.Alias(f'neuropil_{program}', [prg_np])
     all_aliases_targets+=[program_alias]

@@ -13,3 +13,6 @@
 [submodule "ext_tools/libsodium"]
 	path = ext_tools/libsodium
 	url = https://github.com/jedisct1/libsodium.git
+[submodule "ext_tools/qcbor"]
+	path = ext_tools/qcbor
+	url = https://github.com/laurencelundblade/QCBOR
