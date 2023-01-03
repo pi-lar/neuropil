@@ -66,6 +66,14 @@ extern "C" {
 #define NP_PI     3.1415926535
 #define NP_PI_INT 3
 
+#ifndef NP_USE_CMP
+#define NP_USE_CMP 1
+#endif
+
+#ifndef NP_USE_QCBOR
+// #define NP_USE_QCBOR 1
+#endif
+
 #ifndef NP_STATISTICS_PROMETHEUS_PREFIX
 #define NP_STATISTICS_PROMETHEUS_PREFIX "neuropil_"
 #endif

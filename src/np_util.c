@@ -33,6 +33,7 @@
 #include "neuropil_log.h"
 
 #include "util/np_list.h"
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
 
@@ -43,7 +44,6 @@
 #include "np_message.h"
 #include "np_node.h"
 #include "np_route.h"
-#include "np_serialization.h"
 #include "np_threads.h"
 #include "np_types.h"
 
@@ -215,24 +215,22 @@ case np_treeval_type_dhkey:
 }
 
 void np_tree2buffer(np_state_t *context, np_tree_t *tree, void *buffer) {
-  cmp_ctx_t cmp_write;
-  cmp_init(&cmp_write,
-           buffer,
-           _np_buffer_reader,
-           _np_buffer_skipper,
-           _np_buffer_writer);
-  np_tree_serialize(context, tree, &cmp_write);
+
+  np_serialize_buffer_t serializer = {._tree          = tree,
+                                      ._target_buffer = buffer,
+                                      ._buffer_size   = tree->byte_size,
+                                      ._bytes_written = 0,
+                                      ._error         = 0};
+  np_serializer_write_map(context, &serializer, tree);
 }
 
 void np_buffer2tree(np_state_t *context, void *buffer, np_tree_t *tree) {
-  // Beginn reading section
-  cmp_ctx_t cmp_read;
-  cmp_init(&cmp_read,
-           buffer,
-           _np_buffer_reader,
-           _np_buffer_skipper,
-           _np_buffer_writer);
-  np_tree_deserialize(context, tree, &cmp_read);
+  np_deserialize_buffer_t deserializer = {._target_tree = tree,
+                                          ._buffer      = buffer,
+                                          ._buffer_size = tree->byte_size,
+                                          ._bytes_read  = 0,
+                                          ._error       = 0};
+  np_serializer_read_map(context, &deserializer, tree);
 }
 
 char *np_dump_tree2char(np_state_t *context, np_tree_t *tree) {

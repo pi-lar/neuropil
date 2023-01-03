@@ -17,13 +17,13 @@
 #include "neuropil_log.h"
 
 #include "core/np_comp_msgproperty.h"
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 
 #include "np_legacy.h"
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_message.h"
-#include "np_serialization.h"
 #include "np_types.h"
 #include "np_util.h"
 
@@ -61,6 +61,7 @@ bool _np_messagepart_decrypt(np_state_t              *context,
       "unsigned char* enc_nonce,					"
       "		unsigned char* public_key,				"
       "			NP_UNUSED unsigned char* secret_key){");
+
   np_tree_elem_t *enc_msg_part = np_tree_find_str(source, NP_ENCRYPTED);
   if (NULL == enc_msg_part) {
     log_msg(LOG_ERROR, "couldn't find encrypted msg part");
@@ -73,19 +74,7 @@ bool _np_messagepart_decrypt(np_state_t              *context,
                                            enc_msg_part->val.size,
                                            enc_nonce,
                                            public_key);
-  //	int16_t ret = crypto_box_open_easy(
-  //			dec_part,
-  //			enc_msg_part->val.value.bin,
-  //			enc_msg_part->val.size,
-  //			enc_nonce,
-  //			public_key,
-  //			secret_key);
-  //	int16_t ret = crypto_box_open_easy_afternm(
-  //			dec_part,
-  //			enc_msg_part->val.value.bin,
-  //			enc_msg_part->val.size,
-  //			enc_nonce,
-  //			public_key);
+
   if (ret < 0) {
 #ifdef DEBUG
     char public_key_hex[crypto_secretbox_KEYBYTES * 2 + 1];
@@ -103,13 +92,14 @@ bool _np_messagepart_decrypt(np_state_t              *context,
   }
 
   // Allow deserialisation as the encryption may
-  cmp_ctx_t cmp = {0};
-  cmp_init(&cmp,
-           dec_part,
-           _np_buffer_reader,
-           _np_buffer_skipper,
-           _np_buffer_writer);
-  if (np_tree_deserialize(context, target, &cmp) == false) {
+  np_deserialize_buffer_t deserializer = {._target_tree = target,
+                                          ._buffer      = dec_part,
+                                          ._buffer_size = sizeof(dec_part),
+                                          ._bytes_read  = 0,
+                                          ._error       = 0};
+  np_serializer_read_map(context, &deserializer, target);
+
+  if (deserializer._error != 0) {
     log_debug_msg(LOG_ERROR, "couldn't deserialize msg part after decryption");
     return false;
   }
@@ -132,37 +122,25 @@ bool _np_messagepart_encrypt(np_state_t              *context,
       "		NP_UNUSED unsigned char* secret_key){");
   cmp_ctx_t cmp = {0};
 
-  unsigned char msg_part_buffer[msg_part->byte_size * 2];
+  unsigned char msg_part_buffer[msg_part->byte_size];
   void         *msg_part_buf_ptr = msg_part_buffer;
 
-  cmp_init(&cmp,
-           msg_part_buf_ptr,
-           _np_buffer_reader,
-           _np_buffer_skipper,
-           _np_buffer_writer);
-  np_tree_serialize(context, msg_part, &cmp);
+  np_serialize_buffer_t serializer = {._tree          = msg_part,
+                                      ._target_buffer = msg_part_buf_ptr,
+                                      ._buffer_size   = msg_part->byte_size,
+                                      ._bytes_written = 0,
+                                      ._error         = 0};
+  np_serializer_write_map(context, &serializer, msg_part);
 
-  uint32_t msg_part_len = cmp.buf - msg_part_buf_ptr;
-
-  uint32_t enc_msg_part_len = msg_part_len + crypto_box_MACBYTES;
-
+  uint32_t      enc_msg_part_len = msg_part->byte_size + crypto_box_MACBYTES;
   unsigned char enc_msg_part[enc_msg_part_len];
-  int16_t       ret = crypto_secretbox_easy(enc_msg_part,
+
+  int16_t ret = crypto_secretbox_easy(enc_msg_part,
                                       msg_part_buf_ptr,
-                                      msg_part_len,
+                                      msg_part->byte_size,
                                       nonce,
                                       public_key);
-  //	int16_t ret = crypto_box_easy(enc_msg_part,
-  //							  msg_part_buf_ptr,
-  //							  msg_part_len,
-  //							  nonce,
-  //							  public_key,
-  //							  secret_key);
-  //	int16_t ret = crypto_box_easy_afternm(enc_msg_part,
-  //								msg_part_buf_ptr,
-  //								msg_part_len,
-  //								nonce,
-  //								public_key);
+
   if (ret < 0) {
     return (false);
   }

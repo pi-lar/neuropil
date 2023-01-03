@@ -19,7 +19,7 @@
 #include "core/np_comp_msgproperty.h"
 #include "np_network.h"
 #include "np_node.h"
-#include "np_serialization.h"
+#include "util/np_serialization.h"
 #include "np_constants.h"
 
 #include "../test_macros.c"
@@ -65,14 +65,25 @@ Test(np_aaatoken_t, create_node_token, .description = "test the creation of a no
 		void* buf_ptr = buffer;
 		memset(buf_ptr, 0, 65536);
 
-		cmp_init(&cmp_empty, buf_ptr, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
-		np_tree_serialize(context, aaa_tree, &cmp_empty);
+		np_serialize_buffer_t serializer = {
+			._tree=aaa_tree,
+			._target_buffer=buffer,
+			._buffer_size=65563,
+			._error=0,
+			._bytes_written=0,
+		};
+		np_serializer_write_map(context, &serializer, aaa_tree);
 
 		np_tree_t* out_jrb = np_tree_create();
-		cmp_ctx_t cmp_out;
-		cmp_init(&cmp_out, buffer, _np_buffer_reader, _np_buffer_skipper, _np_buffer_writer);
 
-		np_tree_deserialize(context, out_jrb, &cmp_out);
+		np_deserialize_buffer_t deserializer = {
+			._target_tree=out_jrb,
+			._buffer=buffer,
+			._buffer_size=65563,
+			._error=0,
+			._bytes_read=0,
+		};
+		np_serializer_read_map(context, &deserializer, out_jrb);
 
 		np_aaatoken_t* test_token_3 = NULL;
 		np_new_obj(np_aaatoken_t, test_token_3);

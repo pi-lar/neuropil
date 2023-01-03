@@ -20,7 +20,6 @@ Copyright 2002 Niels Provos <provos@citi.umich.edu>
 #include <stddef.h>
 #include <stdint.h>
 
-#include "msgpack/cmp.h"
 #include "tree/tree.h"
 
 #include "util/np_treeval.h"
@@ -330,46 +329,34 @@ NP_API_EXPORT
 void np_tree_copy_inplace(np_tree_t *source, np_tree_t *target);
 
 NP_API_INTERN
-void np_tree_serialize(np_state_t *context, np_tree_t *jrb, cmp_ctx_t *cmp);
-NP_API_INTERN
-bool np_tree_deserialize(np_state_t *context, np_tree_t *jrb, cmp_ctx_t *cmp);
+void np_tree_del_element(np_tree_t *tree, np_tree_elem_t *to_delete);
 
 NP_API_INTERN
-uint8_t __np_tree_serialize_read_type_dhkey(cmp_ctx_t    *cmp_key,
-                                            np_treeval_t *target);
-NP_API_INTERN
-void __np_tree_serialize_write_type_dhkey(np_dhkey_t source, cmp_ctx_t *target);
-NP_API_INTERN
-void __np_tree_serialize_write_type(np_state_t  *context,
-                                    np_treeval_t val,
-                                    cmp_ctx_t   *cmp);
-NP_API_INTERN
-void __np_tree_deserialize_read_type(np_state_t     *context,
-                                     np_tree_t      *tree,
-                                     cmp_object_t   *obj,
-                                     cmp_ctx_t      *cmp,
-                                     np_treeval_t   *value,
-                                     NP_UNUSED char *key_to_read_for);
-NP_API_INTERN
-void np_tree_del_element(np_tree_t *tree, np_tree_elem_t *to_delete);
-NP_API_INTERN
 void np_tree_insert_element(np_tree_t *tree, np_tree_elem_t *ele);
+
 NP_API_INTERN
 void np_tree_replace_treeval(np_tree_t      *tree,
                              np_tree_elem_t *element,
                              np_treeval_t    val);
+
 NP_API_INTERN
 void np_tree_set_treeval(np_tree_t      *tree,
                          np_tree_elem_t *element,
                          np_treeval_t    val);
+
 NP_API_EXPORT
 unsigned char *np_tree_get_hash(np_tree_t *self);
+
 NP_API_INTERN
 bool np_tree_check_field(np_state_t      *context,
                          np_tree_t       *tree,
                          const char      *field_name,
                          const char      *_NP_MSG_HEADER_SUBJECT,
                          np_tree_elem_t **buffer);
+
+NP_API_INTERN
+void _np_tree_cleanup_treeval(np_tree_t *tree, np_treeval_t toclean);
+
 #ifdef __cplusplus
 }
 #endif

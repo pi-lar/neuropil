@@ -9,7 +9,7 @@
 #include "sodium.h"
 #include "np_crypto.h"
 #include "np_key.h"
-#include "np_serialization.h"
+#include "util/np_serialization.h"
 
 
 #include "../test_macros.c"
@@ -380,8 +380,6 @@ Test(sodium_crypt, check_crypto_transport, .description = "test the reworked cry
 		}
 	}
 }
-
-
 
 Test(sodium_crypt, check_crypto_E2E, .description = "test the reworked crypto E2E system")
 {

@@ -50,6 +50,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey, .description = "test the s
         write_dhkey_from.t[5] = 6;
         write_dhkey_from.t[6] = 7;
         write_dhkey_from.t[7] = 8;
+        
         np_dhkey_t write_dhkey_to;
         write_dhkey_to.t[0] = 5;
         write_dhkey_to.t[1] = 6;
@@ -138,6 +139,7 @@ Test(np_message_t, serialize_np_message_t_with_dhkey_unchunked_instructions, .de
         write_dhkey_from.t[5] = 0;
         write_dhkey_from.t[6] = 0;
         write_dhkey_from.t[7] = 0;
+        
         np_dhkey_t write_dhkey_to;
         write_dhkey_to.t[0] = 5;
         write_dhkey_to.t[1] = 6;

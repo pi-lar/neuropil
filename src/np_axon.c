@@ -31,6 +31,7 @@
 #include "util/np_bloom.h"
 #include "util/np_event.h"
 #include "util/np_list.h"
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 
 #include "np_aaatoken.h"
@@ -51,7 +52,6 @@
 #include "np_pheromones.h"
 #include "np_responsecontainer.h"
 #include "np_route.h"
-#include "np_serialization.h"
 #include "np_settings.h"
 #include "np_statistics.h"
 #include "np_threads.h"

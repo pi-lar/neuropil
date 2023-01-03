@@ -23,6 +23,7 @@
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
 #include "util/np_event.h"
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
 
@@ -34,7 +35,6 @@
 #include "np_legacy.h"
 #include "np_log.h"
 #include "np_message.h"
-#include "np_serialization.h"
 #include "np_settings.h"
 #include "np_threads.h"
 #include "np_util.h"

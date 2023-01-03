@@ -13,12 +13,12 @@
 
 #include "neuropil_log.h"
 
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 
 #include "np_constants.h"
 #include "np_log.h"
 #include "np_memory.h"
-#include "np_serialization.h"
 #include "np_types.h"
 
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(
@@ -550,13 +550,16 @@ int np_crypt_E2E_decrypt(np_state_t  *context,
 
     // 1. deserialize
     np_tree_t *tmp_E2E_container = np_tree_create();
-    cmp_ctx_t  cmp;
-    cmp_init(&cmp,
-             data_to_decrypt,
-             _np_buffer_reader,
-             _np_buffer_skipper,
-             _np_buffer_writer);
-    if (np_tree_deserialize(context, tmp_E2E_container, &cmp)) {
+
+    np_deserialize_buffer_t deserializer = {._target_tree = tmp_E2E_container,
+                                            ._buffer      = data_to_decrypt,
+                                            ._buffer_size =
+                                                sizeof(data_to_decrypt),
+                                            ._bytes_read = 0,
+                                            ._error      = 0};
+    np_serializer_read_map(context, &deserializer, tmp_E2E_container);
+
+    if (deserializer._error == 0) {
 
       ret = -4;
       np_crypto_E2E_message_t container;

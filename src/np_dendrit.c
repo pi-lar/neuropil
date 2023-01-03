@@ -32,6 +32,7 @@
 #include "core/np_comp_node.h"
 #include "util/np_event.h"
 #include "util/np_list.h"
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
 
@@ -54,7 +55,6 @@
 #include "np_pheromones.h"
 #include "np_responsecontainer.h"
 #include "np_route.h"
-#include "np_serialization.h"
 #include "np_statistics.h"
 #include "np_threads.h"
 #include "np_token_factory.h"
