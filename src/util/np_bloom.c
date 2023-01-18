@@ -14,6 +14,7 @@
 #include "neuropil.h"
 #include "neuropil_log.h"
 
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 
 #include "np_log.h"
@@ -1007,8 +1008,10 @@ void _np_neuropil_bloom_serialize(np_bloom_t     *filter,
     }
   }
 
-  *to      = malloc(data->byte_size);
-  *to_size = data->byte_size;
+  size_t data_length = np_tree_get_byte_size(data);
+  // np_serializer_add_map_bytesize(data, &data_length);
+  *to      = malloc(data_length);
+  *to_size = data_length;
   np_tree2buffer(NULL, data, *to);
 
   np_tree_free(data);
@@ -1018,7 +1021,7 @@ void _np_neuropil_bloom_deserialize(np_bloom_t    *filter,
                                     unsigned char *from,
                                     uint16_t       from_size) {
   np_tree_t *data = np_tree_create();
-  np_buffer2tree(NULL, from, data);
+  np_buffer2tree(NULL, from, from_size, data);
 
   filter->_free_items = np_tree_find_int(data, -1)->val.value.ui;
   np_tree_del_int(data, -1);

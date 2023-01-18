@@ -9,8 +9,6 @@
 /* modified for THINK C 6.0 for Macintosh by Chris Bartley */
 /* modified for neuropil 2015 pi-lar GmbH Stephan Schwichtenberg */
 
-#include "util/np_tree.h"
-
 #include <assert.h>
 #include <ctype.h>
 #include <inttypes.h>
@@ -51,7 +49,7 @@ np_tree_t *np_tree_create() {
 
   new_tree->size      = 0;
   new_tree->rbh_root  = NULL;
-  new_tree->byte_size = 5;
+  new_tree->byte_size = 0;
 
   return new_tree;
 }
@@ -217,7 +215,7 @@ void np_tree_del_element(np_tree_t *tree, np_tree_elem_t *to_delete) {
   if (to_delete != NULL) {
     RB_REMOVE(np_tree_s, tree, to_delete);
 
-    tree->byte_size -= np_tree_get_byte_size(to_delete);
+    tree->byte_size -= np_tree_element_get_byte_size(to_delete);
     tree->size--;
 
     _np_tree_cleanup_treeval(tree, to_delete->key);
@@ -286,12 +284,20 @@ void _np_tree_replace_all_with_str(np_tree_t   *n,
   np_tree_insert_str(n, key, val);
 }
 
-uint32_t np_tree_get_byte_size(np_tree_elem_t *node) {
-  log_trace_msg(LOG_TRACE,
-                "start: uint32_t np_tree_get_byte_size(np_tree_elem_t* node){");
+size_t np_tree_get_byte_size(np_tree_t *tree) {
+  assert(tree != NULL);
+  np_treeval_t tree_val = np_treeval_new_tree(tree);
+  //  tree->byte_size = np_treeval_get_byte_size(tree_val);
+  return np_treeval_get_byte_size(tree_val);
+}
+
+size_t np_tree_element_get_byte_size(np_tree_elem_t *node) {
+  log_trace_msg(
+      LOG_TRACE,
+      "start: uint32_t np_tree_element_get_byte_size(np_tree_elem_t* node){");
   assert(node != NULL);
 
-  uint32_t byte_size =
+  size_t byte_size =
       np_treeval_get_byte_size(node->key) + np_treeval_get_byte_size(node->val);
 
   return byte_size;
@@ -301,7 +307,7 @@ void np_tree_insert_element(np_tree_t *tree, np_tree_elem_t *ele) {
   __np_tree_immutable_check(tree);
   RB_INSERT(np_tree_s, tree, ele);
   tree->size++;
-  tree->byte_size += np_tree_get_byte_size(ele);
+  tree->byte_size += np_tree_element_get_byte_size(ele);
 }
 
 void np_tree_insert_str(np_tree_t *tree, const char *key, np_treeval_t val) {
@@ -422,11 +428,11 @@ void np_tree_replace_treeval(np_tree_t      *tree,
 
   __np_tree_immutable_check(tree);
   // free up memory before replacing
-  tree->byte_size -= np_tree_get_byte_size(element);
+  tree->byte_size -= np_tree_element_get_byte_size(element);
 
   _np_tree_cleanup_treeval(tree, element->val);
   np_tree_set_treeval(tree, element, val);
-  tree->byte_size += np_tree_get_byte_size(element);
+  tree->byte_size += np_tree_element_get_byte_size(element);
 }
 
 void np_tree_replace_str(np_tree_t *tree, const char *key, np_treeval_t val) {

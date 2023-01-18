@@ -54,13 +54,15 @@ void _np_aaatoken_t_new(np_state_t       *context,
                 "start: void _np_aaatoken_t_new(void* token){");
   np_aaatoken_t *aaa_token = (np_aaatoken_t *)token;
 
-  aaa_token->version = 0.90;
+  // TODO: derive from version string
+  aaa_token->version = 0.12;
 
   // aaa_token->issuer;
-  memset(aaa_token->realm, 0, 255);
   memset(aaa_token->issuer, 0, 65);
   memset(aaa_token->subject, 0, 255);
   memset(aaa_token->audience, 0, 255);
+
+  memset(aaa_token->realm, 0, 255);
 
   aaa_token->private_key_is_set               = false;
   aaa_token->crypto.ed25519_secret_key_is_set = false;
@@ -87,8 +89,7 @@ void _np_aaatoken_t_new(np_state_t       *context,
 
   aaa_token->issued_at  = np_time_now();
   aaa_token->not_before = aaa_token->issued_at;
-
-  int expire_sec = ((int)randombytes_uniform(20) + 10);
+  int expire_sec        = ((int)randombytes_uniform(20) + 10);
 
   aaa_token->expires_at = aaa_token->not_before + expire_sec;
   log_debug_msg(LOG_DEBUG | LOG_AAATOKEN,
@@ -152,12 +153,12 @@ void _np_aaatoken_encode(np_tree_t *data, np_aaatoken_t *token, bool trace) {
                       np_treeval_new_bin(token->attributes_signature,
                                          sizeof(token->attributes_signature)));
 
-  //#ifdef DEBUG
+  // #ifdef DEBUG
   //	char pubkey[65];
   //	sodium_bin2hex(pubkey, 65, token->crypto.ed25519_public_key,
-  // crypto_sign_PUBLICKEYBYTES); 	pubkey[64] = '\0'; 	fprintf(stdout,
-  // "L: uuid: %s
-  //## subj: %s ## pk: %s\n", token->uuid, token->subject, pubkey); #endif
+  //  crypto_sign_PUBLICKEYBYTES); 	pubkey[64] = '\0'; 	fprintf(stdout,
+  //  "L: uuid: %s
+  // ## subj: %s ## pk: %s\n", token->uuid, token->subject, pubkey); #endif
 }
 
 void np_aaatoken_encode(np_tree_t *data, np_aaatoken_t *token) {
@@ -957,8 +958,13 @@ struct np_token *np_aaatoken4user(struct np_token *dest, np_aaatoken_t *src) {
 
   assert(crypto_sign_PUBLICKEYBYTES == NP_PUBLIC_KEY_BYTES);
   memcpy(dest->public_key, src->crypto.ed25519_public_key, NP_PUBLIC_KEY_BYTES);
+
   assert(crypto_sign_SECRETKEYBYTES == NP_SECRET_KEY_BYTES);
-  memcpy(dest->secret_key, src->crypto.ed25519_secret_key, NP_SECRET_KEY_BYTES);
+  if (src->private_key_is_set)
+    memcpy(dest->secret_key,
+           src->crypto.ed25519_secret_key,
+           NP_SECRET_KEY_BYTES);
+  else memset(dest->secret_key, 0, NP_SECRET_KEY_BYTES);
 
   memcpy(dest->signature, src->signature, NP_SIGNATURE_BYTES);
 

@@ -43,10 +43,12 @@ extern "C" {
  * settings
  */
 
-#define _NP_URN_PREFIX          "urn:np:"
-#define _NP_URN_MSG_PREFIX      "" // TODO: _NP_URN_PREFIX"msg:"
-#define _NP_URN_NODE_PREFIX     _NP_URN_PREFIX "node:"
-#define _NP_URN_IDENTITY_PREFIX _NP_URN_PREFIX "id:"
+#define _NP_URN_PREFIX           "urn:np"
+#define _NP_URN_MSG_PREFIX       "" // TODO: _NP_URN_PREFIX"msg:"
+#define _NP_URN_NODE_PREFIX      _NP_URN_PREFIX ":node"
+#define _NP_URN_IDENTITY_PREFIX  _NP_URN_PREFIX ":id"
+#define _NP_URN_INTENT_PREFIX    _NP_URN_PREFIX ":intent"
+#define _NP_URN_HANDSHAKE_PREFIX _NP_URN_PREFIX ":hs"
 
 static const char *_DEFAULT = "_NP.DEFAULT"; // 12
 static const char *_FORWARD = "_NP.FORWARD"; // 12

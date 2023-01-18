@@ -19,6 +19,7 @@
 
 #include "np_dhkey.h"
 #include "np_log.h"
+#include "np_settings.h"
 #include "np_util.h"
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
@@ -121,8 +122,11 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     memcpy(to.value.bin, from.value.bin, from.size);
     to.size = from.size;
     break;
+  case np_treeval_type_cose_signed:
+  case np_treeval_type_cose_encrypted:
+  case np_treeval_type_cwt:
   case np_treeval_type_jrb_tree:
-    to.type       = np_treeval_type_jrb_tree;
+    to.type       = from.type;
     to.size       = from.size;
     to.value.tree = np_tree_clone(from.value.tree);
     break;
@@ -507,8 +511,32 @@ np_treeval_t np_treeval_new_tree(np_tree_t *tree) {
                 "start: np_treeval_t np_treeval_new_tree(np_tree_t* tree){");
   np_treeval_t j;
   j.value.tree = tree;
-  j.size       = tree->byte_size;
   j.type       = np_treeval_type_jrb_tree;
+  j.size       = tree->size;
+  return j;
+}
+
+np_treeval_t np_treeval_new_cose_encrypted(np_tree_t *tree) {
+  np_treeval_t j;
+  j.value.tree = tree;
+  j.type       = np_treeval_type_cose_encrypted;
+  j.size       = tree->size;
+  return j;
+}
+
+np_treeval_t np_treeval_new_cose_signed(np_tree_t *tree) {
+  np_treeval_t j;
+  j.value.tree = tree;
+  j.type       = np_treeval_type_cose_signed;
+  j.size       = tree->size;
+  return j;
+}
+
+np_treeval_t np_treeval_new_cwt(np_tree_t *tree) {
+  np_treeval_t j;
+  j.value.tree = tree;
+  j.type       = np_treeval_type_cwt;
+  j.size       = tree->size;
   return j;
 }
 
@@ -577,12 +605,16 @@ char *np_treeval_carray(np_treeval_t j) { return j.value.carray; }
 
 char *np_treeval_h(np_treeval_t j) { return j.value.bin; }
 
-uint32_t np_treeval_get_byte_size(np_treeval_t ele) {
+size_t np_treeval_get_byte_size(np_treeval_t ele) {
+
   log_trace_msg(LOG_TRACE,
                 "start: uint32_t np_treeval_get_byte_size(np_treeval_t ele){");
-  uint32_t byte_size = 0;
+  size_t   byte_size = 0;
+  uint64_t abs_value = 0;
 
   switch (ele.type) {
+
+#ifdef NP_USE_CMP
   case np_treeval_type_short:
     byte_size += 1 + sizeof(int8_t);
     break;
@@ -649,6 +681,9 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele) {
   case np_treeval_type_hash:
     byte_size += 1 + sizeof(uint32_t) + sizeof(int8_t) + ele.size;
     break;
+  case np_treeval_type_cose_encrypted:
+  case np_treeval_type_cose_signed:
+  case np_treeval_type_cwt:
   case np_treeval_type_jrb_tree:
     byte_size += sizeof(uint8_t) /*ext32 marker*/ +
                  sizeof(uint32_t) /*size of ext32*/ +
@@ -661,8 +696,169 @@ uint32_t np_treeval_get_byte_size(np_treeval_t ele) {
                  (/*size of dhkey*/ 8 * (sizeof(uint8_t) /*uint32 marker*/ +
                                          sizeof(uint32_t) /*uint32 value*/));
     break;
-    // default:                  log_msg(LOG_ERROR, "unsupported length
-    // calculation for value / type %"PRIu8"", ele.type ); break;
+#endif
+
+#ifdef NP_USE_QCBOR
+
+  case np_treeval_type_short:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    abs_value = ele.value.sh > 0 ? ele.value.sh : -ele.value.sh;
+    if (abs_value >= 24) byte_size += sizeof(uint8_t);
+    break;
+  case np_treeval_type_int:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    abs_value = ele.value.i > 0 ? ele.value.i : -ele.value.i;
+    if (abs_value > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (abs_value >= 24) byte_size += sizeof(uint8_t);
+    break;
+  case np_treeval_type_long:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    abs_value = ele.value.l > 0 ? ele.value.l : -ele.value.l;
+    if (abs_value > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (abs_value > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (abs_value >= 24) byte_size += sizeof(uint8_t);
+    break;
+#ifdef x64
+  case np_treeval_type_long_long:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    abs_value = ele.value.ll > 0 ? ele.value.ll : -ele.value.ll;
+    if (abs_value > UINT32_MAX) byte_size += sizeof(uint64_t);
+    else if (abs_value > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (abs_value > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (abs_value >= 24) byte_size += sizeof(uint8_t);
+    break;
+#endif
+  case np_treeval_type_float:
+    byte_size += 1 + sizeof(float);
+    break;
+  case np_treeval_type_double:
+    byte_size += 1 + sizeof(double);
+    break;
+  case np_treeval_type_char_ptr:
+    if (ele.size > UINT32_MAX) byte_size += sizeof(uint64_t);
+    else if (ele.size > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.size > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.size >= 24) byte_size += sizeof(uint8_t);
+    byte_size += sizeof(uint8_t) /*str marker*/ + ele.size /*string*/;
+    break;
+  case np_treeval_type_char:
+    byte_size += sizeof(uint8_t) + sizeof(char);
+    break;
+  case np_treeval_type_unsigned_char:
+    byte_size += sizeof(uint8_t) + sizeof(unsigned char);
+    break;
+  case np_treeval_type_unsigned_short:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    if (ele.value.ush >= 24) byte_size += sizeof(uint8_t);
+    break;
+  case np_treeval_type_unsigned_int:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    if (ele.value.i > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.i >= 24) byte_size += sizeof(uint8_t);
+    break;
+  case np_treeval_type_unsigned_long:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    if (ele.value.ul > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.value.ul > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.ul >= 24) byte_size += sizeof(uint8_t);
+    break;
+#ifdef x64
+  case np_treeval_type_unsigned_long_long:
+    byte_size += sizeof(uint8_t) /* int type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */;
+    if (ele.value.ull > UINT32_MAX) byte_size += sizeof(uint64_t);
+    else if (ele.value.ull > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.value.ull > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.ull >= 24) byte_size += sizeof(uint8_t);
+    break;
+#endif
+  case np_treeval_type_uint_array_2:
+    if (ele.value.a2_ui[0] > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.a2_ui[0] >= 24) byte_size += sizeof(uint8_t);
+
+    if (ele.value.a2_ui[1] > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.a2_ui[1] >= 24) byte_size += sizeof(uint8_t);
+    byte_size += sizeof(uint8_t) /* array type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */ + sizeof(uint8_t) +
+                 sizeof(uint8_t); /* int tag */
+    break;
+  case np_treeval_type_float_array_2:
+    byte_size += sizeof(uint8_t) + 2 * sizeof(float);
+    break;
+  case np_treeval_type_char_array_8:
+    byte_size += sizeof(uint8_t) + 8 * sizeof(char);
+    break;
+  case np_treeval_type_unsigned_char_array_8:
+    byte_size += sizeof(uint8_t) + 8 * sizeof(unsigned char);
+    break;
+  case np_treeval_type_void:
+    byte_size += sizeof(uint8_t) + sizeof(void *);
+    break;
+  case np_treeval_type_bin:
+    if (ele.size > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.size > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.size >= 24) byte_size += sizeof(uint8_t);
+    byte_size += sizeof(uint8_t) + ele.size;
+    break;
+  case np_treeval_type_hash:
+    byte_size += sizeof(uint8_t) /* array type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */ + sizeof(uint8_t) + ele.size;
+    break;
+  case np_treeval_type_jrb_tree:
+    if (ele.value.tree->size > UINT32_MAX) byte_size += sizeof(uint64_t);
+    else if (ele.value.tree->size > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.value.tree->size > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.tree->size >= 24) byte_size += sizeof(uint8_t);
+    byte_size += sizeof(uint8_t) /* map type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */ + ele.value.tree->byte_size;
+    break;
+  case np_treeval_type_dhkey:
+    byte_size += sizeof(uint8_t) /* array type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */ +
+                 (/*size of dhkey*/ 8 * (sizeof(uint8_t) /* uint32 marker */ +
+                                         sizeof(uint32_t) /* uint32 value */));
+    break;
+  case np_treeval_type_cose_encrypted:
+    byte_size += sizeof(uint8_t) + sizeof(uint16_t); // cose encrypted tag
+    if (ele.value.tree->size > UINT32_MAX) byte_size += sizeof(uint64_t);
+    else if (ele.value.tree->size > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.value.tree->size > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.tree->size >= 24) byte_size += sizeof(uint8_t);
+    byte_size += sizeof(uint8_t) /* map type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */ + ele.value.tree->byte_size;
+    break;
+  case np_treeval_type_cose_signed:
+    byte_size += sizeof(uint8_t) + sizeof(uint16_t); // cose signed tag
+    if (ele.value.tree->size > UINT32_MAX) byte_size += sizeof(uint64_t);
+    else if (ele.value.tree->size > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.value.tree->size > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.tree->size >= 24) byte_size += sizeof(uint8_t);
+    byte_size += sizeof(uint8_t) /* map type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */ + ele.value.tree->byte_size;
+    break;
+  case np_treeval_type_cwt:
+    byte_size += sizeof(uint8_t) + sizeof(uint16_t); // cwt tag
+    if (ele.value.tree->size > UINT32_MAX) byte_size += sizeof(uint64_t);
+    else if (ele.value.tree->size > UINT16_MAX) byte_size += sizeof(uint32_t);
+    else if (ele.value.tree->size > UINT8_MAX) byte_size += sizeof(uint16_t);
+    else if (ele.value.tree->size >= 24) byte_size += sizeof(uint8_t);
+    byte_size += sizeof(uint8_t) /* map type */ + sizeof(uint8_t) +
+                 sizeof(uint16_t) /* tag */ + ele.value.tree->byte_size;
+    break;
+
+#endif // NP_USE_QCBOR
+
+  default:
+    //    log_msg(LOG_ERROR, "unsupported length calculation for value / type
+    //    %"PRIu8"", ele.type );
+    break;
   }
 
   return byte_size;

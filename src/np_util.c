@@ -216,18 +216,23 @@ case np_treeval_type_dhkey:
 
 void np_tree2buffer(np_state_t *context, np_tree_t *tree, void *buffer) {
 
+  size_t tree_size = np_tree_get_byte_size(tree);
+  // np_serializer_add_map_bytesize(tree, &tree_size);
   np_serialize_buffer_t serializer = {._tree          = tree,
                                       ._target_buffer = buffer,
-                                      ._buffer_size   = tree->byte_size,
+                                      ._buffer_size   = tree_size,
                                       ._bytes_written = 0,
                                       ._error         = 0};
   np_serializer_write_map(context, &serializer, tree);
 }
 
-void np_buffer2tree(np_state_t *context, void *buffer, np_tree_t *tree) {
+void np_buffer2tree(np_state_t *context,
+                    void       *buffer,
+                    size_t      buffer_size,
+                    np_tree_t  *tree) {
   np_deserialize_buffer_t deserializer = {._target_tree = tree,
                                           ._buffer      = buffer,
-                                          ._buffer_size = tree->byte_size,
+                                          ._buffer_size = buffer_size,
                                           ._bytes_read  = 0,
                                           ._error       = 0};
   np_serializer_read_map(context, &deserializer, tree);

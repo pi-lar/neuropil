@@ -238,6 +238,7 @@ if not neuropil_conf.CheckLib("qcbor"):
     neuropil_env.Append(CCFLAGS = ['-DQCBOR_DISABLE_ENCODE_USAGE_GUARDS'])
     neuropil_env.Append(CCFLAGS = ['-DQCBOR_DISABLE_INDEFINITE_LENGTH_STRINGS'])
     neuropil_env.Append(CCFLAGS = ['-DQCBOR_DISABLE_INDEFINITE_LENGTH_ARRAYS'])
+    neuropil_env.Append(CCFLAGS = ['-DQCBOR_DISABLE_PREFERRED_FLOAT'])
     
     SOURCES += DEPENDENCIES
 

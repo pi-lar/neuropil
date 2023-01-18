@@ -339,7 +339,7 @@ np_node_t *_np_node_from_token(np_handshake_token_t *token,
   }
 
   char *to_free = NULL, *to_parse = NULL;
-  char *key = &token->subject[strlen(_NP_URN_NODE_PREFIX) - 2];
+  char *key = &token->subject[strlen(_NP_URN_NODE_PREFIX) - 1];
   to_free = to_parse = strndup(key, 255);
   // "-2" is an ugly hack to have at least one character in front of the
   // connection string

@@ -410,7 +410,7 @@ _np_token_factory_new_node_token(np_state_t      *context,
   char node_subject[255];
   snprintf(node_subject,
            255,
-           _NP_URN_NODE_PREFIX "%s:%s:%s",
+           _NP_URN_NODE_PREFIX ":%s:%s:%s",
            _np_network_get_protocol_string(context, protocol),
            hostname,
            port);

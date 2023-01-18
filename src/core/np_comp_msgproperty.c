@@ -1679,7 +1679,11 @@ void __np_msgproperty_send_available_messages(
                          target_dhkey,
                          context->my_node_key->dhkey,
                          available_dhkey,
-                         np_tree_clone(intent_data));
+                         NULL);
+      np_tree_insert_str(msg_out->body,
+                         _NP_URN_INTENT_PREFIX,
+                         np_treeval_new_cwt(intent_data));
+
       log_info(LOG_ROUTING,
                "sending available message for %s as a sender: "
                "_NP_MSG_AVAILABLE_SENDER {msg uuid: %s / intent uuid: %s)",
@@ -1697,7 +1701,10 @@ void __np_msgproperty_send_available_messages(
                          target_dhkey,
                          context->my_node_key->dhkey,
                          available_dhkey,
-                         np_tree_clone(intent_data));
+                         NULL);
+      np_tree_insert_str(msg_out->body,
+                         _NP_URN_INTENT_PREFIX,
+                         np_treeval_new_cwt(intent_data));
       log_info(LOG_ROUTING,
                "sending available message for %s as a receiver: "
                "_NP_MSG_AVAILABLE_RECEIVER {msg uuid: %s / intent uuid: %s)",

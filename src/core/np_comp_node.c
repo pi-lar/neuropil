@@ -937,7 +937,7 @@ void __np_node_upgrade(np_util_statemachine_t *statemachine,
       np_aaatoken_encode(jrb_token, token);
       np_tree_insert_str(jrb_data,
                          _NP_URN_NODE_PREFIX,
-                         np_treeval_new_tree(jrb_token));
+                         np_treeval_new_cwt(jrb_token));
       np_dhkey_t update_dhkey = {0};
       np_generate_subject(&update_dhkey,
                           _NP_MSG_UPDATE_REQUEST,
@@ -1072,7 +1072,7 @@ void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
     np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
     np_tree_insert_str(jrb_data,
                        _NP_URN_NODE_PREFIX,
-                       np_treeval_new_tree(jrb_my_node));
+                       np_treeval_new_cwt(jrb_my_node));
 
     np_dhkey_t leave_dhkey = {0};
     np_generate_subject(&leave_dhkey,

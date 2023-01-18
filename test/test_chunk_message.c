@@ -2,134 +2,161 @@
 // SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
-#include <uuid/uuid.h>
 #include <assert.h>
-#include <stdlib.h>
 #include <inttypes.h>
-
-#include "pthread.h"
-#include "event/ev.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "msgpack/cmp.h"
+#include <stdlib.h>
+#include <uuid/uuid.h>
 
 #include "dtime.h"
-#include "util/np_treeval.h"
+#include "event/ev.h"
+#include "msgpack/cmp.h"
+#include "pthread.h"
+
 #include "neuropil_log.h"
-#include "np_log.h"
+
+#include "util/np_tree.h"
+#include "util/np_treeval.h"
+
+#include "np_dhkey.h"
 #include "np_jobqueue.h"
 #include "np_key.h"
-#include "util/np_tree.h"
-#include "np_dhkey.h"
+#include "np_log.h"
 #include "np_memory.h"
-
 #include "np_message.h"
 #include "np_util.h"
 
-
 int main(int argc, char **argv) {
 
-	char log_file[256];
-	sprintf(log_file, "%s.log", "./test_chunk_message");
-	// int level = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_TRACE | LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	// int level = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
-	int level = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
-	log_init(log_file, level);
+  char log_file[256];
+  sprintf(log_file, "%s.log", "./test_chunk_message");
+  // int level = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_TRACE |
+  // LOG_ROUTING | LOG_NETWORKDEBUG | LOG_KEYDEBUG; int level = LOG_ERROR |
+  // LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_NETWORKDEBUG | LOG_KEYDEBUG;
+  int level = LOG_ERROR | LOG_WARNING | LOG_INFO | LOG_DEBUG | LOG_MESSAGE;
+  log_init(log_file, level);
 
-	_np_memory_init();
-	np_mem_init();
+  _np_memory_init();
+  np_mem_init();
 
-	np_message_t* msg_out = NULL;
-	np_new_obj(np_message_t, msg_out);
-	char* msg_subject = "this.is.a.test";
+  np_message_t *msg_out = NULL;
+  np_new_obj(np_message_t, msg_out);
+  char *msg_subject = "this.is.a.test";
 
-	np_dhkey_t my_dhkey = np_dhkey_create_from_hostport( "me", "two");
+  np_dhkey_t my_dhkey = np_dhkey_create_from_hostport("me", "two");
 
-	np_key_t* my_key = NULL;
-	np_new_obj(np_key_t, my_key);
-	my_key->dhkey = my_dhkey;
+  np_key_t *my_key = NULL;
+  np_new_obj(np_key_t, my_key);
+  my_key->dhkey = my_dhkey;
 
-	uint16_t parts = 0;
-	
-	np_dhkey_t test_subject_dhkey = {0};
-	np_generate_subject(&test_subject_dhkey, msg_subject, strnlen(msg_subject, 256));
-	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_SUBJECT,  np_treeval_new_dhkey(test_subject_dhkey));
+  uint16_t parts = 0;
 
-	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_TO,  np_treeval_new_dhkey(my_key->dhkey) );
-	np_tree_insert_str( msg_out->header, _NP_MSG_HEADER_FROM, np_treeval_new_dhkey(my_key->dhkey) );
+  np_dhkey_t test_subject_dhkey = {0};
+  np_generate_subject(&test_subject_dhkey,
+                      msg_subject,
+                      strnlen(msg_subject, 256));
+  np_tree_insert_str(msg_out->header,
+                     _NP_MSG_HEADER_SUBJECT,
+                     np_treeval_new_dhkey(test_subject_dhkey));
 
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK, np_treeval_new_ush(0));
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_ACK_TO, np_treeval_new_s((char*) _np_key_as_str(my_key)) );
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEQ, np_treeval_new_ul(0));
+  np_tree_insert_str(msg_out->header,
+                     _NP_MSG_HEADER_TO,
+                     np_treeval_new_dhkey(my_key->dhkey));
+  np_tree_insert_str(msg_out->header,
+                     _NP_MSG_HEADER_FROM,
+                     np_treeval_new_dhkey(my_key->dhkey));
 
-	char* new_uuid = np_uuid_create(msg_subject, 1, NULL);
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_UUID, np_treeval_new_s(new_uuid));
-	free(new_uuid);
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_ACK,
+                     np_treeval_new_ush(0));
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_ACK_TO,
+                     np_treeval_new_s((char *)_np_key_as_str(my_key)));
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_SEQ,
+                     np_treeval_new_ul(0));
 
-	double now = np_time_now();
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_TSTAMP, np_treeval_new_d(now));
-	now += 20;
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_TTL, np_treeval_new_d(now));
+  char *new_uuid = np_uuid_create(msg_subject, 1, NULL);
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_UUID,
+                     np_treeval_new_s(new_uuid));
+  free(new_uuid);
 
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_SEND_COUNTER, np_treeval_new_ush(0));
+  double now = np_time_now();
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_TSTAMP,
+                     np_treeval_new_d(now));
+  now += 20;
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_TTL,
+                     np_treeval_new_d(now));
 
-	// TODO: message part split-up informations
-	np_tree_insert_str( msg_out->instructions, _NP_MSG_INST_PARTS, np_treeval_new_iarray(parts, parts));
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_SEND_COUNTER,
+                     np_treeval_new_ush(0));
 
-	char prop_payload[30]; //  = (char*) malloc(25 * sizeof(char));
-	memset (prop_payload, 'a', 29);
-	prop_payload[29] = '\0';
+  // TODO: message part split-up informations
+  np_tree_insert_str(msg_out->instructions,
+                     _NP_MSG_INST_PARTS,
+                     np_treeval_new_iarray(parts, parts));
 
-	for (int16_t i = 0; i < 9; i++)
-	{
-		np_tree_insert_int( msg_out->properties, i, np_treeval_new_s(prop_payload));
-	}
+  char prop_payload[30]; //  = (char*) malloc(25 * sizeof(char));
+  memset(prop_payload, 'a', 29);
+  prop_payload[29] = '\0';
 
-	char body_payload[51]; //  = (char*) malloc(50 * sizeof(char));
-	memset (body_payload, 'b', 50);
-	body_payload[50] = '\0';
+  for (int16_t i = 0; i < 9; i++) {
+    np_tree_insert_int(msg_out->properties, i, np_treeval_new_s(prop_payload));
+  }
 
-	for (int16_t i = 0; i < 60; i++)
-	{
-		np_tree_insert_int( msg_out->body, i, np_treeval_new_s(body_payload));
-	}
+  char body_payload[51]; //  = (char*) malloc(50 * sizeof(char));
+  memset(body_payload, 'b', 50);
+  body_payload[50] = '\0';
 
-	np_tree_elem_t* properties_node = np_tree_find_int(msg_out->properties, 1);
-	np_tree_elem_t* body_node = np_tree_find_int(msg_out->body, 20);
+  for (int16_t i = 0; i < 60; i++) {
+    np_tree_insert_int(msg_out->body, i, np_treeval_new_s(body_payload));
+  }
 
+  np_tree_elem_t *properties_node = np_tree_find_int(msg_out->properties, 1);
+  np_tree_elem_t *body_node       = np_tree_find_int(msg_out->body, 20);
 
-	/** message split up maths
-	 ** message size = 1b (common header) + 40b (encryption) +
-	 **                msg (header + instructions) + msg (properties + body) + msg (footer)
-	 ** if (size > 1024)
-	 **     fixed_size = 1b + 40b + msg (header + instructions)
-	 **     payload_size = msg (properties) + msg(body) + msg(footer)
-	 **     #_of_chunks = int(payload_size / (1024 - fixed_size)) + 1
-	 **     chunk_size = payload_size / #_of_chunks
-	 **     garbage_size = #_qof_chunks * (fixed_size + chunk_size) % 1024 // spezial behandlung garbage_size < 3
-	 **     add garbage
-	 ** else
-	 ** 	add garbage
-	 **/
-	_np_message_calculate_chunking(msg_out);
-	_np_message_serialize_chunked(msg_out);
-	np_tree_elem_t* footer_node = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
-	log_msg(LOG_DEBUG, "properties %s, body %s, garbage size %"PRIu32,
-			 np_treeval_to_str(properties_node->val, NULL),
-			 np_treeval_to_str(body_node->val, NULL),
-			np_tree_get_byte_size(footer_node));
+  /** message split up maths
+   ** message size = 1b (common header) + 40b (encryption) +
+   **                msg (header + instructions) + msg (properties + body) + msg
+   *(footer)
+   ** if (size > 1024)
+   **     fixed_size = 1b + 40b + msg (header + instructions)
+   **     payload_size = msg (properties) + msg(body) + msg(footer)
+   **     #_of_chunks = int(payload_size / (1024 - fixed_size)) + 1
+   **     chunk_size = payload_size / #_of_chunks
+   **     garbage_size = #_qof_chunks * (fixed_size + chunk_size) % 1024 //
+   *spezial behandlung garbage_size < 3
+   **     add garbage
+   ** else
+   ** 	add garbage
+   **/
+  _np_message_calculate_chunking(msg_out);
+  _np_message_serialize_chunked(msg_out);
+  np_tree_elem_t *footer_node =
+      np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+  log_msg(LOG_DEBUG,
+          "properties %s, body %s, garbage size %" PRIu32,
+          np_treeval_to_str(properties_node->val, NULL),
+          np_treeval_to_str(body_node->val, NULL),
+          np_tree_element_get_byte_size(footer_node));
 
+  _np_message_deserialize_chunked(msg_out);
 
-	_np_message_deserialize_chunked(msg_out);
+  np_tree_elem_t *properties_node_2 = np_tree_find_int(msg_out->properties, 1);
+  np_tree_elem_t *body_node_2       = np_tree_find_int(msg_out->body, 20);
+  // np_tree_elem_t* footer_node_2 = np_tree_find_str(msg_out->footer,
+  // NP_MSG_FOOTER_GARBAGE);
+  log_msg(LOG_DEBUG,
+          "properties %s, body %s",
+          np_treeval_to_str(properties_node_2->val, NULL),
+          np_treeval_to_str(body_node_2->val, NULL));
 
-	np_tree_elem_t* properties_node_2 = np_tree_find_int(msg_out->properties, 1);
-	np_tree_elem_t* body_node_2 = np_tree_find_int(msg_out->body, 20);
-	// np_tree_elem_t* footer_node_2 = np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
-	log_msg(LOG_DEBUG, "properties %s, body %s",
-			 np_treeval_to_str(properties_node_2->val, NULL),
-			 np_treeval_to_str(body_node_2->val, NULL));
-
-	EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
-	ev_run(EV_A_ EVRUN_NOWAIT);
+  EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
+  ev_run(EV_A_ EVRUN_NOWAIT);
 }

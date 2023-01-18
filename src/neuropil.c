@@ -80,37 +80,44 @@ void np_get_id(np_id(*id), const char *string, size_t length) {
  * @param[in] subject the subject to regenerate
  * @return enum np_return
  */
-enum np_return np_regenerate_subject(np_context *ac,
-                                     const char *subject_buffer,
-                                     size_t      buffer_length,
-                                     np_subject *subject) {
+enum np_return np_regenerate_subject(NP_UNUSED np_context *ac,
+                                     char                 *subject_buffer,
+                                     size_t                buffer_length,
+                                     const np_subject      subject) {
   if (buffer_length < 64 || subject_buffer == NULL) {
     return np_invalid_argument;
   }
   bool is_known = false;
 
-  char *known_subjects[] = {_NP_MSG_ACK,
-                            _NP_MSG_HANDSHAKE,
-                            _NP_MSG_JOIN_REQUEST,
-                            _NP_MSG_LEAVE_REQUEST,
-                            _NP_MSG_PING_REQUEST,
-                            _NP_MSG_PIGGY_REQUEST,
-                            _NP_MSG_UPDATE_REQUEST,
-                            _NP_MSG_PHEROMONE_UPDATE,
-                            _NP_MSG_AVAILABLE_RECEIVER,
-                            _NP_MSG_AVAILABLE_SENDER,
-                            _NP_MSG_AUTHENTICATION_REQUEST,
-                            _NP_MSG_AUTHENTICATION_REPLY,
-                            _NP_MSG_AUTHORIZATION_REQUEST,
-                            _NP_MSG_AUTHORIZATION_REPLY,
-                            _NP_MSG_ACCOUNTING_REQUEST,
-                            "_NP.SYSINFO.DATA"};
-  for (int i = 0; i < ARRAY_SIZE(known_subjects); i++) {
-    np_subject tmp = {0};
-    np_generate_subject(&tmp,
-                        known_subjects[i],
-                        strnlen(known_subjects[i], 256));
-    if (memcmp(&tmp, subject, sizeof(np_dhkey_t)) == 0) {
+  const char       *known_subjects[]           = {_NP_MSG_ACK,
+                                                  _NP_MSG_HANDSHAKE,
+                                                  _NP_MSG_JOIN_REQUEST,
+                                                  _NP_MSG_LEAVE_REQUEST,
+                                                  _NP_MSG_PING_REQUEST,
+                                                  _NP_MSG_PIGGY_REQUEST,
+                                                  _NP_MSG_UPDATE_REQUEST,
+                                                  _NP_MSG_PHEROMONE_UPDATE,
+                                                  _NP_MSG_AVAILABLE_RECEIVER,
+                                                  _NP_MSG_AVAILABLE_SENDER,
+                                                  _NP_MSG_AUTHENTICATION_REQUEST,
+                                                  _NP_MSG_AUTHENTICATION_REPLY,
+                                                  _NP_MSG_AUTHORIZATION_REQUEST,
+                                                  _NP_MSG_AUTHORIZATION_REPLY,
+                                                  _NP_MSG_ACCOUNTING_REQUEST,
+                                                  "_NP.SYSINFO.DATA"};
+  static bool       bin_subjects_are_generated = false;
+  static np_subject known_bin_subjects[16];
+  if (!bin_subjects_are_generated) {
+    for (int i = 0; i < 16; i++) {
+      np_generate_subject(&known_bin_subjects[i],
+                          known_subjects[i],
+                          strnlen(known_subjects[i], 256));
+    }
+    bin_subjects_are_generated = true;
+  }
+
+  for (int i = 0; i < 16; i++) {
+    if (memcmp(subject, &known_bin_subjects[i], NP_FINGERPRINT_BYTES) == 0) {
       strncpy(subject_buffer, known_subjects[i], buffer_length);
       is_known = true;
       break;
@@ -570,7 +577,7 @@ bool np_has_receiver_for(np_context *ac, np_subject subject) {
   bool ret = false;
 
   char buff[100] = {0};
-  np_regenerate_subject(context, buff, 100, &subject);
+  np_regenerate_subject(context, buff, 100, subject);
   log_info(LOG_MISC, "user requests info for availibility of subject %s", buff);
 
   np_dhkey_t subject_dhkey = {0};
@@ -792,7 +799,7 @@ enum np_return np_add_receive_cb(np_context         *ac,
                                  np_subject          subject_id,
                                  np_receive_callback callback) {
   enum np_return ret = np_ok;
-  np_ctx_cast(ac);
+  // np_ctx_cast(ac);
 
   np_dhkey_t subject_dhkey = {
       0}; // _np_msgproperty_dhkey(OUTBOUND, subject_id);
@@ -939,7 +946,7 @@ enum np_return np_mx_properties_enable(np_context      *ac,
       .type         = (evt_enable | evt_internal | evt_property),
       .target_dhkey = subject_dhkey};
   if (_np_keycache_exists(context, in_dhkey, NULL)) {
-    np_msgproperty_conf_t *property =
+    np_msgproperty_run_t *property =
         _np_msgproperty_run_get(context, INBOUND, subject_dhkey);
     // np_dhkey_t property_dhkey = _np_msgproperty_dhkey(DEFAULT_MODE,
     // subject_id);
@@ -978,7 +985,7 @@ enum np_return np_mx_properties_disable(np_context      *ac,
 
   np_dhkey_t out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
   if (_np_keycache_exists(context, out_dhkey, NULL)) {
-    np_msgproperty_conf_t *property =
+    np_msgproperty_run_t *property =
         _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);
     disable_event.user_data = property;
     _np_event_runtime_start_with_event(ac, out_dhkey, disable_event);
@@ -1018,7 +1025,7 @@ enum np_return np_run(np_context *ac, double duration) {
 }
 
 enum np_return np_add_shutdown_cb(np_context *ac, np_callback callback) {
-  np_ctx_cast(ac);
+  // np_ctx_cast(ac);
   np_shutdown_add_callback(ac, (np_destroycallback_t)callback);
 
   return np_ok;

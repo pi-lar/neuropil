@@ -66,7 +66,7 @@ bool receive_command(np_context *context, struct np_message *msg) {
   digitalWrite(4, 0);
 
   np_tree_t *command = np_tree_create();
-  np_buffer2tree(context, msg->data, command);
+  np_buffer2tree(context, msg->data, msg->data_length, command);
 
   if (np_tree_find_str(command, "LEFT") != NULL) {
     digitalWrite(0, 1);

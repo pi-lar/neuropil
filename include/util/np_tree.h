@@ -86,7 +86,7 @@ struct np_tree_s {
   struct np_tree_elem_s *rbh_root;
 
   uint16_t       size;
-  uint32_t       byte_size;
+  size_t         byte_size;
   np_tree_conf_t attr;
 } NP_API_EXPORT;
 
@@ -290,7 +290,9 @@ NP_API_EXPORT
 void np_tree_del_ulong(np_tree_t *tree, const uint32_t key);
 
 NP_API_INTERN
-uint32_t np_tree_get_byte_size(np_tree_elem_t *node);
+size_t np_tree_get_byte_size(np_tree_t *tree);
+NP_API_INTERN
+size_t np_tree_element_get_byte_size(np_tree_elem_t *node);
 
 /**
 .. c:function:: np_tree_t* np_tree_clone(np_tree_t* source)

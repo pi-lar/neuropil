@@ -1,8 +1,6 @@
 #include "msgpack/cmp.h"
 
 #include "util/np_serialization.h"
-#include "util/np_tree.h"
-#include "util/np_treeval.h"
 
 #include "np_log.h"
 #include "np_util.h"
@@ -200,10 +198,15 @@ void __np_tree_serialize_write_type(np_state_t  *context,
     cmp_write_ext32(cmp, np_treeval_type_hash, val.size, val.value.bin);
     break;
 
+  case np_treeval_type_cose_signed:
+  case np_treeval_type_cose_encrypted:
+  case np_treeval_type_cwt:
   case np_treeval_type_jrb_tree: {
     // cmp_ctx_t tree_cmp = {0};
-    uint32_t buf_size = val.value.tree->byte_size;
-    char     buffer[buf_size];
+    // size_t buf_size = np_tree_get_byte_size(val.value.tree);
+    size_t buf_size = val.value.tree->byte_size;
+    // np_serializer_add_map_bytesize(val.value.tree, &buf_size);
+    char buffer[buf_size];
     log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
                   "write: buffer size for subtree %u (%hd %u) %u",
                   val.size,
@@ -219,7 +222,7 @@ void __np_tree_serialize_write_type(np_state_t  *context,
     };
     np_serializer_write_map(context, &tree_serializer, val.value.tree);
     // write the serialized tree to the upper level buffer
-    if (!cmp_write_ext32(cmp, np_treeval_type_jrb_tree, buf_size, buffer)) {
+    if (!cmp_write_ext32(cmp, val.type, buf_size, buffer)) {
       log_msg(LOG_WARNING, "couldn't write tree data -- ignoring for now");
     }
   } break;
@@ -332,9 +335,12 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
     void *buffer        = cmp->buf;
     void *target_buffer = buffer + obj->as.ext.size;
 
-    if (obj->as.ext.type == np_treeval_type_jrb_tree) {
+    if (obj->as.ext.type == np_treeval_type_jrb_tree ||
+        obj->as.ext.type == np_treeval_type_cose_signed ||
+        obj->as.ext.type == np_treeval_type_cose_encrypted ||
+        obj->as.ext.type == np_treeval_type_cwt) {
       // tree type
-      value->type = np_treeval_type_jrb_tree;
+      value->type = obj->as.ext.type;
 
       np_tree_t *subtree                   = np_tree_create();
       subtree->attr.in_place               = tree->attr.in_place;
@@ -359,10 +365,10 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
       // , size is: %"PRIu32, obj->as.ext.size);
       // }else{
       //	 ASSERT(
-      //		np_tree_get_byte_size(subtree->rbh_root) ==
+      //		np_tree_element_get_byte_size(subtree->rbh_root) ==
       // obj->as.ext.size, 		"Bytesize of tree does not match.
       // actual: %"PRIu32" expected: %"PRIu32,
-      // np_tree_get_byte_size(subtree->rbh_root), obj->as.ext.size
+      // np_tree_element_get_byte_size(subtree->rbh_root), obj->as.ext.size
       //	);
       //}
       // TODO: check if the complete buffer was read (byte count match)
@@ -412,6 +418,7 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
     }
     // skip forward in case of error ?
   } break;
+
   case CMP_TYPE_FLOAT:
     value->value.f = 0.0;
     value->value.f = obj->as.flt;
@@ -474,6 +481,10 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
     log_msg(LOG_WARNING, "unknown deserialization for given type");
     break;
   }
+}
+
+void np_serializer_add_map_bytesize(np_tree_t *tree, size_t *byte_size) {
+  *byte_size += 5;
 }
 
 void np_serializer_write_map(np_state_t            *context,
@@ -861,7 +872,7 @@ np_serializer_write_datablock_header(np_datablock_header_t *block,
 }
 
 enum np_data_return np_serializer_calculate_object_size(np_kv_buffer_t kv_pair,
-                                                        uint32_t *object_size) {
+                                                        size_t *object_size) {
   // check for space in block
   *object_size = sizeof(uint8_t) /*Marker*/ + sizeof(uint8_t) /*str size*/ +
                  strnlen(kv_pair.key, 255) /*Key*/ /*NULL byte*/;
@@ -870,8 +881,8 @@ enum np_data_return np_serializer_calculate_object_size(np_kv_buffer_t kv_pair,
     *object_size += sizeof(uint8_t) /*Marker*/ + sizeof(uint32_t) /*DataSize*/ +
                     kv_pair.data_size /*Data*/;
   } else if (kv_pair.data_type == NP_DATA_TYPE_INT) {
-    kv_pair.data_size = sizeof(int);
-    *object_size += sizeof(uint8_t) /*Marker*/ + sizeof(int);
+    kv_pair.data_size = sizeof(int32_t);
+    *object_size += sizeof(uint8_t) /*Marker*/ + sizeof(int32_t);
   } else if (kv_pair.data_type == NP_DATA_TYPE_UNSIGNED_INT) {
     kv_pair.data_size = sizeof(uint32_t);
     *object_size += sizeof(uint8_t) /*Marker*/ + sizeof(uint32_t);

@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
-#include "neuropil_data.h"
-
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -71,8 +69,9 @@ enum np_data_return np_iterate_data(np_datablock_t    *block,
     struct np_data_conf data_conf;
     np_data_value       data_value;
 
-    np_kv_buffer_t container = {.buffer_start =
-                                    np_skip_datablock_header(&db_header)};
+    np_kv_buffer_t container  = {.buffer_start =
+                                     np_skip_datablock_header(&db_header)};
+    size_t         byte_count = 0;
 
     while (object_count < db_header.object_count) {
 
@@ -83,9 +82,13 @@ enum np_data_return np_iterate_data(np_datablock_t    *block,
           ret = np_invalid_arguments;
           break;
         }
+        byte_count += container.buffer_end - container.buffer_start;
         container.buffer_start = container.buffer_end;
+        container.buffer_end =
+            container.buffer_start + (db_header.used_length - byte_count);
         object_count++;
       } else {
+        ret = np_invalid_structure;
         break;
       }
     }
@@ -103,9 +106,6 @@ enum np_data_return _np_iterate_data_mapreduce(np_datablock_t  *block,
   struct np_data data = {0};
   if (ret == np_data_ok) {
     uint16_t object_count = 0;
-
-    struct np_data_conf data_conf;
-    np_data_value       data_value;
 
     np_kv_buffer_t container = {.buffer_start =
                                     np_skip_datablock_header(&db_header)};
@@ -145,7 +145,7 @@ enum np_data_return np_set_data(np_datablock_t     *block,
                                       &old_container,
                                       NP_DATA_MAGIC_NO);
 
-    uint32_t old_object_size = 0;
+    size_t old_object_size = 0;
 
     if (ret == np_data_ok) {
       // key is already in datablock
@@ -165,12 +165,12 @@ enum np_data_return np_set_data(np_datablock_t     *block,
     strncpy(new_container.key, data_conf.key, strnlen(data_conf.key, 255));
     new_container.key[strnlen(data_conf.key, 255)] = '\0';
 
-    uint32_t new_object_size = 0;
+    size_t new_object_size = 0;
     ret = np_serializer_calculate_object_size(new_container, &new_object_size);
 
     if (ret == np_key_not_found || ret == np_data_ok) {
       // check for space in block
-      uint16_t available_space =
+      size_t available_space =
           (db_header.total_length - db_header.used_length) + old_object_size;
       if (new_object_size > available_space) {
         ret = np_insufficient_memory;
@@ -189,7 +189,12 @@ enum np_data_return np_set_data(np_datablock_t     *block,
         }
         if (new_object_size > 0) {
           // add to the end of the block
+          new_container.buffer_end =
+              new_container.buffer_start + new_object_size;
           ret = np_serializer_write_object(&new_container);
+          ASSERT(new_object_size ==
+                     (new_container.buffer_end - new_container.buffer_start),
+                 "object size should be the same");
           db_header.object_count++;
         }
         if (ret == np_data_ok) {
@@ -222,8 +227,6 @@ enum np_data_return np_get_data(np_datablock_t      *block,
                                     key,
                                     &old_container,
                                     NP_DATA_MAGIC_NO);
-
-  uint16_t old_object_size = 0;
 
   if (ret == np_data_ok) {
     __convert_kv_to_conf(out_data_config, out_data, &old_container);
@@ -267,6 +270,7 @@ enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src) {
   if (src != NULL) {
     np_datablock_header_t db_header = {._inner_blob = src};
     ret = np_serializer_read_datablock_header(&db_header, NP_DATA_MAGIC_NO);
+
     if (ret == np_data_ok) {
       uint16_t       objects_read = 0;
       np_kv_buffer_t kv_pair      = {.buffer_start =
@@ -284,6 +288,9 @@ enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src) {
 
           objects_read++;
           kv_pair.buffer_start = kv_pair.buffer_end;
+        } else {
+          ret = np_invalid_structure;
+          break;
         }
       }
     }
@@ -305,7 +312,7 @@ bool __np_print_datablock_item(struct np_data_conf *out_data_config,
   struct _np_print_data_s *tmp   = (struct _np_print_data_s *)userdata;
 
   size_t max_n = tmp->buffer_max_size - tmp->used;
-  int    n     = 0;
+  size_t n     = 0;
   switch (out_data_config->type) {
   case NP_DATA_TYPE_BIN:
     n = snprintf(tmp->buffer + tmp->used,

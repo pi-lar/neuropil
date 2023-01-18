@@ -1828,6 +1828,7 @@ void np_key_unref_list(np_sll_t(np_key_ptr, sll_list), const char *reason);
 */
 NP_API_EXPORT
 JSON_Value *np_tree2json(np_state_t *context, np_tree_t *tree);
+
 /**
 .. c:function:: void np_json2char()
 
@@ -1836,11 +1837,13 @@ JSON_Value *np_tree2json(np_state_t *context, np_tree_t *tree);
 */
 NP_API_EXPORT
 char *np_json2char(JSON_Value *data, bool prettyPrint);
+
 /**
  * convert np_treeval_t to JSON_Value
  */
 NP_API_EXPORT
 JSON_Value *np_treeval2json(np_state_t *context, np_treeval_t val);
+
 /**
 .. c:function:: void np_dump_tree2log()
 
@@ -1849,6 +1852,7 @@ JSON_Value *np_treeval2json(np_state_t *context, np_treeval_t val);
 */
 NP_API_EXPORT
 void np_dump_tree2log(np_state_t *context, log_type category, np_tree_t *tree);
+
 /**
 .. c:function:: void np_dump_tree2log()
 
@@ -1866,11 +1870,14 @@ bool np_get_local_ip(np_state_t *context, char *buffer, int buffer_size);
 
 NP_API_PROTEC
 uint8_t np_util_char_ptr_cmp(char_ptr const a, char_ptr const b);
+
 NP_API_PROTEC
 char *_sll_char_make_flat(np_state_t *context, np_sll_t(char_ptr, target));
+
 NP_API_INTERN
 char_ptr
 _sll_char_remove(np_sll_t(char_ptr, target), char *to_remove, size_t cmp_len);
+
 NP_API_INTERN
 sll_return(char_ptr) _sll_char_part(np_sll_t(char_ptr, target), int32_t amount);
 
@@ -1879,17 +1886,24 @@ enum np_util_stringify_e {
   np_util_stringify_bytes,
   np_util_stringify_bytes_per_sec
 } NP_API_EXPORT;
+
 NP_API_EXPORT
 char *np_util_stringify_pretty(enum np_util_stringify_e type,
                                void                    *data,
                                char                     buffer[255]);
+
 NP_API_EXPORT
 char *np_util_string_trim_left(char *target);
 
 NP_API_EXPORT
 void np_tree2buffer(np_state_t *context, np_tree_t *tree, void *buffer);
+
 NP_API_EXPORT
-void np_buffer2tree(np_state_t *context, void *buffer, np_tree_t *tree);
+void np_buffer2tree(np_state_t *context,
+                    void       *buffer,
+                    size_t      buffer_size,
+                    np_tree_t  *tree);
+
 #ifdef __cplusplus
 }
 #endif

@@ -549,14 +549,13 @@ int np_crypt_E2E_decrypt(np_state_t  *context,
     // 3. decrypt data content with intermediate key
 
     // 1. deserialize
-    np_tree_t *tmp_E2E_container = np_tree_create();
-
+    np_tree_t              *tmp_E2E_container = np_tree_create();
+    size_t                  decryption_size   = sizeof(data_to_decrypt);
     np_deserialize_buffer_t deserializer = {._target_tree = tmp_E2E_container,
                                             ._buffer      = data_to_decrypt,
-                                            ._buffer_size =
-                                                sizeof(data_to_decrypt),
-                                            ._bytes_read = 0,
-                                            ._error      = 0};
+                                            ._buffer_size = decryption_size,
+                                            ._bytes_read  = 0,
+                                            ._error       = 0};
     np_serializer_read_map(context, &deserializer, tmp_E2E_container);
 
     if (deserializer._error == 0) {

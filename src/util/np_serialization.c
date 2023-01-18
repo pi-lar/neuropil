@@ -4,20 +4,19 @@
 //
 #include "util/np_serialization.h"
 
-#include "neuropil_log.h"
+#ifdef NP_USE_CMP
 
-#include "util/np_tree.h"
-#include "util/np_treeval.h"
+#include "s11n_impl/np_serialize_cmp.c"
+// dummy implementation for msgpack serialization
+inline bool np_serializer_write_nptoken(void                  *data_buffer,
+                                        const struct np_token *token) {}
+inline bool np_serializer_read_nptoken(const void      *data_buffer,
+                                       struct np_token *token) {}
 
-#include "np_log.h"
-#include "np_settings.h"
-#include "np_types.h"
-#include "np_util.h"
+#endif
 
 #ifdef NP_USE_QCBOR
+
 #include "s11n_impl/np_serialize_qcbor.c"
-#elif NP_USE_CMP
-#include "s11n_impl/np_serialize_cmp.c"
-#else
-#error "need a serialization framwork, please select NP_USE_QCBOR or NP_USE_CMP"
+
 #endif

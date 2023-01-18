@@ -23,6 +23,7 @@
 #include "util/np_list.h"
 #include "util/np_mapreduce.h"
 #include "util/np_minhash.h"
+#include "util/np_serialization.h"
 
 #include "np_aaatoken.h"
 #include "np_attributes.h"
@@ -2503,7 +2504,8 @@ void _np_searchresult_send(np_context        *ac,
           search_result->byte_size,
           search_result->size);
 
-  size_t        data_length = search_result->byte_size;
+  size_t data_length = np_tree_get_byte_size(search_result);
+  // np_serializer_add_map_bytesize(search_result, &data_length);
   unsigned char data[data_length];
   np_tree2buffer(context, search_result, data);
 
@@ -2523,7 +2525,10 @@ bool _np_searchresult_receive_cb(np_context         *ac,
   }
 
   np_tree_t *search_result = np_tree_create();
-  np_buffer2tree(context, userdata->val.value.bin, search_result);
+  np_buffer2tree(context,
+                 userdata->val.value.bin,
+                 userdata->val.size,
+                 search_result);
 
   log_msg(LOG_DEBUG,
           "received searchresult as tree %p (%u bytes / %u)",

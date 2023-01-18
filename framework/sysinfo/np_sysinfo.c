@@ -2,19 +2,19 @@
 // SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
+#include "sysinfo/np_sysinfo.h"
 
-#include "../framework/sysinfo/np_sysinfo.h"
-
+#include <inttypes.h>
 #include <stdlib.h>
 
-#include "inttypes.h"
 #include "parson/parson.h"
 
 #include "neuropil.h"
 #include "neuropil_log.h"
 
-#include "../framework/http/np_http.h"
+#include "http/np_http.h"
 #include "util/np_event.h"
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
 
@@ -88,10 +88,12 @@ bool _np_sysinfo_client_send_cb(np_state_t               *context,
             "sending sysinfo proactive (size: %" PRIu16 ")",
             payload->size);
 
-    unsigned char buffer[payload->byte_size];
+    size_t data_length = np_tree_get_byte_size(payload);
+    // np_serializer_add_map_bytesize(payload, &data_length);
+    unsigned char buffer[data_length];
     np_tree2buffer(context, payload, buffer);
 
-    np_send(context, sysinfo_subject, buffer, payload->byte_size);
+    np_send(context, sysinfo_subject, buffer, data_length);
 
     np_tree_free(payload);
   } else {
@@ -214,7 +216,7 @@ bool _np_in_sysinfo(np_state_t *context, struct np_message *msg) {
   log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo (uuid: %s )", msg->uuid);
 
   np_tree_t payload = {0}; // np_tree_create();
-  np_buffer2tree(context, msg->data, &payload);
+  np_buffer2tree(context, msg->data, msg->data_length, &payload);
 
   np_tree_elem_t *source = np_tree_find_str(&payload, _NP_SYSINFO_SOURCE);
   if (NULL == source) {

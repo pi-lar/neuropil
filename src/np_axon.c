@@ -934,7 +934,7 @@ bool _np_out_join(np_state_t *context, const np_util_event_t event) {
   np_aaatoken_encode(jrb_my_node, _np_key_get_token(context->my_node_key));
   np_tree_insert_str(jrb_data,
                      _NP_URN_NODE_PREFIX,
-                     np_treeval_new_tree(jrb_my_node));
+                     np_treeval_new_cwt(jrb_my_node));
 
   if (_np_key_cmp(context->my_identity, context->my_node_key) != 0) {
     jrb_my_ident = np_tree_create();
@@ -943,7 +943,7 @@ bool _np_out_join(np_state_t *context, const np_util_event_t event) {
                            _np_key_get_token(context->my_identity)));
     np_tree_insert_str(jrb_data,
                        _NP_URN_IDENTITY_PREFIX,
-                       np_treeval_new_tree(jrb_my_ident));
+                       np_treeval_new_cwt(jrb_my_ident));
   }
   // 2. set it as body of message
   _np_message_setbody(join_msg, jrb_data);
@@ -1005,7 +1005,10 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
         _np_token_factory_new_handshake_token(context);
 
     np_aaatoken_encode(jrb_body, my_token);
-    _np_message_setbody(hs_message, jrb_body);
+    np_tree_insert_str(hs_message->body,
+                       _NP_URN_HANDSHAKE_PREFIX,
+                       np_treeval_new_cwt(jrb_body));
+    // _np_message_setbody(hs_message, jrb_body);
 
     np_unref_obj(np_aaatoken_t,
                  my_token,

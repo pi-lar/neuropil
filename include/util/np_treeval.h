@@ -79,6 +79,9 @@ enum np_treeval_type_t {
   np_treeval_type_npobj,
   np_treeval_type_npval_count,
   np_treeval_type_special_char_ptr,
+  np_treeval_type_cwt,
+  np_treeval_type_cose_signed,
+  np_treeval_type_cose_encrypted
 };
 
 /* The Jval -- a type that can hold any type */
@@ -153,7 +156,12 @@ np_treeval_new_carray_nnt(char *carray); /* Carray is not null terminated */
 np_treeval_t np_treeval_new_tree(np_tree_t *tree);
 np_treeval_t np_treeval_new_hash(char *h_val);
 np_treeval_t np_treeval_new_dhkey(np_dhkey_t dhkey);
-uint32_t     np_treeval_get_byte_size(np_treeval_t ele);
+
+np_treeval_t np_treeval_new_cose_encrypted(np_tree_t *tree);
+np_treeval_t np_treeval_new_cose_signed(np_tree_t *tree);
+np_treeval_t np_treeval_new_cwt(np_tree_t *tree);
+
+size_t np_treeval_get_byte_size(np_treeval_t ele);
 
 static const np_treeval_t np_treeval_NULL = {.type = np_treeval_type_undefined,
                                              .size = 0};

@@ -48,12 +48,12 @@ extern "C" {
 #define DEBUG_CALLBACKS 1
 #define NP_MEMORY_CHECK_MAGIC_NO
 #define NP_MEMORY_CHECK_MEMORY_REFFING 1
-//#define NP_THREADS_CHECK_THREADING 1
+// #define NP_THREADS_CHECK_THREADING 1
 #define NP_BENCHMARKING 1024
-//#define CONSOLE_BACKUP_LOG
-//#define CONSOLE_LOG 1
+// #define CONSOLE_BACKUP_LOG
+// #define CONSOLE_LOG 1
 #endif // DEBUG
-//#define CATCH_SEGFAULT
+// #define CATCH_SEGFAULT
 
 #define NP_STATISTICS
 
@@ -66,12 +66,30 @@ extern "C" {
 #define NP_PI     3.1415926535
 #define NP_PI_INT 3
 
-#ifndef NP_USE_CMP
-#define NP_USE_CMP 1
+#if (!defined(NP_USE_CMP) && !defined(NP_USE_QCBOR))
+#define NP_USE_QCBOR 1
 #endif
 
-#ifndef NP_USE_QCBOR
-// #define NP_USE_QCBOR 1
+#if (!defined(NP_USE_CMP) && !defined(NP_USE_QCBOR))
+#error                                                                         \
+    "need a serialization framwork, please select one of NP_USE_QCBOR or NP_USE_CMP"
+#endif
+
+#ifdef NP_USE_QCBOR
+#define QCBOR_DISABLE_ENCODE_USAGE_GUARDS 1
+// disable cbor infinite length arrays and strings
+#define QCBOR_DISABLE_INDEFINITE_LENGTH_STRINGS 1
+#define QCBOR_DISABLE_INDEFINITE_LENGTH_ARRAYS  1
+// disable variable float bytes size
+// TODO: implement variable length float/double serialization
+#define QCBOR_DISABLE_PREFERRED_FLOAT 1
+// TODO: refactor code to work without specific flags, or register flag
+// TODO: register neuropil specific flags in abor registry
+#define NP_CBOR_REGISTRY_ENTRIES 31415
+#endif
+
+#ifdef NP_USE_CMP
+// empty, no additional defines needed
 #endif
 
 #ifndef NP_STATISTICS_PROMETHEUS_PREFIX

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: OSL-3.0
 //
 
-#include "np_messagepart.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -67,8 +65,8 @@ bool _np_messagepart_decrypt(np_state_t              *context,
     log_msg(LOG_ERROR, "couldn't find encrypted msg part");
     return (false);
   }
-
-  unsigned char dec_part[enc_msg_part->val.size - crypto_box_MACBYTES];
+  size_t        decrypted_size = enc_msg_part->val.size - crypto_box_MACBYTES;
+  unsigned char dec_part[decrypted_size];
   int16_t       ret = crypto_secretbox_open_easy(dec_part,
                                            enc_msg_part->val.value.bin,
                                            enc_msg_part->val.size,
@@ -94,7 +92,7 @@ bool _np_messagepart_decrypt(np_state_t              *context,
   // Allow deserialisation as the encryption may
   np_deserialize_buffer_t deserializer = {._target_tree = target,
                                           ._buffer      = dec_part,
-                                          ._buffer_size = sizeof(dec_part),
+                                          ._buffer_size = decrypted_size,
                                           ._bytes_read  = 0,
                                           ._error       = 0};
   np_serializer_read_map(context, &deserializer, target);
@@ -120,24 +118,25 @@ bool _np_messagepart_encrypt(np_state_t              *context,
       "unsigned char* nonce,						"
       "	unsigned char* public_key,					"
       "		NP_UNUSED unsigned char* secret_key){");
-  cmp_ctx_t cmp = {0};
-
-  unsigned char msg_part_buffer[msg_part->byte_size];
+  cmp_ctx_t cmp           = {0};
+  size_t    msg_part_size = np_tree_get_byte_size(msg_part);
+  // np_serializer_add_map_bytesize(msg_part, &msg_part_size);
+  unsigned char msg_part_buffer[msg_part_size];
   void         *msg_part_buf_ptr = msg_part_buffer;
 
   np_serialize_buffer_t serializer = {._tree          = msg_part,
                                       ._target_buffer = msg_part_buf_ptr,
-                                      ._buffer_size   = msg_part->byte_size,
+                                      ._buffer_size   = msg_part_size,
                                       ._bytes_written = 0,
                                       ._error         = 0};
   np_serializer_write_map(context, &serializer, msg_part);
 
-  uint32_t      enc_msg_part_len = msg_part->byte_size + crypto_box_MACBYTES;
+  uint32_t      enc_msg_part_len = msg_part_size + crypto_box_MACBYTES;
   unsigned char enc_msg_part[enc_msg_part_len];
 
   int16_t ret = crypto_secretbox_easy(enc_msg_part,
                                       msg_part_buf_ptr,
-                                      msg_part->byte_size,
+                                      msg_part_size,
                                       nonce,
                                       public_key);
 
@@ -162,7 +161,6 @@ void _np_messagepart_t_del(np_state_t       *context,
 
   if (part->msg_part != NULL) {
     np_unref_obj(BLOB_1024, part->msg_part, ref_obj_creation);
-    // np_memory_free(context, part->msg_part);
   }
 
   _np_threads_mutex_destroy(context, &part->work_lock);

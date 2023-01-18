@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 // neuropil core include files
+#include "util/np_serialization.h"
 #include "util/np_tree.h"
 
 #include "np_dhkey.h"
@@ -472,10 +473,12 @@ void __send_dir(np_state_t *ac, const char *id) {
 
   __create_dir_info(_info, dir_tree);
 
-  unsigned char buffer[dir_tree->byte_size];
+  size_t buffer_size = np_tree_get_byte_size(dir_tree);
+  // np_serializer_add_map_bytesize(dir_tree, &buffer_size);
+  unsigned char buffer[buffer_size];
   np_tree2buffer(ac, dir_tree, buffer);
 
-  np_send(ac, _info->ci.subject, buffer, dir_tree->byte_size);
+  np_send(ac, _info->ci.subject, buffer, buffer_size);
 }
 
 void __send_file(np_state_t *ac, const char *id) {
@@ -492,9 +495,11 @@ void __send_file(np_state_t *ac, const char *id) {
     np_tree_t *file_tree = np_tree_create();
     __create_file_info(_info, file_tree);
 
-    unsigned char file_buffer[file_tree->byte_size];
+    size_t buffer_size = np_tree_get_byte_size(file_tree);
+    // np_serializer_add_map_bytesize(file_tree, &buffer_size);
+    char file_buffer[buffer_size];
     np_tree2buffer(ac, file_tree, file_buffer);
-    np_send(ac, _info->ci.subject, file_buffer, file_tree->byte_size);
+    np_send(ac, _info->ci.subject, file_buffer, buffer_size);
 
     np_tree_free(file_tree);
   }
@@ -912,7 +917,7 @@ void np_files_list(np_context *ac, const char *alias) {}
 // a callback function that can be passed to the neuropil library
 bool np_files_store_cb(np_context *context, struct np_message *msg) {
   np_tree_t *file_info = np_tree_create();
-  np_buffer2tree(context, msg->data, file_info);
+  np_buffer2tree(context, msg->data, msg->data_length, file_info);
 
   // char id_str[65];
   np_tree_elem_t *_np_id   = np_tree_find_str(file_info, "np_id");

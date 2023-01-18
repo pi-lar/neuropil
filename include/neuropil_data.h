@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
-// original version is based on the chimera project
 #ifndef NP_DATA_H_
 #define NP_DATA_H_
 
@@ -78,10 +77,13 @@ enum np_data_return np_get_data(np_datablock_t      *block,
                                 struct np_data_conf *out_data_config,
                                 np_data_value       *out_data);
 
-NP_API_EXPORT
+enum np_data_return np_get_data_size(np_datablock_t *block,
+                                     size_t         *out_block_size);
+
 /**
  * @brief merges src datablock into dest datablock. overwrites existing keys
  */
+NP_API_EXPORT
 enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src);
 
 NP_API_EXPORT

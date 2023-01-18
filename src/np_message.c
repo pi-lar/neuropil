@@ -51,6 +51,9 @@
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_message_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 
+static const size_t msg_chunk_size =
+    MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40;
+
 void _np_message_t_new(np_state_t       *context,
                        NP_UNUSED uint8_t type,
                        NP_UNUSED size_t  size,
@@ -152,16 +155,21 @@ void _np_message_calculate_chunking(np_message_t *msg) {
   np_ctx_memory(msg);
 
   // TODO: message part split-up informations
-  uint32_t header_size = (msg->header == NULL ? 0 : msg->header->byte_size);
-  uint32_t instructions_size =
-      (msg->instructions == NULL ? 0 : msg->instructions->byte_size);
-  uint32_t fixed_size = /* MSG_ARRAY_SIZE + */ MSG_ENCRYPTION_BYTES_40 +
-                        /* MSG_PAYLOADBIN_SIZE + */ header_size +
-                        instructions_size;
+  size_t header_size =
+      (msg->header == NULL ? 0 : np_tree_get_byte_size(msg->header));
+  // np_serializer_add_map_bytesize(msg->header, &header_size);
+  size_t instructions_size =
+      (msg->instructions == NULL ? 0
+                                 : np_tree_get_byte_size(msg->instructions));
+  // np_serializer_add_map_bytesize(msg->instructions, &instructions_size);
+  size_t body_size = (msg->body == NULL ? 0 : np_tree_get_byte_size(msg->body));
+  // np_serializer_add_map_bytesize(msg->body, &body_size);
+  size_t footer_size =
+      (msg->footer == NULL ? 0 : np_tree_get_byte_size(msg->footer));
+  // np_serializer_add_map_bytesize(msg->footer, &footer_size);
 
-  uint32_t body_size    = (msg->body == NULL ? 0 : msg->body->byte_size);
-  uint32_t footer_size  = (msg->footer == NULL ? 0 : msg->footer->byte_size);
-  uint32_t payload_size = body_size + footer_size;
+  size_t fixed_size = MSG_ENCRYPTION_BYTES_40 + header_size + instructions_size;
+  size_t payload_size        = body_size + footer_size;
   uint32_t max_chunk_payload = MSG_CHUNK_SIZE_1024 - fixed_size;
   uint32_t chunks =
       (uint32_t)ceil((payload_size + 0.0) / (max_chunk_payload + 0.0));
@@ -258,13 +266,14 @@ bool _np_message_serialize_header_and_instructions(np_state_t   *context,
     assert(part != NULL);
   }
   // we simply override the header and instructions part for a single part
-  // message here the byte size should be the same as before
+  // message here, the byte size should be the same as before
   // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size %hd)",
   // msg->header->size);
+  size_t header_size = np_tree_get_byte_size(msg->header);
+  // np_serializer_add_map_bytesize(msg->header, &header_size);
   np_serialize_buffer_t header_serializer = {._tree          = msg->header,
                                              ._target_buffer = part->msg_part,
-                                             ._buffer_size =
-                                                 MSG_CHUNK_SIZE_1024,
+                                             ._buffer_size   = header_size,
                                              ._bytes_written = 0,
                                              ._error         = 0};
   np_serializer_write_map(context, &header_serializer, msg->header);
@@ -274,10 +283,12 @@ bool _np_message_serialize_header_and_instructions(np_state_t   *context,
 
   // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the instructions (size
   // %hd)", msg->header->size);
+  size_t instruction_size = np_tree_get_byte_size(msg->instructions);
+  // np_serializer_add_map_bytesize(msg->instructions, &instruction_size);
   np_serialize_buffer_t instruction_serializer = {
       ._tree          = msg->instructions,
-      ._target_buffer = &part->msg_part[msg->header->byte_size],
-      ._buffer_size   = msg->instructions->byte_size,
+      ._target_buffer = &part->msg_part[header_serializer._bytes_written],
+      ._buffer_size   = instruction_size,
       ._bytes_written = 0,
       ._error         = 0};
 
@@ -327,6 +338,15 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
   void *bin_body_ptr = NULL;
   bool  body_done    = false;
 
+  size_t header_size = np_tree_get_byte_size(msg->header);
+  // np_serializer_add_map_bytesize(msg->header, &header_size);
+  size_t instruction_size = np_tree_get_byte_size(msg->instructions);
+  // np_serializer_add_map_bytesize(msg->instructions, &instruction_size);
+  size_t bin_body_size = np_tree_get_byte_size(msg->body);
+  // np_serializer_add_map_bytesize(msg->body, &bin_body_size);
+  size_t bin_footer_size = np_tree_get_byte_size(msg->footer);
+  // np_serializer_add_map_bytesize(msg->footer, &bin_footer_size);
+
   uint16_t max_chunk_size = (MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40);
   // log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
   // "-----------------------------------------------------" );
@@ -349,21 +369,19 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
     part->part         = i + 1;
     // part->msg_part = np_memory_new(context,
     // np_memory_types_BLOB_984_RANDOMIZED);
-    np_new_obj(BLOB_984_RANDOMIZED, part->msg_part) void *msg_part_ptr =
-        part->msg_part;
+    np_new_obj(BLOB_984_RANDOMIZED, part->msg_part);
+    void *msg_part_ptr = part->msg_part;
 
     if (NULL == bin_header) { // TODO: optimize memory handling and allocate
                               // memory during serialization
-      bin_header = malloc(msg->header->byte_size);
+      bin_header = malloc(header_size);
       CHECK_MALLOC(bin_header);
-
-      memset(bin_header, 0, msg->header->byte_size);
+      memset(bin_header, 0, header_size);
       // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size
       // %hd)", msg->properties->size);
       np_serialize_buffer_t header_serializer = {._tree          = msg->header,
                                                  ._target_buffer = bin_header,
-                                                 ._buffer_size =
-                                                     msg->header->byte_size,
+                                                 ._buffer_size   = header_size,
                                                  ._bytes_written = 0,
                                                  ._error         = 0};
       np_serializer_write_map(context, &header_serializer, msg->header);
@@ -371,22 +389,22 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
 
     // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the header (size
     // %hd)", msg->header->byte_size);
-    memcpy(msg_part_ptr, bin_header, msg->header->byte_size);
-    msg_part_ptr += msg->header->byte_size;
+    memcpy(msg_part_ptr, bin_header, header_size);
+    msg_part_ptr += header_size;
 
     // reserialize the instructions into every chunk (_NP_MSG_INST_PARTS has
     // changed)
     {
-      bin_instructions = malloc(msg->instructions->byte_size);
+      char bin_instructions[instruction_size];
       CHECK_MALLOC(bin_instructions);
 
-      memset(bin_instructions, 0, msg->instructions->byte_size);
+      memset(bin_instructions, 0, instruction_size);
       // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "serializing the
       // instructions (size %hd)", msg->properties->size);
       np_serialize_buffer_t instruction_serializer = {
           ._tree          = msg->instructions,
           ._target_buffer = bin_instructions,
-          ._buffer_size   = msg->instructions->byte_size,
+          ._buffer_size   = instruction_size,
           ._bytes_written = 0,
           ._error         = 0};
       np_serializer_write_map(context,
@@ -395,11 +413,10 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
 
       // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the instructions
       // (size %hd)", msg->instructions->byte_size);
-      memcpy(msg_part_ptr, bin_instructions, msg->instructions->byte_size);
-      msg_part_ptr += msg->instructions->byte_size;
-
-      free(bin_instructions);
-      bin_instructions = NULL;
+      memcpy(msg_part_ptr,
+             bin_instructions,
+             instruction_serializer._bytes_written);
+      msg_part_ptr += instruction_serializer._bytes_written;
 
       // update current chunk size
       current_chunk_size = msg_part_ptr - part->msg_part;
@@ -407,27 +424,26 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
 
     if (NULL == bin_body) {
       // TODO: optimize memory handling and allocate memory during serialization
-      bin_body = malloc(msg->body->byte_size + msg->footer->byte_size);
+      bin_body = malloc(bin_body_size + bin_footer_size);
       CHECK_MALLOC(bin_body);
 
       bin_body_ptr = bin_body;
-      memset(bin_body, 0, msg->body->byte_size);
+      memset(bin_body, 0, bin_body_size);
       // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the body (size
       // %hd)", msg->properties->size);
       np_serialize_buffer_t body_serializer = {._tree          = msg->body,
                                                ._target_buffer = &bin_body[0],
-                                               ._buffer_size =
-                                                   msg->body->byte_size,
+                                               ._buffer_size   = bin_body_size,
                                                ._bytes_written = 0,
                                                ._error         = 0};
       np_serializer_write_map(context, &body_serializer, msg->body);
 
       // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the body (size
-      // %hd)", msg->body->byte_size);
+      // %hd)", bin_body_size);
       np_serialize_buffer_t footer_serializer = {
           ._tree          = msg->footer,
           ._target_buffer = &bin_body[body_serializer._bytes_written],
-          ._buffer_size   = msg->footer->byte_size,
+          ._buffer_size   = bin_footer_size,
           ._bytes_written = 0,
           ._error         = 0};
       np_serializer_write_map(context, &footer_serializer, msg->footer);
@@ -438,8 +454,8 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
     // current_chunk_size );
 
     if (0 < (max_chunk_size - current_chunk_size) && false == body_done) {
-      uint32_t left_body_size = msg->body->byte_size + msg->footer->byte_size -
-                                (bin_body_ptr - bin_body);
+      uint32_t left_body_size =
+          bin_body_size + bin_footer_size - (bin_body_ptr - bin_body);
       uint32_t possible_size = max_chunk_size - current_chunk_size;
       if (possible_size >= left_body_size) {
         // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "writing last body part
@@ -449,7 +465,7 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
         bin_body_ptr += left_body_size;
         body_done = true;
         // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "wrote all body (size
-        // %hd)", msg->body->byte_size);
+        // %hd)", bin_body_size);
       } else {
         memcpy(msg_part_ptr, bin_body_ptr, possible_size);
         msg_part_ptr += possible_size;
@@ -520,12 +536,12 @@ bool _np_message_deserialize_header_and_instructions(np_message_t *msg,
   np_ctx_memory(msg);
   bool ret = false;
   if (msg->bin_static == NULL) {
-    np_deserialize_buffer_t header_deserializer = {
-        ._target_tree = msg->header,
-        ._buffer      = buffer,
-        ._buffer_size = MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40,
-        ._bytes_read  = 0,
-        ._error       = 0};
+    np_deserialize_buffer_t header_deserializer = {._target_tree = msg->header,
+                                                   ._buffer      = buffer,
+                                                   ._buffer_size =
+                                                       msg_chunk_size,
+                                                   ._bytes_read = 0,
+                                                   ._error      = 0};
     np_serializer_read_map(context, &header_deserializer, msg->header);
 
     if (header_deserializer._error == 0) {
@@ -533,9 +549,11 @@ bool _np_message_deserialize_header_and_instructions(np_message_t *msg,
 
       // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "deserializing msg
       // instructions");
+      size_t remaining_bytes = msg_chunk_size - header_deserializer._bytes_read;
       np_deserialize_buffer_t instruction_deserializer = {
           ._target_tree = msg->instructions,
           ._buffer      = &buffer[header_deserializer._bytes_read],
+          ._buffer_size = remaining_bytes,
           ._bytes_read  = 0,
           ._error       = 0,
       };
@@ -549,7 +567,7 @@ bool _np_message_deserialize_header_and_instructions(np_message_t *msg,
         // TODO: check if the complete buffer was read (byte count match)
         np_tree_elem_t *_parts =
             np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS);
-        if (NULL != np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS)) {
+        if (NULL != _parts) {
           msg->no_of_chunks = _parts->val.value.a2_ui[0];
           msg->no_of_chunk  = _parts->val.value.a2_ui[1];
         } else {
@@ -672,9 +690,11 @@ bool _np_message_deserialize_chunked(np_message_t *msg) {
           return (false);
         }
       }
-      uint16_t size_body_add = MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 -
-                               msg->header->byte_size -
-                               msg->instructions->byte_size;
+      size_t header_size = np_tree_get_byte_size(msg->header);
+      // np_serializer_add_map_bytesize(msg->header, &header_size);
+      size_t instructions_size = np_tree_get_byte_size(msg->instructions);
+      // np_serializer_add_map_bytesize(msg->instructions, &instructions_size);
+      uint16_t size_body_add = msg_chunk_size - header_size - instructions_size;
 
       log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
                     "(msg:%s) adding body part size %u",
@@ -682,10 +702,10 @@ bool _np_message_deserialize_chunked(np_message_t *msg) {
                     size_body_add);
 
       msg->bin_body = realloc(msg->bin_body, size_body + size_body_add);
-      uint16_t start_pos_in_msg_part =
-          MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40 - size_body_add;
+      // uint16_t start_pos_in_msg_part = MSG_CHUNK_SIZE_1024 -
+      // MSG_ENCRYPTION_BYTES_40 - size_body_add;
       memcpy(msg->bin_body + size_body,
-             current_chunk->msg_part + start_pos_in_msg_part,
+             current_chunk->msg_part + header_size + instructions_size,
              size_body_add);
 
       size_body += size_body_add;
@@ -753,7 +773,7 @@ bool _np_message_deserialize_chunked(np_message_t *msg) {
               MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 + MSG_PAYLOADBIN_SIZE +
               msg->header->byte_size + msg->instructions->byte_size;
       uint16_t payload_size = msg->properties->byte_size
-              + msg->body->byte_size + msg->footer->byte_size;
+              + bin_body_size + footer;
 
       log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "msg (%s) Size of msg
   %"PRIu16" bytes. Size of fixed_size %"PRIu16" bytes. Nr of chunks  %"PRIu16"
@@ -900,20 +920,6 @@ void _np_message_encrypt_payload(np_message_t *msg,
   // now encrypt the encryption key using public key crypto stuff
   // unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
   unsigned char ciphertext[crypto_box_MACBYTES + crypto_secretbox_KEYBYTES];
-
-  // convert our own sign key to an encryption key
-  // crypto += crypto_sign_ed25519_sk_to_curve25519(curve25519_sk,
-  //                                                context->my_identity->aaa_token->crypto.ed25519_secret_key);
-  // convert our partner key to an encryption key
-  // unsigned char partner_key[crypto_scalarmult_curve25519_BYTES];
-  // crypto += crypto_sign_ed25519_pk_to_curve25519(partner_key,
-  // tmp_token->crypto.ed25519_public_key);
-
-  /*
-      log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "ciphertext: %s", ciphertext);
-      log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "nonce:      %s", nonce);
-      log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "sym_key:    %s", sym_key);
-  */
 
   np_tree_t *encryption_details = np_tree_create();
 

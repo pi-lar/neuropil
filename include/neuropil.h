@@ -142,10 +142,10 @@ enum np_return np_generate_subject(np_subject(*subject_id),
                                    const char *subject,
                                    size_t      length);
 
-enum np_return np_regenerate_subject(np_context *ac,
-                                     const char *subject_buffer,
-                                     size_t      buffer_length,
-                                     np_subject *subject);
+enum np_return np_regenerate_subject(np_context      *ac,
+                                     char            *subject_buffer,
+                                     size_t           buffer_length,
+                                     const np_subject subject);
 
 struct np_log_entry {
   char  *string;

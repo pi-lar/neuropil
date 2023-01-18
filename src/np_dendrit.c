@@ -596,7 +596,11 @@ bool _np_in_available_sender(np_state_t *context, np_util_event_t msg_event) {
 
   // extract e2e encryption details for sender
   np_message_intent_public_token_t *msg_token = NULL;
-  msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
+  np_tree_elem_t                   *intent_token_ele =
+      np_tree_find_str(available_msg_in->body, _NP_URN_INTENT_PREFIX);
+
+  msg_token = np_token_factory_read_from_tree(context,
+                                              intent_token_ele->val.value.tree);
   if (msg_token) {
     // TODO: cross check with message header subject field: dhkey has to match
     // the subject in the token
@@ -633,7 +637,10 @@ bool _np_in_available_receiver(np_state_t *context, np_util_event_t msg_event) {
 
   // extract e2e encryption details for sender
   np_message_intent_public_token_t *msg_token = NULL;
-  msg_token = np_token_factory_read_from_tree(context, available_msg_in->body);
+  np_tree_elem_t                   *intent_token_ele =
+      np_tree_find_str(available_msg_in->body, _NP_URN_INTENT_PREFIX);
+  msg_token = np_token_factory_read_from_tree(context,
+                                              intent_token_ele->val.value.tree);
   if (msg_token) {
     // TODO: cross check with message header subject field: dhkey has to match
     // the subject in the token
@@ -817,7 +824,10 @@ bool _np_in_handshake(np_state_t *context, np_util_event_t msg_event) {
   np_key_t             *hs_wildcard_key = NULL;
   np_key_t             *hs_alias_key    = NULL;
 
-  handshake_token = np_token_factory_read_from_tree(context, msg->body);
+  np_tree_elem_t *hs_token_ele =
+      np_tree_find_str(msg->body, _NP_URN_HANDSHAKE_PREFIX);
+  handshake_token =
+      np_token_factory_read_from_tree(context, hs_token_ele->val.value.tree);
 
   if (handshake_token == NULL ||
       !_np_aaatoken_is_valid(context,
