@@ -39,13 +39,16 @@ struct np_skiplist_s {
   np_skiplist_node_t     root; // the real node list
   compare_skiplist_item  compare_func;
   select_skiplist_height pick_height_func;
-  uint32_t               _num_elements;
+  size_t                 _num_elements;
 };
 typedef struct np_skiplist_s np_skiplist_t;
 
 NP_API_EXPORT
 void np_skiplist_init(np_skiplist_t        *skiplist,
                       compare_skiplist_item compare_func);
+NP_API_EXPORT
+size_t np_skiplist_size(np_skiplist_t *skiplist);
+
 NP_API_EXPORT
 void np_skiplist_destroy(np_skiplist_t *skiplist);
 

@@ -516,6 +516,51 @@ enum np_return np_token_fingerprint(np_context     *ac,
   return ret;
 }
 
+enum np_return np_use_token(np_context *ac, struct np_token token) {
+  np_ctx_cast(ac);
+
+  // TSP_GET(enum np_status, context->status, state);
+  // if (state != np_running) return np_invalid_operation;
+
+  log_debug_msg(LOG_AAATOKEN, "importing ident token %s", token.uuid);
+  np_aaatoken_t *imported_token = NULL;
+  np_new_obj(np_aaatoken_t, imported_token, FUNC);
+
+  np_user4aaatoken(imported_token, &token);
+  if (!_np_aaatoken_is_valid(context, imported_token, imported_token->type))
+    return np_invalid_argument;
+
+  // the user told us to import the token, meaning it is
+  // pre-authenticated pre-authorized by the user
+  imported_token->state = AAA_AUTHENTICATED | AAA_AUTHORIZED;
+
+  np_dhkey_t search_key = {0};
+  if (imported_token->type == np_aaatoken_type_identity ||
+      imported_token->type == np_aaatoken_type_node)
+    search_key = np_aaatoken_get_fingerprint(imported_token, false);
+  else if (imported_token->type == np_aaatoken_type_message_intent)
+    np_str_id((np_id *)&search_key, imported_token->subject);
+  else if (imported_token->type == np_aaatoken_type_accounting) {
+    // TODO: noop as of now
+    np_str_id((np_id *)&search_key, imported_token->subject);
+  } else {
+    return np_invalid_argument;
+  }
+
+  // here for the side effect: creating an entity in our internal table
+  np_key_t *my_identity_key = _np_keycache_find_or_create(context, search_key);
+  np_util_event_t ev        = {.type         = (evt_internal | evt_token),
+                               .user_data    = imported_token,
+                               .target_dhkey = search_key};
+  _np_event_runtime_start_with_event(context, search_key, ev);
+
+  log_msg(LOG_INFO,
+          "neuropil successfully inported token of type %d with id %s",
+          imported_token->type,
+          my_identity_key);
+  return np_ok;
+}
+
 enum np_return np_use_identity(np_context *ac, struct np_token identity) {
   np_ctx_cast(ac);
 

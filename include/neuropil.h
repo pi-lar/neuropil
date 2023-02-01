@@ -210,6 +210,9 @@ NP_API_EXPORT
 enum np_return np_use_identity(np_context *ac, struct np_token identity);
 
 NP_API_EXPORT
+enum np_return np_use_token(np_context *ac, struct np_token token);
+
+NP_API_EXPORT
 enum np_return
 np_sign_identity(np_context *ac, struct np_token *identity, bool self_sign);
 
@@ -468,6 +471,30 @@ identity)
 insecure key. :c:data:`np_invalid_operation`   The application is in use (can
 not change the identity at run-time.)
    ===============================  ===========================================
+
+
+.. c:function:: struct np_token *np_use_identity(np_context* ac, struct np_token
+identity)
+
+   imports an identity into the running process and uses it as it's own identity
+
+   :param ac:         a neuropil application context.
+   :param identity: a valid token structure which should be used as the
+identity. The secret key must be present, otherwise the operation has no effect
+
+
+.. c:function:: struct np_token *np_use_token(np_context* ac, struct np_token
+token)
+
+   imports an token into the running process and uses it. The imported token can
+be a node, an different identity, a message intent token or an accounting token.
+The library with set the status of the token to AUTHENTICATED and AUTHORIZED, as
+the user requested to import the token
+
+   :param ac:         a neuropil application context.
+   :param identity: a valid token structure which should be used as the
+identity. The secret key must not be present. If the token is not valid (i.e.
+expired, signature broken), then it will be rejected
 
 
 Starting up

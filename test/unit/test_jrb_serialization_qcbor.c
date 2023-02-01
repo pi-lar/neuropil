@@ -8,6 +8,8 @@
 #include "qcbor/qcbor_decode.h"
 #include "qcbor/qcbor_encode.h"
 
+#include "neuropil_attributes.h"
+
 TestSuite(test_serialization_qcbor);
 
 Test(test_serialization_qcbor,
@@ -72,7 +74,6 @@ Test(test_serialization_qcbor,
 
     //    QCBORDecode_VGetNext(&qcbor_ctx_read, &item);
     np_treeval_t read_tst = {.type = np_treeval_type_undefined, .size = 0};
-    //
     //    cr_expect(qcbor_ctx_read.uLastError == 0, "Expected no error on object
     //    read. But is: %"PRIu8, qcbor_ctx_read.uLastError);
     //    cr_expect(item.uDataType == QCBOR_TYPE_ARRAY, "Expected obj to be of
@@ -142,8 +143,8 @@ Test(test_serialization_qcbor,
 }
 
 Test(test_serialization_qcbor,
-     serialize_qcbor_np_aaatoken_t,
-     .description = "test the serialization of a aaatoken") {
+     serialize_qcbor_np_token,
+     .description = "test the serialization of a np_token") {
   CTX() {
 
     bool            ret = true;
@@ -151,16 +152,37 @@ Test(test_serialization_qcbor,
     struct np_token node_token    = {0};
     np_aaatoken_t  *node_aaatoken = _np_key_get_token(context->my_node_key);
     np_aaatoken4user(&node_token, node_aaatoken);
-    ret = np_serializer_write_nptoken(&node_token, buffer, 10240);
+    np_set_ident_attr_bin(context,
+                          &node_token,
+                          NP_ATTR_INTENT_AND_IDENTITY,
+                          "test",
+                          "test",
+                          4);
+
+    size_t max_buffer_size = 10240;
+    ret = np_serializer_write_nptoken(&node_token, buffer, &max_buffer_size);
     cr_expect(ret == true, "expect the result of the serialization to be true");
 
     memset(&node_token, 0, sizeof(struct np_token));
-    ret = np_serializer_read_nptoken(buffer, 10240, &node_token);
+    ret = np_serializer_read_nptoken(buffer, &max_buffer_size, &node_token);
+
+    struct np_data_conf  conf     = {0};
+    struct np_data_conf *conf_ptr = &conf;
+    char                *test;
+    np_get_token_attr_bin(&node_token, "test", &conf_ptr, &test);
+
+    cr_expect(strncmp(test, "test", 4) == 0,
+              "expect the attribute value to be the same");
 
     np_aaatoken_t *read_token = NULL;
     np_new_obj(np_aaatoken_t, read_token);
     np_user4aaatoken(read_token, &node_token);
 
+    cr_expect(strncmp(node_aaatoken->subject, read_token->subject, 255) == 0,
+              "expect the subject to match");
+    cr_expect(strncmp(node_aaatoken->uuid, read_token->uuid, NP_UUID_BYTES) ==
+                  0,
+              "expect the uuid to match");
     cr_expect(ret == true, "expect the result of the serialization to be true");
   }
 }
@@ -218,23 +240,40 @@ Test(test_serialization_qcbor,
                                      // handshake message
         is_header_deserialization_successful &= true;
       }
+      cr_expect(is_header_deserialization_successful == true,
+                "expect the header serialization to be succesful");
 
-      if (is_header_deserialization_successful) {
-        log_debug(LOG_SERIALIZATION | LOG_MESSAGE,
-                  "deserialized message header %s",
-                  msg_in->uuid);
+      log_debug(LOG_SERIALIZATION | LOG_MESSAGE,
+                "deserialized message header %s",
+                msg_in->uuid);
+      log_debug(LOG_ROUTING, "(msg: %s) received msg", msg_in->uuid);
 
-        log_debug(LOG_ROUTING, "(msg: %s) received msg", msg_in->uuid);
-        is_deserialization_successful = _np_message_deserialize_chunked(msg_in);
-        CHECK_STR_FIELD_BOOL(
-            msg_in->body,
-            _NP_URN_HANDSHAKE_PREFIX,
-            msg_subject_elem,
-            "NO HANDSHAKE IN MESSAGE") { // check if the message is really a
-                                         // handshake message
-          is_header_deserialization_successful &= true;
-        }
+      is_deserialization_successful = _np_message_deserialize_chunked(msg_in);
+      CHECK_STR_FIELD_BOOL(
+          msg_in->body,
+          _NP_URN_HANDSHAKE_PREFIX,
+          msg_handshake_elem,
+          "NO HANDSHAKE IN MESSAGE") { // check if the message is really a
+                                       // handshake message
+        is_header_deserialization_successful &= true;
       }
+      cr_expect(is_header_deserialization_successful == true,
+                "expect the chunked header serialization to be succesful");
+
+      np_tree_t *hs_token =
+          np_tree_find_str(msg_in->body, _NP_URN_HANDSHAKE_PREFIX)
+              ->val.value.tree;
+
+      np_aaatoken_t *read_token = NULL;
+      np_new_obj(np_aaatoken_t, read_token);
+
+      np_aaatoken_decode(hs_token, read_token);
+
+      struct np_data_conf conf        = {0};
+      np_data_value       val_hs_prio = {0};
+      cr_expect(
+          np_data_ok ==
+          np_get_data(read_token->attributes, NP_HS_PRIO, &conf, &val_hs_prio));
     }
   }
 }

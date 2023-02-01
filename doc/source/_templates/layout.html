@@ -2,7 +2,7 @@
 
 {%- block sidebarlogo %}
 <p>
-     <a href="http://www.neuropil.org/">&laquo; back to www.neuropil.org</a>
+  <a href="http://www.neuropil.org/">&laquo; back to www.neuropil.org</a>
 </p>
 {{ super() }}
 {%- endblock %}
@@ -10,19 +10,21 @@
 {% block footer %}
 <div class="footer" role="contentinfo">
   {%- if show_copyright %}
-    {%- if hasdoc('copyright') %}
-      {% trans path=pathto('copyright'), copyright=copyright|e %}&#169; <a href="{{ path }}">Copyright</a> {{ copyright }}.{% endtrans %} |
-    {%- else %}
-      {% trans copyright=copyright|e %}&#169; Copyright {{ copyright }}.{% endtrans %} |
-    {%- endif %}
+  {%- if hasdoc('copyright') %}
+  {% trans path=pathto('copyright'), copyright=copyright|e %}&#169; <a href="{{ path }}">Copyright</a> {{ copyright
+  }}.{% endtrans %} |
+  {%- else %}
+  {% trans copyright=copyright|e %}&#169; Copyright {{ copyright }}.{% endtrans %} |
+  {%- endif %}
   {%- endif %}
   {%- if last_updated %}
-     {% trans last_updated=last_updated|e %}Last updated on {{ last_updated }}.{% endtrans %} |
+  {% trans last_updated=last_updated|e %}Last updated on {{ last_updated }}.{% endtrans %} |
   {%- endif %}
   <a href="http://www.neuropil.org#imprint">Imprint</a> |
   <a href="http://www.neuropil.org#privacy">Data Protection</a>
   {%- if show_sphinx %}
-    | {% trans sphinx_version=sphinx_version|e %}Created using <a href="http://sphinx-doc.org/">Sphinx</a> {{ sphinx_version }}.{% endtrans %}
+  | {% trans sphinx_version=sphinx_version|e %}Created using <a href="http://sphinx-doc.org/">Sphinx</a> {{
+  sphinx_version }}.{% endtrans %}
   {%- endif %}
 </div>
 {% endblock %}

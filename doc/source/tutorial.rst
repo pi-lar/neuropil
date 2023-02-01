@@ -57,6 +57,26 @@ messages on a subject.
 Using identities
 ===============================================================================
 
+This example shows you how you can store/load digital identities to/from a keystore.
+
+.. NOTE::
+   The source code of this example is available in examples/neuropil_identity.c
+
+.. NOTE::
+   You can modify this example program and (re)build it with
+   ``scons bin/neuropil_identity``
+
+.. NOTE::
+   You can run this example like this:
+   ``LD_LIBRARY_PATH=build/lib:$LD_LIBRARY_PATH bin/neuropil_identity``.
+   It will create and print events to a log file in the current directory.
+
+.. include-comment:: ../../examples/neuropil_identity.c
+
+
+Using identities (load balancing)
+===============================================================================
+
 This example shows you how you can use digital identities to achieve load balancing between two nodes.
 
 .. NOTE::

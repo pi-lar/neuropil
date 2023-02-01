@@ -82,8 +82,9 @@ enum np_aaatoken_type {
   np_aaatoken_type_undefined      = 0x00,
   np_aaatoken_type_identity       = 0x01,
   np_aaatoken_type_node           = 0x02,
-  np_aaatoken_type_message_intent = 0x04,
-  np_aaatoken_type_handshake      = 0x08,
+  np_aaatoken_type_handshake      = 0x04,
+  np_aaatoken_type_message_intent = 0x10,
+  np_aaatoken_type_accounting     = 0x20,
 };
 
 enum np_aaatoken_scope {

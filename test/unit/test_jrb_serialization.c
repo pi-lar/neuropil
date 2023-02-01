@@ -11,6 +11,7 @@
 
 #include "../test_macros.c"
 #include "event/ev.h"
+#include "sodium.h"
 
 #include "neuropil_log.h"
 
@@ -479,5 +480,99 @@ Test(test_serialization,
             "out jrb has size: %d %d",
             out_jrb->size,
             out_jrb->byte_size);
+  }
+}
+
+Test(test_serialization,
+     np_token_serialization,
+     .description = "test the serialization of a np_token") {}
+
+Test(test_serialization,
+     np_ed25519_serialization,
+     .description =
+         "test the serialization of a ed25519 public/private key pair") {
+  CTX() {
+    char            null_block[NP_SECRET_KEY_BYTES] = {0};
+    struct np_token identity_token                  = {0};
+    np_id           fingerprint                     = {0};
+
+    double expiry_ts = np_time_now() + 3600;
+    identity_token   = np_new_identity(context, expiry_ts, NULL);
+
+    cr_expect(0 != memcmp(&identity_token.secret_key,
+                          &null_block,
+                          NP_SECRET_KEY_BYTES),
+              "expect the secret key to contain a value");
+    cr_expect(
+        np_ok ==
+            np_token_fingerprint(context, identity_token, false, &fingerprint),
+        "expect the creation of the fingerprint to be successful");
+
+    size_t max_buffer_size = 10240;
+    char   buffer[max_buffer_size];
+    cr_expect(true == np_serializer_write_ed25519(&identity_token.secret_key,
+                                                  &identity_token.public_key,
+                                                  true,
+                                                  &fingerprint,
+                                                  &buffer,
+                                                  &max_buffer_size),
+              "expect the serialization to be successful");
+
+    struct np_token copy_of_id = {0};
+    np_id           copy_of_fp = {0};
+    cr_expect(true == np_serializer_read_ed25519(&buffer,
+                                                 &max_buffer_size,
+                                                 &copy_of_fp,
+                                                 &copy_of_id.secret_key,
+                                                 &copy_of_id.public_key),
+              "expect the serialization to be successful");
+
+    cr_expect(0 == memcmp(&fingerprint, &copy_of_fp, NP_FINGERPRINT_BYTES),
+              "expect the secret keys to match");
+    cr_expect(0 == memcmp(copy_of_id.secret_key,
+                          identity_token.secret_key,
+                          NP_SECRET_KEY_BYTES),
+              "expect the secret keys to match");
+    cr_expect(0 == memcmp(&copy_of_id.public_key,
+                          &identity_token.public_key,
+                          NP_PUBLIC_KEY_BYTES),
+              "expect the secret keys to match");
+  }
+}
+
+Test(neuropil_h,
+     np_encrypted_container_serialization,
+     .description = "test the serialization of a np_token") {
+  CTX() {
+    size_t buffer_size = 240;
+    char   buffer[buffer_size];
+
+    char nonce[crypto_box_NONCEBYTES] = {0};
+    randombytes_buf(nonce, crypto_box_NONCEBYTES);
+
+    char message[] = "exampleencryptedttextwithhiddenmessage.gofindit,youfool!";
+    size_t message_len = sizeof(message);
+
+    cr_expect(true == np_serializer_write_encrypted(buffer,
+                                                    &buffer_size,
+                                                    nonce,
+                                                    message,
+                                                    message_len),
+              "expect the encrypted writing to be succesfull");
+
+    char new_nonce[crypto_box_NONCEBYTES] = {0};
+    char new_message[message_len];
+    memset(new_message, 0, message_len);
+
+    cr_expect(true == np_serializer_read_encrypted(buffer,
+                                                   &buffer_size,
+                                                   new_nonce,
+                                                   new_message,
+                                                   &message_len),
+              "expect the encrypted writing to be succesfull");
+    cr_expect(0 == memcmp(nonce, new_nonce, crypto_box_NONCEBYTES),
+              "expect the nonce to be the same");
+    cr_expect(0 == memcmp(message, new_message, message_len),
+              "expect the messages to be the same");
   }
 }

@@ -65,6 +65,10 @@ void np_skiplist_init(np_skiplist_t        *skiplist,
   // skiplist->root._spinlock = malloc(sizeof(np_spinlock_t));
 }
 
+size_t np_skiplist_size(np_skiplist_t *skiplist) {
+  return skiplist->_num_elements;
+}
+
 void np_skiplist_destroy(np_skiplist_t *skiplist) {
   np_skiplist_node_t *u   = &skiplist->root;
   np_skiplist_node_t *tmp = NULL;
@@ -76,9 +80,9 @@ void np_skiplist_destroy(np_skiplist_t *skiplist) {
     u   = u->_nodes[0];
 
     if (false == tmp->sentinel) {
+      skiplist->_num_elements--;
       free(tmp->_nodes);
       free(tmp);
-      skiplist->_num_elements--;
     }
   }
 
@@ -238,7 +242,7 @@ void np_skiplist_map(const np_skiplist_t *skiplist, np_map_reduce_t *mr) {
   int8_t comp = 0;
   while (r > 0) {
     while (NULL != u->_nodes && NULL != u->_nodes[r - 1] &&
-           0 > (comp = mr->cmp(mr, u->_nodes[r - 1]->item))) {
+           0 > mr->cmp(mr, u->_nodes[r - 1]->item)) {
       u = u->_nodes[r - 1];
     }
     // shortcut if the pointer to the next element is the same as in the level
@@ -249,11 +253,11 @@ void np_skiplist_map(const np_skiplist_t *skiplist, np_map_reduce_t *mr) {
   }
 
   bool _continue = mr->map(mr, u->item);
-  do {
+  while (_continue && NULL != u && NULL != u->_nodes) {
     if (u->_nodes[0] == NULL || u->_nodes[0]->item == NULL) _continue = false;
     else _continue = mr->map(mr, u->_nodes[0]->item);
     u = u->_nodes[0];
-  } while (_continue && NULL != u && NULL != u->_nodes);
+  }
 }
 
 void np_skiplist_reduce(np_map_reduce_t *mr) {

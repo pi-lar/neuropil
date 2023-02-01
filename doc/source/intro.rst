@@ -51,7 +51,7 @@ Features
 * type-safe recursive tree structure for (de-)serializing message
 * pre-defined message exchange pattern that ease development
 * C99 compliant and able to run from embedded devices to enterprise applications
-* only one dependency to the external encryption library (libsodium)
+* core library has only one dependency to the external encryption library (libsodium)
 * pull based message exchange to prevent overload and to enable lean management for it services
 * event / task driven architecture (coroutine inspired) which executes small pieces of code asynchronously
 
@@ -64,6 +64,8 @@ Roadmap
 ===============================================================================
 
 * implement realm concept
+* add zero knowledge proof based on ristretto255
+* re-work acknowledge handling to use skiplist and partial acknowledgment
 * finalize message exchange pattern definitions (missing: one-to-subgroup only)
 * implement back-pressure routing algorithm
 * implement windowing to transmit several messages in one data paket
@@ -71,7 +73,6 @@ Roadmap
 * allow more than one identity on top of a node
 * allow more configuration options
 * add relaying example node
-* identity import/export from NPKS (neuropil key store)
 * define message callbacks in case of undelivered messages
 * hook in a javascript bindings for message callback handling
 * finalize token / message structure
@@ -82,9 +83,12 @@ Roadmap
 Achieved goals
 ===============================================================================
 
-* NGI ZeroDiscovery: a privacy preserving search index
 * pubsub group encryption is working
-* scale-up test to thousands of nodes
 * distinguish between virtual, private, protected and public mx properties
 * there is an existing Lua and Python binding
 * Token and message structure has been defined
+* NGI ZeroDiscovery: a privacy preserving search index
+* NGI ZeroDiscovery: ARA based discovery of data channels
+* Fed4Fire: scale-up test to thousands of nodes
+* NGI Assure: CWT / COSE for serializing np_token
+* NGI Assure: identity import/export from NPKS (neuropil key store)

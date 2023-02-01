@@ -1,22 +1,30 @@
-
 @import url("alabaster.css");
 
 body {
-	background-image: url(./neuropil_Netzwerk.png);
-	background-repeat: no-repeat;
-	background-position: 0px 150px;
+    background-image: url(./neuropil_Netzwerk.png);
+    background-repeat: no-repeat;
+    background-position: 0px 150px;
     background-attachment: fixed;
     background-size: 1940px;
 }
 
 div.bodywrapper {
     background-color: #ffffff;
-	top: 10px;
+    top: 10px;
 }
 
 div.sphinxsidebar {
-    background-color: #ffffff;
-	top: 10px;
+    background-color: #bbb;
+    color: #000;
+    top: 10px;
+}
+
+div.sphinxsidebar p,
+div.sphinxsidebar a,
+div.sphinxsidebar h3,
+div.sphinxsidebar ul {
+    color: #000;
+    top: 10px;
 }
 
 div.footer {

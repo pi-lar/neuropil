@@ -270,11 +270,13 @@ enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src) {
   if (src != NULL) {
     np_datablock_header_t db_header = {._inner_blob = src};
     ret = np_serializer_read_datablock_header(&db_header, NP_DATA_MAGIC_NO);
-
+    unsigned char *max_buffer_end =
+        db_header._inner_blob + db_header.used_length;
     if (ret == np_data_ok) {
       uint16_t       objects_read = 0;
       np_kv_buffer_t kv_pair      = {.buffer_start =
-                                         np_skip_datablock_header(&db_header)};
+                                         np_skip_datablock_header(&db_header),
+                                     .buffer_end = max_buffer_end};
       while (objects_read < db_header.object_count) {
         if (np_data_ok == np_serializer_read_object(&kv_pair)) {
 
@@ -288,6 +290,7 @@ enum np_data_return np_merge_data(np_datablock_t *dest, np_datablock_t *src) {
 
           objects_read++;
           kv_pair.buffer_start = kv_pair.buffer_end;
+          kv_pair.buffer_end   = max_buffer_end;
         } else {
           ret = np_invalid_structure;
           break;

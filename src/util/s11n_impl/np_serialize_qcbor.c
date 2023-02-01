@@ -1,3 +1,7 @@
+//
+// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+// SPDX-License-Identifier: OSL-3.0
+//
 
 #include "qcbor/qcbor.h"
 #include "qcbor/qcbor_decode.h"
@@ -1109,28 +1113,29 @@ enum np_data_return np_serializer_calculate_object_size(np_kv_buffer_t kv_pair,
     | iat  | 6   | integer or floating-point number |
     | cti  | 7   | byte string                      |
     +------+-----+----------------------------------+
-
 */
 
 bool np_serializer_write_nptoken(const struct np_token *token,
                                  void                  *buffer,
-                                 size_t                 buffer_max_length) {
+                                 size_t                *buffer_length) {
   log_trace_msg(LOG_TRACE | LOG_AAATOKEN,
                 "start: void np_serializer_write_nptoken(np_tree_t* data, "
                 "np_aaatoken_t* token){");
 
+  size_t used_bytes = 0;
   // np_state_t* context = np_ctx_by_memory(token);
   // if(trace) _np_aaatoken_trace_info("encode", token);
   // included into np_token_handshake
-  struct q_useful_buf cose_sign_buffer = {.ptr = buffer,
-                                          .len = buffer_max_length};
+  struct q_useful_buf cose_sign_buffer = {.ptr = buffer, .len = *buffer_length};
   QCBOREncodeContext  encoder          = {0};
   QCBOREncode_Init(&encoder, cose_sign_buffer);
 
   QCBOREncode_AddTag(&encoder, CBOR_TAG_COSE_SIGN);
   QCBOREncode_OpenMap(&encoder);
 
-  if (memcmp(&token->issuer, "\0", NP_FINGERPRINT_BYTES) != 0)
+  char null_block[NP_FINGERPRINT_BYTES] = {0};
+
+  if (memcmp(token->issuer, null_block, NP_FINGERPRINT_BYTES) != 0)
     QCBOREncode_AddBytesToMapN(
         &encoder,
         1,
@@ -1141,7 +1146,8 @@ bool np_serializer_write_nptoken(const struct np_token *token,
       2,
       (struct q_useful_buf_c){.ptr = token->subject,
                               .len = strnlen(token->subject, 255)});
-  if (memcmp(&token->audience, "\0", NP_FINGERPRINT_BYTES) != 0)
+
+  if (memcmp(token->audience, null_block, NP_FINGERPRINT_BYTES) != 0)
     QCBOREncode_AddBytesToMapN(
         &encoder,
         3,
@@ -1161,7 +1167,7 @@ bool np_serializer_write_nptoken(const struct np_token *token,
   np_get_data_size(token->attributes, &attributes_size);
 
   // QCBOREncode_AddUInt64ToMap(&encoder, "np:type", token->type);
-  if (memcmp(token->realm, "\0", NP_FINGERPRINT_BYTES) != 0)
+  if (memcmp(token->realm, null_block, NP_FINGERPRINT_BYTES) != 0)
     QCBOREncode_AddBytesToMap(
         &encoder,
         "np:realm",
@@ -1186,9 +1192,11 @@ bool np_serializer_write_nptoken(const struct np_token *token,
     // we need extra bytes in the buffer for the signatures at this point
     return false;
 
+  used_bytes += cbor_token.len;
+
   struct q_useful_buf cose_signature_buffer = {
       .ptr = buffer + cbor_token.len,
-      .len = (buffer_max_length - cbor_token.len)};
+      .len = (*buffer_length - cbor_token.len)};
 
   // QCBOREncodeContext encoder = {0};
   QCBOREncode_Init(&encoder, cose_signature_buffer);
@@ -1209,21 +1217,24 @@ bool np_serializer_write_nptoken(const struct np_token *token,
   QCBOREncode_CloseMap(&encoder);
   QCBOREncode_Finish(&encoder, &cbor_token);
   if (encoder.uError == QCBOR_ERR_EXTRA_BYTES ||
-      encoder.uError == QCBOR_SUCCESS)
+      encoder.uError == QCBOR_SUCCESS) {
+    used_bytes += cbor_token.len;
+    *buffer_length = used_bytes;
     return true;
-
+  }
   return false;
 }
 
 bool np_serializer_read_nptoken(const void      *buffer,
-                                const size_t     buffer_length,
+                                size_t          *buffer_length,
                                 struct np_token *token) {
   assert(NULL != buffer);
   assert(NULL != token);
-  //  np_ctx_memory(token);
+
+  size_t read_bytes = 0;
 
   uint8_t               qcbor_error = QCBOR_SUCCESS;
-  struct q_useful_buf_c cbor_decode = {.ptr = buffer, .len = buffer_length};
+  struct q_useful_buf_c cbor_decode = {.ptr = buffer, .len = *buffer_length};
 
   QCBORDecodeContext decoder = {};
   QCBORDecode_Init(&decoder, cbor_decode, QCBOR_DECODE_MODE_NORMAL);
@@ -1245,14 +1256,14 @@ bool np_serializer_read_nptoken(const void      *buffer,
   } else {
     if (qcbor_error == QCBOR_SUCCESS ||
         item.uDataType == QCBOR_TYPE_BYTE_STRING)
-      memcpy(token->issuer, token_element.ptr, NP_FINGERPRINT_BYTES);
+      memmove(token->issuer, token_element.ptr, NP_FINGERPRINT_BYTES);
   }
 
   QCBORDecode_GetTextStringInMapN(&decoder, 2, &token_element);
   if (decoder.uLastError != QCBOR_SUCCESS) {
     return false;
   }
-  memcpy(token->subject, token_element.ptr, MIN(token_element.len, 255));
+  memmove(token->subject, token_element.ptr, MIN(token_element.len, 255));
 
   QCBORDecode_GetByteStringInMapN(&decoder, 3, &token_element);
   qcbor_error = QCBORDecode_GetAndResetError(&decoder);
@@ -1261,12 +1272,15 @@ bool np_serializer_read_nptoken(const void      *buffer,
   } else {
     if (qcbor_error == QCBOR_SUCCESS ||
         item.uDataType == QCBOR_TYPE_BYTE_STRING)
-      memcpy(token->audience, token_element.ptr, NP_FINGERPRINT_BYTES);
+      memmove(token->audience, token_element.ptr, NP_FINGERPRINT_BYTES);
   }
-
-  QCBORDecode_GetDoubleInMapN(&decoder, 4, &token->expires_at);
-  QCBORDecode_GetDoubleInMapN(&decoder, 5, &token->not_before);
-  QCBORDecode_GetDoubleInMapN(&decoder, 6, &token->issued_at);
+  double temp_value = 0.0;
+  QCBORDecode_GetDoubleInMapN(&decoder, 4, &temp_value);
+  if (decoder.uLastError == QCBOR_SUCCESS) token->expires_at = temp_value;
+  QCBORDecode_GetDoubleInMapN(&decoder, 5, &temp_value);
+  if (decoder.uLastError == QCBOR_SUCCESS) token->not_before = temp_value;
+  QCBORDecode_GetDoubleInMapN(&decoder, 6, &temp_value);
+  if (decoder.uLastError == QCBOR_SUCCESS) token->issued_at = temp_value;
 
   QCBORDecode_GetTextStringInMapN(&decoder, 7, &token_element);
   if (decoder.uLastError != QCBOR_SUCCESS) {
@@ -1283,14 +1297,14 @@ bool np_serializer_read_nptoken(const void      *buffer,
   } else {
     if (qcbor_error == QCBOR_SUCCESS ||
         item.uDataType == QCBOR_TYPE_BYTE_STRING)
-      memcpy(token->realm, token_element.ptr, NP_FINGERPRINT_BYTES);
+      memmove(token->realm, token_element.ptr, NP_FINGERPRINT_BYTES);
   }
 
   QCBORDecode_GetByteStringInMapSZ(&decoder, "np:attr", &token_element);
   if (decoder.uLastError != QCBOR_SUCCESS) {
     return false;
   }
-  memcpy(token->attributes, token_element.ptr, token_element.len);
+  memmove(token->attributes, token_element.ptr, token_element.len);
 
   // TODO: next line actually needs to be in the cbor key format
   QCBORDecode_GetByteStringInMapSZ(&decoder, "np:pk", &token_element);
@@ -1298,7 +1312,7 @@ bool np_serializer_read_nptoken(const void      *buffer,
       token_element.len != NP_PUBLIC_KEY_BYTES) {
     return false;
   }
-  memcpy(token->public_key, token_element.ptr, NP_PUBLIC_KEY_BYTES);
+  memmove(token->public_key, token_element.ptr, NP_PUBLIC_KEY_BYTES);
   // token->crypto.ed25519_public_key_is_set = true;
   // token->private_key_is_set               = false;
 
@@ -1308,9 +1322,9 @@ bool np_serializer_read_nptoken(const void      *buffer,
   if (!(decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
         decoder.uLastError == QCBOR_SUCCESS))
     return false;
-
+  read_bytes += decoder.InBuf.cursor;
   cbor_decode.ptr = buffer + decoder.InBuf.cursor;
-  cbor_decode.len = buffer_length - decoder.InBuf.cursor;
+  cbor_decode.len = *buffer_length - decoder.InBuf.cursor;
 
   QCBORDecode_Init(&decoder, cbor_decode, QCBOR_DECODE_MODE_NORMAL);
   QCBORDecode_EnterMap(&decoder, &item);
@@ -1337,6 +1351,272 @@ bool np_serializer_read_nptoken(const void      *buffer,
   if (decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
       decoder.uLastError == QCBOR_SUCCESS)
     return true;
-
+  read_bytes += decoder.InBuf.cursor;
+  *buffer_length = read_bytes;
   return false;
+}
+
+/*
+COSE_Key = {
+    1 => tstr / int,          ; kty - identification of type
+    ? 2 => bstr,              ; kid - identification of key
+    ? 3 => tstr / int,        ; alg - usage restriction
+    ? 4 => [+ (tstr / int) ], ; key_ops - permissible operations
+    ? 5 => bstr,              ; Base IV - initializatioon vector
+    * label => values
+}
+*/
+bool np_serializer_write_ed25519(
+    const unsigned char *sk_value[NP_SECRET_KEY_BYTES],
+    const unsigned char *pk_value[NP_PUBLIC_KEY_BYTES],
+    bool                 include_secret_key,
+    np_id               *identifier,
+    void                *buffer,
+    size_t              *buffer_length) {
+  ASSERT(pk_value != NULL || sk_value != NULL,
+         "need to have at least one type of key material");
+  ASSERT(identifier != NULL, "need to have an identifier for the key");
+
+  struct q_useful_buf cose_sign_buffer = {.ptr = buffer, .len = *buffer_length};
+  QCBOREncodeContext  encoder          = {0};
+  QCBOREncode_Init(&encoder, cose_sign_buffer);
+  QCBOREncode_OpenMap(&encoder);
+
+  // 1 - 1 OKP . Octect Key Pair
+  QCBOREncode_AddInt64ToMapN(&encoder, 1, 1);
+
+  // 2 - np hash value
+  if (!_np_dhkey_equal(identifier, &dhkey_zero)) {
+    QCBOREncode_AddBytesToMapN(
+        &encoder,
+        2,
+        (struct q_useful_buf_c){.ptr = identifier,
+                                .len = NP_FINGERPRINT_BYTES});
+  }
+  // 3 - used algorithm (do not use for now)
+
+  // 4 - [ 1(sign), 2(verify), 7(derive key) ]
+  QCBOREncode_OpenArrayInMapN(&encoder, 4);
+  QCBOREncode_AddUInt64(&encoder, 1); // sign
+  QCBOREncode_AddUInt64(&encoder, 2); // verify
+  QCBOREncode_AddUInt64(&encoder, 7); // derive key
+  QCBOREncode_CloseArray(&encoder);
+
+  // 5 - iv (do not use for now)
+
+  // crv  1 -1  int / tstr 	Ed25519 / OKP / 6 / Ed25519 for use w/ EdDSA
+  // only x 	  1 -2  bstr 	X Coordinate (pk) d 	  1 -4  bstr
+  // Private key (sk)
+  QCBOREncode_AddInt64ToMapN(&encoder, -1, 6);
+  char null_block[NP_SECRET_KEY_BYTES] = {0};
+  if (memcmp(pk_value, &null_block, NP_PUBLIC_KEY_BYTES) != 0)
+    QCBOREncode_AddBytesToMapN(
+        &encoder,
+        -2,
+        (struct q_useful_buf_c){.ptr = pk_value, .len = NP_PUBLIC_KEY_BYTES});
+  if (include_secret_key &&
+      memcmp(sk_value, &null_block, NP_SECRET_KEY_BYTES) != 0)
+    QCBOREncode_AddBytesToMapN(
+        &encoder,
+        -4,
+        (struct q_useful_buf_c){.ptr = sk_value, .len = NP_SECRET_KEY_BYTES});
+
+  QCBOREncode_CloseMap(&encoder);
+
+  struct q_useful_buf_c cbor_token = {0};
+  QCBOREncode_Finish(&encoder, &cbor_token);
+  if (encoder.uError != QCBOR_ERR_EXTRA_BYTES &&
+      encoder.uError != QCBOR_SUCCESS)
+    // we need extra bytes in the buffer for the signatures at this point
+    return false;
+
+  *buffer_length = encoder.OutBuf.data_len;
+
+  return true;
+}
+
+bool np_serializer_read_ed25519(const void    *buffer,
+                                size_t        *buffer_length,
+                                np_id         *identifier,
+                                unsigned char *sk_value[NP_SECRET_KEY_BYTES],
+                                unsigned char *pk_value[NP_PUBLIC_KEY_BYTES]) {
+  assert(NULL != buffer);
+  assert(NULL != sk_value);
+  assert(NULL != pk_value);
+
+  uint8_t               qcbor_error = QCBOR_SUCCESS;
+  struct q_useful_buf_c cbor_decode = {.ptr = buffer, .len = *buffer_length};
+
+  QCBORDecodeContext decoder = {};
+  QCBORDecode_Init(&decoder, cbor_decode, QCBOR_DECODE_MODE_NORMAL);
+  QCBORItem item = {0};
+
+  QCBORDecode_PeekNext(&decoder, &item);
+  if (!(item.uDataType == QCBOR_TYPE_MAP)) {
+    return false;
+  }
+  QCBORDecode_EnterMap(&decoder, &item);
+
+  struct q_useful_buf_c key_element = {0};
+  int64_t               value;
+
+  // 1 - 1 OKP . Octect Key Pair
+
+  QCBORDecode_GetInt64InMapN(&decoder, 1, &value);
+  if (decoder.uLastError != QCBOR_SUCCESS || value != 1) return false;
+
+  // 2 - np hash value
+  QCBORDecode_GetByteStringInMapN(&decoder, 2, &key_element);
+  qcbor_error = QCBORDecode_GetAndResetError(&decoder);
+  if (qcbor_error == QCBOR_ERR_LABEL_NOT_FOUND) {
+    // could be empty, add checks for more errors
+  } else if (qcbor_error == QCBOR_SUCCESS) {
+    memmove(*identifier, key_element.ptr, NP_FINGERPRINT_BYTES);
+  }
+  // 3 - used algorithm (do not use for now)
+
+  // 4 - [ 1(sign), 2(verify), 7(derive key) ]
+  QCBORDecode_EnterArrayFromMapN(&decoder, 4);
+  QCBORDecode_GetInt64(&decoder, &value);
+  if (value != 1) return false;
+  QCBORDecode_GetInt64(&decoder, &value);
+  if (value != 2) return false;
+  QCBORDecode_GetInt64(&decoder, &value);
+  if (value != 7) return false;
+  QCBORDecode_ExitArray(&decoder);
+
+  // 5 - iv (do not use for now)
+
+  // crv  1 -1  int / tstr 	Ed25519 / OKP / 6 / Ed25519 for use w/ EdDSA
+  // x 	  1 -2  bstr 	X Coordinate (pk)
+  // d    1 -4  bstr privatekey (sk)
+  QCBORDecode_GetInt64(&decoder, &value);
+  if (value != 6) return false;
+
+  bool private_or_public_key_set = false;
+  QCBORDecode_GetByteStringInMapN(&decoder, -2, &key_element);
+  qcbor_error = QCBORDecode_GetAndResetError(&decoder);
+  if (qcbor_error == QCBOR_ERR_LABEL_NOT_FOUND) {
+    // empty, add checks for more errors
+  } else {
+    if (qcbor_error == QCBOR_SUCCESS ||
+        item.uDataType == QCBOR_TYPE_BYTE_STRING)
+      memmove(pk_value, key_element.ptr, NP_PUBLIC_KEY_BYTES);
+    private_or_public_key_set = true;
+  }
+
+  QCBORDecode_GetByteStringInMapN(&decoder, -4, &key_element);
+  qcbor_error = QCBORDecode_GetAndResetError(&decoder);
+  if (qcbor_error == QCBOR_ERR_LABEL_NOT_FOUND) {
+    // empty, add checks for more errors
+  } else {
+    if (qcbor_error == QCBOR_SUCCESS ||
+        item.uDataType == QCBOR_TYPE_BYTE_STRING)
+      memmove(sk_value, key_element.ptr, NP_SECRET_KEY_BYTES);
+    private_or_public_key_set = true;
+  }
+
+  if (private_or_public_key_set == false) return false;
+
+  QCBORDecode_ExitMap(&decoder);
+  QCBORDecode_Finish(&decoder);
+
+  if (!(decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
+        decoder.uLastError == QCBOR_SUCCESS))
+    return false;
+
+  *buffer_length = decoder.InBuf.cursor;
+
+  return true;
+}
+
+bool np_serializer_write_encrypted(void                *crypted_buffer,
+                                   size_t              *cb_length,
+                                   const unsigned char *nonce,
+                                   const unsigned char *m,
+                                   const size_t         m_len) {
+  assert(NULL != crypted_buffer);
+  assert(NULL != nonce);
+  assert(*cb_length > m_len);
+
+  struct q_useful_buf cose_encrypt0_buffer = {.ptr = crypted_buffer,
+                                              .len = *cb_length};
+  QCBOREncodeContext  encoder              = {0};
+  QCBOREncode_Init(&encoder, cose_encrypt0_buffer);
+
+  QCBOREncode_AddTag(&encoder, CBOR_TAG_COSE_ENCRYPT0);
+  QCBOREncode_OpenArray(&encoder);
+  QCBOREncode_OpenMap(&encoder);
+  QCBOREncode_AddBytesToMapN(
+      &encoder,
+      6, // Partial IV for encrpyted content (nonce)
+      (struct q_useful_buf_c){.ptr = nonce, .len = crypto_box_NONCEBYTES});
+  QCBOREncode_CloseMap(&encoder);
+  QCBOREncode_AddBytes(&encoder,
+                       (struct q_useful_buf_c){.ptr = m, .len = m_len});
+  QCBOREncode_CloseArray(&encoder);
+
+  struct q_useful_buf_c cbor_token = {0};
+  QCBOREncode_Finish(&encoder, &cbor_token);
+  if (encoder.uError != QCBOR_ERR_EXTRA_BYTES &&
+      encoder.uError != QCBOR_SUCCESS)
+    return false;
+
+  *cb_length = encoder.OutBuf.data_len;
+
+  return true;
+}
+
+bool np_serializer_read_encrypted(const void    *input_buffer,
+                                  size_t        *ib_length,
+                                  unsigned char *nonce,
+                                  unsigned char *crypted_buffer,
+                                  size_t        *cb_len) {
+  assert(NULL != input_buffer);
+  assert(NULL != nonce);
+  assert(*ib_length >= *cb_len);
+  //  np_ctx_memory(token);
+
+  uint8_t               qcbor_error = QCBOR_SUCCESS;
+  struct q_useful_buf_c cbor_decode = {.ptr = input_buffer, .len = *ib_length};
+
+  QCBORDecodeContext decoder = {};
+  QCBORDecode_Init(&decoder, cbor_decode, QCBOR_DECODE_MODE_NORMAL);
+  QCBORItem item = {0};
+
+  QCBORDecode_PeekNext(&decoder, &item);
+  if (!(item.uDataType == QCBOR_TYPE_ARRAY &&
+        item.uTags[0] == CBOR_TAG_COSE_ENCRYPT0)) {
+    return false;
+  }
+
+  QCBORDecode_EnterArray(&decoder, &item);
+
+  QCBORDecode_EnterMap(&decoder, &item);
+  struct q_useful_buf_c crypt_element = {0};
+  QCBORDecode_GetByteStringInMapN(&decoder, 6, &crypt_element);
+  if (decoder.uLastError == QCBOR_SUCCESS &&
+      crypt_element.len == crypto_box_NONCEBYTES) {
+    memmove(nonce, crypt_element.ptr, crypto_box_NONCEBYTES);
+  } else {
+    return false;
+  }
+  QCBORDecode_ExitMap(&decoder);
+
+  QCBORDecode_GetByteString(&decoder, &crypt_element);
+  if (decoder.uLastError == QCBOR_SUCCESS && crypt_element.len <= *cb_len) {
+    memmove(crypted_buffer, crypt_element.ptr, crypt_element.len);
+    *cb_len = crypt_element.len;
+  } else {
+    return false;
+  }
+  QCBORDecode_Finish(&decoder);
+
+  if (!(decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
+        decoder.uLastError == QCBOR_SUCCESS))
+    return false;
+
+  *ib_length = decoder.InBuf.cursor;
+
+  return true;
 }

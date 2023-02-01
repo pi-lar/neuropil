@@ -16,3 +16,4 @@ As we standardize the neuropil protocol, we plan to publish updates and changes 
    protocol.token.rst
    protocol.msg_structure.rst
    protocol.steps.rst
+   protocol.s11n.rst

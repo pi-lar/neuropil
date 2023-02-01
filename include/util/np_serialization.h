@@ -118,7 +118,7 @@ np_serializer_write_datablock_header(np_datablock_header_t *block,
                                      uint32_t               struct_magic_no);
 
 /**
- * @brief (de-) serialization of aaatoken into a cwt token in binary format
+ * @brief (de-) serialization of np_token into a cwt token in binary format
  *
  * @param data
  * @param token
@@ -126,12 +126,40 @@ np_serializer_write_datablock_header(np_datablock_header_t *block,
 NP_API_INTERN
 bool np_serializer_write_nptoken(const struct np_token *token,
                                  void                  *buffer,
-                                 size_t                 buffer_max_length);
+                                 size_t                *buffer_length);
 
 NP_API_INTERN
 bool np_serializer_read_nptoken(const void      *buffer,
-                                const size_t     buffer_length,
+                                size_t          *buffer_length,
                                 struct np_token *token);
+
+NP_API_INTERN
+bool np_serializer_write_ed25519(
+    const unsigned char *sk_value[NP_SECRET_KEY_BYTES],
+    const unsigned char *pk_value[NP_PUBLIC_KEY_BYTES],
+    bool                 include_secret_key,
+    np_id               *identifier,
+    void                *buffer,
+    size_t              *buffer_length);
+
+NP_API_INTERN
+bool np_serializer_read_ed25519(const void    *buffer,
+                                size_t        *buffer_length,
+                                np_id         *identifier,
+                                unsigned char *sk_value[NP_SECRET_KEY_BYTES],
+                                unsigned char *pk_value[NP_PUBLIC_KEY_BYTES]);
+
+bool np_serializer_write_encrypted(void                *crypted_buffer,
+                                   size_t              *cb_length,
+                                   const unsigned char *nonce,
+                                   const unsigned char *input_buffer,
+                                   size_t               ib_len);
+
+bool np_serializer_read_encrypted(const void    *input_buffer,
+                                  size_t        *ib_length,
+                                  unsigned char *nonce,
+                                  unsigned char *crypted_buffer,
+                                  size_t        *cb_len);
 
 #if (defined(DEBUG) && defined(NP_USE_CMP))
 

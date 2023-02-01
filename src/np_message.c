@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
+
 #include "np_message.h"
 
 #include <assert.h>
@@ -534,6 +535,9 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
 bool _np_message_deserialize_header_and_instructions(np_message_t *msg,
                                                      void         *buffer) {
   np_ctx_memory(msg);
+
+  if (buffer == NULL) return false;
+
   bool ret = false;
   if (msg->bin_static == NULL) {
     np_deserialize_buffer_t header_deserializer = {._target_tree = msg->header,
@@ -623,6 +627,8 @@ bool _np_message_deserialize_header_and_instructions(np_message_t *msg,
                              part,
                              ref_obj_creation,
                              ref_message_bin_static);
+          np_ref_obj(BLOB_1024, part->msg_part, ref_obj_creation);
+
           msg->bin_static = part;
 
           CHECK_STR_FIELD(msg->instructions, _NP_MSG_INST_UUID, msg_uuid);
