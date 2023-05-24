@@ -340,15 +340,24 @@ np_bloom_t *_np_decaying_bloom_create(size_t size, uint8_t d, uint8_t p) {
 
 void _np_decaying_bloom_decay(np_bloom_t *bloom) {
   uint32_t _zero_bits = 0;
-  for (uint16_t k = 0; k < bloom->_size * bloom->_d / 8; ++k) {
-    uint8_t *_current_val = &bloom->_bitset[k];
-    // if (*_current_val > 0) (*_current_val) = ((*_current_val) - bloom->_p);
-    if (*_current_val > 0) {
-      (*_current_val) = ((*_current_val) >> bloom->_p);
-    }
-    if (*_current_val == 0) _zero_bits++;
-  }
+  for (uint16_t k = 0; k < bloom->_size; k++) {
 
+    if (bloom->_d == 8) {
+      uint8_t *_current_val = &bloom->_bitset[k * bloom->_d / 8];
+      // if (*_current_val > 0) (*_current_val) = ((*_current_val) - bloom->_p);
+      if (*_current_val > 0) {
+        (*_current_val) = ((*_current_val) >> bloom->_p);
+      }
+      if (*_current_val == 0) _zero_bits++;
+    } else if (bloom->_d == 16) {
+      uint16_t *_current_val = &bloom->_bitset[k * bloom->_d / 8];
+      // if (*_current_val > 0) (*_current_val) = ((*_current_val) - bloom->_p);
+      if (*_current_val > 0) {
+        (*_current_val) = ((*_current_val) >> bloom->_p);
+      }
+      if (*_current_val == 0) _zero_bits++;
+    }
+  }
   // adjust for left over bits when calculating free items
   bloom->_free_items = _zero_bits * bloom->_d / 16;
 
@@ -366,18 +375,23 @@ void _np_decaying_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
     ABORT("");
   }
 
-  for (uint8_t k = 0; k < 8; ++k) {
+  for (uint8_t k = 0; k < 8; k++) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
     uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
-    uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-    (*_current_val) |= (1 << (bloom->_d - 1));
+    if (bloom->_d == 8) {
+      uint8_t *_current_val = &bloom->_bitset[_local_pos];
+      (*_current_val) |= (1 << (bloom->_d - 1));
+    } else if (bloom->_d == 16) {
+      uint16_t *_current_val = &bloom->_bitset[_local_pos];
+      (*_current_val) |= (1 << (bloom->_d - 1));
+    }
 
     // #ifdef DEBUG
     // char test_string[65];
     // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
     // np_id_str(test_string, &bloom->_bitset[i]);
-    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string,
-    // _local_pos, bloom->_bitset[_local_pos]);
+    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i,
+    // test_string, _local_pos, bloom->_bitset[_local_pos]);
     // }
     // #endif
   }
@@ -387,11 +401,17 @@ void _np_decaying_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
 bool _np_decaying_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
   bool ret = true;
 
-  for (uint8_t k = 0; k < 8; ++k) {
+  for (uint8_t k = 0; k < 8; k++) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
     uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
-    uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-    if (0 == (*_current_val)) ret = false;
+    if (bloom->_d == 8) {
+      uint8_t *_current_val = &bloom->_bitset[_local_pos];
+      if (0 == (*_current_val)) ret = false;
+    }
+    if (bloom->_d == 16) {
+      uint16_t *_current_val = &bloom->_bitset[_local_pos];
+      if (0 == (*_current_val)) ret = false;
+    }
     // #ifdef DEBUG
     // char test_string[65];
     // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
@@ -407,21 +427,31 @@ bool _np_decaying_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
 float _np_decaying_bloom_get_heuristic(np_bloom_t *bloom, np_dhkey_t id) {
   float ret = 0.0;
 
-  for (uint8_t k = 0; k < 8; ++k) {
+  for (uint8_t k = 0; k < 8; k++) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
     uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
-    uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-
-    if (0 == (*_current_val)) {
-      ret = 0.0;
-      break;
+    if (bloom->_d == 8) {
+      uint8_t *_current_val = &bloom->_bitset[_local_pos];
+      if (0 == (*_current_val)) {
+        ret = 0.0;
+        break;
+      }
+      uint8_t n = 1;
+      while ((*_current_val >> n) > 0)
+        n++;
+      ret = (ret > ((float)n) / bloom->_d) ? ret : ((float)n) / bloom->_d;
     }
-
-    uint8_t n = 1;
-    while ((*_current_val >> n) > 0)
-      n++;
-    ret = ret > ((float)n) / bloom->_d ? ret : ((float)n) / bloom->_d;
-
+    if (bloom->_d == 16) {
+      uint16_t *_current_val = &bloom->_bitset[_local_pos];
+      if (0 == (*_current_val)) {
+        ret = 0.0;
+        break;
+      }
+      uint8_t n = 1;
+      while ((*_current_val >> n) > 0)
+        n++;
+      ret = ret > ((float)n) / bloom->_d ? ret : ((float)n) / bloom->_d;
+    }
     // #ifdef DEBUG
     // char test_string[65];
     // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
@@ -618,12 +648,12 @@ void _np_neuropil_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
         (block_index - 1) * block_size + (_bit_array_pos - 1) * 2;
     uint8_t *_current_age   = &bloom->_bitset[_local_pos];
     uint8_t *_current_count = &bloom->_bitset[_local_pos + 1];
-    (*_current_age) |=
-        (1 << (bloom->_d / 2 -
-               1)); // 0000000000000000000000000000001 =>
-                    // 0000000000000000000000010000000 => 10000000 könnten wir
-                    // hier nicht einfach eine Konstante setzen? (um genau zu
-                    // sein 0b10000000 oder ((uint8_t)128)
+    (*_current_age) |= (1 << (bloom->_d / 2 - 1));
+    // e.g. bloom_d = 16:
+    // 16 / 2 = 8 --> 8-bit for each sender/receiver
+    // 0000000000000000000000000000001 =>
+    // 0000000000000000000000010000000 => 10000000
+    // cannot use  a constant because of variable size of d
     (*_current_count)++;
 
 #ifdef DEBUG
@@ -712,9 +742,26 @@ void _np_neuropil_bloom_age_decrement(np_bloom_t *bloom) {
 
   for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k += 2) {
     uint8_t *_current_age = &bloom->_bitset[k];
-    if (*_current_age > bloom->_d / 2)
-      (*_current_age) -= bloom->_d / 2; // ((*_current_age) >> 1);
-    else (*_current_age) = 0;
+    if (*_current_age > bloom->_d / 2) {
+      (*_current_age) -= bloom->_d / 2;
+      // (*_current_age) = ((*_current_age) >> 1);
+    } else {
+      (*_current_age) = 0;
+    }
+  }
+}
+
+void _np_neuropil_bloom_age_increment(np_bloom_t *bloom) {
+  uint16_t block_size = (bloom->_size * bloom->_d / 8);
+
+  for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k += 2) {
+    uint8_t *_current_age = &bloom->_bitset[k];
+    if (*_current_age < UINT8_MAX - bloom->_d / 2) {
+      (*_current_age) += bloom->_d / 2;
+      // (*_current_age) = ((*_current_age) >> 1);
+    } else {
+      (*_current_age) = UINT8_MAX;
+    }
   }
 }
 
@@ -823,7 +870,7 @@ bool _np_neuropil_bloom_intersect_test(np_bloom_t *result,
     */
   }
 
-  return (i == 8 && j == 8) ? true : false;
+  return (i == j) ? true : false;
 }
 
 float _np_neuropil_bloom_intersect_age(np_bloom_t *result,

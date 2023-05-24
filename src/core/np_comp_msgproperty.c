@@ -123,7 +123,7 @@ void _np_msgproperty_conf_t_new(np_state_t       *context,
 
   // cache which will hold up to max_threshold messages
   prop->cache_policy  = FIFO | OVERFLOW_PURGE;
-  prop->cache_size    = 8;
+  prop->cache_size    = 16;
   prop->max_threshold = 2;
 
   prop->is_internal   = false;
@@ -156,7 +156,7 @@ void _np_msgproperty_run_t_new(np_state_t       *context,
   prop->redelivery_messages =
       np_tree_create(); // only used for msghandler "is_internal=false"
 
-  sll_init(np_message_ptr, prop->msg_cache);
+  dll_init(np_message_ptr, prop->msg_cache);
 
   prop->unique_uuids = np_tree_create();
 
@@ -209,7 +209,7 @@ void _np_msgproperty_run_t_del(NP_UNUSED np_state_t *context,
   np_tree_free(prop->redelivery_messages); //
 
   if (prop->msg_cache != NULL) {
-    sll_free(np_message_ptr, prop->msg_cache);
+    dll_free(np_message_ptr, prop->msg_cache);
   }
 
   if (prop->user_callbacks != NULL) {
@@ -295,8 +295,6 @@ np_msgproperty_conf_t *_np_msgproperty_conf_get(np_state_t      *context,
   if (FLAG_CMP(mode_type, INBOUND)) { // search receiving property
     np_dhkey_t search_in_dhkey =
         _np_msgproperty_tweaked_dhkey(INBOUND, subject);
-    // np_dhkey_t search_key_rx = np_dhkey_create_from_hostport(subject,
-    // "local_rx");
     np_key_t *my_property_key_rx = _np_keycache_find(context, search_in_dhkey);
     if (my_property_key_rx == NULL) return NULL;
 
@@ -437,8 +435,6 @@ void np_msgproperty_register(np_msgproperty_conf_t *msg_property) {
 
   if (FLAG_CMP(msg_property->mode_type, INBOUND)) {
     // receiving property
-    // np_dhkey_t search_key_rx =
-    // np_dhkey_create_from_hostport(msg_property->msg_subject, "local_rx");
     np_key_t *my_property_key_rx =
         _np_keycache_find_or_create(context, msg_property->subject_dhkey_in);
     np_util_event_t ev_rx = {.type         = (evt_property | evt_internal),
@@ -592,6 +588,7 @@ void __np_msgproperty_event_cleanup_response_handler(void           *context,
                ev.user_data,
                "_np_msgproperty_cleanup_response_handler");
 }
+
 void _np_msgproperty_cleanup_response_handler(np_msgproperty_run_t *self,
                                               const np_util_event_t event) {
   np_ctx_memory(self);
@@ -693,7 +690,7 @@ void _np_msgproperty_cleanup_response_handler(np_msgproperty_run_t *self,
 }
 
 void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
-                                    NP_UNUSED const np_util_event_t event) {
+                                    const np_util_event_t   event) {
   np_ctx_memory(statemachine->_user_data);
 
   NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
@@ -709,54 +706,56 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
       LOG_ROUTING,
       "this node is one sender of messages, checking msgcache (%p / %u) ...",
       property_run->msg_cache,
-      sll_size(property_run->msg_cache));
+      dll_size(property_run->msg_cache));
 
   // get message from cache (maybe only for one way mep ?!)
   uint16_t msg_available = 0;
-  msg_available          = sll_size(property_run->msg_cache);
+  msg_available          = dll_size(property_run->msg_cache);
 
   while (0 < msg_available && msg_available <= property_conf->cache_size) {
     np_message_t *msg_out = NULL;
     // if messages are available in cache, send them !
-    if (FLAG_CMP(property_conf->cache_policy, FIFO))
-      msg_out = sll_head(np_message_ptr, property_run->msg_cache);
-    else if (FLAG_CMP(property_conf->cache_policy, LIFO))
-      msg_out = sll_tail(np_message_ptr, property_run->msg_cache);
-    else break;
+    if (FLAG_CMP(property_conf->cache_policy, FIFO) &&
+        _np_intent_has_crypto_session(
+            my_property_key,
+            *_np_message_get_sessionid(property_run->msg_cache->first->val))) {
+      msg_out = dll_head(np_message_ptr, property_run->msg_cache);
+    } else if (FLAG_CMP(property_conf->cache_policy, LIFO) &&
+               _np_intent_has_crypto_session(
+                   my_property_key,
+                   *_np_message_get_sessionid(
+                       property_run->msg_cache->last->val))) {
+      msg_out = dll_tail(np_message_ptr, property_run->msg_cache);
+    }
 
     // check for more messages in cache after head/tail command
-    // msg_available = sll_size(send_prop->msg_cache_out);
+    // msg_available = dll_size(send_prop->msg_cache_out);
     msg_available--;
 
     if (NULL != msg_out) {
-      np_dhkey_t target_dhkey = {0};
       log_debug(
-          LOG_MSGPROPERTY,
+          LOG_ROUTING,
           "message in sender cache found and initialize resend for msg %s",
           msg_out->uuid);
 
       np_util_event_t send_event = {
-          .type         = (evt_internal | evt_userspace | evt_message),
-          .user_data    = msg_out,
-          .target_dhkey = target_dhkey};
+          .type      = (evt_internal | evt_userspace | evt_message),
+          .user_data = msg_out};
+      _np_dhkey_assign(&send_event.target_dhkey,
+                       _np_message_get_sessionid(msg_out));
+
       _np_event_runtime_add_event(context,
                                   event.current_run,
                                   property_conf->subject_dhkey_out,
                                   send_event);
 
       np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
-    } else {
-      break;
     }
   }
 }
 
 void _np_msgproperty_check_msgcache_for(np_util_statemachine_t *statemachine,
-                                        np_event_runtime_t     *current_run,
-                                        const np_util_event_t   event)
-// void _np_msgproperty_check_msgcache_for(np_msgproperty_run_t* recv_prop,
-// np_dhkey_t from)
-{
+                                        const np_util_event_t   event) {
   np_ctx_memory(statemachine->_user_data);
 
   NP_CAST(statemachine->_user_data, np_key_t, my_property_key);
@@ -766,61 +765,69 @@ void _np_msgproperty_check_msgcache_for(np_util_statemachine_t *statemachine,
   NP_CAST(my_property_key->entity_array[1], np_msgproperty_run_t, property_run);
   // NP_CAST(event.user_data, np_message_t, message);
 
-  log_debug_msg(
-      LOG_MSGPROPERTY | LOG_ROUTING,
-      "this node is the receiver of messages, checking msgcache (%p / %u) ...",
-      property_run->msg_cache,
-      sll_size(property_run->msg_cache));
+  char buf[65];
+  log_msg(LOG_DEBUG | LOG_ROUTING,
+          "this node is the receiver of messages, checking msgcache "
+          "(%p / %u) %s ...",
+          property_run->msg_cache,
+          dll_size(property_run->msg_cache),
+          np_id_str(buf, &event.target_dhkey));
   // get message from cache (maybe only for one way mep ?!)
   uint16_t msg_available = 0;
 
-  msg_available = sll_size(property_run->msg_cache);
+  if (!_np_intent_has_crypto_session(my_property_key, event.target_dhkey))
+    return;
 
+  msg_available = dll_size(property_run->msg_cache);
+
+  dll_iterator(np_message_ptr) peek = NULL;
   while (0 < msg_available && msg_available <= property_conf->cache_size) {
     // grab a message
     np_message_t *msg = NULL;
-    sll_iterator(np_message_ptr) peek;
     // if messages are available in cache, try to decode them !
     if (FLAG_CMP(property_conf->cache_policy, FIFO)) {
-      peek = sll_first(property_run->msg_cache);
+      peek = (peek == NULL) ? dll_first(property_run->msg_cache) : peek;
       if (peek != NULL && peek->val != NULL &&
-          _np_dhkey_cmp(_np_message_get_sender(peek->val),
-                        &event.target_dhkey) == 0) {
-        msg = sll_head(np_message_ptr, property_run->msg_cache);
+          _np_dhkey_equal(_np_message_get_sessionid(peek->val),
+                          &event.target_dhkey)) {
+        msg = peek->val;
       }
+      peek = dll_next(peek);
+
     } else if (FLAG_CMP(property_conf->cache_policy, LIFO)) {
-      peek = sll_last(property_run->msg_cache);
+      peek = (peek == NULL) ? dll_last(property_run->msg_cache) : peek;
       if (peek != NULL && peek->val != NULL &&
-          _np_dhkey_cmp(_np_message_get_sender(peek->val),
-                        &event.target_dhkey) == 0) {
-        msg = sll_tail(np_message_ptr, property_run->msg_cache);
+          _np_dhkey_equal(_np_message_get_sessionid(peek->val),
+                          &event.target_dhkey)) {
+        msg = peek->val;
       }
+      peek = dll_previous(peek);
     }
-    // recalc number of available messages
-    // msg_available = sll_size(recv_prop->msg_cache_in);
     msg_available--;
 
     // handle selected message
     if (NULL != msg) {
-      log_debug(LOG_MSGPROPERTY,
-                "message in receiver cache found and initialize redelivery for "
-                "msg %s",
-                msg->uuid);
+      log_msg(LOG_DEBUG | LOG_ROUTING,
+              "message in receiver cache found and initialize redelivery for "
+              "msg %s",
+              msg->uuid);
+      // recalc number of available messages
       np_dhkey_t in_handler =
-          property_conf
-              ->subject_dhkey_in; // (INBOUND, property_conf->msg_subject);
-      np_util_event_t msg_in_event = {.type = (evt_external | evt_message),
-                                      .target_dhkey = in_handler,
-                                      .user_data    = msg};
+          property_conf->subject_dhkey_in; // (INBOUND,
+                                           // property_conf->msg_subject);
+
+      np_util_event_t msg_in_event = {.type      = (evt_external | evt_message),
+                                      .user_data = msg};
+      _np_dhkey_assign(&msg_in_event.target_dhkey,
+                       _np_message_get_sessionid(msg));
+
       _np_event_runtime_add_event(context,
-                                  current_run,
+                                  event.current_run,
                                   in_handler,
                                   msg_in_event);
 
       np_unref_obj(np_message_t, msg, ref_msgproperty_msgcache);
-
-    } else {
-      break;
+      dll_remove(np_message_ptr, property_run->msg_cache, msg);
     }
 
     // do not continue processing message if max treshold is reached
@@ -842,21 +849,21 @@ void _np_msgproperty_cleanup_cache(np_util_statemachine_t         *statemachine,
             "checking for outdated messages in msgcache (%s: %p / %u) ...",
             property_conf->msg_subject,
             property_run->msg_cache,
-            sll_size(property_run->msg_cache));
+            dll_size(property_run->msg_cache));
 
-  sll_iterator(np_message_ptr) iter_prop_msg_cache =
-      sll_first(property_run->msg_cache);
+  dll_iterator(np_message_ptr) iter_prop_msg_cache =
+      dll_first(property_run->msg_cache);
   while (iter_prop_msg_cache != NULL) {
-    sll_iterator(np_message_ptr) old_iter = iter_prop_msg_cache;
-    sll_next(iter_prop_msg_cache); // we need to iterate before we delete the
+    dll_iterator(np_message_ptr) old_iter = iter_prop_msg_cache;
+    dll_next(iter_prop_msg_cache); // we need to iterate before we delete the
                                    // old iter
 
     np_message_t *old_msg = old_iter->val;
     ASSERT(old_msg != NULL, "cannot have an empty element");
     if (_np_message_is_expired(old_msg)) {
-      // log_msg(LOG_WARNING,"purging expired message (subj: %s, uuid: %s) from
-      // receiver cache ...", msg_prop->msg_subject, old_msg->uuid);
-      sll_delete(np_message_ptr, property_run->msg_cache, old_iter);
+      // log_msg(LOG_WARNING,"purging expired message (subj: %s, uuid: %s)
+      // from receiver cache ...", msg_prop->msg_subject, old_msg->uuid);
+      dll_delete(np_message_ptr, property_run->msg_cache, old_iter);
       np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
     }
   }
@@ -876,7 +883,7 @@ void __np_property_add_msg_to_cache(np_util_statemachine_t *statemachine,
   NP_CAST(my_property_key->entity_array[1], np_msgproperty_run_t, property_run);
   NP_CAST(event.user_data, np_message_t, message);
   // cache already full ?
-  if (property_conf->cache_size <= sll_size(property_run->msg_cache)) {
+  if (property_conf->cache_size <= dll_size(property_run->msg_cache)) {
     log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
                   "msg cache full, checking overflow policy ...");
 
@@ -886,33 +893,37 @@ void __np_property_add_msg_to_cache(np_util_statemachine_t *statemachine,
                     property_conf->msg_subject);
       np_message_t *old_msg = NULL;
 
-      if (FLAG_CMP(property_conf->cache_policy, FIFO))
-        old_msg = sll_head(np_message_ptr, property_run->msg_cache);
-      else if (FLAG_CMP(property_conf->cache_policy, LIFO))
-        old_msg = sll_tail(np_message_ptr, property_run->msg_cache);
+      if (FLAG_CMP(property_conf->cache_policy, FIFO)) {
+        old_msg = dll_head(np_message_ptr, property_run->msg_cache);
+      } else if (FLAG_CMP(property_conf->cache_policy, LIFO)) {
+        old_msg = dll_tail(np_message_ptr, property_run->msg_cache);
+      }
 
       if (old_msg != NULL) {
-        // TODO: add callback hook to allow user space handling of discarded
-        // message
+        log_msg(LOG_WARNING,
+                "(policy: PURGE) discarding old message because cache is full");
+        // TODO: add callback hook to allow user space handling of
+        // discarded message
         np_unref_obj(np_message_t, old_msg, ref_msgproperty_msgcache);
       }
     }
 
     if (FLAG_CMP(property_conf->cache_policy, OVERFLOW_REJECT)) {
-      log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
-                    "rejecting new message because cache is full");
+      log_warn(LOG_WARNING,
+               "(policy: REJECT) rejecting new message because cache is full");
+      return;
     }
   }
 
+  dll_append(np_message_ptr, property_run->msg_cache, message);
   np_ref_obj(np_message_t, message, ref_msgproperty_msgcache);
 
   log_debug(LOG_MSGPROPERTY | LOG_ROUTING,
-            "added message (%s) to msgcache (%p / %d) ...",
+            "added message (%s) to msgcache (%p / %d / %x) ...",
             message->uuid,
             property_run->msg_cache,
-            sll_size(property_run->msg_cache));
-
-  sll_prepend(np_message_ptr, property_run->msg_cache, message);
+            property_conf->cache_size,
+            property_conf->cache_policy);
 }
 
 void __np_msgproperty_redeliver_messages(np_util_statemachine_t *statemachine,
@@ -1161,12 +1172,12 @@ void _np_msgproperty_create_runtime_info(np_util_statemachine_t *statemachine,
         property->audience_type != NP_MX_AUD_VIRTUAL) {
       log_trace_msg(LOG_TRACE, "start: adding standard callbacks");
       if (false ==
-          sll_contains(
-              np_evt_callback_t,
-              property_run->callbacks,
-              _np_out_callback_wrapper,
-              np_evt_callback_t_sll_compare_type)) { // first encrypt the
-                                                     // payload for receiver
+          sll_contains(np_evt_callback_t,
+                       property_run->callbacks,
+                       _np_out_callback_wrapper,
+                       np_evt_callback_t_sll_compare_type)) { // first encrypt
+                                                              // the payload
+                                                              // for receiver
         sll_append(np_evt_callback_t,
                    property_run->callbacks,
                    _np_out_callback_wrapper);
@@ -1209,8 +1220,8 @@ void _np_msgproperty_create_runtime_info(np_util_statemachine_t *statemachine,
               np_evt_callback_t,
               property_run->callbacks,
               _np_in_callback_wrapper,
-              np_evt_callback_t_sll_compare_type)) { // decrypt or cache the
-                                                     // message
+              np_evt_callback_t_sll_compare_type)) { // decrypt or cache
+                                                     // the message
         sll_append(np_evt_callback_t,
                    property_run->callbacks,
                    _np_in_callback_wrapper);
@@ -1285,6 +1296,8 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t         *statemachine,
   np_msgproperty_run_t     *property_run = my_property_key->entity_array[1];
   struct __np_token_ledger *ledger       = my_property_key->entity_array[2];
 
+  bool for_receiver = false;
+
   np_dhkey_t send_dhkey =
       property->subject_dhkey_out; // _np_msgproperty_dhkey(OUTBOUND,
                                    // property->msg_subject);
@@ -1302,7 +1315,8 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t         *statemachine,
     log_trace_msg(LOG_TRACE,
                   "start: void _np_msgproperty_upsert_token RECEIVER(...){%s",
                   _np_key_as_str(my_property_key));
-    token_list = ledger->recv_tokens;
+    for_receiver = true;
+    token_list   = ledger->recv_tokens;
   } else {
     log_trace_msg(LOG_TRACE,
                   "start: void _np_msgproperty_upsert_token NONE (...){");
@@ -1325,14 +1339,19 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t         *statemachine,
                  msg_token_new,
                  false,
                  _np_aaatoken_cmp);
+      // create own crypto session with random values
+      _np_intent_update_session(my_property_key,
+                                msg_token_new,
+                                for_receiver,
+                                crud_create);
       ref_replace_reason(np_aaatoken_t,
                          msg_token_new,
                          "_np_token_factory_new_message_intent_token",
                          ref_aaatoken_local_mx_tokens);
     } else if ((iter->val->expires_at - now) <
-               fmax(
-                   property->token_min_ttl + 1.0,
-                   MSGPROPERTY_DEFAULT_MIN_TTL_SEC)) { // Create a new msg token
+               fmax(property->token_min_ttl + 1.0,
+                    MSGPROPERTY_DEFAULT_MIN_TTL_SEC)) { // Create a new msg
+                                                        // token
       log_debug_msg(LOG_MSGPROPERTY | LOG_DEBUG,
                     "--- refresh mxtoken for subject: %25s --------",
                     property->msg_subject);
@@ -1342,43 +1361,51 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t         *statemachine,
                                              token_list,
                                              msg_token_new,
                                              _np_aaatoken_cmp);
+      // update own crypto session with random values
+      _np_intent_update_session(my_property_key,
+                                msg_token_new,
+                                for_receiver,
+                                crud_create);
       ref_replace_reason(np_aaatoken_t,
                          msg_token_new,
                          "_np_token_factory_new_message_intent_token",
                          ref_aaatoken_local_mx_tokens);
       np_unref_obj(np_aaatoken_ptr, tmp_token, ref_aaatoken_local_mx_tokens);
+      // triggers resending of token to peers
+      property_run->last_intent_update = 0.0;
     } else {
       log_debug(LOG_MSGPROPERTY,
                 "--- update mxtoken for subject: %25s token: %s--------",
                 property->msg_subject,
                 iter->val->uuid);
-      np_data_value max_threshold;
-      max_threshold.unsigned_integer = property->max_threshold;
-
+      // update with attribute set on the property
       enum np_data_return r = np_could_not_read_object;
       r = np_merge_data(iter->val->attributes, property_run->attributes);
-      ASSERT(
-          r == np_ok,
-          "Could not write \"max_threshold\" into attributes. Error: %" PRIu32,
-          r);
+      ASSERT(r == np_ok,
+             "Could not merge property attributes into token. Error: "
+             "%" PRIu32,
+             r);
+
+      // update msg_threshold to latest value
+      np_data_value msg_threshold;
+      msg_threshold.unsigned_integer = property_run->msg_threshold;
 
       r = np_could_not_read_object;
-      r = np_set_data(iter->val->attributes,
-                      (struct np_data_conf){.key  = "max_threshold",
-                                            .type = NP_DATA_TYPE_UNSIGNED_INT},
-                      max_threshold);
-      ASSERT(
-          r == np_ok,
-          "Could not write \"max_threshold\" into attributes. Error: %" PRIu32,
-          r);
-      /*
-      np_data_value msg_threshold;
-      msg_threshold.unsigned_integer = property->msg_threshold;
-      r = np_set_data(iter->val->attributes, (struct np_data_conf){ .key =
-      "msg_threshold", .type = NP_DATA_TYPE_UNSIGNED_INT}, msg_threshold);
-      ASSERT(r == np_ok,"Could not write \"msg_threshold\" into attributes.
-      Error: %"PRIu32, r);
-      */
+      // currently disabled, needs more elaboration
+      // r = np_set_data(iter->val->attributes,
+      //                 (struct np_data_conf){.key  = "msg_threshold",
+      //                                       .type =
+      //                                       NP_DATA_TYPE_UNSIGNED_INT},
+      //                 msg_threshold);
+      // ASSERT(r == np_ok,
+      //        "Could not write \"msg_threshold\" into attributes. Error: "
+      //        "%" PRIu32,
+      //        r);
+      // update own crypto session with changed attribute values
+      _np_intent_update_session(my_property_key,
+                                iter->val,
+                                for_receiver,
+                                crud_update);
     }
 
     if (iter != NULL) pll_next(iter);
@@ -1444,6 +1471,7 @@ void np_msgproperty_from_user(np_state_t              *context,
   assert(src != NULL);
   assert(dest != NULL);
 
+  dest->mode_type = DEFAULT_MODE;
   if (src->role == NP_MX_CONSUMER) dest->mode_type = INBOUND;
   if (src->role == NP_MX_PROVIDER) dest->mode_type = OUTBOUND;
   if (src->role == NP_MX_PROSUMER) dest->mode_type = DEFAULT_MODE;
@@ -1458,6 +1486,8 @@ void np_msgproperty_from_user(np_state_t              *context,
     // dest->last_intent_update = (dest->last_intent_update -
     // dest->token_min_ttl); dest->last_intent_update =
     // (dest->last_intent_update - dest->token_min_ttl);
+  } else {
+    dest->token_min_ttl = MSGPROPERTY_DEFAULT_MIN_TTL_SEC;
   }
 
   if (src->message_ttl > 0.0) {
@@ -1607,8 +1637,6 @@ void __np_set_property(np_util_statemachine_t *statemachine,
   _np_msgproperty_create_token_ledger(statemachine, event);
 
   if (my_property_key->bloom_scent == NULL) {
-    // np_dhkey_t target_dhkey = _np_msgproperty_tweaked_dhkey(INBOUND,
-    // property->subject_dhkey);
     my_property_key->bloom_scent = _np_neuropil_bloom_create();
     _np_neuropil_bloom_add(my_property_key->bloom_scent,
                            property->subject_dhkey);
@@ -1643,14 +1671,16 @@ void __np_msgproperty_send_available_messages(
   // upsert message intent token
   np_aaatoken_t *intent_token =
       _np_msgproperty_get_mxtoken(context, property_key);
-  if (NULL == intent_token) return;
+  if (NULL == intent_token) {
+    log_error(LOG_DEBUG, "intent token is missing");
+    return;
+  }
 
   double now = np_time_now();
-  // if ((now - property_run->last_intent_update) >
-  // property_conf->token_min_ttl)
+
   if (property_run->last_intent_update == 0 ||
       (now - property_run->last_intent_update) >
-          MIN(property_conf->token_min_ttl / 3,
+          MIN((double)property_conf->token_min_ttl,
               NP_TOKEN_MIN_RESEND_INTERVAL_SEC)) {
     np_tree_t *intent_data = np_tree_create();
 
@@ -1669,9 +1699,9 @@ void __np_msgproperty_send_available_messages(
                                        .target_dhkey = target_dhkey};
     np_dhkey_t      available_dhkey = {0};
 
-    if (_np_dhkey_equal(
-            &property_key->dhkey,
-            &send_dhkey)) { // send our token, search for receiver of messages
+    if (_np_dhkey_equal(&property_key->dhkey,
+                        &send_dhkey)) { // send our token, search for
+                                        // receiver of messages
       np_generate_subject((np_subject *)&available_dhkey,
                           _NP_MSG_AVAILABLE_SENDER,
                           strnlen(_NP_MSG_AVAILABLE_SENDER, 256));
@@ -1680,6 +1710,7 @@ void __np_msgproperty_send_available_messages(
                          context->my_node_key->dhkey,
                          available_dhkey,
                          NULL);
+
       np_tree_insert_str(msg_out->body,
                          _NP_URN_INTENT_PREFIX,
                          np_treeval_new_cwt(intent_data));
@@ -1727,8 +1758,19 @@ void __np_msgproperty_send_available_messages(
                                 available_event);
     property_run->last_intent_update = now;
     np_unref_obj(np_message_t, msg_out, FUNC);
+    // set the session identifier for default messages
+    property_run->current_fp = np_aaatoken_get_fingerprint(intent_token, false);
 
     np_tree_free(intent_data);
+  } else {
+    log_info(
+        LOG_ROUTING,
+        "not sending available message for %s / intent uuid: %s / %f - %d - %f",
+        property_conf->msg_subject,
+        intent_token->uuid,
+        property_run->last_intent_update,
+        property_conf->token_min_ttl,
+        now - property_run->last_intent_update);
   }
   np_unref_obj(np_aaatoken_t, intent_token, "_np_msgproperty_get_mxtoken");
 }
@@ -1737,21 +1779,18 @@ void __np_msgproperty_send_pheromone_messages(
     np_util_statemachine_t         *statemachine,
     NP_UNUSED const np_util_event_t event) {
   np_ctx_memory(statemachine->_user_data);
-  log_trace_msg(
-      LOG_TRACE,
-      "start: void "
-      "__np_msgproperty_send_pherolast_pheromone_updatemone_messages(...) {");
+  log_trace_msg(LOG_TRACE,
+                "start: void "
+                "__np_msgproperty_send_pherolast_pheromone_updatemone_"
+                "messages(...) {");
 
   NP_CAST(statemachine->_user_data, np_key_t, property_key);
   NP_CAST(property_key->entity_array[0], np_msgproperty_conf_t, property_conf);
   NP_CAST(property_key->entity_array[1], np_msgproperty_run_t, property_run);
 
-  np_dhkey_t send_dhkey = property_conf->subject_dhkey_out;
-  np_dhkey_t recv_dhkey = property_conf->subject_dhkey_in;
-  np_dhkey_t target_dhkey =
-      property_conf
-          ->subject_dhkey; // np_dhkey_create_from_hostport(property->msg_subject,
-                           // "0");
+  np_dhkey_t send_dhkey   = property_conf->subject_dhkey_out;
+  np_dhkey_t recv_dhkey   = property_conf->subject_dhkey_in;
+  np_dhkey_t target_dhkey = property_conf->subject_dhkey;
 
   bool is_send = _np_dhkey_equal(&property_key->dhkey, &send_dhkey);
   bool is_recv = _np_dhkey_equal(&property_key->dhkey, &recv_dhkey);
@@ -1764,7 +1803,7 @@ void __np_msgproperty_send_pheromone_messages(
 
   np_tree_t *bloom_data = np_tree_create();
 
-  float _target_age = 0.2;
+  float _target_age = BAD_LINK;
   float _return_age = _target_age;
 
   np_sll_t(np_dhkey_t, result_list) = NULL;
@@ -1790,18 +1829,20 @@ void __np_msgproperty_send_pheromone_messages(
 
     if (FLAG_CMP(property_conf->ack_mode, ACK_DESTINATION) ||
         FLAG_CMP(property_conf->ack_mode, ACK_CLIENT)) {
-      np_dhkey_t ack_dhkey = {0};
-      if (FLAG_CMP(property_conf->ack_mode, ACK_DESTINATION))
-        ack_dhkey = context->my_node_key->dhkey;
-      if (FLAG_CMP(property_conf->ack_mode, ACK_CLIENT))
-        ack_dhkey = context->my_identity->dhkey;
 
+      np_dhkey_t ack_dhkey = context->my_node_key->dhkey;
       np_generate_subject((np_subject *)&ack_dhkey,
                           _NP_MSG_ACK,
                           strnlen(_NP_MSG_ACK, 256));
 
       np_bloom_t *ack_scent = _np_neuropil_bloom_create();
       _np_neuropil_bloom_add(ack_scent, ack_dhkey);
+      // increase pheromone strength for acknowledge part, there is no way to
+      // increase it with a signal from the "opposite" side
+      for (uint8_t i = 0; i < 16; i++) {
+        _np_neuropil_bloom_age_increment(ack_scent);
+      }
+
       unsigned char *ack_buffer      = NULL;
       uint16_t       ack_buffer_size = 0;
       _np_neuropil_bloom_serialize(ack_scent, &ack_buffer, &ack_buffer_size);
@@ -1868,7 +1909,8 @@ void __np_msgproperty_send_pheromone_messages(
 
     log_info(LOG_MSGPROPERTY | LOG_PHEROMONE,
              "sending pheromone trail message for subject %s: "
-             "_NP_MSG_PHEROMONE_UPDATE {msg uuid: %s} / %f success probability",
+             "_NP_MSG_PHEROMONE_UPDATE {msg uuid: %s} / %f success "
+             "probability",
              property_conf->msg_subject,
              msg_out->uuid,
              _target_age);
@@ -1977,12 +2019,14 @@ void __np_property_handle_in_msg(np_util_statemachine_t *statemachine,
     }
     sll_next(iter);
   }
-  log_trace(LOG_MESSAGE,
-            "(msg: %s) property callbacks result: %" PRIu8
-            " audience_type:%" PRIu8,
-            msg_in->uuid,
-            ret,
-            property_conf->audience_type);
+  log_debug_msg(LOG_MESSAGE,
+                "(msg: %s) property callbacks (%p / %d) result: %" PRIx8
+                " audience_type:%" PRIx8,
+                msg_in->uuid,
+                property_run,
+                sll_size(property_run->callbacks),
+                ret,
+                property_conf->audience_type);
 
   if (property_conf->is_internal == false &&
       property_conf->audience_type != NP_MX_AUD_VIRTUAL && ret == true) {
@@ -2014,13 +2058,13 @@ void __np_property_handle_in_msg(np_util_statemachine_t *statemachine,
             "in: (subject: %s / msg: %s) handling complete",
             property_conf->msg_subject,
             msg_in->uuid);
+
+  if (dll_size(property_run->msg_cache) > 0)
+    _np_msgproperty_check_msgcache_for(statemachine, event);
 }
 
 bool __is_internal_message(np_util_statemachine_t *statemachine,
                            const np_util_event_t   event) {
-  // np_ctx_memory(statemachine->_user_data);
-  // log_trace_msg(LOG_TRACE, "start: bool __is_internal_message(...) {");
-
   bool ret = false;
 
   if (!ret)
@@ -2053,12 +2097,7 @@ bool __is_sender_token_available(np_util_statemachine_t *statemachine,
     if (!ret) {
       ret = !__np_msgproperty_threshold_breached(my_property_conf,
                                                  my_property_run);
-      // TODO: EXPERIMENT: maybe get dhkey_zero
-      np_aaatoken_ptr tmp_token =
-          _np_intent_get_sender_token(property_key, event.target_dhkey);
-      ret &= (tmp_token != NULL);
-      if (tmp_token != NULL)
-        np_unref_obj(np_aaatoken_ptr, tmp_token, "_np_intent_get_sender_token");
+      ret &= _np_intent_has_crypto_session(property_key, event.target_dhkey);
     }
   }
   log_trace(LOG_ROUTING, "%s ret %" PRIu8, FUNC, ret);
@@ -2085,14 +2124,7 @@ bool __is_receiver_token_available(np_util_statemachine_t *statemachine,
     if (!ret) {
       ret = !__np_msgproperty_threshold_breached(my_property_conf,
                                                  my_property_run);
-      np_sll_t(np_aaatoken_ptr, tmp_token_list);
-      sll_init(np_aaatoken_ptr, tmp_token_list);
-      _np_intent_get_all_receiver(property_key,
-                                  event.target_dhkey,
-                                  &tmp_token_list);
-      ret &= (sll_size(tmp_token_list) > 0);
-      np_aaatoken_unref_list(tmp_token_list, "_np_intent_get_all_receiver");
-      sll_free(np_aaatoken_ptr, tmp_token_list);
+      ret &= _np_intent_has_crypto_session(property_key, event.target_dhkey);
     }
   }
   log_trace(LOG_ROUTING, "%s ret %" PRIu8, FUNC, ret);
@@ -2106,9 +2138,9 @@ bool __is_no_token_available(np_util_statemachine_t *statemachine,
   bool ret = false;
   // the fact that this check is called can only mean that no token has been
   // found in an earlier check so we just have to check whether this is an
-  // internal or external message as a criteria that no token has been found or
-  // that the threshold has been breached. we still need the check for the
-  // message type to differentiate from e.g. lifecycle events
+  // internal or external message as a criteria that no token has been found
+  // or that the threshold has been breached. we still need the check for
+  // the message type to differentiate from e.g. lifecycle events
 
   // NP_CAST(statemachine->_user_data, np_key_t, property_key);
   // NP_CAST(property_key->entity_array[0], np_msgproperty_conf_t,
@@ -2255,10 +2287,6 @@ void __np_response_handler_set(np_util_statemachine_t *statemachine,
 
 bool __is_message_redelivery_event(np_util_statemachine_t *statemachine,
                                    const np_util_event_t   event) {
-  // np_ctx_memory(statemachine->_user_data);
-  // log_trace_msg(LOG_TRACE, "start: bool __is_message_redelivery_event(...)
-  // {");
-
   bool ret = false;
 
   if (!ret) ret = FLAG_CMP(event.type, evt_message);
@@ -2312,21 +2340,24 @@ void __np_property_handle_intent(np_util_statemachine_t *statemachine,
                                   &intent_token->attributes) &&
       (_np_dhkey_equal(&context->my_identity->dhkey, &audience_id) ||
        _np_dhkey_equal(&context->realm_id, &audience_id))) {
-    // always?: just store the available tokens in memory and update them if new
-    // data arrives
+    log_msg(LOG_INFO,
+            "policy compliance result for %s / %s is access allowed",
+            property_conf->msg_subject,
+            intent_token->uuid);
+    // always?: just store the available tokens in memory and update them if
+    // new data arrives
     np_dhkey_t sendtoken_issuer_key = np_aaatoken_get_partner_fp(intent_token);
 
     if (_np_dhkey_equal(&sendtoken_issuer_key, &context->my_node_key->dhkey)) {
-      // only add the token if it is not from ourself (in case of IN/OUTBOUND on
-      // same subject)
+      // only add the token if it is not from ourself (in case of IN/OUTBOUND
+      // on same subject)
       // TODO: CHECK IF NECCESARY
     }
     bool needs_authz = false;
 
-    // choose correct target ledger
-    if (_np_dhkey_equal(&property_conf->subject_dhkey_in, &my_property_key->dhkey) /* &&
-             sll_contains(np_evt_callback_t, property_run->callbacks, _np_in_callback_wrapper, np_evt_callback_t_sll_compare_type)*/ )
-        {
+    // choose correct target ledger - receiver
+    if (_np_dhkey_equal(&property_conf->subject_dhkey_in,
+                        &my_property_key->dhkey)) {
       log_info(LOG_ROUTING,
                "adding sending intent %s for subject %s",
                intent_token->uuid,
@@ -2335,17 +2366,26 @@ void __np_property_handle_intent(np_util_statemachine_t *statemachine,
           _np_intent_add_sender(my_property_key, intent_token);
       np_unref_obj(np_aaatoken_t, old_token, ref_aaatoken_local_mx_tokens);
 
-      // check if some messages are left in the cache
-      np_dhkey_t issuer_dhkey = np_dhkey_create_from_hash(intent_token->issuer);
-      np_util_event_t msgcache_event = {.target_dhkey = issuer_dhkey};
-      _np_msgproperty_check_msgcache_for(statemachine,
-                                         event.current_run,
-                                         msgcache_event);
-
-      needs_authz = true;
+      if (IS_AUTHORIZED(intent_token->state)) {
+        // check if some messages are left in the cache
+        np_dhkey_t initial_session_fp = {0};
+        np_dhkey_t intent_token_fp =
+            np_aaatoken_get_fingerprint(intent_token, false);
+        _np_dhkey_xor(&initial_session_fp,
+                      &intent_token_fp,
+                      &property_run->current_fp);
+        np_util_event_t check_event = event;
+        // check for session setup messages
+        _np_dhkey_assign(&check_event.target_dhkey, &initial_session_fp);
+        _np_msgproperty_check_msgcache_for(statemachine, check_event);
+        // check for private messages
+        _np_dhkey_assign(&check_event.target_dhkey, &intent_token_fp);
+        _np_msgproperty_check_msgcache_for(statemachine, check_event);
+      } else {
+        needs_authz = true;
+      }
     }
-
-    // choose correct target ledger
+    // choose correct target ledger - sender
     if (_np_dhkey_equal(&property_conf->subject_dhkey_out,
                         &my_property_key->dhkey)) {
       np_dhkey_t _intent_token_id =
@@ -2361,12 +2401,15 @@ void __np_property_handle_intent(np_util_statemachine_t *statemachine,
           _np_intent_add_receiver(my_property_key, intent_token);
       np_unref_obj(np_aaatoken_t, old_token, ref_aaatoken_local_mx_tokens);
 
-      // check if some messages are left in the cache
-      _np_msgproperty_check_msgcache(statemachine, event);
-      needs_authz = true;
+      if (IS_AUTHORIZED(intent_token->state)) {
+        // check if some messages are left in the cache
+        _np_msgproperty_check_msgcache(statemachine, event);
+      } else {
+        needs_authz = true;
+      }
     }
 
-    if (IS_NOT_AUTHORIZED(intent_token->state) && needs_authz == true) {
+    if (needs_authz == true) {
       log_info(LOG_AAATOKEN,
                "token %s from %s complies with subject policy %s",
                intent_token->uuid,
@@ -2387,5 +2430,10 @@ void __np_property_handle_intent(np_util_statemachine_t *statemachine,
                                   authz_target,
                                   authz_event);
     }
+  } else {
+    log_debug_msg(LOG_INFO,
+                  "policy compliance result for %s / %s is access denied",
+                  property_conf->msg_subject,
+                  intent_token->uuid);
   }
 }

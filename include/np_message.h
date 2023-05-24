@@ -33,8 +33,8 @@ struct np_message_s {
 
   // only used if the message has to be split up into chunks
   bool     is_single_part;
-  uint32_t no_of_chunks;
-  uint32_t no_of_chunk;
+  uint16_t no_of_chunks;
+  uint16_t no_of_chunk;
   np_pll_t(np_messagepart_ptr, msg_chunks);
   np_mutex_t msg_chunks_lock;
 
@@ -69,10 +69,11 @@ NP_API_INTERN
 bool np_message_clone(np_message_t *copy_of_message, np_message_t *message);
 
 NP_API_INTERN
-void _np_message_encrypt_payload(np_message_t *msg,
-                                 np_sll_t(np_aaatoken_ptr, tmp_token));
+void _np_message_encrypt_payload(np_message_t        *msg,
+                                 np_crypto_session_t *crypto_session);
 NP_API_INTERN
-bool _np_message_decrypt_payload(np_message_t *msg, np_aaatoken_t *tmp_token);
+bool _np_message_decrypt_payload(np_message_t        *msg,
+                                 np_crypto_session_t *crypto_session);
 
 // (de-) serialize a message to a binary stream using message pack (cmp.h)
 NP_API_INTERN
@@ -127,8 +128,6 @@ NP_API_INTERN
 void _np_message_del_footerentry(np_message_t *, const char *key);
 
 NP_API_INTERN
-np_dhkey_t *_np_message_get_subject(const np_message_t *const self);
-NP_API_INTERN
 double _np_message_get_expiery(const np_message_t *const self);
 NP_API_INTERN
 bool _np_message_is_expired(const np_message_t *const msg_to_check);
@@ -136,8 +135,13 @@ NP_API_INTERN
 bool _np_message_is_internal(np_state_t *context, np_message_t *msg);
 NP_API_INTERN
 void _np_message_mark_as_incomming(np_message_t *msg);
+
 NP_API_INTERN
-np_dhkey_t *_np_message_get_sender(const np_message_t *const self);
+np_dhkey_t *_np_message_get_subject(const np_message_t *const self);
+NP_API_INTERN
+np_dhkey_t *_np_message_get_sessionid(const np_message_t *const self);
+NP_API_INTERN
+np_dhkey_t _np_message_get_sender(const np_message_t *const self);
 
 NP_API_INTERN
 void _np_message_add_response_handler(

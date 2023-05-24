@@ -85,7 +85,7 @@ several np_tree_t elements that form the different message parts.
 struct np_tree_s {
   struct np_tree_elem_s *rbh_root;
 
-  uint16_t       size;
+  size_t         size;
   size_t         byte_size;
   np_tree_conf_t attr;
 } NP_API_EXPORT;

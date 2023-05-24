@@ -24,7 +24,6 @@
 #include <unistd.h>
 
 #include "event/ev.h"
-#include "msgpack/cmp.h"
 #include "parson/parson.h"
 #include "sodium.h"
 #include "tree/tree.h"

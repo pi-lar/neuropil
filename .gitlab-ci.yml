@@ -1,8 +1,12 @@
 # SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 
+
 default:
   image: $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  
 cache:
   key: "${CI_PIPELINE_IID}${CI_COMMIT_SHA}${CI_RUNNER_TAGS}"
   paths:

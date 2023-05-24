@@ -17,7 +17,6 @@
 
 #include "event/ev.h"
 #include "inttypes.h"
-#include "msgpack/cmp.h"
 #include "sodium.h"
 #include "tree/tree.h"
 
@@ -49,8 +48,8 @@
 #include "np_types.h"
 #include "np_util.h"
 
-NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_message_ptr);
-NP_SLL_GENERATE_IMPLEMENTATION(np_message_ptr);
+NP_DLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_message_ptr);
+NP_DLL_GENERATE_IMPLEMENTATION(np_message_ptr);
 
 static const size_t msg_chunk_size =
     MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40;
@@ -156,41 +155,34 @@ void _np_message_calculate_chunking(np_message_t *msg) {
   np_ctx_memory(msg);
 
   // TODO: message part split-up informations
-  size_t header_size =
-      (msg->header == NULL ? 0 : np_tree_get_byte_size(msg->header));
-  // np_serializer_add_map_bytesize(msg->header, &header_size);
-  size_t instructions_size =
-      (msg->instructions == NULL ? 0
-                                 : np_tree_get_byte_size(msg->instructions));
-  // np_serializer_add_map_bytesize(msg->instructions, &instructions_size);
-  size_t body_size = (msg->body == NULL ? 0 : np_tree_get_byte_size(msg->body));
-  // np_serializer_add_map_bytesize(msg->body, &body_size);
-  size_t footer_size =
-      (msg->footer == NULL ? 0 : np_tree_get_byte_size(msg->footer));
-  // np_serializer_add_map_bytesize(msg->footer, &footer_size);
+  uint32_t header_size = (msg->header == NULL ? 0 : msg->header->byte_size);
+  uint32_t instructions_size =
+      (msg->instructions == NULL ? 0 : msg->instructions->byte_size);
+  uint32_t fixed_size = MSG_ARRAY_SIZE + MSG_ENCRYPTION_BYTES_40 +
+                        MSG_PAYLOADBIN_SIZE + header_size + instructions_size;
 
-  size_t fixed_size = MSG_ENCRYPTION_BYTES_40 + header_size + instructions_size;
-  size_t payload_size        = body_size + footer_size;
-  uint32_t max_chunk_payload = MSG_CHUNK_SIZE_1024 - fixed_size;
+  uint32_t body_size    = (msg->body == NULL ? 0 : msg->body->byte_size);
+  uint32_t footer_size  = (msg->footer == NULL ? 0 : msg->footer->byte_size);
+  uint32_t payload_size = body_size + footer_size;
+
   uint32_t chunks =
-      (uint32_t)ceil((payload_size + 0.0) / (max_chunk_payload + 0.0));
+      ((uint32_t)(payload_size) / (MSG_CHUNK_SIZE_1024 - fixed_size)) + 1;
 
-  log_debug(LOG_SERIALIZATION,
-            "(msg: %s) Message serialisation sizes:"
-            "  payload: %6" PRIu32 " [ body: %6" PRIu32 " + footer: %6" PRIu32
-            "] fixed: %4" PRIu32 " [ header: %4" PRIu32
-            " + instructions: %4" PRIu32 " max_chunk_payload: %4" PRIu32
-            " ] payload + fixed: %6" PRIu32 " chunks: %3" PRIu32,
-            msg->uuid,
-            payload_size,
-            body_size,
-            footer_size,
-            fixed_size,
-            header_size,
-            instructions_size,
-            max_chunk_payload,
-            payload_size + fixed_size,
-            chunks);
+  log_debug_msg(LOG_MESSAGE,
+                "(msg: %s) Message serialisation sizes:"
+                "  payload: %6" PRIu32 " [ body: %6" PRIu32
+                " + footer: %6" PRIu32 "] fixed: %4" PRIu32
+                " [ header: %4" PRIu32 " + instructions: %4" PRIu32
+                " ] payload + fixed: %6" PRIu32 " chunks: %3" PRIu32,
+                msg->uuid,
+                payload_size,
+                body_size,
+                footer_size,
+                fixed_size,
+                header_size,
+                instructions_size,
+                payload_size + fixed_size,
+                chunks);
 
   msg->no_of_chunks = chunks;
 }
@@ -329,7 +321,7 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
 
   // TODO: optimize, more streaming
   // target is an array of 1024 byte size target buffers
-  uint32_t i = 0;
+  uint16_t i = 0;
 
   void *bin_header = NULL;
 
@@ -368,8 +360,7 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
     part->header       = msg->header;
     part->instructions = msg->instructions;
     part->part         = i + 1;
-    // part->msg_part = np_memory_new(context,
-    // np_memory_types_BLOB_984_RANDOMIZED);
+
     np_new_obj(BLOB_984_RANDOMIZED, part->msg_part);
     void *msg_part_ptr = part->msg_part;
 
@@ -378,18 +369,19 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
       bin_header = malloc(header_size);
       CHECK_MALLOC(bin_header);
       memset(bin_header, 0, header_size);
-      // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the header (size
-      // %hd)", msg->properties->size);
       np_serialize_buffer_t header_serializer = {._tree          = msg->header,
                                                  ._target_buffer = bin_header,
                                                  ._buffer_size   = header_size,
                                                  ._bytes_written = 0,
                                                  ._error         = 0};
       np_serializer_write_map(context, &header_serializer, msg->header);
+      log_debug_msg(LOG_MESSAGE,
+                    "header serialization result : %hd %u",
+                    header_serializer._bytes_written,
+                    header_serializer._error);
     }
 
-    // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the header (size
-    // %hd)", msg->header->byte_size);
+    log_debug_msg(LOG_MESSAGE, "copying the header (size %hd)", header_size);
     memcpy(msg_part_ptr, bin_header, header_size);
     msg_part_ptr += header_size;
 
@@ -412,8 +404,11 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
                               &instruction_serializer,
                               msg->instructions);
 
-      // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying the instructions
-      // (size %hd)", msg->instructions->byte_size);
+      log_debug_msg(LOG_MESSAGE,
+                    "copying the instructions (size %hd) %hd %u",
+                    msg->instructions->byte_size,
+                    instruction_serializer._bytes_written,
+                    instruction_serializer._error);
       memcpy(msg_part_ptr,
              bin_instructions,
              instruction_serializer._bytes_written);
@@ -439,8 +434,9 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
                                                ._error         = 0};
       np_serializer_write_map(context, &body_serializer, msg->body);
 
-      // log_debug_msg(LOG_MESSAGE | LOG_DEBUG, "serializing the body (size
-      // %hd)", bin_body_size);
+      log_debug_msg(LOG_MESSAGE,
+                    "serializing the body (size %hd) ",
+                    body_serializer._bytes_written);
       np_serialize_buffer_t footer_serializer = {
           ._tree          = msg->footer,
           ._target_buffer = &bin_body[body_serializer._bytes_written],
@@ -448,39 +444,43 @@ bool _np_message_serialize_chunked(np_state_t *context, np_message_t *msg) {
           ._bytes_written = 0,
           ._error         = 0};
       np_serializer_write_map(context, &footer_serializer, msg->footer);
+      log_debug_msg(LOG_MESSAGE,
+                    "serializing the footer (size %hd) ",
+                    footer_serializer._bytes_written);
     }
 
-    // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "before body: space left in
-    // chunk: %hd / %hd", (max_chunk_size - current_chunk_size),
-    // current_chunk_size );
+    log_debug_msg(LOG_MESSAGE,
+                  "before body: space left in chunk: %hd / %hd ",
+                  (max_chunk_size - current_chunk_size),
+                  current_chunk_size);
 
     if (0 < (max_chunk_size - current_chunk_size) && false == body_done) {
       uint32_t left_body_size =
           bin_body_size + bin_footer_size - (bin_body_ptr - bin_body);
       uint32_t possible_size = max_chunk_size - current_chunk_size;
       if (possible_size >= left_body_size) {
-        // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "writing last body part
-        // (size %hd)", left_body_size);
+        log_debug_msg(LOG_MESSAGE,
+                      "writing last body part (size %hd)",
+                      left_body_size);
         memcpy(msg_part_ptr, bin_body_ptr, left_body_size);
         msg_part_ptr += left_body_size;
         bin_body_ptr += left_body_size;
         body_done = true;
-        // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "wrote all body (size
-        // %hd)", bin_body_size);
+        log_debug_msg(LOG_MESSAGE, "wrote all body (size %hd) ", bin_body_size);
       } else {
         memcpy(msg_part_ptr, bin_body_ptr, possible_size);
         msg_part_ptr += possible_size;
         bin_body_ptr += possible_size;
-        // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "writing body part (size
-        // %hd)", possible_size);
+        log_debug_msg(LOG_MESSAGE,
+                      "writing body part (size %hd) ",
+                      possible_size);
       }
     } else {
       memcpy(msg_part_ptr, bin_body_ptr, 0);
       msg_part_ptr += 0;
-      // cmp_write_bin32(&cmp, bin_body_ptr, 0);
       // log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG, "copying empty tree (size
-      // %hd)", empty_tree->byte_size); memcpy(cmp.buf, bin_empty,
-      // empty_tree->byte_size); cmp.buf += empty_tree->byte_size;
+      // %hd)", empty_tree->byte_size);
+      // memcpy(cmp.buf, bin_empty, empty_tree->byte_size);
     }
     current_chunk_size = msg_part_ptr - part->msg_part;
 
@@ -610,6 +610,7 @@ bool _np_message_deserialize_header_and_instructions(np_message_t *msg,
                                        false,
                                        _np_messagepart_cmp);
           }
+
           if (!msgpart_added) {
             np_unref_obj(np_messagepart_t, part, ref_message_messagepart);
             // new entry is rejected (already present)
@@ -627,7 +628,7 @@ bool _np_message_deserialize_header_and_instructions(np_message_t *msg,
                              part,
                              ref_obj_creation,
                              ref_message_bin_static);
-          np_ref_obj(BLOB_1024, part->msg_part, ref_obj_creation);
+          np_ref_obj(BLOB_984_RANDOMIZED, part->msg_part, ref_obj_creation);
 
           msg->bin_static = part;
 
@@ -674,8 +675,8 @@ bool _np_message_deserialize_chunked(np_message_t *msg) {
     msg->bin_body = NULL;
   }
 
-  void    *bin_body_ptr = NULL;
-  uint32_t size_body    = 0;
+  // void    *bin_body_ptr = NULL;
+  uint32_t size_body = 0;
 
   _LOCK_ACCESS(&msg->msg_chunks_lock) {
     pll_iterator(np_messagepart_ptr) iter = pll_first(msg->msg_chunks);
@@ -726,7 +727,7 @@ bool _np_message_deserialize_chunked(np_message_t *msg) {
                   msg->no_of_chunks);
 
     if (NULL != msg->bin_body) {
-      log_debug_msg(LOG_SERIALIZATION,
+      log_debug_msg(LOG_MESSAGE,
                     "(msg:%s) deserializing msg body %u",
                     msg->uuid,
                     size_body);
@@ -742,12 +743,14 @@ bool _np_message_deserialize_chunked(np_message_t *msg) {
       }
       // TODO: check if the complete buffer was read (byte count match)
 
-      log_debug_msg(LOG_SERIALIZATION,
+      log_debug_msg(LOG_MESSAGE,
                     "(msg:%s) deserializing msg footer %u",
                     msg->uuid,
                     size_body - body_deserializer._bytes_read);
-      size_t                  footer_start  = body_deserializer._bytes_read;
-      size_t                  footer_length = size_body - footer_start;
+
+      size_t footer_start  = body_deserializer._bytes_read;
+      size_t footer_length = size_body - footer_start;
+
       np_deserialize_buffer_t footer_deserializer = {
           ._target_tree = msg->footer,
           ._buffer      = &msg->bin_body[footer_start],
@@ -910,207 +913,56 @@ bool np_message_clone(np_message_t *copy_of_message, np_message_t *message) {
   return true;
 }
 
-void _np_message_encrypt_payload(np_message_t *msg,
-                                 np_sll_t(np_aaatoken_ptr, tmp_token)) {
+void _np_message_encrypt_payload(np_message_t        *msg,
+                                 np_crypto_session_t *crypto_session) {
   np_ctx_memory(msg);
 
   // first encrypt the relevant message part itself
-  unsigned char nonce[crypto_box_NONCEBYTES];
-  unsigned char sym_key[crypto_secretbox_KEYBYTES];
+  // unsigned char nonce[crypto_aead_xchacha20poly1305_IETF_NPUBBYTES];
+  // randombytes_buf((void *)nonce,
+  // crypto_aead_xchacha20poly1305_IETF_NPUBBYTES);
+  unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+  randombytes_buf((void *)nonce, crypto_aead_chacha20poly1305_IETF_NPUBBYTES);
 
-  randombytes_buf((void *)nonce, crypto_box_NONCEBYTES);
-  randombytes_buf((void *)sym_key, crypto_secretbox_KEYBYTES);
+  _np_messagepart_encrypt(context, msg->body, nonce, crypto_session);
 
-  _np_messagepart_encrypt(context, msg->body, nonce, sym_key, NULL);
-
-  // now encrypt the encryption key using public key crypto stuff
-  // unsigned char curve25519_sk[crypto_scalarmult_curve25519_BYTES];
-  unsigned char ciphertext[crypto_box_MACBYTES + crypto_secretbox_KEYBYTES];
-
-  np_tree_t *encryption_details = np_tree_create();
-
-  sll_iterator(np_aaatoken_ptr) iter = sll_first(tmp_token);
-
-  while (NULL != iter) { // finally encrypt
-#ifdef DEBUG
-    char curve25519_pk[crypto_scalarmult_curve25519_BYTES * 2 + 1];
-    char partner_key[crypto_scalarmult_curve25519_BYTES * 2 + 1];
-    sodium_bin2hex(
-        curve25519_pk,
-        crypto_scalarmult_curve25519_BYTES * 2 + 1,
-        _np_key_get_token(context->my_identity)->crypto.derived_kx_public_key,
-        crypto_scalarmult_curve25519_BYTES);
-    sodium_bin2hex(partner_key,
-                   crypto_scalarmult_curve25519_BYTES * 2 + 1,
-                   iter->val->crypto.derived_kx_public_key,
-                   crypto_scalarmult_curve25519_BYTES);
-    log_debug_msg(LOG_DEBUG | LOG_MESSAGE,
-                  "message (%s) encrypt: pa pk: %s ### my pk: %s\n",
-                  msg->uuid,
-                  partner_key,
-                  curve25519_pk);
-#endif
-    int crypto = crypto_box_easy(
-        ciphertext,
-        sym_key,
-        crypto_secretbox_KEYBYTES,
-        nonce,
-        iter->val->crypto.derived_kx_public_key,
-        _np_key_get_token(context->my_identity)->crypto.derived_kx_secret_key);
-    if (0 > crypto) {
-      log_msg(LOG_ERROR,
-              "encryption of message payload failed for receiver %s",
-              iter->val->issuer);
-      // return;
-    } else {
-      log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
-                    "encrypting message (%s) with receiver token %s %s...",
-                    msg->uuid,
-                    iter->val->uuid,
-                    iter->val->issuer);
-      // insert the public-key encrypted encryption key for each receiver of the
-      // message
-      np_tree_insert_str(
-          encryption_details,
-          iter->val->issuer,
-          np_treeval_new_bin(ciphertext,
-                             crypto_box_MACBYTES + crypto_secretbox_KEYBYTES));
-    }
-    log_info(LOG_MESSAGE,
-             "encrypt result for message(%s) for receiver %s / token:%s ret: "
-             "%" PRIu8,
-             msg->uuid,
-             iter->val->issuer,
-             iter->val->uuid,
-             crypto);
-    sll_next(iter);
-  }
-  np_tree_insert_str(encryption_details,
-                     NP_NONCE,
-                     np_treeval_new_bin(nonce, crypto_box_NONCEBYTES));
   // add encryption details to the message
-  np_tree_insert_str(msg->body,
-                     NP_SYMKEY,
-                     np_treeval_new_tree(encryption_details));
-
-  np_tree_free(encryption_details);
+  np_tree_insert_str(
+      msg->body,
+      NP_NONCE,
+      np_treeval_new_bin(nonce, crypto_aead_chacha20poly1305_IETF_NPUBBYTES));
 }
 
-bool _np_message_decrypt_payload(np_message_t *msg, np_aaatoken_t *tmp_token) {
+bool _np_message_decrypt_payload(np_message_t        *msg,
+                                 np_crypto_session_t *crypto_session) {
   np_ctx_memory(msg);
-  bool ret = false;
+  bool ret = true;
 
-  np_tree_elem_t *symkey = np_tree_find_str(msg->body, NP_SYMKEY);
-  if (NULL == symkey) {
-    log_msg(LOG_ERROR,
-            "No encryption_details! \"%s\" tree element is missing",
-            NP_SYMKEY);
+  // insert the public-key encrypted encryption key for each receiver of the
+  // message
+  unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+  memcpy(nonce,
+         np_tree_find_str(msg->body, NP_NONCE)->val.value.bin,
+         crypto_aead_chacha20poly1305_IETF_NPUBBYTES);
+
+  NP_PERFORMANCE_POINT_START(message_decrypt);
+
+  np_tree_t *decrypted_body = np_tree_create();
+  if (false == _np_messagepart_decrypt(context,
+                                       msg->body,
+                                       nonce,
+                                       crypto_session,
+                                       decrypted_body)) {
+    np_tree_free(decrypted_body);
+    log_msg(LOG_ERROR, "decryption of message payloads body failed");
+    ret = false;
   } else {
-    np_tree_t *encryption_details = symkey->val.value.tree;
-    if (NULL == encryption_details) {
-      log_msg(LOG_ERROR, "No encryption_details! Data is missing.");
-    } else {
-      // insert the public-key encrypted encryption key for each receiver of the
-      // message
-      unsigned char nonce[crypto_box_NONCEBYTES];
-      memcpy(nonce,
-             np_tree_find_str(encryption_details, NP_NONCE)->val.value.bin,
-             crypto_box_NONCEBYTES);
-      unsigned char
-          enc_sym_key[crypto_secretbox_KEYBYTES + crypto_box_MACBYTES];
-
-      np_tree_elem_t *encryption_details_elem =
-          np_tree_find_str(encryption_details,
-                           (char *)_np_key_as_str(context->my_identity));
-      if (NULL == encryption_details_elem) {
-        log_msg(LOG_ERROR,
-                "decryption of message (%s) payload failed. no identity "
-                "information in encryption_details for %s",
-                msg->uuid,
-                _np_key_as_str(context->my_identity));
-      } else {
-        memcpy(enc_sym_key,
-               encryption_details_elem->val.value.bin,
-               crypto_secretbox_KEYBYTES + crypto_box_MACBYTES);
-
-#ifdef DEBUG
-
-        char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES * 2 + 1];
-        ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES * 2] = '\0';
-        char curve25519_pk[crypto_scalarmult_curve25519_BYTES * 2 + 1];
-        curve25519_pk[crypto_scalarmult_curve25519_BYTES * 2] = '\0';
-        char partner_key[crypto_scalarmult_curve25519_BYTES * 2 + 1];
-        partner_key[crypto_scalarmult_curve25519_BYTES * 2] = '\0';
-
-        sodium_bin2hex(
-            ed25519_pk,
-            crypto_sign_ed25519_PUBLICKEYBYTES * 2 + 1,
-            _np_key_get_token(context->my_identity)->crypto.ed25519_public_key,
-            crypto_sign_ed25519_PUBLICKEYBYTES);
-        sodium_bin2hex(curve25519_pk,
-                       crypto_scalarmult_curve25519_BYTES * 2 + 1,
-                       _np_key_get_token(context->my_identity)
-                           ->crypto.derived_kx_public_key,
-                       crypto_scalarmult_curve25519_BYTES);
-        sodium_bin2hex(partner_key,
-                       crypto_scalarmult_curve25519_BYTES * 2 + 1,
-                       tmp_token->crypto.derived_kx_public_key,
-                       crypto_scalarmult_curve25519_BYTES);
-
-        log_debug_msg(LOG_DEBUG | LOG_MESSAGE,
-                      "message (%s) decrypt: my cu pk: %s ### my ed pk: %s ### "
-                      "pa pk: %s\n",
-                      msg->uuid,
-                      curve25519_pk,
-                      ed25519_pk,
-                      partner_key);
-#endif
-
-        NP_PERFORMANCE_POINT_START(message_decrypt);
-
-        unsigned char sym_key[crypto_secretbox_KEYBYTES];
-        int           crypto_ret = crypto_box_open_easy(
-            sym_key,
-            enc_sym_key,
-            crypto_box_MACBYTES + crypto_secretbox_KEYBYTES,
-            nonce,
-            tmp_token->crypto.derived_kx_public_key,
-            _np_key_get_token(context->my_identity)
-                ->crypto.derived_kx_secret_key);
-        if (0 > crypto_ret) {
-          log_msg(LOG_ERROR,
-                  "decryption of message sym_key (%s) failed",
-                  msg->uuid);
-        } else {
-          np_tree_t *encrypted_body = np_tree_create();
-          if (_np_messagepart_decrypt(context,
-                                      msg->body,
-                                      nonce,
-                                      sym_key,
-                                      NULL,
-                                      encrypted_body) == false) {
-            np_tree_free(encrypted_body);
-            log_msg(LOG_ERROR,
-                    "decryption of message (%s) payloads body failed",
-                    msg->uuid);
-          } else {
-            np_tree_t *old = msg->body;
-            msg->body      = encrypted_body;
-            np_tree_free(old);
-            ret = true;
-          }
-        }
-        log_info(LOG_MESSAGE,
-                 "decrypt result for message(%s) from sender %s / token:%s "
-                 "ret: %" PRIu8,
-                 msg->uuid,
-                 tmp_token->issuer,
-                 tmp_token->uuid,
-                 crypto_ret);
-        NP_PERFORMANCE_POINT_END(message_decrypt);
-      }
-    }
+    np_tree_t *old = msg->body;
+    msg->body      = decrypted_body;
+    np_tree_free(old);
   }
+  NP_PERFORMANCE_POINT_END(message_decrypt);
+
   return (ret);
 }
 
@@ -1164,7 +1016,7 @@ void _np_message_add_response_handler(
   _np_event_runtime_add_event(context, event.current_run, ack_dhkey, rh_event);
 }
 
-np_dhkey_t *_np_message_get_sender(const np_message_t *const self) {
+np_dhkey_t *_np_message_get_sessionid(const np_message_t *const self) {
   np_ctx_memory(self);
 
   ASSERT(self != NULL, "Cannot operate on not initialised message");
@@ -1173,9 +1025,25 @@ np_dhkey_t *_np_message_get_sender(const np_message_t *const self) {
          self->uuid);
 
   np_dhkey_t     *ret = NULL;
-  np_tree_elem_t *ele = np_tree_find_str(self->header, _NP_MSG_HEADER_FROM);
+  np_tree_elem_t *ele = np_tree_find_str(self->header, _NP_MSG_HEADER_TO);
   if (ele != NULL) {
     ret = &ele->val.value.dhkey;
+  }
+  return ret;
+}
+
+np_dhkey_t _np_message_get_sender(const np_message_t *const self) {
+  np_ctx_memory(self);
+
+  ASSERT(self != NULL, "Cannot operate on not initialised message");
+  ASSERT(self->header != NULL,
+         "Cannot operate on not initialised message %s",
+         self->uuid);
+
+  np_dhkey_t      ret = {0};
+  np_tree_elem_t *ele = np_tree_find_str(self->header, _NP_MSG_HEADER_FROM);
+  if (ele != NULL) {
+    return ele->val.value.dhkey;
   }
   return ret;
 }

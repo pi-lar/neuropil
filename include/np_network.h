@@ -41,17 +41,18 @@ extern "C" {
  */
 #define TIMEOUT 1.0
 
-enum socket_type {
-  UNKNOWN_PROTO = 0x001,
-  IPv4          = 0x002,
-  IPv6          = 0x004,
-  UDP           = 0x010, // UDP protocol - default
-  TCP           = 0x020, // TCP protocol
-  // RAW         = 0x040, // pure IP protocol - no ports
-  PASSIVE        = 0x100,
-  MASK_PROTOCOLL = 0x0FF,
-  MASK_OPTION    = 0xF00,
-} NP_ENUM;
+typedef uint16_t socket_type;
+// enum socket_type {
+static const socket_type UNKNOWN_PROTO  = 0x001;
+static const socket_type IPv4           = 0x002;
+static const socket_type IPv6           = 0x004;
+static const socket_type UDP            = 0x010; // UDP protocol - default
+static const socket_type TCP            = 0x020; // TCP protocol
+static const socket_type MASK_PROTOCOLL = 0x0FF;
+static const socket_type PASSIVE        = 0x100;
+static const socket_type MASK_OPTION    = 0xF00;
+// static const socket_type // RAW         = 0x040, // pure IP protocol - no
+// ports } NP_ENUM;
 
 typedef enum np_network_type_e {
   np_network_type_none   = 0x00,
@@ -68,7 +69,7 @@ struct np_network_s {
   uint8_t           is_running;
   np_network_type_e type;
 
-  enum socket_type socket_type;
+  socket_type socket_type;
 
   struct addrinfo *addr_in; // where a node receives messages
 
@@ -101,11 +102,11 @@ void _np_network_module_destroy(np_state_t *context);
 // parse protocol string of the form "tcp4://..." and return the correct @see
 // socket_type
 NP_API_INTERN
-enum socket_type _np_network_parse_protocol_string(const char *protocol_str);
+socket_type _np_network_parse_protocol_string(const char *protocol_str);
 
 NP_API_INTERN
-char *_np_network_get_protocol_string(np_state_t      *context,
-                                      enum socket_type protocol);
+char *_np_network_get_protocol_string(np_state_t *context,
+                                      socket_type protocol);
 
 /** network_address:
  ** returns the ip address of the #hostname#
@@ -115,7 +116,7 @@ NP_API_INTERN
 bool _np_network_get_address(np_state_t       *context,
                              bool              create_socket,
                              struct addrinfo **ai,
-                             enum socket_type  type,
+                             socket_type       type,
                              char             *hostname,
                              char             *service);
 // struct addrinfo _np_network_get_address (char *hostname);
@@ -130,13 +131,13 @@ void _np_network_start(np_network_t *ng, bool force);
  **
  **/
 NP_API_INTERN
-bool _np_network_init(np_network_t    *network,
-                      bool             create_socket,
-                      enum socket_type type,
-                      char            *hostname,
-                      char            *service,
-                      int              prepared_socket_fd,
-                      enum socket_type passive_socket_type);
+bool _np_network_init(np_network_t *network,
+                      bool          create_socket,
+                      socket_type   type,
+                      char         *hostname,
+                      char         *service,
+                      int           prepared_socket_fd,
+                      socket_type   passive_socket_type);
 
 NP_API_INTERN
 bool _np_network_send_data(np_state_t   *context,

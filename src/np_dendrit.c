@@ -21,7 +21,6 @@
 #include <sys/types.h>
 
 #include "event/ev.h"
-#include "msgpack/cmp.h"
 #include "sodium.h"
 
 #include "neuropil.h"
@@ -38,6 +37,7 @@
 
 #include "np_aaatoken.h"
 #include "np_axon.h"
+#include "np_bootstrap.h"
 #include "np_constants.h"
 #include "np_dhkey.h"
 #include "np_eventqueue.h"
@@ -58,8 +58,6 @@
 #include "np_statistics.h"
 #include "np_threads.h"
 #include "np_token_factory.h"
-#include "np_types.h"
-#include "np_util.h"
 
 bool _check_and_send_destination_ack(np_state_t     *context,
                                      np_util_event_t msg_event) {
@@ -71,14 +69,66 @@ bool _check_and_send_destination_ack(np_state_t     *context,
                        "NOT AN ACK MSG") {
     // TODO: check intent token for ack indicator if user space message
     if (FLAG_CMP(msg_ack->val.value.ush, ACK_DESTINATION)) {
+      bool _use_node_ack = false;
+      // from value is filled with different values: either the fingerprint of
+      // the session token, or the real node dhkey
+      np_dhkey_t target_dhkey =
+          np_tree_find_str(msg->header, _NP_MSG_HEADER_TO)
+              ->val.value.dhkey; // where the message should go to
+
+      np_dhkey_t from_dhkey = {0};
+      // check for node (hop-by-hop) ack
+      if (_np_dhkey_equal(&target_dhkey, &context->my_node_key->dhkey)) {
+        _use_node_ack       = true;
+        np_key_t *alias_key = NULL;
+        alias_key = _np_keycache_find(context, msg_event.target_dhkey);
+        if (NULL != alias_key) {
+          log_msg(LOG_INFO, "ack of message %s", msg->uuid);
+          _np_dhkey_assign(&from_dhkey, &alias_key->parent_dhkey);
+          np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
+        } else {
+          _np_dhkey_assign(&from_dhkey, &msg_event.target_dhkey);
+          log_msg(LOG_INFO, "ack of message %s", msg->uuid);
+        }
+      }
+
+      // check for subject (end-to-end) ack
+      if (false == _use_node_ack) { // lookup crypto sender token to extract use
+                                    // node info
+        np_dhkey_t subject_dhkey =
+            np_tree_find_str(msg->header, _NP_MSG_HEADER_SUBJECT)
+                ->val.value.dhkey; // where the message came from
+        np_dhkey_t in_subject_dhkey =
+            _np_msgproperty_tweaked_dhkey(INBOUND, subject_dhkey);
+
+        np_key_t *subject_key = _np_keycache_find(context, in_subject_dhkey);
+        if (NULL == subject_key) {
+          log_msg(LOG_INFO | LOG_MESSAGE,
+                  "e2e  ack key not found in %s",
+                  msg->uuid);
+          return true;
+        }
+
+        if (_np_intent_get_ack_session(subject_key,
+                                       target_dhkey,
+                                       &from_dhkey)) {
+          log_msg(LOG_INFO | LOG_MESSAGE,
+                  "e2e  ack of message %s found",
+                  msg->uuid);
+        } else {
+          log_msg(LOG_INFO | LOG_MESSAGE,
+                  "e2e  ack of message %s not found",
+                  msg->uuid);
+          return true;
+        }
+        np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
+      }
+
       np_dhkey_t ack_subject = {0};
       np_generate_subject(&ack_subject, _NP_MSG_ACK, strnlen(_NP_MSG_ACK, 256));
 
       np_dhkey_t ack_out_dhkey =
           _np_msgproperty_tweaked_dhkey(OUTBOUND, ack_subject);
-      np_dhkey_t target_dhkey =
-          np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM)
-              ->val.value.dhkey; // where the message came from
 
       np_tree_t *msg_body = np_tree_create();
       np_tree_insert_str(msg_body,
@@ -88,7 +138,7 @@ bool _check_and_send_destination_ack(np_state_t     *context,
       np_message_t *msg_out = NULL;
       np_new_obj(np_message_t, msg_out, FUNC);
       _np_message_create(msg_out,
-                         target_dhkey,
+                         from_dhkey,
                          context->my_node_key->dhkey,
                          ack_subject,
                          msg_body);
@@ -124,10 +174,10 @@ bool _np_in_ping(np_state_t *context, np_util_event_t msg_event) {
 
 /**
  ** neuropil_piggy_message:
- ** This function is responsible to add the piggy backing node information that
- *is sent along with
- ** other ctrl messages or separately to the routing table. the PIGGY message
- *type is a separate
+ ** This function is responsible to add the piggy backing node information
+ *that is sent along with
+ ** other ctrl messages or separately to the routing table. the PIGGY
+ *message type is a separate
  ** message type.
  **/
 bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
@@ -167,8 +217,8 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
     // routing table is responsible to handle possible double entries
     np_dhkey_t search_key = np_dhkey_create_from_hash(node_entry->host_key);
 
-    // TODO: those new entries in the piggy message must be authenticated before
-    // sending join requests
+    // TODO: those new entries in the piggy message must be authenticated
+    // before sending join requests
     np_key_t *piggy_key = _np_keycache_find(context, search_key);
     if (piggy_key == NULL) {
       bool send_join                    = false;
@@ -179,14 +229,15 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
       if (sll_size(sll_of_keys) <
           NP_ROUTES_MAX_ENTRIES) { // our routing table is not full
         send_join = true;
-      } else { // our routing table is full, but the new dhkey is closer to us
+      } else { // our routing table is full, but the new dhkey is closer to
+               // us
         _np_keycache_sort_keys_kd(sll_of_keys, &context->my_node_key->dhkey);
         send_join = _np_dhkey_between(&search_key,
                                       &context->my_node_key->dhkey,
                                       &sll_last(sll_of_keys)->val->dhkey,
                                       true);
-        // log_msg(LOG_INFO, "xxxxxxx  node %s is qualified for a piggy join.",
-        // _np_key_as_str(piggy_key));
+        // log_msg(LOG_INFO, "xxxxxxx  node %s is qualified for a piggy
+        // join.", _np_key_as_str(piggy_key));
       }
 
       if (send_join) {
@@ -195,7 +246,8 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
         // node_entry->_handshake_status = np_node_status_Initiated;
         // log_info(LOG_HANDSHAKE,"set %s %s _handshake_status: %"PRIu8" ->
         // %"PRIu8,
-        //     FUNC, node_entry->dns_name, old_e , node_entry->_handshake_status
+        //     FUNC, node_entry->dns_name, old_e ,
+        //     node_entry->_handshake_status
         // );
         piggy_key = _np_keycache_find_or_create(context, search_key);
         np_util_event_t new_node_evt = {.type      = (evt_internal),
@@ -216,10 +268,10 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
                _np_key_get_node(piggy_key)->success_avg > BAD_LINK &&
                (np_time_now() - piggy_key->created_at) >=
                    BAD_LINK_REMOVE_GRACETIME) {
-      // let's try to fill up our leafset, routing table is filled by internal
-      // state
-      // TODO: realize this via an event, otherwise locking of the piggy key is
-      // not in place
+      // let's try to fill up our leafset, routing table is filled by
+      // internal state
+      // TODO: realize this via an event, otherwise locking of the piggy key
+      // is not in place
       __np_node_add_to_leafset(&piggy_key->sm, msg_event);
       np_unref_obj(np_key_t, piggy_key, "_np_keycache_find");
     } else {
@@ -238,12 +290,12 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
 }
 
 /** _np_in_callback_wrapper
- ** _np_in_callback_wrapper is used when a callback function is used to receive
- *messages
- ** The purpose is automated acknowledge handling in case of ACK_CLIENT message
- *subjects
- ** the user defined callback has to return true in case the ack can be send, or
- *false
+ ** _np_in_callback_wrapper is used when a callback function is used to
+ *receive messages
+ ** The purpose is automated acknowledge handling in case of ACK_CLIENT
+ *message subjects
+ ** the user defined callback has to return true in case the ack can be
+ *send, or false
  ** if e.g. validation of the message has failed.
  **/
 bool _np_in_callback_wrapper(np_state_t *context, np_util_event_t msg_event) {
@@ -256,36 +308,54 @@ bool _np_in_callback_wrapper(np_state_t *context, np_util_event_t msg_event) {
   bool ret = true;
 
   CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_ele);
-  CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
+  CHECK_STR_FIELD(msg_in->header, _NP_MSG_HEADER_TO, msg_session_id);
 
   np_dhkey_t prop_in_dhkey =
       _np_msgproperty_tweaked_dhkey(INBOUND, msg_subject_ele.value.dhkey);
   np_key_t *prop_in_key = _np_keycache_find(context, prop_in_dhkey);
 
-  np_aaatoken_t *sender_token =
-      _np_intent_get_sender_token(prop_in_key, msg_from.value.dhkey);
-  if (sender_token != NULL) {
-    ret = _np_message_decrypt_payload(msg_in, sender_token);
-    if (ret && msg_in->decryption_token == NULL) {
-      np_ref_obj(np_aaatoken_t, sender_token, "np_message_t.decryption_token");
-      msg_in->decryption_token = sender_token;
-    }
+  NP_CAST(prop_in_key->entity_array[0], np_msgproperty_conf_t, msg_prop);
 
-    np_unref_obj(np_aaatoken_t, sender_token, "_np_intent_get_sender_token");
+  np_dhkey_t session_id = msg_session_id.value.dhkey;
+
+  np_crypto_session_t crypto_session = {0};
+  bool                session_found =
+      _np_intent_get_crypto_session(prop_in_key, session_id, &crypto_session);
+
+  ret = _np_message_decrypt_payload(msg_in, &crypto_session);
+  if (ret && session_found &&
+      crypto_session.session_type == crypto_session_initial) {
+    log_msg(LOG_INFO,
+            "initial crypto_session message detected (%s/%s), importing values",
+            msg_prop->msg_subject,
+            msg_in->uuid);
+    _np_intent_import_session(prop_in_key, msg_in->body, crud_create);
+    ret = false;
+  } else if (ret && session_found) {
+    // if (msg_in->decryption_token == NULL) {
+    //   np_aaatoken_t *sender_token =
+    //       _np_intent_get_sender_token(prop_in_key, session_id);
+    //   np_ref_obj(np_aaatoken_t, sender_token,
+    //   "np_message_t.decryption_token"); np_unref_obj(np_aaatoken_t,
+    //   sender_token, "_np_intent_get_sender_token"); msg_in->decryption_token
+    //   = sender_token;
+    // }
   }
   np_unref_obj(np_key_t, prop_in_key, "_np_keycache_find");
 
 __np_cleanup__ : {}
   if (!ret)
     log_info(LOG_ROUTING | LOG_MESSAGE,
-             "Cound not decrypt data (msg: %s)",
+             "Could not decrypt data (msg: %s) or initial session message",
              msg_in->uuid);
   return ret;
 }
 
 /** _np_in_leave_req:
- ** internal function that is called at the destination of a LEAVE message. This
- ** call encodes the leaf set of the current host and sends it to the joiner.
+ ** internal function that is called at the destination of a LEAVE message.
+ *This
+ ** call encodes the leaf set of the current host and sends it to the
+ *joiner.
  **/
 bool _np_in_leave(np_state_t *context, np_util_event_t msg_event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_in_leave(...){");
@@ -328,8 +398,10 @@ bool _np_in_leave(np_state_t *context, np_util_event_t msg_event) {
 }
 
 /** _np_in_join_req:
- ** internal function that is called at the destination of a JOIN message. This
- ** call encodes the leaf set of the current host and sends it to the joiner.
+ ** internal function that is called at the destination of a JOIN message.
+ *This
+ ** call encodes the leaf set of the current host and sends it to the
+ *joiner.
  **/
 bool _np_in_join(np_state_t *context, np_util_event_t msg_event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_in_join(...){");
@@ -455,8 +527,8 @@ bool _np_in_join(np_state_t *context, np_util_event_t msg_event) {
                                 msg_event.current_run,
                                 context->my_identity->dhkey,
                                 authn_event);
-  } else if (join_ident_token !=
-             NULL) { // update node token and wait for identity authentication
+  } else if (join_ident_token != NULL) { // update node token and wait for
+                                         // identity authentication
     log_debug_msg(LOG_ROUTING,
                   "JOIN request: node     %s would like to join",
                   _np_key_as_str(join_node_key));
@@ -505,20 +577,20 @@ bool _np_in_ack(np_state_t *context, np_util_event_t msg_event) {
 
   np_tree_elem_t *response_entry =
       np_tree_find_str(property->response_handler, ack_uuid.value.s);
-  if (response_entry !=
-      NULL) { // just an acknowledgement of own messages send out earlier
+  if (response_entry != NULL) {
+    // just an acknowledgement of own messages send out earlier
     NP_CAST(response_entry->val.value.v, np_responsecontainer_t, response);
+    response->received_at = np_time_now();
     log_debug_msg(LOG_ROUTING | LOG_MESSAGE,
                   "msg (%s) is acknowledgment of uuid=%s",
                   msg->uuid,
                   np_treeval_to_str(ack_uuid, NULL));
-    response->received_at = np_time_now();
   } else {
-    log_debug_msg(
-        LOG_ROUTING | LOG_MESSAGE,
-        "msg (%s) is acknowledgment of uuid=%s but we do not know of this msg",
-        msg->uuid,
-        np_treeval_to_str(ack_uuid, NULL));
+    log_debug_msg(LOG_ROUTING | LOG_MESSAGE,
+                  "msg (%s) is acknowledgment of uuid=%s but we do not "
+                  "know of this msg",
+                  msg->uuid,
+                  np_treeval_to_str(ack_uuid, NULL));
   }
 
   np_unref_obj(np_key_t, ack_key, "_np_keycache_find");
@@ -531,9 +603,9 @@ __np_cleanup__ : {}
 // TODO: write a function that handles path discovery
 // TODO: if this is not the target node, add my own address to the update
 // message
-// TODO: if this is the target node, change target to sending instance and send
-// again receive information about new nodes in the network and try to contact
-// new nodes
+// TODO: if this is the target node, change target to sending instance and
+// send again receive information about new nodes in the network and try to
+// contact new nodes
 bool _np_in_update(np_state_t *context, np_util_event_t msg_event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_in_update(...){");
 
@@ -587,8 +659,8 @@ bool _np_in_update(np_state_t *context, np_util_event_t msg_event) {
   return true;
 }
 
-// TODO: handle both available message with the same message callback. Only the
-// msg_mode is different and depends on the message type
+// TODO: handle both available message with the same message callback. Only
+// the msg_mode is different and depends on the message type
 bool _np_in_available_sender(np_state_t *context, np_util_event_t msg_event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_in_available_sender(...){");
 
@@ -602,8 +674,8 @@ bool _np_in_available_sender(np_state_t *context, np_util_event_t msg_event) {
   msg_token = np_token_factory_read_from_tree(context,
                                               intent_token_ele->val.value.tree);
   if (msg_token) {
-    // TODO: cross check with message header subject field: dhkey has to match
-    // the subject in the token
+    // TODO: cross check with message header subject field: dhkey has to
+    // match the subject in the token
     np_dhkey_t subject_dhkey = {0};
     np_str_id((np_id *)&subject_dhkey, msg_token->subject);
     np_dhkey_t available_msg_type =
@@ -642,8 +714,8 @@ bool _np_in_available_receiver(np_state_t *context, np_util_event_t msg_event) {
   msg_token = np_token_factory_read_from_tree(context,
                                               intent_token_ele->val.value.tree);
   if (msg_token) {
-    // TODO: cross check with message header subject field: dhkey has to match
-    // the subject in the token
+    // TODO: cross check with message header subject field: dhkey has to
+    // match the subject in the token
     np_dhkey_t subject_dhkey = {0};
     np_str_id(&subject_dhkey, msg_token->subject);
     np_dhkey_t available_msg_type =
@@ -664,7 +736,7 @@ bool _np_in_available_receiver(np_state_t *context, np_util_event_t msg_event) {
     np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
   } else {
     log_warn(LOG_ROUTING,
-             "Received NO receiver token (%s) via msg (%s).",
+             "Received NO receiver token () via msg (%s).",
              available_msg_in->uuid);
   }
   return true;
@@ -676,16 +748,17 @@ bool _np_in_pheromone(np_state_t *context, np_util_event_t msg_event) {
   NP_CAST(msg_event.user_data, np_message_t, pheromone_msg_in);
 
   CHECK_STR_FIELD(pheromone_msg_in->header, _NP_MSG_HEADER_TO, msg_to);
-  CHECK_STR_FIELD(pheromone_msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
+  // CHECK_STR_FIELD(pheromone_msg_in->header, _NP_MSG_HEADER_FROM, msg_from);
 
-  // we have the final node hash in the following field and thus the know the
-  // next hop
+  // we have the final node hash in the following field and thus the know
+  // the next hop
   np_dhkey_t _last_hop_dhkey = msg_event.target_dhkey;
 
   // TODO: we could check if a pheromone reached a target system (aka
-  // sender/receiver) here and initiate the sending of the real intent. Too much
-  // work for now :-( np_key_t* msg_prop_key = _np_keycache_find(context,
-  // msg_to.value.dhkey /*msg_from.value.dhkey */);
+  // sender/receiver) here and initiate the sending of the real intent. Too
+  // much work for now :-( np_key_t* msg_prop_key =
+  // _np_keycache_find(context, msg_to.value.dhkey /*msg_from.value.dhkey
+  // */);
 
   np_tree_elem_t *tmp                      = NULL;
   bool            forward_pheromone_update = false;
@@ -779,19 +852,17 @@ bool _np_in_pheromone(np_state_t *context, np_util_event_t msg_event) {
                                        .target_dhkey = msg_to.value.dhkey};
     pheromone_event.user_data       = msg_out;
 
-    // forward to axon sending unit with main direction "mgs_to"
+    // forward to axon sending unit with main direction "msg_to"
     _np_event_runtime_add_event(context,
                                 msg_event.current_run,
                                 pheromone_dhkey,
                                 pheromone_event);
 
-    // forward to axon sending unit with main direction set to existing trails
+    // forward to axon sending unit with main direction set to existing
+    // trails
     sll_iterator(np_dhkey_t) iter = sll_first(result_list);
     while (iter != NULL) { // exclude from further routing if dhkey matches:
-      if (!_np_dhkey_equal(&iter->val,
-                           &msg_from.value.dhkey) && // the message origin
-          !_np_dhkey_equal(&iter->val,
-                           &msg_event.target_dhkey) && // the last hop
+      if (!_np_dhkey_equal(&iter->val, &_last_hop_dhkey) && // last hop
           !_np_dhkey_equal(&iter->val,
                            &context->my_node_key->dhkey)) // our own node dhkey
       {
@@ -859,9 +930,9 @@ bool _np_in_handshake(np_state_t *context, np_util_event_t msg_event) {
   hs_event.type            = (evt_external | evt_token);
   _np_event_runtime_start_with_event(context, search_dhkey, hs_event);
   /*
-      Sollte eigentlich _np_event_runtime_add_event sein, aber der folgende code
-     muss dann in eine cleanup methode o.ä. ausgelagert werden da so nicht auf
-     asyncronität ausgelegt
+      Sollte eigentlich _np_event_runtime_add_event sein, aber der folgende
+     code muss dann in eine cleanup methode o.ä. ausgelagert werden da so
+     nicht auf asyncronität ausgelegt
   */
   log_debug_msg(LOG_HANDSHAKE, "Update node key done! %p", msg_source_key);
 

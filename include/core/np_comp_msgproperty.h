@@ -359,9 +359,10 @@ struct np_msgproperty_conf_s {
  * store teh actual attributes
  */
 struct np_msgproperty_run_s {
-  np_aaa_callback
-      authorize_func; // authorization callback for this specific subject
-
+  // authorization callback for this specific subject
+  np_aaa_callback authorize_func;
+  // the fingerprint of the currently used token
+  np_dhkey_t current_fp;
   // timestamp for cleanup thread
   double last_update;
   // user settable properties share the same property, thus we have to
@@ -371,7 +372,7 @@ struct np_msgproperty_run_s {
 
   uint32_t msg_threshold; // current threshold size
 
-  np_sll_t(np_message_ptr, msg_cache);
+  np_dll_t(np_message_ptr, msg_cache);
 
   // callback function(s) to invoke when a message is received
   np_sll_t(np_evt_callback_t, callbacks); // internal neuropil supplied
@@ -498,7 +499,6 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
                                     NP_UNUSED const np_util_event_t event);
 NP_API_INTERN
 void _np_msgproperty_check_msgcache_for(np_util_statemachine_t *statemachine,
-                                        np_event_runtime_t     *current_run,
                                         const np_util_event_t   event);
 NP_API_INTERN
 void _np_msgproperty_cleanup_cache(np_util_statemachine_t         *statemachine,

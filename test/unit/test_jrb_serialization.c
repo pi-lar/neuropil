@@ -49,8 +49,6 @@ Test(test_serialization,
      serialize_np_dhkey_t_in_np_tree_t,
      .description = "test the serialization of a dhkey in a tree") {
   CTX() {
-    cmp_ctx_t cmp_read;
-    cmp_ctx_t cmp_write;
 
     size_t buffer_size = 1024;
     char   buffer[buffer_size];
@@ -379,8 +377,7 @@ Test(test_serialization,
     log_msg(LOG_INFO, "----------------------");
     log_msg(LOG_INFO, "serializing message:  ");
 
-    cmp_ctx_t cmp;
-    void     *buffer = malloc(buffer_size);
+    void *buffer = malloc(buffer_size);
     memset(buffer, 0, buffer_size);
 
     np_serialize_buffer_t serializer_2 = {

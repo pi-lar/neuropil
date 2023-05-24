@@ -8,7 +8,6 @@
 #include <stdint.h>
 
 #include "inttypes.h"
-#include "msgpack/cmp.h"
 #include "sodium.h"
 #include "tree/tree.h"
 
@@ -18,6 +17,7 @@
 #include "util/np_serialization.h"
 #include "util/np_tree.h"
 
+#include "np_crypto.h"
 #include "np_legacy.h"
 #include "np_log.h"
 #include "np_memory.h"
@@ -46,45 +46,37 @@ int8_t _np_messagepart_cmp(const np_messagepart_ptr value1,
   return (0);
 }
 
-bool _np_messagepart_decrypt(np_state_t              *context,
-                             np_tree_t               *source,
-                             unsigned char           *enc_nonce,
-                             unsigned char           *public_key,
-                             NP_UNUSED unsigned char *secret_key,
-                             np_tree_t               *target) {
+bool _np_messagepart_decrypt(np_state_t          *context,
+                             np_tree_t           *source,
+                             unsigned char       *enc_nonce,
+                             np_crypto_session_t *session,
+                             np_tree_t           *target) {
   log_trace_msg(
       LOG_TRACE | LOG_MESSAGE,
-      "start: bool _np_messagepart_decrypt(context, np_tree_t* "
-      "msg_part,							"
-      "unsigned char* enc_nonce,					"
-      "		unsigned char* public_key,				"
-      "			NP_UNUSED unsigned char* secret_key){");
+      "start: bool _np_messagepart_decrypt(context, np_tree_t* msg_part");
 
   np_tree_elem_t *enc_msg_part = np_tree_find_str(source, NP_ENCRYPTED);
   if (NULL == enc_msg_part) {
     log_msg(LOG_ERROR, "couldn't find encrypted msg part");
     return (false);
   }
-  size_t        decrypted_size = enc_msg_part->val.size - crypto_box_MACBYTES;
+  uint32_t decrypted_size =
+      enc_msg_part->val.size - crypto_aead_chacha20poly1305_IETF_ABYTES;
   unsigned char dec_part[decrypted_size];
-  int16_t       ret = crypto_secretbox_open_easy(dec_part,
-                                           enc_msg_part->val.value.bin,
-                                           enc_msg_part->val.size,
-                                           enc_nonce,
-                                           public_key);
 
+  int ret = np_crypto_session_decrypt(
+      context,
+      session,
+      &enc_msg_part->val.value.bin[crypto_aead_chacha20poly1305_IETF_ABYTES],
+      decrypted_size,
+      &enc_msg_part->val.value.bin[0],
+      crypto_aead_chacha20poly1305_IETF_ABYTES,
+      dec_part,
+      decrypted_size,
+      NULL,
+      0,
+      enc_nonce);
   if (ret < 0) {
-#ifdef DEBUG
-    char public_key_hex[crypto_secretbox_KEYBYTES * 2 + 1];
-    sodium_bin2hex(public_key_hex,
-                   crypto_secretbox_KEYBYTES * 2 + 1,
-                   public_key,
-                   crypto_secretbox_KEYBYTES);
-    log_debug_msg(LOG_ROUTING,
-                  "couldn't decrypt msg part with session key %s",
-                  public_key_hex);
-#endif
-
     log_debug_msg(LOG_ERROR, "couldn't decrypt msg part with session key");
     return (false);
   }
@@ -97,49 +89,50 @@ bool _np_messagepart_decrypt(np_state_t              *context,
                                           ._error       = 0};
   np_serializer_read_map(context, &deserializer, target);
 
+  // check if the complete buffer was read (byte count match)
   if (deserializer._error != 0) {
     log_debug_msg(LOG_ERROR, "couldn't deserialize msg part after decryption");
     return false;
   }
-  // TODO: check if the complete buffer was read (byte count match)
 
   return (true);
 }
 
-bool _np_messagepart_encrypt(np_state_t              *context,
-                             np_tree_t               *msg_part,
-                             unsigned char           *nonce,
-                             unsigned char           *public_key,
-                             NP_UNUSED unsigned char *secret_key) {
-  log_trace_msg(
-      LOG_TRACE | LOG_MESSAGE,
-      "start: bool _np_messagepart_encrypt(context, np_tree_t* "
-      "msg_part,							"
-      "unsigned char* nonce,						"
-      "	unsigned char* public_key,					"
-      "		NP_UNUSED unsigned char* secret_key){");
-  cmp_ctx_t cmp           = {0};
-  size_t    msg_part_size = np_tree_get_byte_size(msg_part);
-  // np_serializer_add_map_bytesize(msg_part, &msg_part_size);
-  unsigned char msg_part_buffer[msg_part_size];
-  void         *msg_part_buf_ptr = msg_part_buffer;
+bool _np_messagepart_encrypt(np_state_t          *context,
+                             np_tree_t           *msg_part,
+                             unsigned char       *nonce,
+                             np_crypto_session_t *session) {
+  log_trace_msg(LOG_TRACE | LOG_MESSAGE,
+                "start: bool _np_messagepart_encrypt(context, np_tree_t* ");
 
+  size_t msg_part_size = np_tree_get_byte_size(msg_part);
+  unsigned char
+      buffer[msg_part_size + crypto_aead_chacha20poly1305_IETF_ABYTES];
   np_serialize_buffer_t serializer = {._tree          = msg_part,
-                                      ._target_buffer = msg_part_buf_ptr,
+                                      ._target_buffer = &buffer,
                                       ._buffer_size   = msg_part_size,
                                       ._bytes_written = 0,
                                       ._error         = 0};
   np_serializer_write_map(context, &serializer, msg_part);
+  if (serializer._error != 0) {
+    log_msg(LOG_ERROR, "couldn't serialize msg part before encryption");
+    return false;
+  }
+  unsigned char
+      enc_msg_part[msg_part_size + crypto_aead_chacha20poly1305_IETF_ABYTES];
 
-  uint32_t      enc_msg_part_len = msg_part_size + crypto_box_MACBYTES;
-  unsigned char enc_msg_part[enc_msg_part_len];
-
-  int16_t ret = crypto_secretbox_easy(enc_msg_part,
-                                      msg_part_buf_ptr,
-                                      msg_part_size,
-                                      nonce,
-                                      public_key);
-
+  int ret = np_crypto_session_encrypt(
+      context,
+      session,
+      &enc_msg_part[crypto_aead_chacha20poly1305_IETF_ABYTES],
+      serializer._bytes_written,
+      &enc_msg_part[0],
+      crypto_aead_chacha20poly1305_IETF_ABYTES,
+      buffer,
+      msg_part_size,
+      NULL,
+      0,
+      nonce);
   if (ret < 0) {
     return (false);
   }
@@ -147,7 +140,10 @@ bool _np_messagepart_encrypt(np_state_t              *context,
   _np_tree_replace_all_with_str(
       msg_part,
       NP_ENCRYPTED,
-      np_treeval_new_bin(enc_msg_part, enc_msg_part_len));
+      np_treeval_new_bin(enc_msg_part,
+                         msg_part_size +
+                             crypto_aead_chacha20poly1305_IETF_ABYTES));
+
   return (true);
 }
 
@@ -157,6 +153,7 @@ void _np_messagepart_t_del(np_state_t       *context,
                            void             *nw) {
   log_trace_msg(LOG_TRACE | LOG_MESSAGE,
                 "start: void _np_messagepart_t_del(void* nw){");
+
   np_messagepart_t *part = (np_messagepart_t *)nw;
 
   if (part->msg_part != NULL) {
@@ -194,22 +191,15 @@ char *np_messagepart_printcache(np_state_t *context, bool asOneLine) {
     np_tree_elem_t *tmp = NULL;
 
     RB_FOREACH (tmp, np_tree_s, context->msg_part_cache) {
-
       np_message_t *msg = tmp->val.value.v;
-      char          tmp_msg_subject[65];
-      // TODO: tmp_msg_subject (this is an ugly cast from dhkey* to char*)
-      sodium_bin2hex(tmp_msg_subject,
-                     65,
-                     _np_message_get_subject(msg),
-                     NP_FINGERPRINT_BYTES);
 
       ret = np_str_concatAndFree(ret,
                                  "%s   received %2" PRIu32 " of %2" PRIu16
-                                 " expected parts. msg subject: %s%s",
+                                 " expected parts. msg subject:%s%s",
                                  msg->uuid,
                                  pll_size(msg->msg_chunks),
                                  msg->no_of_chunks,
-                                 tmp_msg_subject,
+                                 _np_message_get_subject(msg),
                                  new_line);
     }
   }
@@ -221,7 +211,6 @@ char *np_messagepart_printcache(np_state_t *context, bool asOneLine) {
 void _np_messagepart_trace_info(char *desc, np_messagepart_t *msg_in) {
 
   np_ctx_memory(msg_in);
-
   char *info_str = NULL;
   info_str       = np_str_concatAndFree(info_str, "MessagePartTrace_%s", desc);
 
@@ -232,14 +221,8 @@ void _np_messagepart_trace_info(char *desc, np_messagepart_t *msg_in) {
   np_tree_elem_t *tmp;
   if (msg_in->header != NULL) {
     RB_FOREACH (tmp, np_tree_s, (msg_in->header)) {
-      key = np_treeval_to_str(tmp->key, &free_key);
-      if (strcmp(key, _NP_MSG_HEADER_SUBJECT) == 0) {
-        free_value = true;
-        value      = malloc(100);
-        np_regenerate_subject(context, value, 100, &tmp->val.value.dhkey);
-      } else {
-        value = np_treeval_to_str(tmp->val, &free_value);
-      }
+      key      = np_treeval_to_str(tmp->key, &free_key);
+      value    = np_treeval_to_str(tmp->val, &free_value);
       info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
       if (free_value) free(value);
       if (free_key) free(key);

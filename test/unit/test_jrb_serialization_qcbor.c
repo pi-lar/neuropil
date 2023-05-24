@@ -70,7 +70,6 @@ Test(test_serialization_qcbor,
     struct q_useful_buf_c qmp_read       = {.ptr = buffer_ptr, .len = 512};
     QCBORDecodeContext    qcbor_ctx_read = {0};
     QCBORDecode_Init(&qcbor_ctx_read, qmp_read, QCBOR_DECODE_MODE_NORMAL);
-    QCBORItem item = {0};
 
     //    QCBORDecode_VGetNext(&qcbor_ctx_read, &item);
     np_treeval_t read_tst = {.type = np_treeval_type_undefined, .size = 0};
@@ -86,7 +85,6 @@ Test(test_serialization_qcbor,
 
     __np_tree_deserialize_read_type(context,
                                     np_tree_create(),
-                                    &item,
                                     &qcbor_ctx_read,
                                     &read_tst,
                                     "test read");

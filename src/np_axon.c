@@ -19,7 +19,6 @@
 #include <sys/types.h>
 
 #include "event/ev.h"
-#include "msgpack/cmp.h"
 #include "sodium.h"
 
 #include "neuropil_data.h"
@@ -72,14 +71,17 @@
  *MSG_CHUNK_SIZE_1024 // spezial behandlung garbage_size < 3
  **     add garbage
  ** else
- ** 	add garbage
+ **     add garbage
  **/
 
 bool _np_out_callback_wrapper(np_state_t           *context,
                               const np_util_event_t event) {
   log_trace_msg(LOG_TRACE, "start: void __np_out_callback_wrapper(...){");
 
+  bool ret = false;
+
   NP_CAST(event.user_data, np_message_t, message);
+  CHECK_STR_FIELD(message->header, _NP_MSG_HEADER_TO, msg_session_id);
 
   np_dhkey_t prop_out_dhkey =
       _np_msgproperty_tweaked_dhkey(OUTBOUND,
@@ -92,14 +94,10 @@ bool _np_out_callback_wrapper(np_state_t           *context,
           my_property_conf);
   NP_CAST(prop_out_key->entity_array[1], np_msgproperty_run_t, my_property_run);
 
-  bool ret = false;
-
-  np_sll_t(np_aaatoken_ptr, tmp_token_list);
-  sll_init(np_aaatoken_ptr, tmp_token_list);
-
-  _np_intent_get_all_receiver(prop_out_key,
-                              event.target_dhkey,
-                              &tmp_token_list);
+  np_crypto_session_t crypto_session = {0};
+  bool found_session = _np_intent_get_crypto_session(prop_out_key,
+                                                     msg_session_id.value.dhkey,
+                                                     &crypto_session);
   log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                 "(msg: %s) for subject \"%s\" has valid token",
                 message->uuid,
@@ -117,74 +115,46 @@ bool _np_out_callback_wrapper(np_state_t           *context,
         .type         = (evt_redeliver | evt_internal | evt_message),
         .target_dhkey = event.target_dhkey,
         .user_data    = redeliver_copy};
-    //_np_event_runtime_add_event(context, event.current_run, prop_out_dhkey,
-    // redeliver_event);
+    _np_event_runtime_add_event(context,
+                                event.current_run,
+                                prop_out_dhkey,
+                                redeliver_event);
     // POSSIBLE ASYNC POINT
-    char buf[100];
-    snprintf(buf,
-             100,
-             "urn:np:message:redelivery_conf:%s",
-             redeliver_copy->uuid);
-    if (!np_jobqueue_submit_event(context,
-                                  0,
-                                  prop_out_dhkey,
-                                  redeliver_event,
-                                  buf)) {
-      log_error(
-          "Jobqueue rejected new job for message redelivery configuration of "
-          "msg %s. No resend will be initiated.",
-          redeliver_copy->uuid);
-    }
-    //
-
+    // char buf[100];
+    // snprintf(buf,
+    //          100,
+    //          "urn:np:message:redelivery_conf:%s",
+    //          redeliver_copy->uuid);
+    // if (!np_jobqueue_submit_event(context,
+    //                               0,
+    //                               prop_out_dhkey,
+    //                               redeliver_event,
+    //                               buf)) {
+    //   log_error(
+    //       "Jobqueue rejected new job for message redelivery configuration of
+    //       " "msg %s. No resend will be initiated.", redeliver_copy->uuid);
+    // }
     np_unref_obj(np_message_t, redeliver_copy, FUNC);
   }
 
-  np_dhkey_t _computed_to            = {0};
-  sll_iterator(np_aaatoken_ptr) iter = tmp_token_list->first;
-  while (NULL != iter) {
-    struct np_data_conf cfg;
-    np_data_value       recv_threshold;
-    if (np_get_data(iter->val->attributes,
-                    "max_threshold",
-                    &cfg,
-                    &recv_threshold) == np_ok) {
-      if (recv_threshold.unsigned_integer < my_property_conf->max_threshold) {
-        log_msg(LOG_WARNING,
-                "reduce max threshold for subject (%s/%u) because receiver %s "
-                "has lower, otherwise MESSAGE LOSS IS GUARANTEED!",
-                my_property_conf->msg_subject,
-                recv_threshold,
-                iter->val->issuer);
-      }
-    }
-    np_dhkey_t _issuer_dhkey = np_dhkey_create_from_hash(iter->val->issuer);
-    _np_dhkey_add(&_computed_to, &_computed_to, &_issuer_dhkey);
-    sll_next(iter);
-  }
-  np_tree_replace_str(message->header,
-                      _NP_MSG_HEADER_TO,
-                      np_treeval_new_dhkey(_computed_to));
-
   // encrypt the relevant message part itself
-  _np_message_encrypt_payload(message, tmp_token_list);
+  _np_message_encrypt_payload(message, &crypto_session);
+  memset(&crypto_session, 0, sizeof(np_crypto_session_t));
 
-  np_aaatoken_unref_list(tmp_token_list, "_np_intent_get_all_receiver");
   ret = true;
 
+__np_cleanup__:
   np_unref_obj(np_key_t, prop_out_key, "_np_keycache_find");
-  sll_free(np_aaatoken_ptr, tmp_token_list);
   return ret;
 }
 
 void __np_axon_chunk_and_send(np_state_t         *context,
                               np_event_runtime_t *current_run,
                               np_message_t       *msg,
-                              np_dhkey_t          msg_from,
                               np_dhkey_t          msg_to,
                               np_sll_t(np_dhkey_t, tmp)) {
+
   // 2: chunk the message if required
-  // TODO: send two separate messages?
   if (msg->is_single_part == false) {
     _np_message_calculate_chunking(msg);
     _np_message_serialize_chunked(context, msg);
@@ -192,48 +162,43 @@ void __np_axon_chunk_and_send(np_state_t         *context,
 
   // 3: send over to msg splitter
   char            buf[65]  = {0};
-  uint16_t        chunk_id = -1;
-  uint16_t        chunks   = -1;
+  uint16_t        chunk_id = 0;
+  uint16_t        chunks   = 0;
   np_tree_elem_t *_tmp;
   if (msg->instructions != NULL &&
       NULL !=
           (_tmp = np_tree_find_str(msg->instructions, _NP_MSG_INST_PARTS))) {
-    chunk_id = _tmp->val.value.a2_ui[1];
     chunks   = _tmp->val.value.a2_ui[0];
+    chunk_id = _tmp->val.value.a2_ui[1];
   }
 
-  log_info(LOG_ROUTING,
-           "sending    message (%s %" PRIu16 "/%" PRIu16
-           ") target: %s to next %" PRIu32 " hops",
-           msg->uuid,
-           chunk_id,
-           chunks,
-           np_id_str(buf, &msg_to),
-           sll_size(tmp));
-
-  np_dhkey_t _cache_msg_id = {0};
-  _np_dhkey_add(&_cache_msg_id, &_cache_msg_id, &msg_to);
-  np_dhkey_t _uuid = _np_dhkey_generate_hash(msg->uuid, NP_UUID_BYTES);
-  _np_dhkey_add(&_cache_msg_id, &_cache_msg_id, &_uuid);
-  np_dhkey_t _chunk_id = _np_dhkey_generate_hash(&chunk_id, sizeof(chunk_id));
-  _np_dhkey_add(&_cache_msg_id, &_cache_msg_id, &_chunk_id);
+  // check for duplicate message sending (outbound)
+  np_dhkey_t _cache_msg_id = msg_to;
+  np_generate_subject(&_cache_msg_id, msg->uuid, NP_UUID_BYTES);
+  np_generate_subject(&_cache_msg_id, &chunk_id, sizeof(uint16_t));
 
   bool _send_before = false;
-  TSP_SCOPE(context->msg_forward_filter) {
+  np_spinlock_lock(&context->msg_forward_filter_lock);
+  {
     _send_before =
-        context->msg_forward_filter->op.check_cb(context->msg_part_filter,
-                                                 _cache_msg_id);
+        _np_decaying_bloom_check(context->msg_forward_filter, _cache_msg_id);
     if (!_send_before) {
       _np_decaying_bloom_decay(context->msg_forward_filter);
-      context->msg_forward_filter->op.add_cb(context->msg_part_filter,
-                                             _cache_msg_id);
+      _np_decaying_bloom_add(context->msg_forward_filter, _cache_msg_id);
+    } else {
+      log_info(LOG_ROUTING,
+               "not sending message (%s) to target %s",
+               msg->uuid,
+               np_id_str(buf, &msg_to));
+      np_spinlock_unlock(&context->msg_forward_filter_lock);
+      return;
     }
   }
+  np_spinlock_unlock(&context->msg_forward_filter_lock);
 
   sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
   while (key_iter != NULL) {
-    if (!_send_before && !_np_dhkey_equal(&key_iter->val, &msg_from) &&
-        !_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) &&
+    if (!_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) &&
         _np_keycache_exists(context, key_iter->val, NULL)) {
       log_info(LOG_ROUTING,
                "sending    message (%s) to hop %s",
@@ -258,19 +223,16 @@ void __np_axon_chunk_and_send(np_state_t         *context,
     } else {
       char buf[65] = {0};
       log_info(LOG_ROUTING,
-               "do not send message (%s) to hop %s as: %s %s %s %s ",
+               "do not send message (%s) to hop %s as: %s %s %s",
                msg->uuid,
                np_id_str(buf, &key_iter->val),
                _send_before ? "msg was already send;" : "",
-               _np_dhkey_equal(&key_iter->val, &msg_from)
-                   ? " target is same as source;"
-                   : "",
                _np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey)
-                   ? " target would be me;"
+                   ? "target would be me;"
                    : "",
                _np_keycache_exists(context, key_iter->val, NULL)
                    ? ""
-                   : " target is not connected to me;");
+                   : "target is not connected to me;");
     }
     sll_next(key_iter);
   }
@@ -281,7 +243,7 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
 
   NP_CAST(event.user_data, np_message_t, forward_msg);
 
-  CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_FROM, msg_from);
+  // CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_FROM, msg_from);
   CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_TO, msg_to);
   CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_SUBJECT, msg_subj);
 
@@ -310,46 +272,27 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
   };
 
   if (sll_size(tmp) == 0) {
-    // find next hop based on fingerprint of the message
-    tmp_source = "_np_route_lookup";
-    log_debug_msg(LOG_ROUTING,
-                  "(msg: %s) pheromone lookup failed, looking up routing table",
-                  forward_msg->uuid);
-
-    np_sll_t(np_key_ptr, route_tmp) = NULL;
-    i                               = 1;
-    do {
-      route_tmp = _np_route_lookup(context, msg_to.value.dhkey, i);
-      i++;
-    } while (sll_size(route_tmp) == 0 && i < 5);
-
-    sll_iterator(np_key_ptr) iter = sll_first(route_tmp);
-    while (NULL != iter) {
-      sll_append(np_dhkey_t, tmp, iter->val->dhkey);
-      sll_next(iter);
-    }
-    np_key_unref_list(route_tmp, "_np_route_lookup");
-    sll_free(np_key_ptr, route_tmp);
-  }
-
-  if (sll_size(tmp) == 0) {
     log_info(
         LOG_ROUTING,
         "--- request for forward message (%s) out, but no routing found ...",
         forward_msg->uuid);
     sll_free(np_dhkey_t, tmp);
     return false;
+  } else {
+    log_info(LOG_ROUTING,
+             "--- forward message (%s) out, %d hops found ...",
+             forward_msg->uuid,
+             sll_size(tmp));
   }
-
   __np_axon_chunk_and_send(context,
                            event.current_run,
                            forward_msg,
-                           msg_from.value.dhkey,
                            msg_to.value.dhkey,
                            tmp);
 
   // 4 cleanup
   sll_free(np_dhkey_t, tmp);
+  _np_pheromone_exhale(context);
 
 __np_cleanup__ : {}
 
@@ -361,7 +304,6 @@ bool _np_out_default(np_state_t *context, np_util_event_t event) {
 
   NP_CAST(event.user_data, np_message_t, default_msg);
 
-  CHECK_STR_FIELD(default_msg->header, _NP_MSG_HEADER_FROM, msg_from);
   CHECK_STR_FIELD(default_msg->header, _NP_MSG_HEADER_TO, msg_to);
   CHECK_STR_FIELD(default_msg->header, _NP_MSG_HEADER_SUBJECT, msg_subj);
 
@@ -401,7 +343,6 @@ bool _np_out_default(np_state_t *context, np_util_event_t event) {
   __np_axon_chunk_and_send(context,
                            event.current_run,
                            default_msg,
-                           msg_from.value.dhkey,
                            msg_to.value.dhkey,
                            tmp);
 
@@ -422,7 +363,6 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
   ASSERT(available_msg->header != NULL, "Header Tree has to be filled");
 
   CHECK_STR_FIELD(available_msg->header, _NP_MSG_HEADER_TO, msg_to);
-  CHECK_STR_FIELD(available_msg->header, _NP_MSG_HEADER_FROM, msg_from);
   CHECK_STR_FIELD(available_msg->header, _NP_MSG_HEADER_SUBJECT, msg_subj);
 
   log_debug_msg(LOG_ROUTING,
@@ -455,12 +395,6 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
   char _msg_subj_str[100] = {0};
   np_regenerate_subject(context, _msg_subj_str, 100, &msg_subj.value.dhkey);
 
-  ASSERT((find_receiver ^ find_sender),
-         "(msg: %s) Cannot handle sender and receiver together. find_receiver: "
-         "%" PRIu8 " find_sender: %" PRIu8,
-         available_msg->uuid,
-         find_receiver,
-         find_sender);
   uint8_t i = 0;
   while (sll_size(tmp) == 0 && i < 9) {
     float target_age = original_target_age;
@@ -470,13 +404,17 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
                                      tmp,
                                      msg_to.value.dhkey,
                                      &target_age);
-    }
-    if (find_sender) {
+    } else if (find_sender) {
       _np_pheromone_snuffle_sender(context,
                                    tmp,
                                    msg_to.value.dhkey,
                                    &target_age);
+    } else {
+      log_error(LOG_ERROR, "cannot search for both, receiver and sender");
+      break;
     }
+    i++;
+    original_target_age -= 0.1;
     log_debug_msg(LOG_ROUTING,
                   "--- (msg: %s) request for available message out %s: search: "
                   "%f found: %f",
@@ -484,8 +422,6 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
                   _msg_subj_str,
                   original_target_age,
                   target_age);
-    i++;
-    original_target_age -= 0.1;
   };
 
   if (sll_size(tmp) == 0) {
@@ -500,14 +436,31 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
     return false;
   }
 
-  __np_axon_chunk_and_send(context,
-                           event.current_run,
-                           available_msg,
-                           msg_from.value.dhkey,
-                           msg_to.value.dhkey,
-                           tmp);
+  sll_iterator(np_dhkey_t) target_iter = sll_first(tmp);
+  while (NULL != target_iter) {
+    // remove previous hop from sender list
+    char buf[65];
+    buf[64] = '\0';
+    if (_np_dhkey_equal(&target_iter->val, &event.target_dhkey)) {
+      log_msg(LOG_DEBUG | LOG_ROUTING,
+              "discarding available message to previous hop %s",
+              np_id_str(buf, &target_iter->val));
+      sll_delete(np_dhkey_t, tmp, target_iter);
+      break;
+    }
+    sll_next(target_iter);
+  }
 
+  if (sll_size(tmp) > 0) {
+    __np_axon_chunk_and_send(context,
+                             event.current_run,
+                             available_msg,
+                             msg_to.value.dhkey,
+                             tmp);
+  }
   sll_free(np_dhkey_t, tmp);
+
+  _np_pheromone_exhale(context);
 
 __np_cleanup__ : {}
 
@@ -525,84 +478,50 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
   }
 
   NP_CAST(msg_event.user_data, np_message_t, pheromone_msg_out);
-  CHECK_STR_FIELD(pheromone_msg_out->header, _NP_MSG_HEADER_FROM, msg_from);
+  CHECK_STR_FIELD(pheromone_msg_out->header, _NP_MSG_HEADER_TO, msg_to);
+
+  // check for the routing intent: generic or to a specific node
+  bool is_generic_direction =
+      _np_dhkey_equal(&msg_to.value.dhkey, &msg_event.target_dhkey);
+  np_sll_t(np_dhkey_t, tmp_dhkeys);
+  sll_init(np_dhkey_t, tmp_dhkeys);
 
   // 1: find next hop based on fingerprint of the token
   np_sll_t(np_key_ptr, tmp) = NULL;
-  tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
+
   char *source_sll_of_keys = "_np_route_lookup";
 
-  if (sll_size(tmp) <
-      1) { // nothing found, send leafset to exchange some data at least
-    // prevents small clusters from not exchanging all data
-    np_key_unref_list(tmp, source_sll_of_keys); // only for completion
-    sll_free(np_key_ptr, tmp);
-    tmp = _np_route_neighbors(context);
-    // tmp = _np_route_row_lookup(context, msg_event.target_dhkey);
-    source_sll_of_keys = "_np_route_neighbors";
+  if (is_generic_direction) {
+    // lookup based on 1) key distance (routing table not full enough)
+    tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
+    if (sll_size(tmp) > 0)
+      sll_append(np_dhkey_t, tmp_dhkeys, sll_first(tmp)->val->dhkey);
+  } else {
+    // already found a pheromone scent, use it!
+    sll_init(np_key_ptr, tmp);
+    sll_append(np_dhkey_t, tmp_dhkeys, msg_event.target_dhkey);
   }
 
-  uint8_t send_counter                 = 0;
-  sll_iterator(np_key_ptr) target_iter = sll_first(tmp);
-  while (NULL != target_iter && send_counter < NP_PI_INT) {
-    if (_np_dhkey_equal(&target_iter->val->dhkey, &msg_from.value.dhkey) ||
-        _np_dhkey_equal(&target_iter->val->dhkey,
-                        &context->my_node_key->dhkey)) {
-      log_debug_msg(LOG_ROUTING,
-                    "discarding pheromone request to next hop %s",
-                    _np_key_as_str(target_iter->val));
-      sll_next(target_iter);
-      continue;
-    }
+  log_msg(LOG_INFO | LOG_ROUTING,
+          "have pheromone request for %d hops (%s)",
+          sll_size(tmp_dhkeys),
+          is_generic_direction ? "generic" : "targeted");
 
-    np_key_t *target = target_iter->val;
-    // np_tree_replace_str(pheromone_msg_out->header, _NP_MSG_HEADER_FROM,
-    // np_treeval_new_dhkey(context->my_node_key->dhkey) );
-
-    //__np_axon_chunk_and_send(context, event.current_run, available_msg,
-    // msg_from.value.dhkey, msg_to.value.dhkey, tmp);
-
-    // 2: chunk the message if required
-    // TODO: send two separate messages?
-    _np_message_calculate_chunking(pheromone_msg_out);
-    _np_message_serialize_chunked(context, pheromone_msg_out);
-
-    // 3: send over the message parts
-    _LOCK_ACCESS(&pheromone_msg_out->msg_chunks_lock) {
-      pll_iterator(np_messagepart_ptr) part_iter =
-          pll_first(pheromone_msg_out->msg_chunks);
-      while (NULL != part_iter) {
-        memcpy(part_iter->val->uuid, pheromone_msg_out->uuid, NP_UUID_BYTES);
-        log_debug_msg(LOG_ROUTING,
-                      "submitting pheromone request to next hop %s",
-                      _np_key_as_str(target));
-        np_util_event_t send_event = {.type      = (evt_internal | evt_message),
-                                      .user_data = part_iter->val,
-                                      .target_dhkey = msg_event.target_dhkey};
-        _np_event_runtime_add_event(context,
-                                    msg_event.current_run,
-                                    target->dhkey,
-                                    send_event);
-        pll_next(part_iter);
-      }
-    }
-
-    if (_np_dhkey_equal(&target_iter->val->dhkey,
-                        &msg_event.target_dhkey)) { // if the target key was set
-                                                    // to a real node, then do
-                                                    // not send to further nodes
-      break;
-    } else {
-      sll_next(target_iter);
-      send_counter++;
-    }
+  if (sll_size(tmp_dhkeys) > 0) {
+    // only send if a target has been found
+    __np_axon_chunk_and_send(context,
+                             msg_event.current_run,
+                             pheromone_msg_out,
+                             msg_event.target_dhkey,
+                             tmp_dhkeys);
   }
 
-  //_np_pheromone_exhale(context);
+  _np_pheromone_exhale(context);
 
   // 4 cleanup
   np_key_unref_list(tmp, source_sll_of_keys);
   sll_free(np_key_ptr, tmp);
+  sll_free(np_dhkey_t, tmp_dhkeys);
 
 __np_cleanup__ : {}
 
@@ -620,9 +539,6 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
 
   NP_CAST(event.user_data, np_message_t, ack_msg);
 
-  CHECK_STR_FIELD(ack_msg->header,
-                  _NP_MSG_HEADER_FROM,
-                  msg_from); // dhkey of original msg subject
   CHECK_STR_FIELD(ack_msg->header,
                   _NP_MSG_HEADER_TO,
                   msg_to); // dhkey of a node
@@ -645,19 +561,16 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
   // 1a. check if the ack is for a direct neighbour
   np_key_t *target_key = _np_keycache_find(context, ack_to_dhkey);
   if (NULL == target_key) {
-    // otherwise follow the ack trail of the "from" + "ack" dhkey path
+    // otherwise follow the ack trail of the "to" + "ack" dhkey path
     np_generate_subject(&ack_to_dhkey, _NP_MSG_ACK, strnlen(_NP_MSG_ACK, 256));
-    // _np_msgproperty_dhkey(INBOUND,  _NP_MSG_ACK);
-    // _np_dhkey_add(&ack_to_dhkey, &ack_to_dhkey, &ack_subj_dhkey);
     // no --> 1b. lookup based on original msg subject, but snuffle for sender
     uint8_t i = 0;
-    while (sll_size(tmp) == 0 && i < 8) {
+    while (sll_size(tmp) == 0 && target_age > BAD_LINK) {
       _np_pheromone_snuffle_receiver(context, tmp, ack_to_dhkey, &target_age);
-      i++;
       target_age -= 0.1;
     };
     // routing based on pheromones, exhale ...
-    //_np_pheromone_exhale(context);
+    _np_pheromone_exhale(context);
   } else {
     // yes --> 1a. append to result list
     sll_append(np_dhkey_t, tmp, ack_to_dhkey);
@@ -671,61 +584,11 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
     return false;
   }
 
-  //__np_axon_chunk_and_send(context, event.current_run,ack_msg,
-  // msg_from.value.dhkey, msg_to.value.dhkey, tmp);
-
-  // chunking for 1024 bit message size
-  if (ack_msg->is_single_part ==
-      false) // indicates the forwarding of the message, no additional chunking
-             // needed
-  {
-    _np_message_calculate_chunking(ack_msg);
-    _np_message_serialize_chunked(context, ack_msg);
-  }
-  char buf[65] = {0};
-
-  // 2: send over the message parts
-  _LOCK_ACCESS(&ack_msg->msg_chunks_lock) {
-    pll_iterator(np_messagepart_ptr) part_iter = pll_first(ack_msg->msg_chunks);
-    while (NULL != part_iter) {
-      sll_iterator(np_dhkey_t) key_iter = sll_first(tmp);
-      while (key_iter != NULL) {
-        if (!_np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey) &&
-            !_np_dhkey_equal(&key_iter->val, &event.target_dhkey) &&
-            _np_keycache_exists(context, key_iter->val, NULL)) {
-          char buf[65] = {0};
-          log_debug_msg(LOG_ROUTING,
-                        "submitting ack to target key %s ",
-                        np_id_str(buf, &key_iter->val));
-          memcpy(part_iter->val->uuid, ack_msg->uuid, NP_UUID_BYTES);
-
-          np_util_event_t ack_event = {.type = (evt_internal | evt_message),
-                                       .user_data    = part_iter->val,
-                                       .target_dhkey = msg_to.value.dhkey};
-          _np_event_runtime_add_event(context,
-                                      event.current_run,
-                                      key_iter->val,
-                                      ack_event);
-        } else {
-          log_info(LOG_ROUTING,
-                   "do not send ack message (%s) to hop %s as: %s %s %s ",
-                   ack_msg->uuid,
-                   np_id_str(buf, &key_iter->val),
-                   _np_dhkey_equal(&key_iter->val, &msg_from.value.dhkey)
-                       ? " target is same as source;"
-                       : "",
-                   _np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey)
-                       ? " target would be me;"
-                       : "",
-                   _np_keycache_exists(context, key_iter->val, NULL)
-                       ? ""
-                       : " target is not connected to me;");
-        }
-        sll_next(key_iter);
-      }
-      pll_next(part_iter);
-    }
-  }
+  __np_axon_chunk_and_send(context,
+                           event.current_run,
+                           ack_msg,
+                           msg_to.value.dhkey,
+                           tmp);
 
   sll_free(np_dhkey_t, tmp);
 
@@ -773,12 +636,14 @@ bool _np_out_piggy(np_state_t *context, const np_util_event_t event) {
 
   NP_CAST(event.user_data, np_message_t, piggy_msg);
 
+  // TODO: use
+  // __np_axon_chunk_and_send(context, event.current_run, piggy_msg, ...);
+
   // 2: chunk the message if required
   _np_message_calculate_chunking(piggy_msg);
   _np_message_serialize_chunked(context, piggy_msg);
 
   // 3: send over the message parts
-
   _LOCK_ACCESS(&piggy_msg->msg_chunks_lock) {
     pll_iterator(np_messagepart_ptr) iter = pll_first(piggy_msg->msg_chunks);
     while (NULL != iter) {

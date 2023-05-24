@@ -303,7 +303,7 @@ bool np_jobqueue_submit_event_with_prio(np_state_t     *context,
 #ifdef DEBUG_CALLBACKS
   ASSERT(ident != NULL && strlen(ident) > 0 && strlen(ident) < 255,
          "You need to define a valid identificator for this job");
-  memcpy(new_job.ident, ident, strlen(ident));
+  strncpy(new_job.ident, ident, 255);
   log_debug(LOG_JOBS, "Created Job %s", new_job.ident);
 #endif
 

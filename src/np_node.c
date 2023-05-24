@@ -216,7 +216,7 @@ np_node_t *_np_node_decode_from_str(np_state_t *context, const char *key) {
   struct __node_from_string_s details =
       __get_node_details_from_string(context, to_parse, true);
 
-  enum socket_type proto = UNKNOWN_PROTO;
+  socket_type proto = UNKNOWN_PROTO;
   if (details.s_protocol != NULL) {
     proto = _np_network_parse_protocol_string(details.s_protocol);
   }
@@ -270,10 +270,10 @@ np_node_t *_np_node_decode_from_str(np_state_t *context, const char *key) {
 
 np_node_t *_np_node_decode_from_jrb(np_state_t *context, np_tree_t *data) {
   // MANDATORY paramter
-  enum socket_type i_host_proto;
-  char            *s_host_name = NULL;
-  char            *s_host_port = NULL;
-  char            *s_host_key  = NULL;
+  socket_type i_host_proto;
+  char       *s_host_name = NULL;
+  char       *s_host_port = NULL;
+  char       *s_host_key  = NULL;
 
   np_tree_elem_t *ele;
   if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PROTOCOL))) {
@@ -407,9 +407,9 @@ uint16_t _np_node_encode_multiple_to_jrb(np_tree_t *data,
   uint16_t  j = 0;
   np_key_t *current;
 
-  sll_clone(np_key_ptr, node_keys, node_keys_to_encode)
+  sll_clone(np_key_ptr, node_keys, node_keys_to_encode);
 
-      while (NULL != (current = sll_head(np_key_ptr, node_keys_to_encode))) {
+  while (NULL != (current = sll_head(np_key_ptr, node_keys_to_encode))) {
     if (_np_key_get_node(current) != NULL) {
       // np_ctx_memory(current);
       np_tree_t *node_jrb = np_tree_create();
@@ -463,10 +463,7 @@ int _np_node_cmp(np_node_t *a, np_node_t *b) {
   return ret;
 }
 
-void _np_node_update(np_node_t       *node,
-                     enum socket_type proto,
-                     char            *hn,
-                     char            *port) {
+void _np_node_update(np_node_t *node, socket_type proto, char *hn, char *port) {
   node->protocol = proto;
 
   char *old      = node->dns_name;

@@ -19,9 +19,11 @@
 #include "util/np_statemachine.h"
 
 #include "np_aaatoken.h"
+#include "np_crypto.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_legacy.h"
+#include "np_log.h"
 #include "np_memory.h"
 #include "np_message.h"
 
@@ -139,7 +141,6 @@ np_aaatoken_t *_np_intent_add_sender(np_key_t      *subject_key,
 
   property->mep_type |= (mep_type.unsigned_integer & SENDER_MASK);
   property->ack_mode = ack_mode.unsigned_integer;
-  // property->last_update = np_time_now();
 
   if (max_threshold.unsigned_integer > 0) {
     log_debug_msg(LOG_AAATOKEN,
@@ -163,7 +164,10 @@ np_aaatoken_t *_np_intent_add_sender(np_key_t      *subject_key,
                       ledger->send_tokens,
                       token,
                       cmp_aaatoken_replace);
+
+    enum crud_op crud_mode = crud_update;
     if (NULL == ret) {
+      crud_mode = crud_create;
       pll_insert(np_aaatoken_ptr,
                  ledger->send_tokens,
                  token,
@@ -171,6 +175,10 @@ np_aaatoken_t *_np_intent_add_sender(np_key_t      *subject_key,
                  cmp_aaatoken_add);
     } else {
       token->state = ret->state;
+    }
+
+    if (IS_AUTHORIZED(token->state)) {
+      _np_intent_update_sender_session(subject_key, token, crud_mode);
     }
     log_debug_msg(LOG_AAATOKEN,
                   "added new single sender token %s subject: %s",
@@ -192,6 +200,7 @@ np_aaatoken_t *_np_intent_get_sender_token(np_key_t        *subject_key,
   NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
   NP_CAST_RAW(subject_key->entity_array[2], struct __np_token_ledger, ledger);
 
+  if (ledger == NULL) return NULL;
   // look up sources to see whether a sender already exists
   np_aaatoken_t *return_token = NULL;
 
@@ -311,8 +320,8 @@ np_aaatoken_t *_np_intent_add_receiver(np_key_t      *subject_key,
   property->mep_type |= (mep_type.unsigned_integer & RECEIVER_MASK);
   // property->last_update = np_time_now();
 
-  if (max_threshold.unsigned_integer >
-      0) { // only add if there are messages to receive
+  if (max_threshold.unsigned_integer > 0) {
+    // only add if there are messages to receive
     log_debug_msg(LOG_AAATOKEN,
                   "adding receiver token %p threshold %" PRIu8,
                   token,
@@ -335,7 +344,10 @@ np_aaatoken_t *_np_intent_add_receiver(np_key_t      *subject_key,
                       ledger->recv_tokens,
                       token,
                       cmp_aaatoken_replace);
+
+    enum crud_op crud_mode = crud_update;
     if (NULL == ret) {
+      crud_mode = crud_create;
       pll_insert(np_aaatoken_ptr,
                  ledger->recv_tokens,
                  token,
@@ -344,9 +356,10 @@ np_aaatoken_t *_np_intent_add_receiver(np_key_t      *subject_key,
     } else {
       token->state = ret->state;
     }
-    log_debug_msg(LOG_AAATOKEN,
-                  "added new single receiver token for message hash %s",
-                  _np_key_as_str(subject_key));
+
+    if (IS_AUTHORIZED(token->state)) {
+      _np_intent_update_receiver_session(subject_key, token, crud_mode);
+    }
   }
 
   return ret;
@@ -450,6 +463,7 @@ void _np_intent_get_all_receiver(np_key_t  *subject_key,
 
   np_sll_t(np_aaatoken_ptr, result_list = *tmp_token_list);
   NP_CAST_RAW(subject_key->entity_array[2], struct __np_token_ledger, ledger);
+  NP_CAST_RAW(subject_key->entity_array[1], np_msgproperty_run_t, run_prop);
 
   pll_iterator(np_aaatoken_ptr) tmp = pll_first(ledger->recv_tokens);
   while (NULL != tmp) {
@@ -463,11 +477,13 @@ void _np_intent_get_all_receiver(np_key_t  *subject_key,
                     "ignoring receiver msg token %s as it is not authorized",
                     tmp->val->uuid);
     } else {
-      np_dhkey_t issuer        = np_dhkey_create_from_hash(tmp->val->issuer);
-      bool       include_token = true;
+      np_dhkey_t issuer         = np_dhkey_create_from_hash(tmp->val->issuer);
+      np_dhkey_t token_audience = np_dhkey_create_from_hash(tmp->val->audience);
+      bool       include_token  = false;
 
       include_token = _np_dhkey_equal(&audience, &issuer) ||
-                      _np_dhkey_equal(&audience, &dhkey_zero);
+                      _np_dhkey_equal(&audience, &token_audience) ||
+                      _np_dhkey_equal(&audience, &run_prop->current_fp);
 
       if (include_token == true) {
         log_debug_msg(LOG_ROUTING,
@@ -503,7 +519,7 @@ bool __is_intent_authz(np_util_statemachine_t *statemachine,
   log_trace_msg(LOG_TRACE, "start: void __is_intent_authz(...){");
 
   bool ret = false;
-  // NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
+  NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
   if (!ret) ret = FLAG_CMP(event.type, evt_authz);
   if (ret)
@@ -515,14 +531,15 @@ bool __is_intent_authz(np_util_statemachine_t *statemachine,
   if (ret) {
     NP_CAST(event.user_data, np_aaatoken_t, token);
     ret &= FLAG_CMP(token->type, np_aaatoken_type_message_intent);
-    ret &= _np_aaatoken_is_valid(context, token, token->type);
+    ret &= _np_aaatoken_is_valid(statemachine->_context,
+                                 token,
+                                 np_aaatoken_type_message_intent);
   }
-  log_trace(LOG_ROUTING, "%s ret %" PRIu8, FUNC, ret);
   return ret;
 }
 
-void __np_intent_check(np_util_statemachine_t         *statemachine,
-                       NP_UNUSED const np_util_event_t event) {
+void __np_intent_check(np_util_statemachine_t *statemachine,
+                       const np_util_event_t   event) {
   np_ctx_memory(statemachine->_user_data);
 
   NP_CAST(statemachine->_user_data, np_key_t, intent_key);
@@ -548,12 +565,13 @@ void __np_intent_check(np_util_statemachine_t         *statemachine,
     pll_next(iter);
 
     if (NULL != tmp_token &&
-        false == _np_aaatoken_is_valid(context,
+        false == _np_aaatoken_is_valid(statemachine->_context,
                                        tmp_token,
                                        np_aaatoken_type_message_intent)) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "deleting old / invalid sender msg tokens %s",
-                    tmp_token->uuid);
+      log_debug_msg(LOG_DEBUG,
+                    "deleting old / invalid sender msg tokens %p",
+                    tmp_token);
+      _np_intent_update_sender_session(intent_key, tmp_token, crud_delete);
       pll_remove(np_aaatoken_ptr,
                  ledger->send_tokens,
                  tmp_token,
@@ -563,19 +581,20 @@ void __np_intent_check(np_util_statemachine_t         *statemachine,
     }
   }
 
-  // check for outdated sender token
+  // check for outdated receiver token
   iter = pll_first(ledger->recv_tokens);
   while (NULL != iter) {
     np_aaatoken_t *tmp_token = iter->val;
     pll_next(iter);
 
     if (NULL != tmp_token &&
-        false == _np_aaatoken_is_valid(context,
+        false == _np_aaatoken_is_valid(statemachine->_context,
                                        tmp_token,
                                        np_aaatoken_type_message_intent)) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "deleting old / invalid receiver msg token %s",
-                    tmp_token->uuid);
+      log_debug_msg(LOG_DEBUG,
+                    "deleting old / invalid receiver msg token %p",
+                    tmp_token);
+      _np_intent_update_receiver_session(intent_key, tmp_token, crud_delete);
       pll_remove(np_aaatoken_ptr,
                  ledger->recv_tokens,
                  tmp_token,
@@ -586,4 +605,614 @@ void __np_intent_check(np_util_statemachine_t         *statemachine,
   }
 }
 
-// TODO: send out intents if dht distance is not mmatching anymore
+void __np_get_create_crypto_tree(np_key_t   *subject_key,
+                                 np_tree_t **crypto_tree) {
+  if (NULL == subject_key->entity_array[3]) {
+    *crypto_tree                 = np_tree_create();
+    subject_key->entity_array[3] = *crypto_tree;
+  } else {
+    *crypto_tree = (np_tree_t *)subject_key->entity_array[3];
+  }
+}
+
+void __np_get_create_ack_tree(np_key_t *subject_key, np_tree_t **ack_tree) {
+
+  if (NULL == subject_key->entity_array[4]) {
+    *ack_tree                    = np_tree_create();
+    subject_key->entity_array[4] = *ack_tree;
+  } else {
+    *ack_tree = (np_tree_t *)subject_key->entity_array[4];
+  }
+}
+
+bool _np_intent_has_crypto_session(np_key_t  *subject_key,
+                                   np_dhkey_t session_dhkey) {
+  np_ctx_memory(subject_key);
+
+  bool       ret         = false;
+  np_tree_t *crypto_tree = NULL;
+  __np_get_create_crypto_tree(subject_key, &crypto_tree);
+
+  char buf[65];
+  log_warn(LOG_WARNING,
+           "crypto_session for %s / %s available? --> %p ",
+           _np_key_as_str(subject_key),
+           np_id_str(buf, &session_dhkey),
+           np_tree_find_dhkey(crypto_tree, session_dhkey));
+
+  ret = np_tree_find_dhkey(crypto_tree, session_dhkey) != NULL;
+
+  return ret;
+}
+
+bool _np_intent_get_ack_session(np_key_t   *subject_key,
+                                np_dhkey_t  session_dhkey,
+                                np_dhkey_t *ack_to_dhkey) {
+  np_tree_t *ack_tree = NULL;
+  __np_get_create_ack_tree(subject_key, &ack_tree);
+  np_tree_elem_t *ack_to_elem = np_tree_find_dhkey(ack_tree, session_dhkey);
+  if (ack_to_elem != NULL) {
+    _np_dhkey_assign(ack_to_dhkey, &ack_to_elem->val.value.dhkey);
+    return true;
+  }
+  np_ctx_memory(subject_key);
+  char buf[65];
+  log_msg(LOG_INFO,
+          "e2e session ack %s for message not found",
+          np_id_str(buf, &session_dhkey));
+  return false;
+}
+
+bool _np_intent_get_crypto_session(np_key_t            *subject_key,
+                                   np_dhkey_t           session_dhkey,
+                                   np_crypto_session_t *crypto_session) {
+  assert(crypto_session != NULL);
+
+  np_ctx_memory(subject_key);
+
+  bool       ret         = false;
+  np_tree_t *crypto_tree = NULL;
+  __np_get_create_crypto_tree(subject_key, &crypto_tree);
+
+  np_crypto_session_t *stored_crypto_session =
+      np_tree_find_dhkey(crypto_tree, session_dhkey) == NULL
+          ? NULL
+          : np_tree_find_dhkey(crypto_tree, session_dhkey)->val.value.v;
+
+  if (NULL != stored_crypto_session) {
+    memcpy(crypto_session->session_key_to_read,
+           stored_crypto_session->session_key_to_read,
+           crypto_kx_SESSIONKEYBYTES);
+    memcpy(crypto_session->session_key_to_write,
+           stored_crypto_session->session_key_to_write,
+           crypto_kx_SESSIONKEYBYTES);
+    crypto_session->session_key_to_read_is_set =
+        stored_crypto_session->session_key_to_read_is_set;
+    crypto_session->session_key_to_write_is_set =
+        stored_crypto_session->session_key_to_write_is_set;
+    crypto_session->session_type = stored_crypto_session->session_type;
+    ret                          = true;
+    log_debug_msg(LOG_WARNING,
+                  "crypto_session for %s  (%p) available: %p %p",
+                  _np_key_as_str(subject_key),
+                  subject_key,
+                  crypto_session->session_key_to_read,
+                  crypto_session->session_key_to_write);
+  } else {
+    log_warn(LOG_WARNING,
+             "no crypto_session for %s (%p) available",
+             _np_key_as_str(subject_key),
+             subject_key);
+  }
+  return ret;
+}
+
+// this code is executed at the receiver of messages
+void _np_intent_update_sender_session(np_key_t      *subject_key,
+                                      np_aaatoken_t *sender_token,
+                                      enum crud_op   crud) {
+  np_ctx_memory(subject_key);
+
+  np_tree_t *crypto_tree = NULL;
+  __np_get_create_crypto_tree(subject_key, &crypto_tree);
+  np_tree_t *ack_tree = NULL;
+  __np_get_create_ack_tree(subject_key, &ack_tree);
+
+  NP_CAST_RAW(subject_key->entity_array[2], struct __np_token_ledger, ledger);
+  NP_CAST_RAW(subject_key->entity_array[1], np_msgproperty_run_t, run_prop);
+
+  np_aaatoken_t *my_receiver_token    = pll_first(ledger->recv_tokens)->val;
+  np_dhkey_t     my_receiver_token_fp = run_prop->current_fp;
+
+  np_dhkey_t sender_token_fp = np_aaatoken_get_fingerprint(sender_token, false);
+  np_dhkey_t sender_node_fp  = np_aaatoken_get_partner_fp(sender_token);
+
+  np_crypto_session_t *_crypto_session        = NULL;
+  np_crypto_session_t *private_crypto_session = NULL;
+  np_new_obj(np_crypto_session_t, private_crypto_session);
+  np_crypto_session_t *initial_crypto_session = NULL;
+  np_new_obj(np_crypto_session_t, initial_crypto_session);
+
+  // create (at least) two identifier hash values, one for private (dhke) and
+  // one for sessions (ephemeral key)
+  np_dhkey_t private_session_fp = {0};
+  _np_dhkey_add(&private_session_fp, &sender_token_fp, &my_receiver_token_fp);
+  np_dhkey_t initial_session_fp = {0};
+  _np_dhkey_xor(&initial_session_fp, &sender_token_fp, &my_receiver_token_fp);
+
+  if (sender_token != my_receiver_token && crud_delete == crud) {
+    _crypto_session =
+        np_tree_find_dhkey(crypto_tree, private_session_fp) == NULL
+            ? NULL
+            : np_tree_find_dhkey(crypto_tree, private_session_fp)->val.value.v;
+    np_tree_del_dhkey(crypto_tree, private_session_fp);
+    np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+
+    _crypto_session =
+        np_tree_find_dhkey(crypto_tree, initial_session_fp) == NULL
+            ? NULL
+            : np_tree_find_dhkey(crypto_tree, initial_session_fp)->val.value.v;
+    np_tree_del_dhkey(crypto_tree, initial_session_fp);
+    np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+    log_debug_msg(LOG_INFO,
+                  "crypto_session with %s removed",
+                  sender_token->issuer);
+
+    np_tree_del_dhkey(ack_tree, sender_token_fp);
+    np_tree_del_dhkey(ack_tree, initial_session_fp);
+    np_tree_del_dhkey(ack_tree, private_session_fp);
+
+  } else if (my_receiver_token != sender_token) {
+    bool update = false;
+    int  i = 0, j = 0;
+    if (np_tree_find_dhkey(crypto_tree, private_session_fp) == NULL) {
+      private_crypto_session->session_type = crypto_session_private;
+      update                               = true;
+      i                                    = np_crypto_session(context,
+                            &my_receiver_token->issuer_token->crypto,
+                            private_crypto_session,
+                            &sender_token->crypto,
+                            true);
+    }
+
+    if (np_tree_find_dhkey(crypto_tree, initial_session_fp) == NULL) {
+      initial_crypto_session->session_type = crypto_session_initial;
+      update                               = true;
+      j                                    = np_crypto_session(context,
+                            &my_receiver_token->issuer_token->crypto,
+                            initial_crypto_session,
+                            &sender_token->crypto,
+                            false);
+    }
+
+    if (i != 0 || j != 0) {
+      log_debug_msg(LOG_DEBUG,
+                    "crypto_session with %s could not be established (%d / %d)",
+                    sender_token->issuer,
+                    i,
+                    j);
+      np_unref_obj(np_crypto_session_t,
+                   private_crypto_session,
+                   ref_obj_creation);
+      np_unref_obj(np_crypto_session_t,
+                   initial_crypto_session,
+                   ref_obj_creation);
+    } else if (true == update) {
+      // register private session (standard dhkey exchange)
+      _crypto_session =
+          np_tree_find_dhkey(crypto_tree, private_session_fp) == NULL
+              ? NULL
+              : np_tree_find_dhkey(crypto_tree, private_session_fp)
+                    ->val.value.v;
+      np_tree_replace_dhkey(crypto_tree,
+                            private_session_fp,
+                            np_treeval_new_v(private_crypto_session));
+      if (NULL != _crypto_session)
+        np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+
+      // register initial session (only to exchange symmetric key material)
+      _crypto_session =
+          np_tree_find_dhkey(crypto_tree, initial_session_fp) == NULL
+              ? NULL
+              : np_tree_find_dhkey(crypto_tree, initial_session_fp)
+                    ->val.value.v;
+      np_tree_replace_dhkey(crypto_tree,
+                            initial_session_fp,
+                            np_treeval_new_v(initial_crypto_session));
+      if (NULL != _crypto_session)
+        np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+
+      // insert acknowledgement keys
+      np_tree_insert_dhkey(ack_tree,
+                           sender_token_fp,
+                           np_treeval_new_dhkey(sender_node_fp));
+      np_tree_insert_dhkey(ack_tree,
+                           initial_session_fp,
+                           np_treeval_new_dhkey(sender_node_fp));
+      np_tree_insert_dhkey(ack_tree,
+                           private_session_fp,
+                           np_treeval_new_dhkey(sender_node_fp));
+
+    } else {
+      log_debug_msg(LOG_DEBUG,
+                    "crypto_session with %s already established for %s (%p)",
+                    sender_token->issuer,
+                    _np_key_as_str(subject_key),
+                    subject_key);
+      np_unref_obj(np_crypto_session_t,
+                   private_crypto_session,
+                   ref_obj_creation);
+      np_unref_obj(np_crypto_session_t,
+                   initial_crypto_session,
+                   ref_obj_creation);
+    }
+  }
+}
+
+void _np_intent_import_session(np_key_t    *subject_key,
+                               np_tree_t   *crypto_tree,
+                               enum crud_op crud) {
+  np_ctx_memory(subject_key);
+
+  np_tree_t *local_crypto_tree = NULL;
+  __np_get_create_crypto_tree(subject_key, &local_crypto_tree);
+
+  np_tree_elem_t *iter = NULL;
+  RB_FOREACH (iter, np_tree_s, crypto_tree) {
+    np_dhkey_t _to_find = iter->key.value.dhkey;
+
+    np_crypto_session_t *old_crypto_session =
+        np_tree_find_dhkey(local_crypto_tree, _to_find) == NULL
+            ? NULL
+            : np_tree_find_dhkey(local_crypto_tree, _to_find)->val.value.v;
+
+    // delete old session
+    if (crud_delete == crud) {
+      np_tree_del_dhkey(local_crypto_tree, _to_find);
+      if (NULL != old_crypto_session)
+        np_unref_obj(np_crypto_session_t, old_crypto_session, ref_obj_creation);
+    } else {
+      if (NULL == old_crypto_session) {
+        np_crypto_session_t *new_crypto_session = NULL;
+        np_new_obj(np_crypto_session_t, new_crypto_session, ref_obj_usage);
+        memcpy(new_crypto_session->session_key_to_read,
+               iter->val.value.bin,
+               crypto_kx_SESSIONKEYBYTES);
+        new_crypto_session->session_key_to_read_is_set = true;
+        new_crypto_session->session_type               = crypto_session_shared;
+        np_tree_insert_dhkey(local_crypto_tree,
+                             _to_find,
+                             np_treeval_new_v(new_crypto_session));
+      } else {
+        memcpy(old_crypto_session->session_key_to_read,
+               iter->val.value.bin,
+               crypto_kx_SESSIONKEYBYTES);
+        old_crypto_session->session_type = crypto_session_shared;
+      }
+    }
+  }
+}
+
+// this code is executed at the sender of messages
+void _np_intent_update_receiver_session(np_key_t      *subject_key,
+                                        np_aaatoken_t *receiver_token,
+                                        enum crud_op   crud) {
+  np_ctx_memory(subject_key);
+
+  np_tree_t *crypto_tree = NULL;
+  __np_get_create_crypto_tree(subject_key, &crypto_tree);
+
+  NP_CAST_RAW(subject_key->entity_array[2], struct __np_token_ledger, ledger);
+  NP_CAST_RAW(subject_key->entity_array[1], np_msgproperty_run_t, run_prop);
+
+  np_aaatoken_t *my_sender_token    = pll_first(ledger->send_tokens)->val;
+  np_dhkey_t     my_sender_token_fp = run_prop->current_fp;
+
+  // np_aaatoken_get_fingerprint(my_sender_token, false);
+  np_dhkey_t receiver_token_fp =
+      np_aaatoken_get_fingerprint(receiver_token, false);
+
+  np_crypto_session_t *_crypto_session = NULL;
+  // create two identifier hash values, one for private (dhke) and one for
+  // sessions (ephemeral key)
+  np_crypto_session_t *private_crypto_session = NULL;
+  np_new_obj(np_crypto_session_t, private_crypto_session);
+  np_crypto_session_t *initial_crypto_session = NULL;
+  np_new_obj(np_crypto_session_t, initial_crypto_session);
+
+  np_dhkey_t private_session_fp = {0};
+  _np_dhkey_add(&private_session_fp, &my_sender_token_fp, &receiver_token_fp);
+  np_dhkey_t initial_session_fp = {0};
+  _np_dhkey_xor(&initial_session_fp, &my_sender_token_fp, &receiver_token_fp);
+
+  bool send_update = false;
+  if (!_np_dhkey_equal(&receiver_token_fp, &my_sender_token_fp) &&
+      crud_delete == crud) {
+    _crypto_session =
+        np_tree_find_dhkey(crypto_tree, private_session_fp) == NULL
+            ? NULL
+            : np_tree_find_dhkey(crypto_tree, private_session_fp)->val.value.v;
+    np_tree_del_dhkey(crypto_tree, private_session_fp);
+    np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+    _crypto_session =
+        np_tree_find_dhkey(crypto_tree, initial_session_fp) == NULL
+            ? NULL
+            : np_tree_find_dhkey(crypto_tree, initial_session_fp)->val.value.v;
+    np_tree_del_dhkey(crypto_tree, initial_session_fp);
+    np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+    log_info(LOG_INFO,
+             "crypto_session with %s removed",
+             receiver_token->issuer);
+
+  } else if (!_np_dhkey_equal(&receiver_token_fp, &my_sender_token_fp)) {
+    // create the bi-literal message
+    // exchange crypto session
+    int i = 0, j = 0;
+    if (np_tree_find_dhkey(crypto_tree, private_session_fp) == NULL) {
+      private_crypto_session->session_type = crypto_session_private;
+      send_update                          = true;
+      i                                    = np_crypto_session(context,
+                            &my_sender_token->issuer_token->crypto,
+                            private_crypto_session,
+                            &receiver_token->crypto,
+                            false);
+    }
+    if (np_tree_find_dhkey(crypto_tree, initial_session_fp) == NULL) {
+      initial_crypto_session->session_type = crypto_session_initial;
+      send_update                          = true;
+      j                                    = np_crypto_session(context,
+                            &my_sender_token->issuer_token->crypto,
+                            initial_crypto_session,
+                            &receiver_token->crypto,
+                            true);
+    }
+
+    if (i != 0 || j != 0) {
+      log_debug_msg(LOG_DEBUG,
+                    "crypto_session with %s could not be established (%d / %d)",
+                    receiver_token->issuer,
+                    i,
+                    j);
+      np_unref_obj(np_crypto_session_t,
+                   private_crypto_session,
+                   ref_obj_creation);
+      np_unref_obj(np_crypto_session_t,
+                   initial_crypto_session,
+                   ref_obj_creation);
+      send_update = false;
+    } else if (send_update) {
+      log_debug_msg(LOG_DEBUG,
+                    "crypto_session with %s established for %s (%p)",
+                    receiver_token->issuer,
+                    _np_key_as_str(subject_key),
+                    subject_key);
+
+      // register private session (standard dhkey exchange)
+      _crypto_session =
+          np_tree_find_dhkey(crypto_tree, private_session_fp) == NULL
+              ? NULL
+              : np_tree_find_dhkey(crypto_tree, private_session_fp)
+                    ->val.value.v;
+      np_tree_replace_dhkey(crypto_tree,
+                            private_session_fp,
+                            np_treeval_new_v(private_crypto_session));
+      if (NULL != _crypto_session)
+        np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+
+      // register initial session (only to exchange symmetric key material)
+      _crypto_session =
+          np_tree_find_dhkey(crypto_tree, initial_session_fp) == NULL
+              ? NULL
+              : np_tree_find_dhkey(crypto_tree, initial_session_fp)
+                    ->val.value.v;
+      np_tree_replace_dhkey(crypto_tree,
+                            initial_session_fp,
+                            np_treeval_new_v(initial_crypto_session));
+      if (NULL != _crypto_session)
+        np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
+    } else {
+      log_debug_msg(LOG_DEBUG,
+                    "crypto_session with %s already established for %s (%p)",
+                    receiver_token->issuer,
+                    _np_key_as_str(subject_key),
+                    subject_key);
+      np_unref_obj(np_crypto_session_t,
+                   private_crypto_session,
+                   ref_obj_creation);
+      np_unref_obj(np_crypto_session_t,
+                   initial_crypto_session,
+                   ref_obj_creation);
+    }
+  }
+
+  _crypto_session =
+      (np_crypto_session_t *)np_tree_find_dhkey(crypto_tree,
+                                                my_sender_token_fp) == NULL
+          ? NULL
+          : np_tree_find_dhkey(crypto_tree, my_sender_token_fp)->val.value.v;
+
+  if (_crypto_session && true == send_update) {
+    // send message with encrypted symmetric key over the pubsub channel
+    np_message_t *update_msg = NULL;
+    np_new_obj(np_message_t, update_msg);
+
+    np_tree_t *update_msg_body = np_tree_create();
+    // we added or deleted a receiver, so send the current key once again to
+    // each participant
+    // TODO: could be better, using the pubsub nature of neuropil. for now: for
+    // each recipient one message. Privacy concern: not everybody should know
+    // about authorization of a sender. If using "audience" field the receiver
+    // group implicitly already knows each other, but without audience there is
+    // no explicit agreement
+    np_tree_insert_dhkey(
+        update_msg_body,
+        my_sender_token_fp,
+        np_treeval_new_bin(_crypto_session->session_key_to_write,
+                           crypto_kx_SESSIONKEYBYTES));
+
+    NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
+
+    np_ref_obj(np_message_t, update_msg, ref_message_msg_property);
+    _np_message_create(update_msg,
+                       initial_session_fp,
+                       context->my_identity->dhkey,
+                       property->subject_dhkey,
+                       np_tree_clone(update_msg_body));
+
+    log_debug_msg(LOG_DEBUG,
+                  "sending crypto_session established on subject %s (%p)",
+                  _np_key_as_str(subject_key),
+                  subject_key);
+
+    np_util_event_t rekey_msg_event = {
+        .target_dhkey = my_sender_token_fp,
+        .type         = (evt_message | evt_internal | evt_userspace),
+        .user_data    = update_msg};
+
+    np_jobqueue_submit_event(context,
+                             0.0,
+                             subject_key->dhkey,
+                             rekey_msg_event,
+                             "urn:np:intent:update");
+    // _np_keycache_execute_event(context, subject_key->dhkey, rekey_msg_event);
+
+    np_unref_obj(np_message_t, update_msg, ref_obj_creation);
+    np_tree_free(update_msg_body);
+  }
+}
+
+void _np_intent_update_session(np_key_t              *subject_key,
+                               np_aaatoken_t         *my_token,
+                               bool                   for_receiver,
+                               NP_UNUSED enum crud_op crud) {
+  np_ctx_memory(subject_key);
+
+  np_tree_t *crypto_tree = NULL;
+  __np_get_create_crypto_tree(subject_key, &crypto_tree);
+
+  // we need to send a message with encrypted symmetric key over the pubsub
+  // channel
+  np_tree_t *update_msg_body = np_tree_create();
+
+  // TODO: re-factor token ledger to hold two own keys and a list of peer token
+  np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(my_token, false);
+  np_crypto_session_t *my_crypto_session = NULL;
+
+  if (crud == crud_update || crud == crud_delete) {
+    // find the old crypto session object
+    my_crypto_session =
+        np_tree_find_dhkey(crypto_tree, my_token_fp) == NULL
+            ? NULL
+            : np_tree_find_dhkey(crypto_tree, my_token_fp)->val.value.v;
+
+    if (my_crypto_session == NULL) {
+      log_msg(LOG_WARNING, "attempt to update/delete non-existing session");
+      np_tree_free(update_msg_body);
+      return;
+    }
+
+  } else if (crud == crud_create) {
+    // create a new crypto session object
+    np_new_obj(np_crypto_session_t, my_crypto_session);
+
+    my_crypto_session->session_type = crypto_session_shared;
+
+    randombytes_buf(my_crypto_session->session_key_to_write,
+                    crypto_kx_SESSIONKEYBYTES);
+    my_crypto_session->session_key_to_write_is_set = true;
+
+    randombytes_buf(my_crypto_session->session_key_to_read,
+                    crypto_kx_SESSIONKEYBYTES);
+    my_crypto_session->session_key_to_read_is_set = true;
+
+    np_tree_insert_dhkey(crypto_tree,
+                         my_token_fp,
+                         np_treeval_new_v(my_crypto_session));
+    log_debug_msg(LOG_DEBUG,
+                  "own crypto_session established on subject %s (%p)",
+                  _np_key_as_str(subject_key),
+                  subject_key);
+  }
+
+  if (crud == crud_delete) {
+    np_tree_del_dhkey(crypto_tree, my_token_fp);
+    memset(my_crypto_session->session_key_to_read, 0, NP_PUBLIC_KEY_BYTES);
+    memset(my_crypto_session->session_key_to_write, 0, NP_PUBLIC_KEY_BYTES);
+    np_unref_obj(np_crypto_session_t, my_crypto_session, ref_obj_creation);
+    np_tree_free(update_msg_body);
+    return;
+  }
+
+  // a) intent update for receiver dhkey means, do not send out messages
+  // b) crud_update for now: nothing to do, for future: attributes of
+  // token may change, changing the crypto session
+  if (for_receiver == true || crud == crud_update) {
+    np_tree_free(update_msg_body);
+    return;
+  }
+
+  // we added or deleted a receiver, so send the current key once again to
+  // each participant
+  // TODO: could be better, using the pubsub nature of neuropil. for now: for
+  // each recipient one message
+  np_tree_insert_dhkey(
+      update_msg_body,
+      my_token_fp,
+      np_treeval_new_bin(my_crypto_session->session_key_to_write,
+                         crypto_kx_SESSIONKEYBYTES));
+
+  NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
+
+  np_tree_elem_t *iter = NULL;
+  RB_FOREACH (iter, np_tree_s, crypto_tree) {
+    np_dhkey_t           msg_target_dhkey    = iter->key.value.dhkey;
+    np_crypto_session_t *peer_crypto_session = iter->val.value.v;
+
+    // np_dhkey_t token_fp = np_aaatoken_get_fingerprint(token, false);
+    // _np_dhkey_sub(&token_fp, &token_fp, &my_token_fp);
+
+    if (_np_dhkey_equal(&my_token_fp, &msg_target_dhkey)) {
+      continue;
+    }
+
+    if (peer_crypto_session->session_type == crypto_session_initial) {
+
+      np_message_t *update_msg = NULL;
+      np_new_obj(np_message_t, update_msg);
+
+      np_ref_obj(np_message_t, update_msg, ref_message_msg_property);
+      _np_message_create(update_msg,
+                         msg_target_dhkey,
+                         context->my_identity->dhkey,
+                         property->subject_dhkey,
+                         np_tree_clone(update_msg_body));
+
+      log_debug_msg(LOG_DEBUG,
+                    "sending crypto_session established on subject %s (%p)",
+                    _np_key_as_str(subject_key),
+                    subject_key);
+
+      np_util_event_t rekey_msg_event = {
+          .target_dhkey = my_token_fp,
+          .type         = (evt_message | evt_internal | evt_userspace),
+          .user_data    = update_msg};
+
+      // _np_event_runtime_add_event(context,
+      //                             event.current_run,
+      //                             subject_key->dhkey,
+      //                             rekey_msg_event);
+      // _np_keycache_execute_event(context, subject_key->dhkey,
+      // rekey_msg_event);
+      np_jobqueue_submit_event(context,
+                               0.0,
+                               subject_key->dhkey,
+                               rekey_msg_event,
+                               "urn:np:intent:update");
+      np_unref_obj(np_message_t, update_msg, ref_obj_creation);
+    }
+  }
+
+  np_tree_free(update_msg_body);
+}
+
+// TODO: send out intents if dht distance is not matching anymore

@@ -430,38 +430,39 @@ bool _np_aaatoken_is_valid(np_state_t           *context,
       // verify inserted signature first
       log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
                     "try to check attribute signature checksum");
-      size_t attr_data_size;
-      bool ret = np_get_data_size(token->attributes, &attr_data_size) == np_ok;
+      size_t attr_data_size = 0;
+      bool   ret =
+          np_get_data_size(token->attributes, &attr_data_size) == np_data_ok;
       if (!ret) {
         log_msg(LOG_WARNING,
                 "token (%s) for subject \"%s\": attributes do have no valid "
                 "structure (total_size)",
                 token->uuid,
                 token->subject);
-      }
-      unsigned char *hash = __np_aaatoken_get_attributes_hash(token);
-      ret                 = ret &&
+      } else {
+        unsigned char *hash = __np_aaatoken_get_attributes_hash(token);
+        ret &=
             crypto_sign_verify_detached(token->attributes_signature,
                                         hash,
                                         crypto_generichash_BYTES,
                                         token->crypto.ed25519_public_key) == 0;
-      free(hash);
+        free(hash);
+      }
 
       if (!ret) {
         _np_debug_log_bin(token->attributes_signature,
                           sizeof(token->attributes_signature),
                           LOG_AAATOKEN,
                           "token (%s) attribute signature: %s",
-                          token->uuid)
-            log_msg(LOG_WARNING,
-                    "token (%s) for subject \"%s\": attribute signature "
-                    "checksum verification failed",
-                    token->uuid,
-                    token->subject);
+                          token->uuid);
+        log_msg(LOG_WARNING,
+                "token (%s) for subject \"%s\": attribute signature "
+                "checksum verification failed",
+                token->uuid,
+                token->subject);
         log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
         token->state &= AAA_INVALID;
-
-        return (false);
+        return ret;
       }
       log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
                     "token (%s) for subject \"%s\": attribute signature "
@@ -479,15 +480,10 @@ bool _np_aaatoken_is_valid(np_state_t           *context,
     log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
 
     np_data_value max_threshold, msg_threshold;
-    uint32_t      max_threshold_ret = -1, msg_threshold_ret = -1;
-    if ((max_threshold_ret = np_get_data(token->attributes,
-                                         "max_threshold",
-                                         NULL,
-                                         &max_threshold)) == np_ok &&
-        (msg_threshold_ret = np_get_data(token->attributes,
-                                         "msg_threshold",
-                                         NULL,
-                                         &msg_threshold)) == np_ok) {
+    if (np_get_data(token->attributes, "max_threshold", NULL, &max_threshold) ==
+            np_ok &&
+        np_get_data(token->attributes, "msg_threshold", NULL, &msg_threshold) ==
+            np_ok) {
       log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
       uint32_t token_max_threshold = max_threshold.unsigned_integer;
       uint32_t token_msg_threshold = msg_threshold.unsigned_integer;
@@ -517,12 +513,11 @@ bool _np_aaatoken_is_valid(np_state_t           *context,
       }
     } else {
       log_warn(LOG_AAATOKEN,
-               "found NO max(%" PRIu32 ")/msg(%" PRIu32
-               ") threshold in token %s / %s",
-               max_threshold_ret,
-               msg_threshold_ret,
+               "found NO max_/msg_ threshold in token %s / %s",
                token->uuid,
                token->subject);
+      token->state &= AAA_INVALID;
+      return (false);
     }
   }
   log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
@@ -833,9 +828,9 @@ void _np_aaatoken_update_attributes_signature(np_aaatoken_t *self) {
                     crypto_sign_BYTES,
                     LOG_AAATOKEN,
                     "attribute signature hash for %s is %s",
-                    self->uuid)
+                    self->uuid);
 
-      free(hash);
+  free(hash);
 }
 
 unsigned char *__np_aaatoken_get_attributes_hash(np_aaatoken_t *self) {
@@ -853,10 +848,13 @@ unsigned char *__np_aaatoken_get_attributes_hash(np_aaatoken_t *self) {
   // ASSERT(hash != NULL, "cannot sign NULL hash");
   // crypto_generichash_update(&gh_state, hash, crypto_generichash_BYTES);
 
-  // TODO: Maybewe need to validate only till np_get_data_size(self)
-  c_ret = crypto_generichash_update(&gh_state,
-                                    self->attributes,
-                                    sizeof(self->attributes));
+  // TODO: Maybe we need to validate only till np_get_data_size(self)
+  size_t attr_data_size = 0;
+  c_ret =
+      np_get_data_size(self->attributes, &attr_data_size) == np_data_ok ? 0 : 1;
+  assert(c_ret == 0);
+  c_ret =
+      crypto_generichash_update(&gh_state, self->attributes, attr_data_size);
   assert(c_ret == 0);
   c_ret =
       crypto_generichash_update(&gh_state, self->signature, crypto_sign_BYTES);

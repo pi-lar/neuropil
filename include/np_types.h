@@ -117,7 +117,6 @@ NP_SLL_GENERATE_PROTOTYPES(char_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_state_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_aaatoken_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_key_ptr);
-NP_SLL_GENERATE_PROTOTYPES(np_message_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_conf_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_run_ptr);
 NP_SLL_GENERATE_PROTOTYPES(np_node_ptr);
@@ -130,6 +129,7 @@ NP_SLL_GENERATE_PROTOTYPES(np_responsecontainer_on_t);
 NP_SLL_GENERATE_PROTOTYPES(np_msgproperty_on_reply_t);
 
 NP_DLL_GENERATE_PROTOTYPES(np_thread_ptr);
+NP_DLL_GENERATE_PROTOTYPES(np_message_ptr);
 
 #pragma clang diagnostic pop
 

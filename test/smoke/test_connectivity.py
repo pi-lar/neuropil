@@ -7,11 +7,25 @@ import time
 from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
 from misc import TestHelper
 
+
 class ConnectivityTest(unittest.TestCase):
     def test_connectivity(self):
-        np_c = NeuropilCluster(    3, port_range=4010, auto_run=False, log_file_prefix="logs/smoke_test_connectivity_cl_")
-        np_1 = NeuropilNode(4001, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl1.log", auto_run=False)
-        np_2 = NeuropilNode(4002, log_file=f"logs/smoke_{os.path.basename(__file__)}_nl2.log", auto_run=False)
+        np_c = NeuropilCluster(
+            3,
+            port_range=4010,
+            auto_run=False,
+            log_file_prefix="logs/smoke_test_connectivity_cl_",
+        )
+        np_1 = NeuropilNode(
+            4001,
+            log_file=f"logs/smoke_{os.path.basename(__file__)}_nl1.log",
+            auto_run=False,
+        )
+        np_2 = NeuropilNode(
+            4002,
+            log_file=f"logs/smoke_{os.path.basename(__file__)}_nl2.log",
+            auto_run=False,
+        )
 
         TestHelper.disableAAA(np_c).run(0)
         TestHelper.disableAAA(np_1).run(0)
@@ -23,10 +37,10 @@ class ConnectivityTest(unittest.TestCase):
         np_2.join(np1_addr)
         np_c.join(np2_addr)
 
-        timeout = 60 #sec
+        timeout = 60  # sec
 
         t1 = time.time()
-        elapsed = 0.
+        elapsed = 0.0
         np_1_joined = False
         np_2_joined = False
         try:
@@ -42,7 +56,7 @@ class ConnectivityTest(unittest.TestCase):
                 np_1_joined = np_1.has_joined()
                 np_2_joined = np_2.has_joined()
 
-                if (np_1_joined and np_2_joined):
+                if np_1_joined and np_2_joined:
                     break
                 np_1.run(0.1)
 

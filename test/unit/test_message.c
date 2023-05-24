@@ -450,13 +450,20 @@ Test(np_message_t,
     np_aaatoken_t *peer = _np_key_get_token(context->my_identity);
     strncpy(peer->issuer, _np_key_as_str(context->my_identity), 64);
 
-    np_sll_t(np_aaatoken_ptr, token_list);
-    sll_init(np_aaatoken_ptr, token_list);
-    sll_append(np_aaatoken_ptr,
-               token_list,
-               _np_key_get_token(context->my_identity));
+    // np_sll_t(np_aaatoken_ptr, token_list);
+    // sll_init(np_aaatoken_ptr, token_list);
+    // sll_append(np_aaatoken_ptr,
+    //            token_list,
+    //            _np_key_get_token(context->my_identity));
 
-    _np_message_encrypt_payload(msg_out, token_list);
+    char session_key[1024];
+    randombytes_buf(session_key, 1024);
+    np_crypto_session_t session = {.session_key_to_read         = session_key,
+                                   .session_key_to_read_is_set  = true,
+                                   .session_key_to_write        = session_key,
+                                   .session_key_to_write_is_set = true,
+                                   .session_type = crypto_session_private};
+    _np_message_encrypt_payload(msg_out, &session);
 
     // Do the serialsation
     _np_message_calculate_chunking(msg_out);
@@ -488,10 +495,10 @@ Test(np_message_t,
     bool ret = _np_message_deserialize_chunked(msg_in);
     cr_assert(true == ret, "Expected positive result in de-serialisation");
 
-    _np_message_decrypt_payload(msg_in,
-                                _np_key_get_token(context->my_identity));
+    _np_message_decrypt_payload(msg_in, &session);
+
     np_tree_elem_t *elem = np_tree_find_str(msg_in->body, "test");
     cr_assert(elem != NULL, "expected tree element to be present");
-    sll_free(np_aaatoken_ptr, token_list);
+    // sll_free(np_aaatoken_ptr, token_list);
   }
 }

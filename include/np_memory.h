@@ -13,6 +13,7 @@
 extern "C" {
 #endif
 enum np_memory_types_e {
+  np_memory_types_none = 0,
   np_memory_types_BLOB_1024,
   np_memory_types_BLOB_984_RANDOMIZED,
   np_memory_types_np_message_t,
@@ -26,10 +27,12 @@ enum np_memory_types_e {
   np_memory_types_np_messagepart_t,
   np_memory_types_np_aaatoken_t,
   np_memory_types_np_crypto_t,
+  np_memory_types_np_crypto_session_t,
   np_memory_types_MAX_TYPE
 };
 
 static const char *np_memory_types_str[] = {
+    "UNUSED",
     "BLOB_1024",
     "BLOB_984_RANDOMIZED",
     "message",
@@ -45,6 +48,7 @@ static const char *np_memory_types_str[] = {
     // 		"job",
     // 		"jobargs",
     "crypto",
+    "crypto_session",
 };
 
 typedef void (*np_memory_on_new)(np_state_t *context,

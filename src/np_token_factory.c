@@ -269,11 +269,11 @@ _np_token_factory_new_message_intent_token(np_msgproperty_conf_t *msg_request) {
                                           .type = NP_DATA_TYPE_UNSIGNED_INT},
                     (np_data_value){.unsigned_integer = msg_request->ack_mode});
   ASSERT(np_ok == tmp, "Could not set \"ack_mode\" data %" PRIu32, tmp);
-  tmp =
-      np_set_data(ret->attributes,
-                  (struct np_data_conf){.key  = "max_threshold",
-                                        .type = NP_DATA_TYPE_UNSIGNED_INT},
-                  (np_data_value){.unsigned_integer = msg_request->cache_size});
+  tmp = np_set_data(
+      ret->attributes,
+      (struct np_data_conf){.key  = "max_threshold",
+                            .type = NP_DATA_TYPE_UNSIGNED_INT},
+      (np_data_value){.unsigned_integer = msg_request->max_threshold});
   ASSERT(np_ok == tmp, "Could not set \"max_threshold\" data %" PRIu32, tmp);
   tmp = np_set_data(ret->attributes,
                     (struct np_data_conf){.key  = "msg_threshold",
@@ -396,11 +396,10 @@ _np_token_factory_new_handshake_token(np_state_t *context) {
   return ret;
 }
 
-np_node_private_token_t *
-_np_token_factory_new_node_token(np_state_t      *context,
-                                 enum socket_type protocol,
-                                 const char      *hostname,
-                                 const char      *port) {
+np_node_private_token_t *_np_token_factory_new_node_token(np_state_t *context,
+                                                          socket_type protocol,
+                                                          const char *hostname,
+                                                          const char *port) {
   int rand_interval =
       ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) +
        NODE_MIN_TTL_SEC);

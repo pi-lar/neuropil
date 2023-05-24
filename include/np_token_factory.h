@@ -17,11 +17,10 @@
 extern "C" {
 #endif
 NP_API_INTERN
-np_node_private_token_t *
-_np_token_factory_new_node_token(np_state_t      *context,
-                                 enum socket_type protocol,
-                                 const char      *hostname,
-                                 const char      *port);
+np_node_private_token_t *_np_token_factory_new_node_token(np_state_t *context,
+                                                          socket_type protocol,
+                                                          const char *hostname,
+                                                          const char *port);
 
 NP_API_INTERN
 np_handshake_token_t *

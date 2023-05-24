@@ -82,10 +82,8 @@ struct np_memory_container_s {
   TSP(np_sll_t(np_memory_itemconf_ptr, ), free_items);
   // np_mutex_t refreshed_items_lock;
   TSP(np_sll_t(np_memory_itemconf_ptr, ), refreshed_items);
-
   // np_mutex_t total_items_lock;
   TSP(np_sll_t(np_memory_itemconf_ptr, ), total_items);
-
   // np_mutex_t current_in_use_lock;
   TSP(uint32_t, current_in_use);
 
@@ -95,6 +93,7 @@ struct np_memory_container_s {
 };
 
 #define NP_MEMORY_CHECK_MEMORY_REFFING_MAGIC_NO 3223967591
+
 struct np_memory_itemconf_s {
 #ifdef NP_MEMORY_CHECK_MAGIC_NO
   uint32_t magic_no;
@@ -314,6 +313,7 @@ bool _np_memory_init(np_state_t *context) {
   np_register_defaultobj(messagepart, 4, 20);
   np_register_defaultobj(aaatoken, 4, 4);
   np_register_defaultobj(crypto, 4, 4);
+  np_register_defaultobj(crypto_session, 4, 4);
 
 #undef np_register
 #undef np_register_defaultobj
@@ -425,39 +425,16 @@ void np_memory_register_type(np_state_t            *context,
     container->type                     = type;
 
     sll_init(np_memory_itemconf_ptr, container->free_items);
-    // char mutex_str[64];
-    // snprintf(mutex_str, 63, "%s", "urn:np:memory:free_items");
     TSP_INIT(container->free_items);
-    // if (_np_threads_mutex_init(context, &(container->free_items_lock),
-    // mutex_str) != 0) {
-    //     log_msg(LOG_ERROR, "Could not create free_items_lock for container
-    //     type %"PRIu8, container->type);
-    // }
 
-    // snprintf(mutex_str, 63, "%s", "urn:np:memory:refreshed_items");
     sll_init(np_memory_itemconf_ptr, container->refreshed_items);
     TSP_INIT(container->refreshed_items);
-    // if (_np_threads_mutex_init(context, &(container->refreshed_items_lock),
-    // mutex_str) != 0) {
-    //     log_msg(LOG_ERROR, "Could not create refreshed_items for container
-    //     type %"PRIu8, container->type);
-    // }
 
-    // snprintf(mutex_str, 63, "%s", "urn:np:memory:total_items");
     sll_init(np_memory_itemconf_ptr, container->total_items);
     TSP_INIT(container->total_items);
 
-    // if (_np_threads_mutex_init(context, &(container->total_items_lock),
-    // mutex_str) != 0) {
-    //     log_msg(LOG_ERROR, "Could not create total_items for container type
-    //     %"PRIu8, container->type);
-    // }
-
-    // snprintf(mutex_str, 63, "%s", "urn:np:memory:in_use");
     TSP_INIT(container->current_in_use);
-    // if (_np_threads_mutex_init(context, &(container->current_in_use_lock),
-    // mutex_str) == 0)
-    // {
+
     int i = 0;
     while ((container->count_of_items_per_block * i) <
            container->min_count_of_items) {
@@ -1007,6 +984,11 @@ char *np_mem_printpool(np_state_t *context, bool asOneLine, bool extended) {
   uint32_t tmp;
   for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE;
        memory_type++) {
+
+    if (np_module(memory)->__np_memory_container[memory_type] == NULL) {
+      continue;
+    }
+
     np_memory_container_t *container =
         np_module(memory)->__np_memory_container[memory_type];
 
@@ -1151,6 +1133,11 @@ void np_mem_printpool_reasons(np_state_t *context) {
   uint32_t tmp;
   for (int memory_type = 0; memory_type < np_memory_types_MAX_TYPE;
        memory_type++) {
+
+    if (np_module(memory)->__np_memory_container[memory_type] == NULL) {
+      continue;
+    }
+
     np_memory_container_t *container =
         np_module(memory)->__np_memory_container[memory_type];
 
@@ -1178,24 +1165,24 @@ void np_mem_printpool_reasons(np_state_t *context) {
                 //&& iter->ref_count != 2
                 //&& iter->ref_count != 3
                 //&& iter->ref_count != 4
-                &&
-                (
-                    // true
-                    //(container->type == np_memory_types_np_node_t &&
-                    // container->current_in_use > 50) || (container->type ==
-                    // np_memory_types_np_aaatoken_t &&
-                    // container->current_in_use > 600) ||
-                    (container->type == np_memory_types_np_messagepart_t &&
-                     container->current_in_use > 200)
-                    //(container->type == np_memory_types_np_message_t &&
-                    // container->current_in_use > 2000) container->type ==
-                    // np_memory_types_np_message_t
-                    // container->type == np_memory_types_BLOB_1024
-                    // container->type == np_memory_types_np_responsecontainer_t
-                    //(container->type == np_memory_types_np_key_t  &&
-                    // container->current_in_use > 200)
-                    //|| container->type == np_msgproperty_t_e
-                    )) {
+                && (
+                       // true
+                       //(container->type == np_memory_types_np_node_t &&
+                       // container->current_in_use > 50) || (container->type
+                       // == np_memory_types_np_aaatoken_t &&
+                       // container->current_in_use > 600) ||
+                       (container->type == np_memory_types_np_messagepart_t &&
+                        container->current_in_use > 200)
+                       //(container->type == np_memory_types_np_message_t &&
+                       // container->current_in_use > 2000) container->type ==
+                       // np_memory_types_np_message_t
+                       // container->type == np_memory_types_BLOB_1024
+                       // container->type ==
+                       // np_memory_types_np_responsecontainer_t
+                       //(container->type == np_memory_types_np_key_t  &&
+                       // container->current_in_use > 200)
+                       //|| container->type == np_msgproperty_t_e
+                       )) {
               if (sll_size(iter->reasons) > 0) {
                 char *ret = NULL;
                 ret =

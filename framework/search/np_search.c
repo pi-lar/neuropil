@@ -1252,9 +1252,9 @@ bool __check_remote_peer_distribution(np_context               *ac,
       np_tree_replace_str(cloned_msg->header,
                           _NP_MSG_HEADER_SUBJECT,
                           np_treeval_new_dhkey(localized_subject));
-      np_tree_replace_str(cloned_msg->header,
-                          _NP_MSG_HEADER_FROM,
-                          np_treeval_new_dhkey(context->my_node_key->dhkey));
+      // np_tree_replace_str(cloned_msg->header,
+      //                     _NP_MSG_HEADER_FROM,
+      //                     np_treeval_new_dhkey(context->my_node_key->dhkey));
 
       np_util_event_t send_event = {.type      = (evt_internal | evt_message),
                                     .user_data = cloned_msg,

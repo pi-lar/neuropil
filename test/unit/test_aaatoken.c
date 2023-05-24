@@ -83,10 +83,9 @@ Test(np_aaatoken_t,
               "expect that the 2.token (%s) is valid",
               test_token_2->uuid);
 
-    cmp_ctx_t cmp_empty;
-    size_t    buf_size = 65536;
-    char      buffer[buf_size];
-    void     *buf_ptr = buffer;
+    size_t buf_size = 65536;
+    char   buffer[buf_size];
+    void  *buf_ptr = buffer;
     memset(buf_ptr, 0, buf_size);
 
     np_serialize_buffer_t serializer = {

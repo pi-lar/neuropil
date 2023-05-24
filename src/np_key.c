@@ -110,6 +110,7 @@ bool __is_noop_event(np_util_statemachine_t *statemachine,
                      const np_util_event_t   event) {
   return FLAG_CMP(event.type, evt_noop);
 }
+
 void __add_transitions_for(const np_key_t  *my_key,
                            enum np_key_type requested_type);
 

@@ -129,7 +129,6 @@ void __np_tree_serialize_write_type_dhkey(np_dhkey_t          source,
 
 void __np_tree_deserialize_read_type(np_state_t         *context,
                                      np_tree_t          *tree,
-                                     QCBORItem          *item,
                                      QCBORDecodeContext *qcbor_ctx,
                                      np_treeval_t       *value,
                                      NP_UNUSED char     *key_to_read_for) {
@@ -137,44 +136,87 @@ void __np_tree_deserialize_read_type(np_state_t         *context,
                 "start: void __np_tree_deserialize_read_type(cmp_object_t* "
                 "obj, cmp_ctx_t* cmp, np_treeval_t* value){");
 
-  QCBORDecode_VPeekNext(qcbor_ctx, item);
-  if (item->uDataType == QCBOR_TYPE_MAP_AS_ARRAY) {
-    np_tree_t *subtree                          = np_tree_create();
-    value->type                                 = np_treeval_type_jrb_tree;
-    value->value.tree                           = subtree;
-    np_deserialize_buffer_t deserialize_subtree = {
-        ._target_tree = value->value.tree,
-        ._buffer      = &qcbor_ctx->InBuf.UB.ptr[qcbor_ctx->InBuf.cursor],
-        ._buffer_size = qcbor_ctx->InBuf.UB.len - qcbor_ctx->InBuf.cursor,
-        ._bytes_read  = 0,
-        ._error       = 0};
-    np_serializer_read_map(context, &deserialize_subtree, value->value.tree);
-    if (deserialize_subtree._error == QCBOR_SUCCESS) {
-      qcbor_ctx->uLastError = QCBOR_SUCCESS;
-      qcbor_ctx->InBuf.cursor += deserialize_subtree._bytes_read;
-      qcbor_ctx->nesting.pCurrent--;
-    } else qcbor_ctx->uLastError = deserialize_subtree._error;
-    return;
-  }
+  QCBORItem _item = {0};
 
-  QCBORDecode_VGetNext(qcbor_ctx, item);
-  switch (item->uDataType) {
+  QCBORDecode_VGetNext(qcbor_ctx, &_item);
+  switch (_item.uDataType) {
 
   case QCBOR_TYPE_MAP:
-    log_msg(LOG_WARNING,
-            "error de-serializing message to normal form, found map type");
-    qcbor_ctx->uLastError = 13; // INVALID_TYPE_ERROR
-    break;
+  case QCBOR_TYPE_MAP_AS_ARRAY: {
+    if (_item.uTags[0] ==
+        (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_jrb_tree)) {
+
+      for (int32_t i = _item.val.uCount; i > 0; i--) {
+        np_treeval_t tmp_key   = {0};
+        np_tree_t   *subtree   = np_tree_create();
+        subtree->attr.in_place = tree->attr.in_place;
+        __np_tree_deserialize_read_type(context,
+                                        subtree, // key can't be a tree
+                                        qcbor_ctx,
+                                        &tmp_key,
+                                        "");
+        np_tree_clear(subtree); // key value cannot be a tree
+        np_treeval_t tmp_val = {0};
+        __np_tree_deserialize_read_type(context,
+                                        subtree,
+                                        qcbor_ctx,
+                                        &tmp_val,
+                                        "");
+        i--;
+        // add key value pair to tree
+        switch (tmp_key.type) {
+        case np_treeval_type_int:
+          np_tree_insert_int(tree, tmp_key.value.i, tmp_val);
+          break;
+        case np_treeval_type_dhkey:
+          np_tree_insert_dhkey(tree, tmp_key.value.dhkey, tmp_val);
+          break;
+        case np_treeval_type_unsigned_long:
+          np_tree_insert_ulong(tree, tmp_key.value.ul, tmp_val);
+          break;
+        case np_treeval_type_double:
+          np_tree_insert_dbl(tree, tmp_key.value.d, tmp_val);
+          break;
+        case np_treeval_type_char_ptr:
+          np_tree_insert_str(tree, tmp_key.value.s, tmp_val);
+          break;
+        default:
+          log_msg(LOG_WARNING | LOG_SERIALIZATION,
+                  "undefined key type cannot be added to tree structure");
+          tmp_val.type = np_treeval_type_undefined;
+          break;
+        }
+        np_tree_free(subtree);
+      }
+      //        QCBORDecode_ExitMap(qcbor_ctx);
+      if (_item.uTags[1] == CBOR_TAG_CWT) {
+        value->type = np_treeval_type_cwt;
+      } else if (_item.uTags[1] == CBOR_TAG_COSE_ENCRYPT) {
+        value->type = np_treeval_type_cose_encrypted;
+      } else if (_item.uTags[1] == CBOR_TAG_COSE_SIGN) {
+        value->type = np_treeval_type_cose_signed;
+      } else {
+        value->type = np_treeval_type_jrb_tree;
+      }
+      value->value.tree = tree;
+      value->size       = tree->size;
+      log_debug_msg(LOG_SERIALIZATION | LOG_VERBOSE,
+                    "read:  buffer size for subtree %u (%hd %u)",
+                    value->size,
+                    value->value.tree->size,
+                    tree->byte_size);
+    }
+  } break;
 
   case QCBOR_TYPE_ARRAY: {
-    if (item->uTags[0] ==
+    if (_item.uTags[0] ==
         (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_uint_array_2)) {
-      QCBORDecode_VGetNext(qcbor_ctx, item);
-      QCBOR_Int64ToUInt16(item->val.int64, &value->value.a2_ui[0]);
-      QCBORDecode_VGetNext(qcbor_ctx, item);
-      QCBOR_Int64ToUInt16(item->val.int64, &value->value.a2_ui[1]);
+      QCBORDecode_VGetNext(qcbor_ctx, &_item);
+      QCBOR_Int64ToUInt16(_item.val.int64, &value->value.a2_ui[0]);
+      QCBORDecode_VGetNext(qcbor_ctx, &_item);
+      QCBOR_Int64ToUInt16(_item.val.int64, &value->value.a2_ui[1]);
       value->type = np_treeval_type_uint_array_2;
-    } else if (item->uTags[0] ==
+    } else if (_item.uTags[0] ==
                (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_dhkey)) {
       __np_tree_serialize_read_type_dhkey(qcbor_ctx, value);
     } else {
@@ -185,84 +227,44 @@ void __np_tree_deserialize_read_type(np_state_t         *context,
   } break;
 
   case QCBOR_TYPE_TEXT_STRING: {
-    value->size = item->val.string.len;
-    if (item->val.string.len == 1) {
+    value->size = _item.val.string.len;
+    if (_item.val.string.len == 1) {
       value->type    = np_treeval_type_char;
-      value->value.c = *((char *)item->val.string.ptr);
+      value->value.c = *((char *)_item.val.string.ptr);
     } else {
       value->type = np_treeval_type_char_ptr;
       if (tree->attr.in_place == true) {
-        value->value.s = (char *)item->val.string.ptr;
+        value->value.s = (char *)_item.val.string.ptr;
       } else {
-        value->value.s = strndup(item->val.string.ptr, item->val.string.len);
+        value->value.s = strndup(_item.val.string.ptr, _item.val.string.len);
       }
     }
-    break;
-  }
+  } break;
 
   case QCBOR_TYPE_BYTE_STRING: {
 
-    if (item->uTags[0] ==
-        (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_jrb_tree)) {
-      // tree type
-      if (item->uTags[1] == CBOR_TAG_CWT) {
-        value->type = np_treeval_type_cwt;
-      } else if (item->uTags[1] == CBOR_TAG_COSE_ENCRYPT) {
-        value->type = np_treeval_type_cose_encrypted;
-      } else if (item->uTags[1] == CBOR_TAG_COSE_SIGN) {
-        value->type = np_treeval_type_cose_signed;
-      } else {
-        value->type = np_treeval_type_jrb_tree;
-      }
-      np_tree_t *subtree     = np_tree_create();
-      subtree->attr.in_place = tree->attr.in_place;
-
-      np_deserialize_buffer_t deserializer = {
-          ._target_tree = subtree,
-          ._buffer      = item->val.string.ptr,
-          ._buffer_size = item->val.string.len,
-          ._error       = 0,
-          ._bytes_read  = 0,
-      };
-      np_serializer_read_map(context, &deserializer, subtree);
-      if (deserializer._error != 0) {
-        qcbor_ctx->uLastError = 11; // EXT_TYPE_READING_ERROR
-        break;
-      }
-
-      value->value.tree = subtree;
-      value->size       = subtree->size;
-      log_debug_msg(LOG_SERIALIZATION | LOG_VERBOSE,
-                    "read:  buffer size for subtree %u (%hd %u)",
-                    value->size,
-                    value->value.tree->size,
-                    subtree->byte_size);
-
-    } else if (item->uTags[0] ==
-               (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_hash)) {
+    if (_item.uTags[0] == (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_hash)) {
       value->type = np_treeval_type_hash;
-      value->size = item->val.string.len;
+      value->size = _item.val.string.len;
       if (tree->attr.in_place == true) {
-        value->value.bin = (char *)item->val.string.ptr;
+        value->value.bin = (char *)_item.val.string.ptr;
       } else {
-        value->value.bin = malloc(item->val.string.len);
+        value->value.bin = malloc(_item.val.string.len);
         CHECK_MALLOC(value->value.bin);
-        memcpy(value->value.bin, item->val.string.ptr, item->val.string.len);
+        memcpy(value->value.bin, _item.val.string.ptr, _item.val.string.len);
       }
     } else {
       value->type = np_treeval_type_bin;
-      value->size = item->val.string.len;
+      value->size = _item.val.string.len;
       if (tree->attr.in_place == true) {
-        value->value.bin = (char *)item->val.string.ptr;
+        value->value.bin = (char *)_item.val.string.ptr;
       } else {
         value->value.bin = malloc(value->size);
         CHECK_MALLOC(value->value.bin);
-        memcpy(value->value.bin, item->val.string.ptr, value->size);
+        memcpy(value->value.bin, _item.val.string.ptr, value->size);
       }
     }
-
-    break;
-  }
+  } break;
 
   case QCBOR_TYPE_NULL:
     log_msg(LOG_WARNING, "unknown de-serialization for given type (cmp NIL) ");
@@ -277,51 +279,51 @@ void __np_tree_deserialize_read_type(np_state_t         *context,
     break;
 
   case QCBOR_TYPE_FLOAT:
-    value->value.f = item->val.fnum;
+    value->value.f = _item.val.fnum;
     value->type    = np_treeval_type_float;
     break;
 
   case QCBOR_TYPE_DOUBLE:
-    value->value.d = item->val.dfnum;
+    value->value.d = _item.val.dfnum;
     value->type    = np_treeval_type_double;
     break;
 
   case QCBOR_TYPE_UINT64:
   case QCBOR_TYPE_INT64: {
-    switch (item->uTags[0]) {
+    switch (_item.uTags[0]) {
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_unsigned_short):
-      QCBOR_Int64ToUInt8(item->val.int64, &value->value.ush);
+      QCBOR_Int64ToUInt8(_item.val.int64, &value->value.ush);
       value->type = np_treeval_type_unsigned_short;
       break;
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_unsigned_int):
-      QCBOR_Int64ToUInt16(item->val.int64, &value->value.ui);
+      QCBOR_Int64ToUInt16(_item.val.int64, &value->value.ui);
       value->type = np_treeval_type_unsigned_int;
       break;
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_unsigned_long):
-      QCBOR_Int64ToUInt32(item->val.int64, &value->value.ul);
+      QCBOR_Int64ToUInt32(_item.val.int64, &value->value.ul);
       value->type = np_treeval_type_unsigned_long;
       break;
 #ifdef x64
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_unsigned_long_long):
-      QCBOR_Int64ToUInt64(item->val.int64, &value->value.ull);
+      QCBOR_Int64ToUInt64(_item.val.int64, &value->value.ull);
       value->type = np_treeval_type_unsigned_long_long;
       break;
 #endif
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_short):
-      QCBOR_Int64ToInt8(item->val.int64, &value->value.sh);
+      QCBOR_Int64ToInt8(_item.val.int64, &value->value.sh);
       value->type = np_treeval_type_short;
       break;
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_int):
-      QCBOR_Int64ToInt16(item->val.int64, &value->value.i);
+      QCBOR_Int64ToInt16(_item.val.int64, &value->value.i);
       value->type = np_treeval_type_int;
       break;
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_long):
-      QCBOR_Int64ToInt32(item->val.int64, &value->value.l);
+      QCBOR_Int64ToInt32(_item.val.int64, &value->value.l);
       value->type = np_treeval_type_long;
       break;
 #ifdef x64
     case (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_long_long):
-      value->value.ll = item->val.int64;
+      value->value.ll = _item.val.int64;
       value->type     = np_treeval_type_long_long;
       break;
 #endif
@@ -330,12 +332,16 @@ void __np_tree_deserialize_read_type(np_state_t         *context,
       log_msg(LOG_WARNING, "unknown deserialization for given int type");
       break;
     }
-    break;
-  }
+  } break;
 
   default:
     value->type = np_treeval_type_undefined;
-    log_msg(LOG_WARNING, "unknown deserialization for given type");
+    log_msg(LOG_WARNING,
+            "unknown deserialization for given type %" PRId8 " / %" PRId16
+            " / %" PRId16,
+            _item.uDataType,
+            _item.uTags[0],
+            _item.uTags[1]);
     break;
   }
 }
@@ -383,7 +389,8 @@ void __np_tree_serialize_write_type(np_state_t         *context,
                         (UsefulBufC){.ptr = &val.value.c, .len = sizeof(char)});
     break;
     //	case np_treeval_type_unsigned_char:
-    //	 	cmp_write_str(cmp, (const char*) &val.value.uc, sizeof(unsigned
+    //	 	cmp_write_str(cmp, (const char*) &val.value.uc,
+    // sizeof(unsigned
     // char)); 	 	break;
 
     // float and double precision
@@ -425,8 +432,8 @@ void __np_tree_serialize_write_type(np_state_t         *context,
     QCBOREncode_AddTag(qcbor_ctx,
                        NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_uint_array_2);
     QCBOREncode_OpenArray(qcbor_ctx);
-    QCBOREncode_AddUInt64(qcbor_ctx, val.value.a2_ui[0]);
-    QCBOREncode_AddUInt64(qcbor_ctx, val.value.a2_ui[1]);
+    QCBOREncode_AddInt64(qcbor_ctx, val.value.a2_ui[0]);
+    QCBOREncode_AddInt64(qcbor_ctx, val.value.a2_ui[1]);
     QCBOREncode_CloseArray(qcbor_ctx);
     break;
 
@@ -483,31 +490,40 @@ void __np_tree_serialize_write_type(np_state_t         *context,
     break;
 
   case np_treeval_type_jrb_tree: {
-    // size_t buf_size = np_tree_get_byte_size(val.value.tree);
     size_t buf_size = np_tree_get_byte_size(val.value.tree);
-    // np_serializer_add_map_bytesize(val.value.tree, &buf_size);
-    // char buffer[buf_size];
     log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-                  "write: buffer size for subtree %u (%hd %u) %u",
+                  "write: buffer size for subtree %d (%hd %hd) %hd",
                   val.size,
                   val.value.tree->size,
                   val.value.tree->byte_size,
                   buf_size);
-    np_serialize_buffer_t tree_serializer = {
-        ._tree          = val.value.tree,
-        ._target_buffer = &qcbor_ctx->OutBuf.UB.ptr[qcbor_ctx->OutBuf.data_len],
-        ._buffer_size   = buf_size,
-        ._error         = 0,
-        ._bytes_written = 0,
-    };
-    np_serializer_write_map(context, &tree_serializer, val.value.tree);
-    qcbor_ctx->OutBuf.data_len += tree_serializer._bytes_written;
-    qcbor_ctx->nesting.pCurrentNesting->uCount++;
+    QCBOREncode_AddTag(qcbor_ctx,
+                       (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_jrb_tree));
+    QCBOREncode_OpenMap(qcbor_ctx);
 
-    // write the serialized tree to the upper level buffer
-    // QCBOREncode_AddBytes(
-    //     qcbor_ctx,
-    //     (UsefulBufC){.ptr = buffer, .len = tree_serializer._bytes_written});
+    np_tree_elem_t *tmp = NULL;
+    RB_FOREACH (tmp, np_tree_s, val.value.tree) {
+
+      if (np_treeval_type_int == tmp->key.type ||
+          np_treeval_type_dhkey == tmp->key.type ||
+          np_treeval_type_unsigned_long == tmp->key.type ||
+          np_treeval_type_double == tmp->key.type ||
+          np_treeval_type_char_ptr == tmp->key.type) {
+
+        __np_tree_serialize_write_type(context, tmp->key, qcbor_ctx);
+        __np_tree_serialize_write_type(context, tmp->val, qcbor_ctx);
+
+        log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
+                      "known key type for serialization %hd / %hd",
+                      qcbor_ctx->OutBuf.data_len,
+                      qcbor_ctx->nesting.pCurrentNesting->uCount);
+      } else {
+        log_msg(LOG_ERROR, "unknown key type for serialization");
+      }
+    }
+
+    QCBOREncode_CloseMap(qcbor_ctx);
+
   } break;
 
   default:
@@ -528,126 +544,36 @@ void np_serializer_read_map(np_state_t              *context,
                                      .len = buffer->_buffer_size};
   QCBORDecodeContext    qcbor_ctx = {0};
   QCBORDecode_Init(&qcbor_ctx, qmp, QCBOR_DECODE_MODE_MAP_AS_ARRAY);
-  QCBORItem item = {0};
-  //  uint32_t size = 0;
 
-  QCBORDecode_VGetNext(&qcbor_ctx, &item);
-  if (item.uDataType != QCBOR_TYPE_MAP_AS_ARRAY) {
-    buffer->_error = 1;
-    return;
-  }
+  np_treeval_t val = {0};
+  __np_tree_deserialize_read_type(context,
+                                  buffer->_target_tree,
+                                  &qcbor_ctx,
+                                  &val,
+                                  "");
 
-  uint32_t size =
-      item.val.uCount; // QCBOR_Int64ToUInt32(item.val.uCount, &size);
-  if (size == 0) {
-    // buffer->_error = 1;
-    return;
-  } else if ((size % 2) != 0) {
-    buffer->_error = 1;
-    return;
-  }
-
-  for (uint32_t i = 0; i < (size / 2); i++) {
-    // read key
-    np_treeval_t tmp_key = {0};
-    tmp_key.type         = np_treeval_type_undefined;
-    tmp_key.size         = 0;
-
-    QCBORItem item_key = {0};
-    __np_tree_deserialize_read_type(context,
-                                    buffer->_target_tree,
-                                    &item_key,
-                                    &qcbor_ctx,
-                                    &tmp_key,
-                                    "<<key read>>");
-
-    if (qcbor_ctx.uLastError != 0 ||
-        np_treeval_type_undefined == tmp_key.type) {
-      log_msg(LOG_INFO,
-              "deserialization error: %s",
-              qcbor_err_to_str(qcbor_ctx.uLastError));
-      buffer->_error = qcbor_ctx.uLastError;
-      ret            = false;
-      break;
-    }
-
-    // read value
-    np_treeval_t tmp_val = {0};
-    tmp_val.type         = np_treeval_type_undefined;
-    tmp_val.size         = 0;
-    QCBORItem item_val   = {0};
-
-#ifdef DEBUG
-    bool  free_tmp_key_str = false;
-    char *tmp_key_str      = np_treeval_to_str(tmp_key, &free_tmp_key_str);
-    __np_tree_deserialize_read_type(context,
-                                    buffer->_target_tree,
-                                    &item_val,
-                                    &qcbor_ctx,
-                                    &tmp_val,
-                                    tmp_key_str);
-    if (free_tmp_key_str) {
-      free(tmp_key_str);
-    }
-#else
-    __np_tree_deserialize_read_type(context,
-                                    buffer->_target_tree,
-                                    &item_val,
-                                    &qcbor_ctx,
-                                    &tmp_val,
-                                    "<<unknown>>");
-#endif
-
-    if (qcbor_ctx.uLastError != 0 ||
-        np_treeval_type_undefined == tmp_val.type) {
-      log_msg(LOG_INFO,
-              "deserialization error: %s",
-              qcbor_err_to_str(qcbor_ctx.uLastError));
-      buffer->_error = qcbor_ctx.uLastError;
-      ret            = false;
-      break;
-    }
-
-    // add key value pair to tree
-    switch (tmp_key.type) {
-    case np_treeval_type_int:
-      np_tree_insert_int(buffer->_target_tree, tmp_key.value.i, tmp_val);
-      break;
-    case np_treeval_type_dhkey:
-      np_tree_insert_dhkey(buffer->_target_tree, tmp_key.value.dhkey, tmp_val);
-      break;
-    case np_treeval_type_unsigned_long:
-      np_tree_insert_ulong(buffer->_target_tree, tmp_key.value.ul, tmp_val);
-      break;
-    case np_treeval_type_double:
-      np_tree_insert_dbl(buffer->_target_tree, tmp_key.value.d, tmp_val);
-      break;
-    case np_treeval_type_char_ptr:
-      np_tree_insert_str(buffer->_target_tree, tmp_key.value.s, tmp_val);
-      break;
-    default:
-      tmp_val.type = np_treeval_type_undefined;
-      break;
-    }
-
-    _np_tree_cleanup_treeval(buffer->_target_tree, tmp_key);
-    if (buffer->_target_tree->attr.in_place == false ||
-        tmp_val.type != np_treeval_type_jrb_tree) {
-      _np_tree_cleanup_treeval(buffer->_target_tree, tmp_val);
-    }
-  }
+  log_debug_msg(LOG_INFO | LOG_SERIALIZATION,
+                " deserialization work  %" PRId32 " %" PRId16
+                " items (%d / %d)",
+                buffer->_target_tree->size,
+                np_tree_get_byte_size(buffer->_target_tree),
+                qcbor_ctx.nesting.pCurrent->u.ma.uCountTotal,
+                qcbor_ctx.nesting.pCurrent->u.ma.uCountCursor);
 
   QCBORError qcbor_ret = QCBORDecode_Finish(&qcbor_ctx);
-  if (!(qcbor_ret == QCBOR_SUCCESS || qcbor_ret == QCBOR_ERR_EXTRA_BYTES)) {
-    log_msg(LOG_INFO,
-            "deserialization error: %s",
-            qcbor_err_to_str(qcbor_ctx.uLastError));
+  if (qcbor_ret == QCBOR_SUCCESS || qcbor_ret == QCBOR_ERR_EXTRA_BYTES) {
+    log_debug_msg(LOG_INFO | LOG_SERIALIZATION,
+                  "deserialization successful: %s",
+                  qcbor_err_to_str(qcbor_ret));
     ret = true;
+  } else {
+    ret = false;
   }
 
   if (ret == false) {
-    log_debug_msg(LOG_SERIALIZATION | LOG_TREE | LOG_WARNING,
-                  "Deserialization error: unspecified error");
+    log_debug_msg(LOG_SERIALIZATION | LOG_WARNING,
+                  "Deserialization error: unspecified error: %s",
+                  qcbor_err_to_str(qcbor_ret));
     buffer->_error = 1;
     return;
 
@@ -670,57 +596,28 @@ void np_serializer_add_map_bytesize(np_tree_t *tree, size_t *byte_size) {
 void np_serializer_write_map(np_state_t            *context,
                              np_serialize_buffer_t *buffer,
                              const np_tree_t       *tree) {
-  buffer->_tree = tree;
+  np_treeval_t tmp_val = {.size       = tree->size,
+                          .type       = np_treeval_type_jrb_tree,
+                          .value.tree = tree};
+  buffer->_tree        = tree;
 
   struct q_useful_buf qmp       = {.ptr = buffer->_target_buffer,
                                    .len = buffer->_buffer_size};
   QCBOREncodeContext  qcbor_ctx = {0};
   QCBOREncode_Init(&qcbor_ctx, qmp);
 
-  uint16_t i = 0;
+  __np_tree_serialize_write_type(context, tmp_val, &qcbor_ctx);
 
-  // first assume a size based on jrb size
-  QCBOREncode_AddTag(&qcbor_ctx,
-                     (NP_CBOR_REGISTRY_ENTRIES + np_treeval_type_jrb_tree));
-  QCBOREncode_OpenMap(&qcbor_ctx);
+  struct q_useful_buf_c out_cmp  = {0};
+  QCBORError            cbor_err = QCBOREncode_Finish(&qcbor_ctx, &out_cmp);
 
-  // write jrb tree
-  if (0 < buffer->_tree->size) {
-
-    np_tree_elem_t *tmp = NULL;
-
-    RB_FOREACH (tmp, np_tree_s, buffer->_tree) {
-
-      if (np_treeval_type_int == tmp->key.type ||
-          np_treeval_type_dhkey == tmp->key.type ||
-          np_treeval_type_unsigned_long == tmp->key.type ||
-          np_treeval_type_double == tmp->key.type ||
-          np_treeval_type_char_ptr == tmp->key.type) {
-        // log_debug_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp,
-        // msg->header, node, node->flink);
-        __np_tree_serialize_write_type(context, tmp->key, &qcbor_ctx);
-        i++;
-        __np_tree_serialize_write_type(context, tmp->val, &qcbor_ctx);
-        i++;
-      } else {
-        log_msg(LOG_ERROR, "unknown key type for serialization");
-      }
-    }
-  }
-  QCBOREncode_CloseMap(&qcbor_ctx);
-
-  struct q_useful_buf_c qmp_out  = {0};
-  QCBORError            cbor_err = QCBOREncode_Finish(&qcbor_ctx, &qmp_out);
-
-  if (cbor_err == QCBOR_SUCCESS || cbor_err == QCBOR_ERR_EXTRA_BYTES) {
-    buffer->_bytes_written = qmp_out.len;
+  if (cbor_err == QCBOR_SUCCESS) {
+    buffer->_bytes_written = qcbor_ctx.OutBuf.data_len;
     buffer->_error         = qcbor_ctx.uError;
+  } else {
+    buffer->_bytes_written = buffer->_bytes_written;
+    buffer->_error         = 1;
   }
-  if (i != buffer->_tree->size * 2)
-    log_msg(LOG_ERROR,
-            "serialized jrb size map size is %d, but should be %hd",
-            buffer->_tree->size * 2,
-            i);
 }
 
 enum np_data_return np_serializer_write_object(np_kv_buffer_t *to_write) {
@@ -1575,9 +1472,7 @@ bool np_serializer_read_encrypted(const void    *input_buffer,
   assert(NULL != input_buffer);
   assert(NULL != nonce);
   assert(*ib_length >= *cb_len);
-  //  np_ctx_memory(token);
 
-  uint8_t               qcbor_error = QCBOR_SUCCESS;
   struct q_useful_buf_c cbor_decode = {.ptr = input_buffer, .len = *ib_length};
 
   QCBORDecodeContext decoder = {};

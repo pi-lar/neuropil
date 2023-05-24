@@ -188,7 +188,6 @@ void __np_tree_serialize_write_type(np_state_t  *context,
 
 void __np_tree_deserialize_read_type(np_state_t         *context,
                                      np_tree_t          *tree,
-                                     QCBORItem          *item,
                                      QCBORDecodeContext *qcbor_ctx,
                                      np_treeval_t       *value,
                                      NP_UNUSED char     *key_to_read_for);

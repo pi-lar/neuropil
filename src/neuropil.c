@@ -252,7 +252,8 @@ np_context *np_new_context(struct np_settings *settings_in) {
     context->enable_realm_server = false;
 
     // initialize message part handling cache
-    context->msg_part_cache               = np_tree_create();
+    context->msg_part_cache = np_tree_create();
+
     struct np_bloom_optable_s decaying_op = {
         .add_cb   = _np_decaying_bloom_add,
         .check_cb = _np_decaying_bloom_check,
@@ -261,11 +262,11 @@ np_context *np_new_context(struct np_settings *settings_in) {
     TSP_INIT(context->msg_forward_filter);
     TSP_SCOPE(context->msg_forward_filter) {
       context->msg_forward_filter =
-          _np_decaying_bloom_create(NP_MSG_FORWARD_FILTER_SIZE, 8, 1);
+          _np_decaying_bloom_create(NP_MSG_FORWARD_FILTER_SIZE, 16, 1);
       context->msg_forward_filter->op = decaying_op;
     }
     context->msg_part_filter =
-        _np_decaying_bloom_create(NP_MSG_PART_FILTER_SIZE_INTERVAL, 8, 1);
+        _np_decaying_bloom_create(NP_MSG_PART_FILTER_SIZE_INTERVAL, 16, 1);
     context->msg_part_filter->op = decaying_op;
   }
 
@@ -300,8 +301,8 @@ enum np_return _np_listen_safe(np_context *ac,
             "node is not in stopped state and cannot start propertly");
     ret = np_invalid_operation;
   } else {
-    char             np_service[7];
-    enum socket_type np_proto = UDP | IPv6;
+    char        np_service[7];
+    socket_type np_proto = UDP | IPv6;
 
     snprintf(np_service, 7, "%" PRIu16, port);
 
@@ -621,12 +622,14 @@ bool np_has_receiver_for(np_context *ac, np_subject subject) {
   np_ctx_cast(ac);
   bool ret = false;
 
-  char buff[100] = {0};
-  np_regenerate_subject(context, buff, 100, subject);
-  log_info(LOG_MISC, "user requests info for availibility of subject %s", buff);
-
   np_dhkey_t subject_dhkey = {0};
   memcpy(&subject_dhkey, subject, NP_FINGERPRINT_BYTES);
+  np_dhkey_t out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
+
+  char buff[100] = {0};
+  np_regenerate_subject(context, buff, 100, &out_dhkey);
+
+  log_info(LOG_MISC, "user requests info for availibility of subject %s", buff);
 
   np_dhkey_t prop_dhkey =
       _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
@@ -706,18 +709,21 @@ enum np_return np_send_to(np_context          *ac,
   enum np_return ret = np_ok;
   np_ctx_cast(ac);
 
-  np_dhkey_t subject_dhkey = {
-      0}; // _np_msgproperty_dhkey(OUTBOUND, subject_id);
+  np_dhkey_t subject_dhkey = {0};
+  // _np_msgproperty_dhkey(OUTBOUND, subject_id);
   memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
 
   // make sure that an outbound msgproperty exists, function call is here for
   // the side effect
-  np_msgproperty_conf_t *prop =
+  np_msgproperty_conf_t *property_conf =
       _np_msgproperty_get_or_create(ac, OUTBOUND, subject_dhkey);
+  np_msgproperty_run_t *property_run =
+      _np_msgproperty_run_get(ac, OUTBOUND, subject_dhkey);
 
-  if (prop->audience_type == NP_MX_AUD_VIRTUAL) return np_invalid_operation;
+  if (property_conf->audience_type == NP_MX_AUD_VIRTUAL)
+    return np_invalid_operation;
 
-  np_msgproperty_register(prop);
+  np_msgproperty_register(property_conf);
 
   np_tree_t *body = np_tree_create();
   np_tree_insert_str(body,
@@ -743,18 +749,21 @@ enum np_return np_send_to(np_context          *ac,
     }
   }
 
-  np_dhkey_t target_dhkey = {0}; // will be used as a selector -> check whether
-                                 // the opposite peer contains this hash value
+  // target_dhkey is used as a selector for the crypto session ->
+  np_dhkey_t target_dhkey = {0};
+
   if (target != NULL) {
-    // TOOD: id to dhkey
+    _np_dhkey_assign(&target_dhkey, target);
+  } else {
+    _np_dhkey_assign(&target_dhkey, &property_run->current_fp);
   }
   np_dhkey_t out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
 
   np_message_t *msg_out = NULL;
   np_new_obj(np_message_t, msg_out, FUNC);
   _np_message_create(msg_out,
-                     subject_dhkey,
-                     context->my_node_key->dhkey,
+                     target_dhkey,
+                     context->my_identity->dhkey,
                      subject_dhkey,
                      body);
 
@@ -802,11 +811,10 @@ bool __np_receive_callback_converter(np_context               *ac,
     // np_get_id(&message.subject, _np_message_get_subject(msg),
     // strlen(_np_message_get_subject(msg)));
 
-    ASSERT(msg->decryption_token != NULL,
+    np_tree_elem_t *from = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM);
+    ASSERT(from != NULL,
            "The decryption token should never be empty in this stage");
-    np_dhkey_t _t;
-    np_str_id(&_t, msg->decryption_token->issuer);
-    memcpy(&message.from, &_t, NP_FINGERPRINT_BYTES);
+    memcpy(&message.from, &from->val.value.dhkey, NP_FINGERPRINT_BYTES);
 
     message.received_at = np_time_now(); // todo get from network
     // message.send_at = msg.             // todo get from msg
@@ -846,8 +854,7 @@ enum np_return np_add_receive_cb(np_context         *ac,
   enum np_return ret = np_ok;
   // np_ctx_cast(ac);
 
-  np_dhkey_t subject_dhkey = {
-      0}; // _np_msgproperty_dhkey(OUTBOUND, subject_id);
+  np_dhkey_t subject_dhkey = {0};
   memcpy(&subject_dhkey, subject_id, NP_FINGERPRINT_BYTES);
 
   np_add_receive_listener(ac,
@@ -974,7 +981,7 @@ enum np_return np_set_mx_properties(np_context             *ac,
   np_msgproperty_from_user(context, property, &safe_user_property);
   property->unique_uuids_check = true;
   np_msgproperty_register(property);
-
+  log_msg(LOG_INFO, "msgproperty setup complete");
   return ret;
 }
 
@@ -1095,6 +1102,7 @@ enum np_status np_get_status(np_context *ac) {
 char *np_id_str(char str[65], const np_id id) {
   sodium_bin2hex(str, NP_FINGERPRINT_BYTES * 2 + 1, id, NP_FINGERPRINT_BYTES);
   // ASSERT(r==0, "could not convert np_id to str code: %"PRId32, r);
+  str[64] = '\0';
   return str;
 }
 

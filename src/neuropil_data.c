@@ -7,8 +7,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "msgpack/cmp.h"
-
 #include "neuropil.h"
 
 #include "util/np_mapreduce.h"

@@ -24,11 +24,26 @@ typedef np_crypto_encrypted_intermediate_key_t
 
 NP_SLL_GENERATE_PROTOTYPES(np_crypto_encrypted_intermediate_key_ptr)
 
+enum np_crypto_session_type {
+  crypto_session_none = 0,
+  crypto_session_initial =
+      1, // an initialization session containig more key material
+  crypto_session_private,   // dhkey between two nodes, can be created
+                            // automatically
+  crypto_session_shared,    // symmetric key shared by sender for any number of
+                            // receivers
+  crypto_session_protected, // dhkey between several groups, needs a
+                            // coordinator?
+};
+
 struct np_crypto_session_s {
+  enum np_crypto_session_type session_type;
   bool          session_key_to_read_is_set, session_key_to_write_is_set;
   unsigned char session_key_to_read[crypto_kx_SESSIONKEYBYTES],
       session_key_to_write[crypto_kx_SESSIONKEYBYTES];
 };
+
+_NP_GENERATE_MEMORY_PROTOTYPES(np_crypto_session_t)
 
 struct np_crypto_s {
   bool ed25519_public_key_is_set, ed25519_secret_key_is_set,
@@ -39,6 +54,8 @@ struct np_crypto_s {
   unsigned char derived_kx_public_key[crypto_kx_PUBLICKEYBYTES],
       derived_kx_secret_key[crypto_kx_SECRETKEYBYTES];
 };
+
+_NP_GENERATE_MEMORY_PROTOTYPES(np_crypto_t)
 
 typedef struct np_crypto_transport_message_s {
   size_t        data_length;
@@ -76,6 +93,30 @@ int np_crypto_session(np_state_t          *context,
                       np_crypto_t         *remote_container,
                       bool                 remote_is_client);
 
+int np_crypto_session_encrypt(np_state_t          *context,
+                              np_crypto_session_t *session,
+                              unsigned char       *ciphertext,
+                              unsigned int         ciphertext_length,
+                              unsigned char       *mac,
+                              unsigned int         mac_length,
+                              unsigned char       *data,
+                              unsigned int         data_length,
+                              unsigned char       *ad_data,
+                              unsigned int         ad_data_length,
+                              unsigned char       *nonce);
+
+int np_crypto_session_decrypt(np_state_t          *context,
+                              np_crypto_session_t *session,
+                              unsigned char       *ciphertext,
+                              unsigned int         ciphertext_length,
+                              unsigned char       *mac,
+                              unsigned int         mac_length,
+                              unsigned char       *data,
+                              unsigned int         data_length,
+                              unsigned char       *ad_data,
+                              unsigned int         ad_data_length,
+                              unsigned char       *nonce);
+
 int np_crypto_generate_signature(np_crypto_t   *self,
                                  unsigned char *signature_buffer,
                                  void          *data_to_sign,
@@ -85,45 +126,6 @@ int np_crypto_verify_signature(
     unsigned char signature_buffer[crypto_sign_BYTES],
     void         *data_to_verify,
     size_t        data_size);
-
-np_crypto_E2E_message_t *np_crypt_E2E_init(np_crypto_E2E_message_t *buffer,
-                                           np_crypto_t             *sender,
-                                           void  *data_to_encrypt,
-                                           size_t data_size);
-void np_crypto_E2E_message_t_free(np_crypto_E2E_message_t *container);
-// buffer needs to be at least the same size as data_to_encrypt
-int np_crypt_E2E_encrypt(np_crypto_E2E_message_t *container,
-                         np_crypto_t             *receiver_crypto,
-                         np_dhkey_t               receiver,
-                         np_crypto_encrypted_intermediate_key_t *buffer);
-
-// buffer needs to be at least the same size as data_to_decrypt
-int  np_crypt_E2E_decrypt(np_state_t  *context,
-                          np_crypto_t *self,
-                          np_dhkey_t   local,
-                          np_crypto_t *remote,
-                          void        *decrypted_data_buffer,
-                          void        *data_to_decrypt);
-void np_crypt_E2E_serialize(np_crypto_E2E_message_t *container,
-                            np_tree_t               *out_buffer);
-int  np_crypt_E2E_deserialize(np_crypto_E2E_message_t *container,
-                              np_tree_t               *buffer);
-
-// buffer needs to be at least the same size as data_to_encrypt
-int np_crypt_transport_encrypt(np_crypto_session_t *session,
-                               unsigned char       *buffer,
-                               void                *data_to_encrypt,
-                               size_t               data_size);
-
-// buffer needs to be at least the same size as data_to_decrypt
-int  np_crypt_transport_decrypt(np_state_t          *context,
-                                np_crypto_session_t *session,
-                                void                *buffer,
-                                void                *data_to_decrypt);
-void np_crypt_transport_serialize(np_crypto_transport_message_t *tmessage,
-                                  np_tree_t                     *out_buffer);
-int  np_crypt_transport_deserialize(np_crypto_transport_message_t *tmessage,
-                                    np_tree_t                     *buffer);
 
 void np_crypt_export(np_crypto_t *self, struct np_token *dest);
 

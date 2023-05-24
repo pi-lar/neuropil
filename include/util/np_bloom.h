@@ -156,6 +156,9 @@ bool _np_neuropil_bloom_check(np_bloom_t *bloom, np_dhkey_t id);
 NP_API_INTERN
 void _np_neuropil_bloom_age_decrement(np_bloom_t *bloom);
 NP_API_INTERN
+void _np_neuropil_bloom_age_increment(np_bloom_t *bloom);
+
+NP_API_INTERN
 void _np_neuropil_bloom_count_decrement(np_bloom_t *bloom);
 
 NP_API_INTERN

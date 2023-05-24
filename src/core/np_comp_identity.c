@@ -279,6 +279,7 @@ bool __is_unencrypted_np_message(np_util_statemachine_t *statemachine,
   log_trace(LOG_ROUTING, "%s ret %" PRIu8, FUNC, ret);
   return ret;
 }
+
 void __np_extract_handshake_cleanup(void *context, np_util_event_t ev) {
   np_unref_obj(np_message_t, ev.user_data, "__np_extract_handshake");
 }
@@ -293,17 +294,19 @@ void __np_extract_handshake(np_util_statemachine_t *statemachine,
   bool          clean_message = true;
   np_message_t *msg_in        = NULL;
   np_new_obj(np_message_t, msg_in);
-  log_debug(LOG_HANDSHAKE, "Try to extract handshake");
 
   np_dhkey_t handshake_dhkey =
       _np_msgproperty_dhkey(WIRE_FORMAT, _NP_MSG_HANDSHAKE);
-  // np_generate_subject(&handshake_dhkey, _NP_MSG_HANDSHAKE, 13);
+
   unsigned char *dup_msg;
-  np_new_obj(BLOB_1024, dup_msg, ref_obj_creation);
-  memcpy(dup_msg, raw_message, 1024);
+  np_new_obj(BLOB_984_RANDOMIZED, dup_msg, ref_obj_creation);
+
+  memcpy(dup_msg, raw_message, 984);
+
+  bool is_deserialization_successful = false;
+
   bool is_header_deserialization_successful =
       _np_message_deserialize_header_and_instructions(msg_in, dup_msg);
-  bool is_deserialization_successful = false;
 
   if (is_header_deserialization_successful) {
     CHECK_STR_FIELD_BOOL(
@@ -321,17 +324,8 @@ void __np_extract_handshake(np_util_statemachine_t *statemachine,
                 "deserialized message header %s",
                 msg_in->uuid);
 
-      // CHECK_STR_FIELD_BOOL(msg_in->header, _NP_MSG_HEADER_SUBJECT,
-      // msg_subject_dhkey, "NO SUBJECT IN MESSAGE")
-      // {
-      // const char* str_msg_subject = msg_subject->val.value.s;
       log_debug(LOG_ROUTING, "(msg: %s) received msg", msg_in->uuid);
 
-      //  np_msgproperty_conf_t* handshake_prop =
-      //  _np_msgproperty_conf_get(context, INBOUND,
-      //  msg_subject_dhkey->val.value.dhkey);
-      // if (_np_msgproperty_check_msg_uniquety(handshake_prop, msg_in))
-      // {
       is_deserialization_successful = _np_message_deserialize_chunked(msg_in);
       if (is_deserialization_successful) {
 
@@ -348,18 +342,16 @@ void __np_extract_handshake(np_util_statemachine_t *statemachine,
                                     handshake_in_dhkey,
                                     handshake_evt);
       }
-
-      // log_msg(LOG_INFO, "duplicate handshake message (%s) detected, dropping
-      // it ...", msg_in->uuid);
     }
   }
+
   if (!is_deserialization_successful) {
     log_info(LOG_SERIALIZATION | LOG_ROUTING,
              "Deserializing initial message from new partner node not "
              "successful. Header deserialization was %ssuccessful",
              is_header_deserialization_successful ? "" : "not ");
-    np_unref_obj(BLOB_1024, dup_msg, ref_obj_creation);
   }
+  np_unref_obj(BLOB_984_RANDOMIZED, dup_msg, ref_obj_creation);
   np_unref_obj(np_message_t, msg_in, ref_obj_creation);
 }
 
@@ -536,31 +528,17 @@ void __np_identity_handle_authz(np_util_statemachine_t *statemachine,
       bool            access_allowed_by_policy = true;
       bool            access_allowed           = false;
 
-      if (in_prop != NULL) {
-        log_info(LOG_ROUTING | LOG_AAATOKEN,
-                 "policy result  INBOUND for %s / %s is %" PRIu8,
-                 authz_token->uuid,
-                 authz_token->subject,
-                 access_allowed_by_policy);
-        if (in_prop->authorize_func != NULL)
-          access_allowed =
-              /*access_allowed_by_policy && */ in_prop->authorize_func(
-                  context,
-                  np_aaatoken4user(&tmp_user_token, authz_token));
+      if (in_prop != NULL && in_prop->authorize_func != NULL) {
+        access_allowed =
+            /*access_allowed_by_policy && */ in_prop->authorize_func(
+                context,
+                np_aaatoken4user(&tmp_user_token, authz_token));
       }
-
-      if (out_prop != NULL) {
-        log_info(LOG_ROUTING | LOG_AAATOKEN,
-                 "policy result OUTBOUND for %s / %s is %" PRIu8,
-                 authz_token->uuid,
-                 authz_token->subject,
-                 access_allowed_by_policy);
-
-        if (out_prop->authorize_func != NULL)
-          access_allowed =
-              /* access_allowed_by_policy && */ out_prop->authorize_func(
-                  context,
-                  np_aaatoken4user(&tmp_user_token, authz_token));
+      if (out_prop != NULL && out_prop->authorize_func != NULL) {
+        access_allowed =
+            /* access_allowed_by_policy && */ out_prop->authorize_func(
+                context,
+                np_aaatoken4user(&tmp_user_token, authz_token));
       }
 
       // check whether a authorization function on subject level has been
@@ -570,10 +548,10 @@ void __np_identity_handle_authz(np_util_statemachine_t *statemachine,
                          context->authorize_func(
                              context,
                              np_aaatoken4user(&tmp_user_token, authz_token));
-      log_info(LOG_AAATOKEN,
-               "authorization of token %s: %" PRIu8,
-               authz_token->uuid,
-               access_allowed);
+      log_msg(LOG_INFO,
+              "authorization of token %s: %s",
+              authz_token->uuid,
+              access_allowed ? "access allowed" : "access denied");
 
       if (true == access_allowed && context->enable_realm_client == false) {
         authz_token->state |= AAA_AUTHORIZED;

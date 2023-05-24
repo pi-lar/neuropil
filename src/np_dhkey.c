@@ -14,6 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "ctype.h"
 #include "sodium.h"
 
 #include "neuropil_log.h"

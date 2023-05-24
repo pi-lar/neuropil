@@ -64,9 +64,9 @@ int main(int argc, char **argv) {
   np_tree_insert_str(msg_out->header,
                      _NP_MSG_HEADER_TO,
                      np_treeval_new_dhkey(my_key->dhkey));
-  np_tree_insert_str(msg_out->header,
-                     _NP_MSG_HEADER_FROM,
-                     np_treeval_new_dhkey(my_key->dhkey));
+  // np_tree_insert_str(msg_out->header,
+  //                    _NP_MSG_HEADER_FROM,
+  //                    np_treeval_new_dhkey(my_key->dhkey));
 
   np_tree_insert_str(msg_out->instructions,
                      _NP_MSG_INST_ACK,

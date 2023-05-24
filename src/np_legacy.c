@@ -384,7 +384,7 @@ void np_send_response_msg(np_context   *ac,
                           np_message_t *original,
                           np_tree_t    *body) {
   // np_ctx_cast(ac);
-  // np_dhkey_t* sender = _np_message_get_sender(original);
+  // np_dhkey_t* sender = _np_message_get_sessionid(original);
   /*
   np_message_t* msg = _np_prepare_msg(context,
   original->msg_property->rep_subject, body, sender);

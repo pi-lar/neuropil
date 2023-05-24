@@ -31,7 +31,7 @@ extern "C" {
  * probability calculations involved).
  */
 
-// the pheromone struct defines the data we would liek to store in our table
+// the pheromone struct defines the data we would like to store in our table
 typedef struct np_pheromone_s {
   // the _subject should just be a bloom filter, so that we can do a "union_cb"
   np_dhkey_t *_subject;    // the subject of the intent/message
@@ -41,10 +41,11 @@ typedef struct np_pheromone_s {
   np_dhkey_t _sender;   // the next hop we received an intent
   np_dhkey_t _receiver; // the next hop we received an intent
 
-  np_sll_t(np_dhkey_t, _send_list);
-  np_sll_t(np_dhkey_t, _recv_list);
+  np_sll_t(void_ptr, _send_list);
+  np_sll_t(void_ptr, _recv_list);
 
 } np_pheromone_t;
+
 enum np_pheromone_direction {
   np_pheromone_direction_sender,
   np_pheromone_direction_receiver,

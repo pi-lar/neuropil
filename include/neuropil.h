@@ -88,6 +88,11 @@ extern "C" {
 #endif
 
 // Protocol constants
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wflag-enum"
+// in c99 enum is an int -->
+// it is safe for use to disable this warning for the enum np_limits
 enum np_limits {
   NP_SECRET_KEY_BYTES  = 64,
   NP_SIGNATURE_BYTES   = 64,
@@ -96,6 +101,8 @@ enum np_limits {
   NP_UUID_BYTES        = 37,
   NP_EXTENSION_BYTES   = 10240,
 } NP_CONST_ENUM;
+
+#pragma clang diagnostic pop
 
 enum np_status {
   np_error = 0,

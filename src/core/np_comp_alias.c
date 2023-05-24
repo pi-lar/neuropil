@@ -50,19 +50,19 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
   strncpy(subject, np_treeval_to_str(ele->val, NULL), 99);
 #endif
 
-  np_tree_elem_t *_from =
-      np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_FROM);
+  // np_tree_elem_t *_from =
+  //     np_tree_find_str(msg_to_check->header, _NP_MSG_HEADER_FROM);
   np_tree_elem_t *_uuid =
       np_tree_find_str(msg_to_check->instructions, _NP_MSG_INST_UUID);
 
   char msg_uuid[NP_UUID_BYTES + 1] = {0};
   strncpy(msg_uuid, _uuid->val.value.s, NP_UUID_BYTES);
 
-  np_dhkey_t uuid_dhkey =
+  np_dhkey_t check_dhkey =
       _np_dhkey_generate_hash(_uuid->val.value.s, NP_UUID_BYTES - 1);
 
-  np_dhkey_t check_dhkey = {0};
-  _np_dhkey_add(&check_dhkey, &uuid_dhkey, &_from->val.value.dhkey);
+  // np_dhkey_t check_dhkey = {0};
+  // _np_dhkey_add(&check_dhkey, &uuid_dhkey, &_from->val.value.dhkey);
 
   // Detect from instructions if this msg was orginally chunked
 
@@ -70,7 +70,7 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
   _LOCK_MODULE(np_message_part_cache_t) {
     _seen_before =
         context->msg_part_filter->op.check_cb(context->msg_part_filter,
-                                              uuid_dhkey);
+                                              check_dhkey);
   }
 
   bool is_expired = _np_message_is_expired(msg_to_check);
@@ -150,7 +150,7 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
             np_tree_del_dhkey(context->msg_part_cache, check_dhkey);
 
             context->msg_part_filter->op.add_cb(context->msg_part_filter,
-                                                uuid_dhkey);
+                                                check_dhkey);
           }
         } else {
           // there exists no msg(part) in our msgcache for this msg uuid
@@ -178,7 +178,7 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
       np_ref_obj(np_message_t, ret, FUNC);
       _LOCK_MODULE(np_message_part_cache_t) {
         context->msg_part_filter->op.add_cb(context->msg_part_filter,
-                                            uuid_dhkey);
+                                            check_dhkey);
       }
     }
   } else {
@@ -627,7 +627,7 @@ void __np_alias_decrypt(
                     "incorrect header deserialization of message send from %s",
                     _np_key_as_str(alias_key));
       np_unref_obj(BLOB_984_RANDOMIZED, dec_msg, ref_obj_creation);
-      np_unref_obj(np_message_t, msg_in, ref_obj_creation);
+      np_unref_obj(np_message_t, msg_in, FUNC);
       return;
     }
     log_debug_msg(LOG_SERIALIZATION,
@@ -650,6 +650,7 @@ void __np_alias_decrypt(
 #else
     const char buf[100] = "urn:np:message:toalias";
 #endif
+
     double job_prio    = JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE;
     bool   is_internal = _np_message_is_internal(context, msg_in);
     if (is_internal) {
@@ -673,8 +674,8 @@ void __np_alias_decrypt(
                                   alias_key->dhkey,
                                   in_message_evt);
     }
-
     np_unref_obj(np_message_t, msg_in, FUNC);
+
   } else {
 #ifdef DEBUG
     np_message_t *msg_in = NULL;
@@ -685,12 +686,11 @@ void __np_alias_decrypt(
             (const unsigned char *)event.user_data)) {
 #endif
       log_msg(LOG_WARNING,
-              "error on decryption of message (source: %s:%s)",
+              "error on deserialization of message (source: %s:%s)",
               _np_key_get_node(alias_key)->dns_name,
               _np_key_get_node(alias_key)->port);
 #ifdef DEBUG
     } else {
-      np_ref_obj(BLOB_1024, event.user_data, ref_obj_creation);
       char _subject_buffer[100] = "<unknown>";
       CHECK_STR_FIELD_BOOL(msg_in->header,
                            _NP_MSG_HEADER_SUBJECT,
@@ -709,8 +709,8 @@ void __np_alias_decrypt(
     }
     np_unref_obj(np_message_t, msg_in, FUNC);
 #endif
-    np_unref_obj(BLOB_984_RANDOMIZED, dec_msg, ref_obj_creation);
   }
+  np_unref_obj(BLOB_984_RANDOMIZED, dec_msg, ref_obj_creation);
 }
 
 bool __is_join_in_message(np_util_statemachine_t *statemachine,
@@ -1128,8 +1128,8 @@ void __np_handle_np_discovery(np_util_statemachine_t *statemachine,
 
   // np_dhkey_t target_subject_dhkey = _np_msgproperty_tweaked_dhkey(INBOUND,
   // msg_subj.value.dhkey);
-  np_dhkey_t lookup_key = {
-      0}; // check whether this node is interested in this kind of message
+  np_dhkey_t lookup_key = {0};
+  // check whether this node is interested in this kind of message
   if (find_receiver) {
     log_debug_msg(LOG_ROUTING,
                   "lookup receiver for message token, subject %08" PRIx32
@@ -1237,9 +1237,11 @@ void __np_handle_np_forward(np_util_statemachine_t *statemachine,
            message_in->no_of_chunk);
 
   np_dhkey_t msg_handler = {0};
+  // by default use the forward handler
+  _np_dhkey_assign(&msg_handler, &forward_out_dhkey);
+  // if it is an acknowledge message, then use the build-in ack_out property
   if (_np_dhkey_equal(&ack_dhkey, &subj_dhkey))
     _np_dhkey_assign(&msg_handler, &ack_out_dhkey);
-  else _np_dhkey_assign(&msg_handler, &forward_out_dhkey);
 
   np_util_event_t forward_event = event;
   forward_event.type            = (evt_internal | evt_message);
@@ -1260,10 +1262,10 @@ void __np_handle_usr_msg(np_util_statemachine_t *statemachine,
 
   NP_CAST(event.user_data, np_message_t, usr_message);
 
-  CHECK_STR_FIELD(usr_message->header, _NP_MSG_HEADER_FROM, msg_from);
+  CHECK_STR_FIELD(usr_message->header, _NP_MSG_HEADER_TO, msg_session_id);
 
   np_util_event_t usr_event = event;
-  _np_dhkey_assign(&usr_event.target_dhkey, &msg_from.value.dhkey);
+  _np_dhkey_assign(&usr_event.target_dhkey, &msg_session_id.value.dhkey);
 
   __np_handle(statemachine, usr_event);
 

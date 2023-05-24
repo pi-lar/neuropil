@@ -46,6 +46,12 @@ bool __is_node_handshake_token(np_util_statemachine_t *statemachine,
     NP_CAST(event.user_data, np_aaatoken_t, hs_token);
     ret &= FLAG_CMP(hs_token->type, np_aaatoken_type_handshake);
     ret &= _np_aaatoken_is_valid(context, hs_token, hs_token->type);
+
+    // TODO: check whether a new passive node actually still fist into our
+    // leafset? if not -> stop the handshake early and interrupt protocol
+    //
+    // <your code to check for possible leafset insertion here>
+    // ret = false
   }
   return ret;
 }
@@ -515,8 +521,7 @@ void __np_node_update(np_util_statemachine_t *statemachine,
   // reason: routing is based on latency, therefore we need a stable connection
   // before inserting
   if (node->is_in_routing_table == false &&
-      (node_key->created_at + MISC_SEND_PINGS_MAX_EVERY_X_SEC) <
-          np_time_now() &&
+      (node_key->created_at + MISC_SEND_PINGS_SEC) < np_time_now() &&
       !FLAG_CMP(node->protocol, PASSIVE)) {
     np_key_t  *added = NULL, *deleted = NULL;
     np_node_t *node_1 = NULL;
@@ -589,21 +594,21 @@ void __np_node_update(np_util_statemachine_t *statemachine,
     sll_of_keys              = _np_route_row_lookup(context, node_key->dhkey);
     char *source_sll_of_keys = "_np_route_row_lookup";
 
-    if (sll_size(sll_of_keys) <
-        1) { // nothing found, send leafset to exchange some data at least
+    if (sll_size(sll_of_keys) < 1) {
+      // nothing found, send leafset to exchange some data at least
       // prevents small clusters from not exchanging all data
       np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
-      sll_free(np_key_ptr, sll_of_keys);
-      sll_of_keys        = _np_route_neighbors(context);
-      source_sll_of_keys = "_np_route_neighbors";
-    }
-    if (sll_size(sll_of_keys) < 4) {
-      // if the set is still too low we may return on all-we-know base
-      np_key_unref_list(sll_of_keys, source_sll_of_keys);
       sll_free(np_key_ptr, sll_of_keys);
       sll_of_keys        = _np_route_neighbour_lookup(context, node_key->dhkey);
       source_sll_of_keys = "_np_route_neighbour_lookup";
     }
+    // if (sll_size(sll_of_keys) < 4) {
+    //   // if the set is still too low we may return on all-we-know base
+    //   np_key_unref_list(sll_of_keys, source_sll_of_keys);
+    //   sll_free(np_key_ptr, sll_of_keys);
+    //   sll_of_keys        = _np_route_neighbour_lookup(context,
+    //   node_key->dhkey); source_sll_of_keys = "_np_route_neighbour_lookup";
+    // }
     // filter out potential passive nodes from neighbour list
     __np_filter_remove_passive_nodes(context, sll_of_keys, source_sll_of_keys);
 
@@ -745,6 +750,7 @@ void __np_node_remove_from_routing(np_util_statemachine_t         *statemachine,
 void __np_node_handle_completion_cleanup(void *context, np_util_event_t ev) {
   np_unref_obj(np_message_t, ev.user_data, "__np_node_handle_completion");
 }
+
 void __np_node_handle_completion(np_util_statemachine_t *statemachine,
                                  const np_util_event_t   event) {
   np_ctx_memory(statemachine->_user_data);
@@ -830,6 +836,7 @@ void __np_node_handle_completion(np_util_statemachine_t *statemachine,
   } else if (session_key_is_set == true &&
              trinity.node->_joined_status < np_node_status_Connected &&
              (trinity.node->join_send_at + join_prop->msg_ttl) < now) {
+
     np_new_obj(np_message_t, msg_out, FUNC);
     _np_message_create(msg_out,
                        node_key->dhkey,
@@ -1341,7 +1348,6 @@ void __np_node_send_direct(np_util_statemachine_t *statemachine,
            hs_messagepart->part);
 
   _LOCK_ACCESS(&trinity.network->access_lock) {
-    // ret =_np_network_send_data(context, trinity.network, packet);
 
     sll_append(void_ptr, trinity.network->out_events, (void *)packet);
 
@@ -1349,7 +1355,6 @@ void __np_node_send_direct(np_util_statemachine_t *statemachine,
                   "start: void __np_node_send_direct(...) { %d",
                   sll_size(trinity.network->out_events));
   }
-  // np_unref_obj(BLOB_1024, packet, ref_obj_creation);
 
   _np_network_start(trinity.network, false);
   _np_event_invoke_out(context);
@@ -1453,6 +1458,8 @@ void __np_node_send_encrypted(np_util_statemachine_t *statemachine,
             part->uuid,
             trinity.node->dns_name,
             trinity.node->port);
+    np_unref_obj(BLOB_1024, enc_msg, ref_obj_creation);
+
   } else {
     /* send data */
     if (NULL != trinity.network->out_events) {
@@ -1479,11 +1486,9 @@ void __np_node_send_encrypted(np_util_statemachine_t *statemachine,
                 trinity.network->port,
                 _np_key_as_str(node_key));
       _LOCK_ACCESS(&trinity.network->access_lock) {
-        // ret = _np_network_send_data(context, trinity.network, enc_msg);
 
         sll_append(void_ptr, trinity.network->out_events, (void *)enc_msg);
       }
-      // np_unref_obj(BLOB_1024, packet, ref_obj_creation);
 
       _np_network_start(trinity.network, false);
       _np_event_invoke_out(context);
@@ -1492,6 +1497,7 @@ void __np_node_send_encrypted(np_util_statemachine_t *statemachine,
       log_info(LOG_MESSAGE,
                "Dropping part of msg %s due to uninitialized network",
                part->uuid);
+      np_unref_obj(BLOB_1024, enc_msg, ref_obj_creation);
     }
   }
 }

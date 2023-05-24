@@ -10,7 +10,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "msgpack/cmp.h"
 #include "parson/parson.h"
 
 #include "util/np_tree.h"
@@ -99,20 +98,6 @@ extern "C" {
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
-
-#define _NP_GENERATE_PROPERTY_SETVALUE(OBJ, PROP_NAME, TYPE)                   \
-  static const char *PROP_NAME##_str = #PROP_NAME;                             \
-  inline void        _##OBJ##_set_##PROP_NAME(OBJ *obj, TYPE value) {          \
-           obj->PROP_NAME = value;                                             \
-  }
-
-#define _NP_GENERATE_PROPERTY_SETVALUE_IMPL(OBJ, PROP_NAME, TYPE)              \
-  void _##OBJ##_set_##PROP_NAME(OBJ *obj, TYPE value);
-
-#define _NP_GENERATE_PROPERTY_SETSTR(OBJ, PROP_NAME)                           \
-  inline void OBJ##_set_##PROP_NAME(OBJ *obj, const char *value) {             \
-    obj->PROP_NAME = strndup(value, strlen(value));                            \
-  }
 
 #define GENERATE_ENUM_STR(...)          VFUNC(GENERATE_ENUM_STR, __VA_ARGS__)
 #define __GENERATE_ENUM_STR_BEGIN(NAME) enum NAME##_e {

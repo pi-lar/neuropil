@@ -34,10 +34,10 @@ static const char *np_node_status_str[] = {
 };
 
 struct np_node_s {
-  char            *host_key;
-  enum socket_type protocol;
-  char            *dns_name;
-  char            *port;
+  char       *host_key;
+  socket_type protocol;
+  char       *dns_name;
+  char       *port;
 
   // state extension
   enum np_node_status _handshake_status;
@@ -81,10 +81,7 @@ _NP_GENERATE_MEMORY_PROTOTYPES(np_node_t);
  **
  **/
 NP_API_INTERN
-void _np_node_update(np_node_t       *node,
-                     enum socket_type proto,
-                     char            *hn,
-                     char            *port);
+void _np_node_update(np_node_t *node, socket_type proto, char *hn, char *port);
 
 /** _np_node_update_stat
  ** updates the success rate to the np_node based on the NP_NODE_SUCCESS_WINDOW
