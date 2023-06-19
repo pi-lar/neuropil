@@ -226,8 +226,8 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
       sll_of_keys = _np_route_row_lookup(context, search_key);
 
       // send join if ...
-      if (sll_size(sll_of_keys) <
-          NP_ROUTES_MAX_ENTRIES) { // our routing table is not full
+      if (sll_size(sll_of_keys) < NP_ROUTES_MAX_ENTRIES) {
+        // our routing table is not full
         send_join = true;
       } else { // our routing table is full, but the new dhkey is closer to
                // us
@@ -522,6 +522,12 @@ bool _np_in_join(np_state_t *context, np_util_event_t msg_event) {
                                 join_node_key->dhkey,
                                 authn_event);
 
+    // update alias token
+    _np_event_runtime_add_event(context,
+                                msg_event.current_run,
+                                msg_event.target_dhkey,
+                                authn_event);
+
     // Authenticate token by main identity
     _np_event_runtime_add_event(context,
                                 msg_event.current_run,
@@ -536,13 +542,19 @@ bool _np_in_join(np_state_t *context, np_util_event_t msg_event) {
     np_util_event_t token_event = {.type = evt_token | evt_external};
     token_event.target_dhkey    = join_node_dhkey;
     token_event.user_data       = join_node_token;
+
     // update node token
     _np_event_runtime_add_event(context,
                                 msg_event.current_run,
                                 join_node_key->dhkey,
                                 token_event);
+    // update alias token
+    _np_event_runtime_add_event(context,
+                                msg_event.current_run,
+                                msg_event.target_dhkey,
+                                token_event);
 
-    // Authenticate token by main identity
+    // authenticate token by main identity
     _np_event_runtime_add_event(context,
                                 msg_event.current_run,
                                 context->my_identity->dhkey,

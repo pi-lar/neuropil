@@ -570,7 +570,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
     return;
   }
 
-  log_debug(LOG_NETWORK | LOG_WARNING, "Receive started ...");
+  log_debug_msg(LOG_NETWORK, "Receive started ...");
 
   // cast event data structure to np_state_t pointer
   socklen_t fromlen = sizeof(struct sockaddr_storage);
@@ -615,11 +615,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
     }
 
     if (last_recv_result < 0) {
-      log_debug(LOG_NETWORK | LOG_WARNING,
-                "Receive stopped. Reason: %s (%" PRId32 "/" PRId32 ")",
-                strerror(errno),
-                errno,
-                last_recv_result);
+      log_msg(LOG_NETWORK | LOG_WARNING,
+              "Receive stopped. Reason: %s (%" PRId32 "/" PRId32 ")",
+              strerror(errno),
+              errno,
+              last_recv_result);
       stop = true;
     }
 
@@ -726,11 +726,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
                        hash,
                        crypto_generichash_BYTES);
 
-        log_info(LOG_NETWORK | LOG_EXPERIMENT,
-                 "IN DATAPACKAGE %s:%s %s",
-                 data_container.ipstr,
-                 data_container.port,
-                 hex);
+        log_debug(LOG_NETWORK | LOG_EXPERIMENT,
+                  "IN DATAPACKAGE %s:%s %s",
+                  data_container.ipstr,
+                  data_container.port,
+                  hex);
         snprintf(msg_identifier, 95, "urn:np:event:extern_message:%s", hex);
 #endif // DEBUG
 

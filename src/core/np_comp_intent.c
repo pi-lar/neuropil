@@ -318,7 +318,6 @@ np_aaatoken_t *_np_intent_add_receiver(np_key_t      *subject_key,
   }
 
   property->mep_type |= (mep_type.unsigned_integer & RECEIVER_MASK);
-  // property->last_update = np_time_now();
 
   if (max_threshold.unsigned_integer > 0) {
     // only add if there are messages to receive
@@ -490,7 +489,7 @@ void _np_intent_get_all_receiver(np_key_t  *subject_key,
                       "found valid receiver token (issuer: %s uuid: %s)",
                       tmp->val->issuer,
                       tmp->val->uuid);
-        np_ref_obj(np_aaatoken_t, tmp->val);
+        np_ref_obj(np_aaatoken_t, tmp->val, FUNC);
         // only pick key from a list if the subject msg_treshold is bigger than
         // zero and the sending threshold is bigger than zero as well and we
         // actually have a receiver node in the list
@@ -634,11 +633,11 @@ bool _np_intent_has_crypto_session(np_key_t  *subject_key,
   __np_get_create_crypto_tree(subject_key, &crypto_tree);
 
   char buf[65];
-  log_warn(LOG_WARNING,
-           "crypto_session for %s / %s available? --> %p ",
-           _np_key_as_str(subject_key),
-           np_id_str(buf, &session_dhkey),
-           np_tree_find_dhkey(crypto_tree, session_dhkey));
+  log_debug_msg(LOG_WARNING,
+                "crypto_session for %s / %s available? --> %p ",
+                _np_key_as_str(subject_key),
+                np_id_str(buf, &session_dhkey),
+                np_tree_find_dhkey(crypto_tree, session_dhkey));
 
   ret = np_tree_find_dhkey(crypto_tree, session_dhkey) != NULL;
 
@@ -699,10 +698,10 @@ bool _np_intent_get_crypto_session(np_key_t            *subject_key,
                   crypto_session->session_key_to_read,
                   crypto_session->session_key_to_write);
   } else {
-    log_warn(LOG_WARNING,
-             "no crypto_session for %s (%p) available",
-             _np_key_as_str(subject_key),
-             subject_key);
+    log_debug(LOG_WARNING,
+              "no crypto_session for %s (%p) available",
+              _np_key_as_str(subject_key),
+              subject_key);
   }
   return ret;
 }

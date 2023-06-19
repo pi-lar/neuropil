@@ -559,7 +559,7 @@ bool __np_memory_space_decrease_nessecary(np_memory_container_t *container) {
             total_space_available >= (container->min_count_of_items +
                                       container->count_of_items_per_block) &&
             (
-                /* decrease if the growth of items is negative for the mesured
+                /* decrease if the growth of items is negative for the measured
                    period, the grows is min as great as a block, and the growth
                    size is free*/
                 (0 > growth &&

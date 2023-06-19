@@ -470,12 +470,13 @@ void __np_identity_handle_authn(np_util_statemachine_t *statemachine,
                                          (evt_internal | evt_token | evt_authn),
                                      .user_data    = authn_token,
                                      .target_dhkey = node_dhkey};
-
+      // forward successful authentication to node
       _np_event_runtime_add_event(context,
                                   event.current_run,
                                   node_dhkey,
                                   authn_event);
 
+      // forward successful authentication to alias
       _np_event_runtime_add_event(context,
                                   event.current_run,
                                   event.target_dhkey,

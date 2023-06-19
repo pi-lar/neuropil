@@ -52,8 +52,8 @@ extern "C" {
 #define NP_BENCHMARKING 1024
 // #define CONSOLE_BACKUP_LOG
 // #define CONSOLE_LOG 1
-#endif // DEBUG
 // #define CATCH_SEGFAULT
+#endif // DEBUG
 
 #define NP_STATISTICS
 
@@ -120,10 +120,10 @@ extern "C" {
  * msgproperty default vaue definitions
  */
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL_SEC
-#define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT * 60) // 180 seconds
+#define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT * 60)
 #endif
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL_SEC
-#define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (NP_PI_INT) // 3 seconds
+#define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (NP_PI_INT)
 #endif
 
 /*
@@ -188,11 +188,9 @@ extern "C" {
 #ifndef MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC
 #define MISC_MSGPARTCACHE_CLEANUP_INTERVAL_SEC (NP_PI / 10)
 #endif
-
 #ifndef MISC_KEYCACHE_CLEANUP_INTERVAL_SEC
 #define MISC_KEYCACHE_CLEANUP_INTERVAL_SEC (NP_PI / 31)
 #endif
-
 #ifndef MISC_MEMORY_REFRESH_INTERVAL_SEC
 #define MISC_MEMORY_REFRESH_INTERVAL_SEC (NP_PI / 100)
 #endif
@@ -201,12 +199,6 @@ extern "C" {
 #endif
 #ifndef MISC_CHECK_ROUTES_SEC
 #define MISC_CHECK_ROUTES_SEC (NP_PI)
-#endif
-#ifndef MISC_SEND_PIGGY_REQUESTS_SEC
-#define MISC_SEND_PIGGY_REQUESTS_SEC (NP_PI * 20) // each minute
-#endif
-#ifndef MISC_SEND_UPDATE_MSGS_SEC
-#define MISC_SEND_UPDATE_MSGS_SEC (NP_PI)
 #endif
 #ifndef MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC
 #define MISC_MSGPROPERTY_MSG_UNIQUITY_CHECK_SEC (NP_PI)
@@ -220,27 +212,34 @@ extern "C" {
 #ifndef MISC_READ_HTTP_SEC
 #define MISC_READ_HTTP_SEC (NP_PI / 10)
 #endif
+
+/** settings that affect node to node communication behaviour - use with care */
+#ifndef MISC_SEND_UPDATE_MSGS_SEC
+#define MISC_SEND_UPDATE_MSGS_SEC (NP_PI)
+#endif
+#ifndef MISC_SEND_PIGGY_REQUESTS_SEC
+#define MISC_SEND_PIGGY_REQUESTS_SEC (NP_PI * 20)
+#endif
 #ifndef MISC_SEND_PINGS_SEC
 #define MISC_SEND_PINGS_SEC (NP_PI * 10)
 #endif
 #ifndef MISC_SEND_PINGS_MAX_EVERY_X_SEC
-#define MISC_SEND_PINGS_MAX_EVERY_X_SEC (MISC_SEND_PINGS_SEC * 2)
+#define MISC_SEND_PINGS_MAX_EVERY_X_SEC (MISC_SEND_PINGS_SEC * 3)
 #endif
 
 #ifndef GOOD_LINK
-#define GOOD_LINK 0.7
+#define GOOD_LINK 0.75
 #endif
 #ifndef BAD_LINK
-#define BAD_LINK 0.3
+#define BAD_LINK 0.25
 #endif
-/* Even if the link is bad we wait
- * BAD_LINK_REMOVE_GRACETIME seconds before we
- * remove the link from the leafset/routing table
- */
+// Even if the link is bad we wait BAD_LINK_REMOVE_GRACETIME seconds before we
+// remove the link from the leafset/routing table */
 #ifndef BAD_LINK_REMOVE_GRACETIME
-#define BAD_LINK_REMOVE_GRACETIME (MISC_SEND_PINGS_SEC * 3)
+#define BAD_LINK_REMOVE_GRACETIME (MISC_SEND_PINGS_MAX_EVERY_X_SEC + 3)
 #endif
 
+/** joj queue settings */
 #ifndef PRIORITY_MOD_USER_DEFAULT
 #define PRIORITY_MOD_USER_DEFAULT (NP_PRIORITY_LOWEST)
 #endif
@@ -327,21 +326,23 @@ extern "C" {
 
 #define __MAX_ROW   64 /* length of key                   */
 #define __MAX_COL   16 /* 16 different characters         */
-#define __MAX_ENTRY 3  /* three alternatives for each key */
+#define __MAX_ENTRY 3  /* twp alternatives for each key */
 
 #define NP_ROUTES_MAX_ENTRIES __MAX_ENTRY
 #define NP_ROUTES_TABLE_SIZE  (__MAX_ROW * __MAX_COL * __MAX_ENTRY)
 
-#define NP_LEAFSET_MAX_ENTRIES (__MAX_COL / 2)
+#define NP_LEAFSET_MAX_ENTRIES (__MAX_COL / 2 - 1)
 
 // NP_PHEROMONES_MAX_NEXTHOP_KEYS must be bigger than / equal to
-// NP_LEAFSET_MAX_ENTRIES
+// NP_LEAFSET_MAX_ENTRIES, the additional space is required for other
+// intermediate hops, i.e. in the routing table
 #ifndef NP_PHEROMONES_MAX_NEXTHOP_KEYS
-#define NP_PHEROMONES_MAX_NEXTHOP_KEYS __MAX_COL
+#define NP_PHEROMONES_MAX_NEXTHOP_KEYS (__MAX_COL + __MAX_ENTRY)
+
 #endif
 
-#ifndef NP_MSG_PART_FILTER_SIZE_INTERVAL
-#define NP_MSG_PART_FILTER_SIZE_INTERVAL 8192
+#ifndef NP_MSG_PART_FILTER_SIZE
+#define NP_MSG_PART_FILTER_SIZE 8192
 #endif
 #ifndef NP_MSG_FORWARD_FILTER_SIZE
 #define NP_MSG_FORWARD_FILTER_SIZE 8192

@@ -4,11 +4,8 @@
 from socket import timeout
 import unittest
 import time
-import math
-from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
+from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_message
 from misc import TestHelper
-from multiprocessing import Value
-from ctypes import c_char, c_bool
 
 import random
 import string
@@ -30,28 +27,24 @@ class MsgDeliveryTest(unittest.TestCase):
     set_identity_cluster = False
 
     def msg_received(self, node: NeuropilNode, message: np_message):
-        self.msg_delivery_succ.value = True
+        self.msg_delivery_succ = True
         self.assertEqual(sys.getsizeof(message.raw()), self.target_size)
         return True
 
     def test_msg_X_delivery(self):
         global port_index
 
-        self.msg_delivery_succ = Value(c_bool, False)
+        self.msg_delivery_succ = False
         self.target_size = self.msg_size
         np_c = None
 
-        log_file_prefix = "logs/smoke_test_msg_delivery"
-        log_file_prefix += f"_{self.cluster_size}_sender:{self.protocol_sender}_receiver:{self.protocol_receiver}_"
-        log_file_prefix += f'{"senderident_" if self.set_identity_sender else "" }'
-        log_file_prefix += f'{"receiverident_" if self.set_identity_receiver else "" }'
-        log_file_prefix += f'{"clusterident" if self.set_identity_cluster else "" }'
+        log_file_prefix = f"logs/smoke_test_msg_delivery_{self.cluster_size}_{self.msg_size}_sender:{self.protocol_sender}_receiver:{self.protocol_receiver}"
 
         if self.cluster_size > 0:
             np_c = NeuropilCluster(
                 self.cluster_size,
                 proto=self.protocol_cluster,
-                port_range=4001 + port_index,
+                port_range=4000 + port_index,
                 auto_run=False,
                 log_file_prefix=f"{log_file_prefix}_cluster_",
             )
@@ -59,14 +52,14 @@ class MsgDeliveryTest(unittest.TestCase):
                 np_c.use_identity(np_1.new_identity())
         port_index += self.cluster_size
         np_1 = NeuropilNode(
-            4002 + port_index,
+            4100 + port_index,
             proto=self.protocol_sender,
             log_file=f"{log_file_prefix}_sender.log",
             auto_run=False,
         )
         port_index += 1
         np_2 = NeuropilNode(
-            4003 + port_index,
+            4200 + port_index,
             proto=self.protocol_receiver,
             log_file=f"{log_file_prefix}_receiver.log",
             auto_run=False,
@@ -82,12 +75,16 @@ class MsgDeliveryTest(unittest.TestCase):
         mxp1 = np_1.get_mx_properties(subject)
         mxp1.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp1.role = neuropil.NP_MX_PROVIDER
-        mxp1.max_retry = 10
+        mxp1.intent_ttl = 300
+        mxp1.intent_update_after = 20
+        mxp1.max_retry = 3
         mxp1.apply()
 
         mxp2 = np_2.get_mx_properties(subject)
         mxp2.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp2.role = neuropil.NP_MX_CONSUMER
+        mxp2.intent_ttl = 300
+        mxp2.intent_update_after = 20
         mxp2.apply()
         np_2.set_receive_cb(subject, self.msg_received)
 
@@ -103,6 +100,11 @@ class MsgDeliveryTest(unittest.TestCase):
             np_c.join(np1_addr)
         np_2.join(np1_addr)
 
+        np_1.run(0.01)
+        np_2.run(0.01)
+        if np_c:
+            np_c.run(0.01)
+
         timeout = self.token_timeout
         t1 = time.time()
         elapsed = 0.0
@@ -112,7 +114,7 @@ class MsgDeliveryTest(unittest.TestCase):
         ).encode("utf-8")
 
         try:
-            while elapsed < timeout and not self.msg_delivery_succ.value:
+            while elapsed < timeout and not self.msg_delivery_succ:
                 elapsed = float(time.time() - t1)
 
                 if not send and np_1.np_has_receiver_for(subject):
@@ -122,9 +124,13 @@ class MsgDeliveryTest(unittest.TestCase):
                         timeout = self.send_timeout
                         send = True
 
-                if self.msg_delivery_succ.value:
+                if self.msg_delivery_succ:
                     break
+
                 np_1.run(0.01)
+                np_2.run(0.01)
+                if np_c:
+                    np_c.run(0.01)
 
         finally:
             np_1.shutdown()
@@ -137,7 +143,7 @@ class MsgDeliveryTest(unittest.TestCase):
             f"Could not send data as no token was received in {self.token_timeout}sec.",
         )
         self.assertTrue(
-            self.msg_delivery_succ.value,
+            self.msg_delivery_succ,
             f"Did not receive data in {self.send_timeout}sec, but did receive token.",
         )
 

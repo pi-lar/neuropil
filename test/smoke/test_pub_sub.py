@@ -22,6 +22,8 @@ from ctypes import c_char, c_bool
 class PubSubTest(unittest.TestCase):
     np_c_fp = []
     received = {}
+    pubsub_nodes = {}
+    pubsub_nodes_length = 0
     msg_delivery_succ = 0
     send = False
 
@@ -40,6 +42,10 @@ class PubSubTest(unittest.TestCase):
 
     @staticmethod
     def authz_allow_all(node: NeuropilNode, token: np_token):
+        token_fp = token.get_fingerprint(False)
+        PubSubTest.pubsub_nodes[str(token_fp)] = True
+        PubSubTest.pubsub_nodes_length = len(PubSubTest.pubsub_nodes.keys())
+
         # print ("{time:.3f} / {node}: 1 authorization granted to token {fp} / {issuer}".format(time=float(time.time()), node=node.get_fingerprint(), fp=np_id(id), issuer=token.issuer ))
         return True
 
@@ -72,7 +78,9 @@ class PubSubTest(unittest.TestCase):
 
         mxp = np_r1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
-        mxp.max_retry = 5
+        mxp.max_retry = 3
+        mxp.intent_ttl = 300
+        mxp.intent_update_after = 20
         mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
         np_r1.set_receive_cb(subject, self.msg_received)
@@ -80,25 +88,29 @@ class PubSubTest(unittest.TestCase):
         mxp = np_r2.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp.role = neuropil.NP_MX_CONSUMER
+        mxp.intent_ttl = 300
+        mxp.intent_update_after = 20
         mxp.apply()
         np_r2.set_receive_cb(subject, self.msg_received)
 
         mxp = np_s1.get_mx_properties(subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp.role = neuropil.NP_MX_PROVIDER
+        mxp.intent_ttl = 300
+        mxp.intent_update_after = 20
         mxp.apply()
 
         np_c.set_authenticate_cb(TestHelper.authn_allow_all)
-        np_c.set_authorize_cb(TestHelper.authz_allow_all)
+        # np_c.set_authorize_cb(TestHelper.authz_allow_all)
         np_c.set_accounting_cb(TestHelper.acc_allow_all)
         np_c.run(0)
         np_r1.set_authenticate_cb(PubSubTest.authn_allow_cluster)
-        np_r1.set_authorize_cb(TestHelper.authz_allow_all)
+        np_r1.set_authorize_cb(PubSubTest.authz_allow_all)
         np_r1.set_accounting_cb(TestHelper.acc_allow_all)
         np_r1.run(0)
 
         np_r2.set_authenticate_cb(PubSubTest.authn_allow_cluster)
-        np_r2.set_authorize_cb(TestHelper.authz_allow_all)
+        np_r2.set_authorize_cb(PubSubTest.authz_allow_all)
         np_r2.set_accounting_cb(TestHelper.acc_allow_all)
         np_r2.run(0)
 
@@ -118,23 +130,20 @@ class PubSubTest(unittest.TestCase):
         np_c.join(nps1_addr)
 
         t1 = time.time()
-        receiver_available = None
         timeout = 150  # sec
         try:
             while PubSubTest.msg_delivery_succ < 2:
-                elapsed = float(time.time() - t1)
-                if receiver_available == None:
-                    if np_s1.np_has_receiver_for(subject):
-                        receiver_available = elapsed
-                else:
-                    if not PubSubTest.send and elapsed > (receiver_available + 5):
+                if np_s1.np_has_receiver_for(subject):
+                    if not PubSubTest.send and PubSubTest.pubsub_nodes_length == 3:
                         # print ("{time:.3f} / {node}: 2 sending message".format(time=float(time.time()), node=np_s1.get_fingerprint() ) )
                         np_s1.send(subject, b"test")
                         PubSubTest.send = True
 
+                elapsed = float(time.time() - t1)
                 if elapsed > timeout:
                     break
-                np_r1.run(math.pi / 10)
+
+                np_c.run(math.pi / 100)
 
         finally:
             np_s1.shutdown(False)

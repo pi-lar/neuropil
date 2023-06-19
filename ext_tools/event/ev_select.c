@@ -1,8 +1,8 @@
 /*
  * libev select fd activity backend
  *
- * SPDX-FileCopyrightText: 2007,2008,2009,2010,2011 Marc Alexander Lehmann <libev@schmorp.de>
- * SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
+ * Copyright (c) 2007,2008,2009,2010,2011 Marc Alexander Lehmann <libev@schmorp.de>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
  * tion, are permitted provided that the following conditions are met:
@@ -108,7 +108,7 @@ select_modify (EV_P_ int fd, int oev, int nev)
     int     word = fd / NFDBITS;
     fd_mask mask = 1UL << (fd % NFDBITS);
 
-    if (expect_false (vec_max <= word))
+    if (ecb_expect_false (vec_max <= word))
       {
         int new_max = word + 1;
 
@@ -171,7 +171,7 @@ select_poll (EV_P_ ev_tstamp timeout)
 #endif
   EV_ACQUIRE_CB;
 
-  if (expect_false (res < 0))
+  if (ecb_expect_false (res < 0))
     {
       #if EV_SELECT_IS_WINSOCKET
       errno = WSAGetLastError ();
@@ -197,7 +197,7 @@ select_poll (EV_P_ ev_tstamp timeout)
         {
           if (timeout)
             {
-              unsigned long ms = timeout * 1e3;
+              unsigned long ms = EV_TS_TO_MSEC (timeout);
               Sleep (ms ? ms : 1);
             }
 
@@ -236,7 +236,7 @@ select_poll (EV_P_ ev_tstamp timeout)
           if (FD_ISSET (handle, (fd_set *)vec_eo)) events |= EV_WRITE;
           #endif
 
-          if (expect_true (events))
+          if (ecb_expect_true (events))
             fd_event (EV_A_ fd, events);
         }
   }
@@ -262,7 +262,7 @@ select_poll (EV_P_ ev_tstamp timeout)
               events |= word_r & mask ? EV_READ  : 0;
               events |= word_w & mask ? EV_WRITE : 0;
 
-              if (expect_true (events))
+              if (ecb_expect_true (events))
                 fd_event (EV_A_ word * NFDBITS + bit, events);
             }
       }
@@ -271,10 +271,11 @@ select_poll (EV_P_ ev_tstamp timeout)
 #endif
 }
 
-int inline_size
+inline_size
+int
 select_init (EV_P_ int flags)
 {
-  backend_mintime = 1e-6;
+  backend_mintime = EV_TS_CONST (1e-6);
   backend_modify  = select_modify;
   backend_poll    = select_poll;
 
@@ -300,7 +301,8 @@ select_init (EV_P_ int flags)
   return EVBACKEND_SELECT;
 }
 
-void inline_size
+inline_size
+void
 select_destroy (EV_P)
 {
   ev_free (vec_ri);

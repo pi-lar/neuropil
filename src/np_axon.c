@@ -238,6 +238,10 @@ void __np_axon_chunk_and_send(np_state_t         *context,
   }
 }
 
+int8_t __dhkey_compare(const np_dhkey_t left, const np_dhkey_t right) {
+  return _np_dhkey_cmp(&left, &right);
+}
+
 bool _np_out_forward(np_state_t *context, np_util_event_t event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_out_forward(...){");
 
@@ -255,21 +259,22 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
     return false;
   }
 
-  float target_age          = 1.0;
+  uint8_t i          = 0;
+  float   target_age = 1.0;
+
   np_sll_t(np_dhkey_t, tmp) = NULL;
   sll_init(np_dhkey_t, tmp);
-  char *tmp_source = "_np_pheromone_snuffle_receiver";
-  // np_dhkey_t recv_dhkey = _np_msgproperty_tweaked_dhkey(INBOUND,
-  // msg_subj.value.dhkey);
-  uint8_t i = 0;
-  while (sll_size(tmp) == 0 && i < 8) {
+  do {
     _np_pheromone_snuffle_receiver(context,
                                    tmp,
                                    msg_subj.value.dhkey,
                                    &target_age);
+
+    // remove the node, where the message came from, from list
+    sll_remove(np_dhkey_t, tmp, event.target_dhkey, __dhkey_compare);
     i++;
     target_age -= 0.1;
-  };
+  } while (sll_size(tmp) == 0 && i < 8);
 
   if (sll_size(tmp) == 0) {
     log_info(
@@ -278,6 +283,7 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
         forward_msg->uuid);
     sll_free(np_dhkey_t, tmp);
     return false;
+
   } else {
     log_info(LOG_ROUTING,
              "--- forward message (%s) out, %d hops found ...",
@@ -370,10 +376,11 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
                 available_msg->uuid);
 
   if (!_np_route_my_key_has_connection(context)) {
-    log_msg(LOG_WARNING,
-            "--- request for available message {%s} out, but no connections "
-            "left ...",
-            available_msg->uuid);
+    log_debug_msg(
+        LOG_WARNING,
+        "--- request for available message {%s} out, but no connections "
+        "left ...",
+        available_msg->uuid);
     return false;
   }
 
@@ -425,13 +432,14 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
   };
 
   if (sll_size(tmp) == 0) {
-    log_info(LOG_ROUTING,
-             "--- (msg: %s) request for available message (%s) out, but no "
-             "routing found ... find_receiver: %" PRIu8 " find_sender: %" PRIu8,
-             available_msg->uuid,
-             _msg_subj_str,
-             find_receiver,
-             find_sender);
+    log_debug_msg(
+        LOG_ROUTING,
+        "--- (msg: %s) request for available message (%s) out, but no "
+        "routing found ... find_receiver: %" PRIu8 " find_sender: %" PRIu8,
+        available_msg->uuid,
+        _msg_subj_str,
+        find_receiver,
+        find_sender);
     sll_free(np_dhkey_t, tmp);
     return false;
   }
@@ -492,10 +500,16 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
   char *source_sll_of_keys = "_np_route_lookup";
 
   if (is_generic_direction) {
-    // lookup based on 1) key distance (routing table not full enough)
-    tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
+    // lookup based on 2: leafset excluded
+    tmp = _np_route_lookup(context, msg_event.target_dhkey, 2);
+    if (sll_size(tmp) == 0) {
+      sll_free(np_key_ptr, tmp);
+      // lookup based on 1: leafset included
+      tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
+    }
     if (sll_size(tmp) > 0)
       sll_append(np_dhkey_t, tmp_dhkeys, sll_first(tmp)->val->dhkey);
+
   } else {
     // already found a pheromone scent, use it!
     sll_init(np_key_ptr, tmp);
@@ -558,12 +572,12 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
 
   np_dhkey_t ack_to_dhkey = msg_to.value.dhkey;
 
-  // 1a. check if the ack is for a direct neighbour
+  // 1: check if the ack is for a direct neighbour
   np_key_t *target_key = _np_keycache_find(context, ack_to_dhkey);
   if (NULL == target_key) {
-    // otherwise follow the ack trail of the "to" + "ack" dhkey path
+    // no --> 2: follow the ack trail of the "to" + "ack" dhkey path
     np_generate_subject(&ack_to_dhkey, _NP_MSG_ACK, strnlen(_NP_MSG_ACK, 256));
-    // no --> 1b. lookup based on original msg subject, but snuffle for sender
+    // lookup based on original msg subject, but snuffle for sender
     uint8_t i = 0;
     while (sll_size(tmp) == 0 && target_age > BAD_LINK) {
       _np_pheromone_snuffle_receiver(context, tmp, ack_to_dhkey, &target_age);
@@ -572,9 +586,13 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
     // routing based on pheromones, exhale ...
     _np_pheromone_exhale(context);
   } else {
-    // yes --> 1a. append to result list
-    sll_append(np_dhkey_t, tmp, ack_to_dhkey);
-    np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+    // yes --> 3a check whether the neighbour is in our routing/leafset table
+    np_node_t *node = _np_key_get_node(target_key);
+    if (node->is_in_leafset || node->is_in_routing_table) {
+      // yes --> 3b. append to result list
+      sll_append(np_dhkey_t, tmp, ack_to_dhkey);
+      np_unref_obj(np_key_t, target_key, "_np_keycache_find");
+    }
   }
 
   if (sll_size(tmp) == 0) { // exit early if no routing has been found

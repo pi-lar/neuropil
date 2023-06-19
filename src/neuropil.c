@@ -266,7 +266,7 @@ np_context *np_new_context(struct np_settings *settings_in) {
       context->msg_forward_filter->op = decaying_op;
     }
     context->msg_part_filter =
-        _np_decaying_bloom_create(NP_MSG_PART_FILTER_SIZE_INTERVAL, 16, 1);
+        _np_decaying_bloom_create(NP_MSG_PART_FILTER_SIZE, 16, 1);
     context->msg_part_filter->op = decaying_op;
   }
 
@@ -651,18 +651,6 @@ bool np_has_receiver_for(np_context *ac, np_subject subject) {
   np_aaatoken_unref_list(receiver_list, "_np_intent_get_all_receiver");
   sll_free(np_aaatoken_ptr, receiver_list);
   np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
-
-  if (false && ret) {
-    float target_probability  = 0.2;
-    np_sll_t(np_dhkey_t, tmp) = NULL;
-    sll_init(np_dhkey_t, tmp);
-    _np_pheromone_snuffle_receiver(context,
-                                   tmp,
-                                   subject_dhkey,
-                                   &target_probability);
-    ret = sll_size(tmp) > 0;
-    sll_free(np_dhkey_t, tmp);
-  }
 
   return ret;
 }

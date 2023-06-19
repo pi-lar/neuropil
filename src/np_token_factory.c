@@ -433,7 +433,7 @@ np_ident_private_token_t *np_token_factory_new_identity_token(
   char  issuer[64] = {0};
   char  node_subject[255];
   char *uuid = np_uuid_create("generated identity", 0, NULL);
-  snprintf(node_subject, 255, _NP_URN_IDENTITY_PREFIX "%s", uuid);
+  snprintf(node_subject, 255, _NP_URN_IDENTITY_PREFIX ":%s", uuid);
   free(uuid);
 
   np_aaatoken_t *ret = __np_token_factory_new(context,

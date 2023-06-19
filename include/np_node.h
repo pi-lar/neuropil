@@ -46,6 +46,7 @@ struct np_node_s {
 
   enum np_node_status _joined_status;
   double              join_send_at;
+  double              leave_send_at;
   bool                joined_network;
 
   uint8_t connection_attempts;

@@ -699,33 +699,47 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
           property_conf);
   NP_CAST(my_property_key->entity_array[1], np_msgproperty_run_t, property_run);
   // NP_CAST(event.user_data, np_message_t, message);
+  bool is_send = _np_dhkey_equal(&my_property_key->dhkey,
+                                 &property_conf->subject_dhkey_out);
+  bool is_recv = _np_dhkey_equal(&my_property_key->dhkey,
+                                 &property_conf->subject_dhkey_in);
 
   // check if we are (one of the) sending node(s) of this kind of message
   // should not return NULL
   log_debug_msg(
       LOG_ROUTING,
-      "this node is one sender of messages, checking msgcache (%p / %u) ...",
+      "this node is one %s of messages, checking msgcache (%p / %u) ...",
+      is_send ? "sender" : "receiver",
       property_run->msg_cache,
       dll_size(property_run->msg_cache));
 
   // get message from cache (maybe only for one way mep ?!)
-  uint16_t msg_available = 0;
-  msg_available          = dll_size(property_run->msg_cache);
+  uint16_t msg_available            = 0;
+  msg_available                     = dll_size(property_run->msg_cache);
+  dll_iterator(np_message_ptr) peek = NULL;
 
   while (0 < msg_available && msg_available <= property_conf->cache_size) {
     np_message_t *msg_out = NULL;
     // if messages are available in cache, send them !
-    if (FLAG_CMP(property_conf->cache_policy, FIFO) &&
-        _np_intent_has_crypto_session(
-            my_property_key,
-            *_np_message_get_sessionid(property_run->msg_cache->first->val))) {
-      msg_out = dll_head(np_message_ptr, property_run->msg_cache);
-    } else if (FLAG_CMP(property_conf->cache_policy, LIFO) &&
-               _np_intent_has_crypto_session(
-                   my_property_key,
-                   *_np_message_get_sessionid(
-                       property_run->msg_cache->last->val))) {
-      msg_out = dll_tail(np_message_ptr, property_run->msg_cache);
+    if (FLAG_CMP(property_conf->cache_policy, FIFO)) {
+      peek = (peek == NULL) ? dll_first(property_run->msg_cache) : peek;
+      if (peek != NULL && peek->val != NULL &&
+          _np_intent_has_crypto_session(
+              my_property_key,
+              *_np_message_get_sessionid(peek->val))) {
+        msg_out = dll_head(np_message_ptr, property_run->msg_cache);
+      }
+      peek = dll_next(peek);
+
+    } else if (FLAG_CMP(property_conf->cache_policy, LIFO)) {
+      peek = (peek == NULL) ? dll_last(property_run->msg_cache) : peek;
+      if (peek != NULL && peek->val != NULL &&
+          _np_intent_has_crypto_session(
+              my_property_key,
+              *_np_message_get_sessionid(peek->val))) {
+        msg_out = dll_tail(np_message_ptr, property_run->msg_cache);
+      }
+      peek = dll_previous(peek);
     }
 
     // check for more messages in cache after head/tail command
@@ -733,22 +747,30 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
     msg_available--;
 
     if (NULL != msg_out) {
-      log_debug(
-          LOG_ROUTING,
-          "message in sender cache found and initialize resend for msg %s",
-          msg_out->uuid);
+      log_debug(LOG_ROUTING,
+                "message in %s cache found and initialize resend for msg %s",
+                is_send ? "sender" : "receiver",
+                msg_out->uuid);
 
-      np_util_event_t send_event = {
-          .type      = (evt_internal | evt_userspace | evt_message),
-          .user_data = msg_out};
-      _np_dhkey_assign(&send_event.target_dhkey,
+      np_util_event_t msg_event = {.user_data = msg_out};
+
+      _np_dhkey_assign(&msg_event.target_dhkey,
                        _np_message_get_sessionid(msg_out));
 
-      _np_event_runtime_add_event(context,
-                                  event.current_run,
-                                  property_conf->subject_dhkey_out,
-                                  send_event);
-
+      if (is_send) {
+        msg_event.type = (evt_internal | evt_userspace | evt_message);
+        _np_event_runtime_add_event(context,
+                                    event.current_run,
+                                    property_conf->subject_dhkey_out,
+                                    msg_event);
+      }
+      if (is_recv) {
+        msg_event.type = (evt_external | evt_message);
+        _np_event_runtime_add_event(context,
+                                    event.current_run,
+                                    property_conf->subject_dhkey_in,
+                                    msg_event);
+      }
       np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
     }
   }
@@ -766,12 +788,12 @@ void _np_msgproperty_check_msgcache_for(np_util_statemachine_t *statemachine,
   // NP_CAST(event.user_data, np_message_t, message);
 
   char buf[65];
-  log_msg(LOG_DEBUG | LOG_ROUTING,
-          "this node is the receiver of messages, checking msgcache "
-          "(%p / %u) %s ...",
-          property_run->msg_cache,
-          dll_size(property_run->msg_cache),
-          np_id_str(buf, &event.target_dhkey));
+  log_debug_msg(LOG_DEBUG | LOG_ROUTING,
+                "this node is the receiver of messages, checking msgcache "
+                "(%p / %u) %s ...",
+                property_run->msg_cache,
+                dll_size(property_run->msg_cache),
+                np_id_str(buf, &event.target_dhkey));
   // get message from cache (maybe only for one way mep ?!)
   uint16_t msg_available = 0;
 
@@ -1763,7 +1785,7 @@ void __np_msgproperty_send_available_messages(
 
     np_tree_free(intent_data);
   } else {
-    log_info(
+    log_debug_msg(
         LOG_ROUTING,
         "not sending available message for %s / intent uuid: %s / %f - %d - %f",
         property_conf->msg_subject,
@@ -1954,6 +1976,7 @@ void __np_property_check(np_util_statemachine_t *statemachine,
     if (FLAG_CMP(property_conf->mode_type, OUTBOUND)) {
       __np_msgproperty_redeliver_messages(statemachine, event);
     }
+    _np_msgproperty_check_msgcache(statemachine, event);
     _np_msgproperty_cleanup_cache(statemachine, event);
 
     _np_msgproperty_upsert_token(statemachine, event);

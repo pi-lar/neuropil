@@ -78,6 +78,7 @@ bool __np_route_periodic_log(np_state_t               *context,
              (leafset_left_count + leafset_right_count) /
                  (0.0 + np_module(route)->leafset_size * 2));
   }
+  return true;
 }
 /* route_init:
  * Initiates routing table and leafsets
@@ -460,7 +461,7 @@ void _np_route_append_leafset_to_sll(np_key_ptr_sll_t *leafset,
 sll_return(np_key_ptr)
     _np_route_lookup(np_state_t *context, np_dhkey_t key, uint8_t count) {
   log_trace_msg(LOG_TRACE | LOG_ROUTING, ".start.route_lookup");
-  uint32_t i, j, k, Lsize, Rsize;
+  uint32_t i, j, k;
   uint8_t  match_col = 0;
   bool     next_hop  = false;
 
@@ -490,30 +491,29 @@ sll_return(np_key_ptr)
     /* if the key is in the leafset range route through leafset */
     /* the additional 2 neuropil nodes pointed by the #hosts# are to consider
      * the node itself and NULL at the end */
-    // if (count >= 1 && _np_dhkey_between(&key,
-    //                                     &np_module(route)->Lrange,
-    //                                     &np_module(route)->Rrange,
-    //                                     true)) {
-    //   log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
+    if (count == 1 && _np_dhkey_between(&key,
+                                        &np_module(route)->Lrange,
+                                        &np_module(route)->Rrange,
+                                        true)) {
+      log_debug_msg(LOG_ROUTING | LOG_DEBUG, "routing through leafset");
 
-    //   _np_route_append_leafset_to_sll(np_module(route)->right_leafset,
-    //                                   key_list);
-    //   _np_route_append_leafset_to_sll(np_module(route)->left_leafset,
-    //   key_list);
+      _np_route_append_leafset_to_sll(np_module(route)->right_leafset,
+                                      key_list);
+      _np_route_append_leafset_to_sll(np_module(route)->left_leafset, key_list);
 
-    //   min = _np_keycache_find_closest_key_to(context, key_list, &key);
-    //   if (NULL != min) {
-    //     np_ref_obj(np_key_t, min);
-    //     sll_append(np_key_ptr, return_list, min);
-    //     log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-    //                   "++NEXT_HOP = %s",
-    //                   _np_key_as_str(min));
-    //   }
-    //   sll_free(np_key_ptr, key_list);
-    //   _np_threads_unlock_module(context, np_routeglobal_t_lock);
-    //   log_trace_msg(LOG_TRACE | LOG_ROUTING, ".end  .route_lookup");
-    //   return (return_list);
-    // }
+      min = _np_keycache_find_closest_key_to(context, key_list, &key);
+      if (NULL != min) {
+        np_ref_obj(np_key_t, min);
+        sll_append(np_key_ptr, return_list, min);
+        log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                      "++NEXT_HOP = %s",
+                      _np_key_as_str(min));
+      }
+      sll_free(np_key_ptr, key_list);
+      _np_threads_unlock_module(context, np_routeglobal_t_lock);
+      log_trace_msg(LOG_TRACE | LOG_ROUTING, ".end  .route_lookup");
+      return (return_list);
+    }
 
     /* check to see if there is a matching next hop (for fast routing) */
     i = _np_dhkey_index(&np_module(route)->my_key->dhkey, &key);
@@ -545,9 +545,8 @@ sll_return(np_key_ptr)
           // normalize values
           double metric_1 = 1.0 - tmp_1_node->success_avg + tmp_1_node->latency;
           double metric_2 = 1.0 - tmp_2_node->success_avg + tmp_2_node->latency;
-          if (metric_1 >
-              metric_2) // node 2 more stable and/or faster than node 1
-          {
+          if (metric_1 > metric_2) {
+            // node 2 more stable and/or faster than node 1
             tmp_1 = np_module(route)->table[index + k];
           }
         }
@@ -587,22 +586,28 @@ sll_return(np_key_ptr)
     i = _np_dhkey_index(&np_module(route)->my_key->dhkey, &key);
     ASSERT(i < __MAX_ROW, "index out of routing table bounds.");
 
-    for (j = 0; j < __MAX_COL; j++) {
-      int index = __MAX_ENTRY * (j + (__MAX_COL * (i)));
-      for (k = 0; k < __MAX_ENTRY; k++) {
-        if (np_module(route)->table[index + k] != NULL) {
-          tmp_1 = np_module(route)->table[index + k];
-          if (_np_key_get_node(tmp_1)->success_avg > BAD_LINK) {
-            sll_append(np_key_ptr, key_list, tmp_1);
-            // log_msg(LOG_ROUTING | LOG_INFO,
-            //         "+Table[%ul][%ul][%ul]: (%s)",
-            //         i,
-            //         j,
-            //         k,
-            //         /* leaf->dns_name, leaf->port, */ _np_key_as_str(tmp_1));
+    while (sll_size(key_list) == 0 && i >= 0 && i < __MAX_ROW) {
+      // search the prefix tree upwards until we have an entry in our list
+
+      for (j = 0; j < __MAX_COL; j++) {
+        int index = __MAX_ENTRY * (j + (__MAX_COL * (i)));
+        for (k = 0; k < __MAX_ENTRY; k++) {
+          if (np_module(route)->table[index + k] != NULL) {
+            tmp_1 = np_module(route)->table[index + k];
+            if (_np_key_get_node(tmp_1)->success_avg > BAD_LINK) {
+              sll_append(np_key_ptr, key_list, tmp_1);
+              // log_msg(LOG_ROUTING | LOG_INFO,
+              //         "+Table[%ul][%ul][%ul]: (%s)",
+              //         i,
+              //         j,
+              //         k,
+              //         /* leaf->dns_name, leaf->port, */
+              //         _np_key_as_str(tmp_1));
+            }
           }
         }
       }
+      i--;
     }
 
     if (count == 1) {
@@ -621,49 +626,24 @@ sll_return(np_key_ptr)
     }
 
     if (2 <= sll_size(key_list)) {
-      /* removing potential duplicates from the list */
-      _np_sll_remove_doublettes(key_list);
 
       /* find the best #count# entries that we looked at ... could be much
        * better */
       _np_keycache_sort_keys_cpm(key_list, &key);
 
+      /* removing potential duplicates from the list */
+      // _np_sll_remove_doublettes(key_list);
+
       sll_append(np_key_ptr, return_list, sll_first(key_list)->val);
       np_ref_obj(np_key_t, sll_first(key_list)->val);
+    } else if (0 < sll_size(key_list)) {
+      sll_append(np_key_ptr, return_list, sll_first(key_list)->val);
+      np_ref_obj(np_key_t, sll_first(return_list)->val);
     }
 
-    /*  to prevent bouncing */
-    if (count >= 1 && sll_size(return_list) > 0) {
-      //	    log_debug_msg(LOG_DEBUG, "_np_route_lookup bounce detection
-      //..."); 	    log_debug_msg(LOG_DEBUG, "search key: %s",
-      //_np_key_as_str(key) ); 	    log_debug_msg(LOG_DEBUG, "my own key: %s",
-      //_np_key_as_str(routes->my_key) ); 	    log_debug_msg(LOG_DEBUG,
-      //"lookup key: %s", _np_key_as_str(sll_first(return_list)->val) );
-
-      _np_dhkey_distance(&dif1, &key, &sll_first(return_list)->val->dhkey);
-      _np_dhkey_distance(&dif2, &key, &np_module(route)->my_key->dhkey);
-
-      // if (key_equal (dif1, dif2)) ret[0] = rg->me;
-      // changed on 03.06.2014 STSW choose the closest neighbour
-      if (_np_dhkey_cmp(&dif1, &dif2) <= 0) {
-        sll_iterator(np_key_ptr) first = sll_first(return_list);
-        np_unref_obj(np_key_t, first->val, FUNC);
-        first->val = np_module(route)->my_key;
-        np_ref_obj(np_key_t, first->val);
-      }
-
-      log_debug_msg(LOG_ROUTING,
-                    "route  key: %s",
-                    _np_key_as_str(sll_first(return_list)->val));
-
-      // if (!key_comp(&dif1, &dif2) == 0) ret[0] = rg->me;
-      // if (key_comp(&dif1, &dif2)  < 0) ret[0] = NULL;
-      // if (key_comp(&dif1, &dif2)  > 0) ret[0] = rg->me;
-
-    } else {
-      log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                    "route_lookup bounce detection not wanted ...");
-    }
+    /* prevent bouncing -
+       not needed anymore, routing table is not our priumary table to look up
+       routes, because we use pheromones now */
 
     sll_free(np_key_ptr, key_list);
   }

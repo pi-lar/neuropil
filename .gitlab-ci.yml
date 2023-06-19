@@ -166,6 +166,7 @@ code_format:
 smoke_tests:
   stage: qa
   script:
+      - ulimit -a
       - ./do smoke --fail-fast
   retry:
     max: 2

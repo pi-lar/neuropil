@@ -266,16 +266,19 @@ neuropil_conf = Configure(neuropil_env)
 # add libev flags to the compilation
 neuropil_env.Append(CCFLAGS=["-DEV_STANDALONE"])
 # env.Append(CCFLAGS = ['-DEV_PERIODIC_ENABLE'])
-# neuropil_env.Append(CCFLAGS = ['-DEV_USE_SELECT=1'])
 neuropil_env.Append(CCFLAGS=["-DHAVE_SELECT"])
 neuropil_env.Append(CCFLAGS=["-DHAVE_KQUEUE"])
+neuropil_env.Append(CCFLAGS=["-DHAVE_SYS_EVENT_H"])
 neuropil_env.Append(CCFLAGS=["-DHAVE_POLL"])
-neuropil_env.Append(CCFLAGS=["-DHAVE_EPOLL_CTL"])
+# neuropil_env.Append(CCFLAGS=["-DHAVE_EPOLL_CTL"])
+neuropil_env.Append(CCFLAGS=["-DHAVE_LINUX_AIO_ABI_H"])
+
 neuropil_env.Append(CCFLAGS=["-DEV_COMPAT3=0"])
 neuropil_env.Append(CCFLAGS=["-DEV_USE_FLOOR=1"])
 neuropil_env.Append(CCFLAGS=["-DEV_USE_4HEAP=1"])
+
 if neuropil_conf.CheckFunc("nanosleep"):
-    neuropil_env.Append(CCFLAGS=["-DEV_USE_NANOSLEEP=1"])
+    neuropil_env.Append(CCFLAGS=["-DHAVE_NANOSLEEP"])
 # neuropil_env.Append(CCFLAGS = ['-DEV_USE_REALTIME=0'])
 # neuropil_env.Append(CCFLAGS = ['-DEV_NO_THREADS'])
 

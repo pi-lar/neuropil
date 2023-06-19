@@ -1090,7 +1090,7 @@ void _np_message_trace_info(char *desc, np_message_t *msg_in) {
   info_str = np_str_concatAndFree(info_str, ": %s", msg_in->uuid);
 #endif
 
-  log_info(LOG_MESSAGE, info_str);
+  log_debug_msg(LOG_MESSAGE, info_str);
   free(info_str);
 }
 

@@ -1,8 +1,8 @@
 /*
  * libev win32 compatibility cruft (_not_ a backend)
  *
- * SPDX-FileCopyrightText: 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
- * SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
+ * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
  * tion, are permitted provided that the following conditions are met:
@@ -154,8 +154,8 @@ ev_time (void)
   ui.u.LowPart  = ft.dwLowDateTime;
   ui.u.HighPart = ft.dwHighDateTime;
 
-  /* msvc cannot convert ulonglong to double... yes, it is that sucky */
-  return (LONGLONG)(ui.QuadPart - 116444736000000000) * 1e-7;
+  /* also, msvc cannot convert ulonglong to double... yes, it is that sucky */
+  return EV_TS_FROM_USEC (((LONGLONG)(ui.QuadPart - 116444736000000000) * 1e-1));
 }
 
 #endif

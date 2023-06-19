@@ -62,6 +62,9 @@ NP_API_INTERN
 bool __is_node_invalid(np_util_statemachine_t *statemachine,
                        const np_util_event_t   event);
 NP_API_INTERN
+bool __has_to_leave(np_util_statemachine_t *statemachine,
+                    const np_util_event_t   event);
+NP_API_INTERN
 bool __is_wildcard_key(np_util_statemachine_t *statemachine,
                        const np_util_event_t   event);
 NP_API_INTERN
@@ -91,14 +94,12 @@ void __np_node_update_token(np_util_statemachine_t *statemachine,
 NP_API_INTERN
 void __np_node_handle_completion(np_util_statemachine_t *statemachine,
                                  const np_util_event_t   event);
-
 NP_API_INTERN
 void __np_node_add_to_leafset(np_util_statemachine_t *statemachine,
                               const np_util_event_t   event);
 NP_API_INTERN
 void __np_node_remove_from_routing(np_util_statemachine_t *statemachine,
                                    const np_util_event_t   event);
-
 NP_API_INTERN
 bool __is_node_join(np_util_statemachine_t *statemachine,
                     const np_util_event_t   event);
@@ -108,7 +109,6 @@ void __np_node_destroy(np_util_statemachine_t *statemachine,
 NP_API_INTERN
 bool __is_invalid_message(np_util_statemachine_t *statemachine,
                           const np_util_event_t   event);
-
 NP_API_INTERN
 void __np_create_client_network(np_util_statemachine_t *statemachine,
                                 const np_util_event_t   event);
@@ -150,6 +150,9 @@ bool __is_shutdown_event(np_util_statemachine_t *statemachine,
 NP_API_INTERN
 void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
                              const np_util_event_t   event);
+NP_API_INTERN
+void __np_node_send_shutdown_event(np_util_statemachine_t *statemachine,
+                                   const np_util_event_t   event);
 
 NP_API_INTERN
 void __np_node_handle_response(np_util_statemachine_t *statemachine,

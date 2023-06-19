@@ -234,9 +234,9 @@ void _np_dhkey_xor(np_dhkey_t             *result,
 }
 
 bool _np_dhkey_init(NP_UNUSED np_state_t *context) {
-  uint32_t half = (UINT_MAX >> 1) + 1;
+  uint32_t half = (UINT32_MAX >> 1) + 1;
   for (uint8_t i = 0; i < 8; i++) {
-    __dhkey_max.t[i]  = UINT_MAX;
+    __dhkey_max.t[i]  = UINT32_MAX;
     __dhkey_half.t[i] = half;
     __dhkey_min.t[i]  = 0;
     log_debug_msg(LOG_KEY | LOG_DEBUG,
@@ -376,9 +376,9 @@ bool _np_dhkey_between(const np_dhkey_t *const test,
     min to max builds a circle for all values.
     we search for a value between:
         1) the value on the far right(aka the current left one)
-        2) and the value on the far left(aka the current rigth one)
+        2) and the value on the far left(aka the current right one)
     */
-    ret = (comp_lt < 0 && comp_tr > 0);
+    ret = (comp_lt < 0 || comp_tr < 0);
     // ret = ( _np_dhkey_cmp(left, test) <= 0 || _np_dhkey_cmp(test, right) <=
     // 0);
   }

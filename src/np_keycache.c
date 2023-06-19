@@ -97,7 +97,6 @@ np_key_t *_np_keycache_find_or_create(np_state_t *context,
     } else {
       np_ref_obj(np_key_t, key);
     }
-    // key->last_update = np_time_now();
   }
   // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint
   // _np_keycache_find_or_create end");
@@ -209,7 +208,6 @@ _np_keycache_find_by_details(np_state_t         *context,
                              strstr(details_container, node->port) != NULL))) {
         np_ref_obj(np_key_t, iter);
         ret = iter;
-        // ret->last_update = np_time_now();
         break;
       }
     }
@@ -356,7 +354,6 @@ np_key_t *_np_keycache_add(np_state_t *context, np_key_t *subject_key) {
   log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
   _LOCK_MODULE(np_keycache_t) {
     RB_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
-    // subject_key->last_update = np_time_now();
     subject_key->is_in_keycache = true;
     np_ref_obj(np_key_t, subject_key, ref_keycache);
     np_module(keycache)->__last_udpate = subject_key->last_update;
@@ -422,6 +419,12 @@ np_key_t *_np_keycache_find_closest_key_to(np_state_t *context,
   np_dhkey_t dif, minDif = {0};
   np_key_t  *min_key = NULL;
 
+  if (sll_size(list_of_keys) == 0) {
+    log_msg(LOG_KEY | LOG_WARNING,
+            "minimum size for closest key calculation not met !");
+    return (min_key);
+  }
+
   sll_iterator(np_key_ptr) iter = sll_first(list_of_keys);
   bool first_run                = true;
   while (NULL != iter) {
@@ -437,10 +440,6 @@ np_key_t *_np_keycache_find_closest_key_to(np_state_t *context,
     sll_next(iter);
   }
 
-  if (sll_size(list_of_keys) == 0) {
-    log_msg(LOG_KEY | LOG_WARNING,
-            "minimum size for closest key calculation not met !");
-  }
   return (min_key);
 }
 

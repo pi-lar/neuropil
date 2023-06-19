@@ -93,7 +93,9 @@ class StarSetupTest(unittest.TestCase):
         mxp = sender.get_mx_properties(StarSetupTest.subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
         mxp.role = neuropil.NP_MX_PROVIDER
-        mxp.max_retry = 5
+        mxp.intent_ttl = 300
+        mxp.intent_update_after = 20
+        mxp.max_retry = 3
         mxp.apply()
 
         sender.set_authenticate_cb(StarSetupTest.authn_allow_star)
@@ -111,12 +113,15 @@ class StarSetupTest(unittest.TestCase):
             # TODO: remove elapsed > 90 condition after reimplementation of np_has_receiver_for
             if elapsed % 2 == 0:
                 self.assertTrue(sender.get_status() == neuropil.np_running)
-            # if elapsed > 20:
-            #     self.assertTrue(np_1.has_joined())
-            if elapsed > 45 and not StarSetupTest.send.value:
+
+            if (
+                sender.np_has_receiver_for(StarSetupTest.subject)
+                and not StarSetupTest.send.value
+            ):
                 sender.send(StarSetupTest.subject, b"test data blob")
                 StarSetupTest.send.value = True
                 # print("sending message complete")
+
             if StarSetupTest.msg_delivery_succ.value or elapsed > timeout:
                 break
             sender.run(math.pi / 10)
@@ -132,6 +137,8 @@ class StarSetupTest(unittest.TestCase):
         # configure node 2 as receiver
         mxp = receiver.get_mx_properties(StarSetupTest.subject)
         mxp.ackmode = neuropil.NP_MX_ACK_DESTINATION
+        mxp.intent_ttl = 300
+        mxp.intent_update_after = 20
         mxp.role = neuropil.NP_MX_CONSUMER
         mxp.apply()
 

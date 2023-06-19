@@ -1,10 +1,9 @@
-//
 // SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 // original version is based on the chimera project
 
-// this file conatins the state machine conditions, transitions and states that
+// this file contains the state machine conditions, transitions and states that
 // an identity can have. It is included form np_key.c, therefore there are no
 // extra #include directives.
 
@@ -92,9 +91,9 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
           uint32_t      current_count_of_chunks = 0;
 
           _LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
-            np_messagepart_ptr to_add = to_add =
-                pll_first(msg_to_check->msg_chunks)
-                    ->val; // get the messagepart we received
+            np_messagepart_ptr to_add =
+                pll_first(msg_to_check->msg_chunks)->val;
+            // get the messagepart we received
 
             log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                           "message (%s) %p / %p / %p",
@@ -242,9 +241,9 @@ void _np_alias_cleanup_msgpart_cache(np_state_t               *context,
                   context->msg_part_filter->_size,
                   context->msg_part_filter->_p);
 
-    size_t _size_adjustment = NP_MSG_PART_FILTER_SIZE_INTERVAL;
+    size_t _size_adjustment = NP_MSG_PART_FILTER_SIZE;
     if (_size_modifier > 0)
-      _size_adjustment = _size_modifier * NP_MSG_PART_FILTER_SIZE_INTERVAL;
+      _size_adjustment = _size_modifier * NP_MSG_PART_FILTER_SIZE;
     if (context->msg_part_filter->_size != _size_adjustment) {
       context->msg_part_filter->_size = _size_adjustment;
       context->msg_part_filter->op.clear_cb(context->msg_part_filter);
@@ -653,9 +652,9 @@ void __np_alias_decrypt(
 
     double job_prio    = JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE;
     bool   is_internal = _np_message_is_internal(context, msg_in);
+
     if (is_internal) {
       job_prio = NP_PRIORITY_MEDIUM;
-      // in_message_evt.type |= evt_multimatch;
     } else {
     }
 
@@ -769,6 +768,12 @@ bool __is_forward_message(np_util_statemachine_t *statemachine,
   if (ret) ret &= (event.user_data != NULL);
   if (ret)
     ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+  if (ret) {
+    np_node_t *alias_node = _np_key_get_node(alias_key);
+
+    ret = (alias_node != NULL &&
+           (alias_node->is_in_leafset || alias_node->is_in_routing_table));
+  }
 
   if (ret) {
     NP_CAST(event.user_data, np_message_t, discovery_message);
@@ -847,6 +852,12 @@ bool __is_pheromone_message(np_util_statemachine_t *statemachine,
   if (ret) ret &= (event.user_data != NULL);
   if (ret)
     ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
+  if (ret) {
+    np_node_t *alias_node = _np_key_get_node(alias_key);
+
+    ret = (alias_node != NULL &&
+           (alias_node->is_in_leafset || alias_node->is_in_routing_table));
+  }
 
   if (ret) {
     NP_CAST(event.user_data, np_message_t, pheromone_message);
@@ -888,6 +899,12 @@ bool __is_dht_message(np_util_statemachine_t *statemachine,
   if (ret)
     ret &= _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t);
 
+  if (ret) {
+    np_node_t *alias_node = _np_key_get_node(alias_key);
+
+    ret = (alias_node != NULL &&
+           (alias_node->is_in_leafset || alias_node->is_in_routing_table));
+  }
   if (ret) {
     NP_CAST(event.user_data, np_message_t, dht_message);
     /* TODO: use the bloom, luke */
@@ -1009,9 +1026,9 @@ bool __is_usr_in_message(np_util_statemachine_t *statemachine,
   return ret;
 }
 
-void __np_handle(
-    np_util_statemachine_t *statemachine,
-    const np_util_event_t   event) { // handle ght messages (ping, piggy, ...)
+void __np_handle(np_util_statemachine_t *statemachine,
+                 const np_util_event_t   event) {
+  // handle ght messages (ping, piggy, ...)x
   np_ctx_memory(statemachine->_user_data);
   log_trace_msg(LOG_TRACE, "start: bool __np_handle(...) {");
 
@@ -1210,6 +1227,7 @@ void __np_handle_np_forward(np_util_statemachine_t *statemachine,
   np_ctx_memory(statemachine->_user_data);
   log_trace_msg(LOG_TRACE, "start: bool __np_handle_np_forward(...) {");
 
+  NP_CAST(statemachine->_user_data, np_key_t, alias_key);
   NP_CAST(event.user_data, np_message_t, message_in);
 
   CHECK_STR_FIELD(message_in->header, _NP_MSG_HEADER_SUBJECT, msg_subject_elem);
@@ -1244,7 +1262,9 @@ void __np_handle_np_forward(np_util_statemachine_t *statemachine,
     _np_dhkey_assign(&msg_handler, &ack_out_dhkey);
 
   np_util_event_t forward_event = event;
-  forward_event.type            = (evt_internal | evt_message);
+  // set node key as target to prevent loops when forwarding
+  forward_event.target_dhkey = alias_key->parent_dhkey;
+  forward_event.type         = (evt_internal | evt_message);
   _np_event_runtime_add_event(context,
                               event.current_run,
                               msg_handler,
@@ -1267,6 +1287,7 @@ void __np_handle_usr_msg(np_util_statemachine_t *statemachine,
   np_util_event_t usr_event = event;
   _np_dhkey_assign(&usr_event.target_dhkey, &msg_session_id.value.dhkey);
 
+  __np_handle_np_forward(statemachine, usr_event);
   __np_handle(statemachine, usr_event);
 
 __np_cleanup__ : {}
@@ -1431,6 +1452,10 @@ void __np_alias_update(np_util_statemachine_t *statemachine,
   log_trace_msg(LOG_TRACE, "start: bool __np_alias_update(...) {");
 
   if (event.user_data != NULL) {
+    // this can happen!
+    // e.g. nodes may send out one superflous join message because messages may
+    // have time overlap. Then statemachine already pushed the alias to the
+    // correct state --> the IN_USE state doesn't handle join messages
     enum np_memory_types_e memory_type = np_memory_get_type(event.user_data);
     if (memory_type != np_memory_types_np_message_t) {
       log_msg(LOG_WARNING,
@@ -1438,13 +1463,6 @@ void __np_alias_update(np_util_statemachine_t *statemachine,
               ")",
               memory_type,
               event.type);
-#ifdef DEBUG
-      ASSERT(event.user_data == NULL,
-             "unexpected datatype %" PRIu8 " attached to event (type: %" PRIu8
-             ")",
-             memory_type,
-             event.type);
-#endif
     }
   }
 }

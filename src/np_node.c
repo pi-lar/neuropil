@@ -60,30 +60,32 @@ void _np_node_t_new(np_state_t       *context,
 
   TSP_INITD(entry->session_key_is_set, false);
 
-  entry->last_success      = np_time_now();
-  entry->success_win_index = 0;
-  entry->_handshake_status = np_node_status_Disconnected;
+  entry->last_success = np_time_now();
 
-  entry->_joined_status      = np_node_status_Disconnected;
+  entry->_handshake_status = np_node_status_Disconnected;
+  entry->_joined_status    = np_node_status_Disconnected;
+
   entry->handshake_send_at   = 0.0;
   entry->join_send_at        = 0.0;
+  entry->leave_send_at       = 0.0;
   entry->joined_network      = false;
-  entry->handshake_priority  = randombytes_random();
   entry->connection_attempts = 0;
 
-  entry->next_routing_table_update =
-      np_time_now() + MISC_SEND_PIGGY_REQUESTS_SEC;
-  entry->is_in_routing_table = false;
-  ;
-  entry->is_in_leafset = false;
+  entry->handshake_priority = randombytes_random();
+
+  entry->next_routing_table_update = np_time_now() + NP_PI;
+  entry->is_in_routing_table       = false;
+  entry->is_in_leafset             = false;
 
   for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
     entry->success_win[i] = i % 2;
-  entry->success_avg = 0.5;
+  entry->success_win_index = 0;
+  entry->success_avg       = 0.5;
 
   for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
     entry->latency_win[i] = 0.01;
-  entry->latency = -1;
+  entry->latency_win_index = 0;
+  entry->latency           = -1;
 }
 
 void _np_node_t_del(np_state_t       *context,

@@ -7,7 +7,7 @@ CC=/usr/local/opt/llvm/bin/clang
 
 CFLAGS  = -I/usr/local/opt/llvm/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include -fPIC
 # CFLAGS=-c -Wall -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL
-CFLAGS += -c -Wall -Wextra -g -gdwarf-2 -std=c99 -O1 -DDEBUG -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL -Wno-flag-enum -Wno-nullability-completeness
+CFLAGS += -c -Wall -Wextra -g -gdwarf-2 -std=c99 -O1 -DDEBUG -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_SYS_EVENT_H -DHAVE_POLL -DHAVE_LINUX_AIO_ABI_H -DEV_USE_FLOOR=1 -DEV_USE_4HEAP=1 -Wno-flag-enum -Wno-nullability-completeness
 # CFLAGS+=--analyze -Xanalyzer -analyzer-config -analyzer-checker=alpha.secure -anaylyzer-checker=alpha.core -analyzer-output=html -o build/html
 # CFLAGS=-c -Wall -Wextra -pedantic -g -std=c99
 # CFLAGS=-c -O3 -std=c99 -DEV_STANDALONE -DHAVE_SELECT -DHAVE_KQUEUE -DHAVE_POLL

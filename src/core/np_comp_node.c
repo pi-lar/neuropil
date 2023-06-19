@@ -25,6 +25,7 @@
 #include "np_memory.h"
 #include "np_message.h"
 #include "np_network.h"
+#include "np_pheromones.h"
 #include "np_responsecontainer.h"
 #include "np_route.h"
 
@@ -121,27 +122,22 @@ bool __is_node_invalid(np_util_statemachine_t         *statemachine,
 
   bool ret = false;
 
-  NP_CAST(statemachine->_user_data, np_key_t, node_key);
+  if (!FLAG_CMP(event.type, evt_noop)) return false;
 
-  log_debug_msg(LOG_MISC,
-                "__is_node_invalid(...) { [0]:%p [1]:%p [2]:%p [3]:%p }",
-                node_key->entity_array[0],
-                node_key->entity_array[1],
-                node_key->entity_array[2],
-                node_key->entity_array[3]);
+  NP_CAST(statemachine->_user_data, np_key_t, node_key);
 
   if (!ret) ret = FLAG_CMP(node_key->type, np_key_type_unknown);
 
-  if (!ret) ret = (_np_key_get_node(node_key) == NULL);
-
   double now = np_time_now();
-
   if (!ret && (node_key->created_at + BAD_LINK_REMOVE_GRACETIME) > now) {
     return false;
   }
+
+  if (!ret) ret = (_np_key_get_node(node_key) == NULL);
+
   np_node_t *node = _np_key_get_node(node_key);
 
-  if (!ret) ret &= (node->connection_attempts > 15);
+  if (!ret) ret = (node->connection_attempts > 15);
 
   if (!ret) // check for not in routing / leafset table anymore
   {
@@ -156,7 +152,8 @@ bool __is_node_invalid(np_util_statemachine_t         *statemachine,
     }
 
     log_trace_msg(LOG_TRACE,
-                  "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)",
+                  "end  : bool __is_node_invalid(...) not in routing table { "
+                  "%d (%d / %d / %f < %f)",
                   ret,
                   node->is_in_leafset,
                   node->is_in_routing_table,
@@ -174,7 +171,8 @@ bool __is_node_invalid(np_util_statemachine_t         *statemachine,
                node->success_avg);
     }
     log_trace_msg(LOG_TRACE,
-                  "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)",
+                  "end  : bool __is_node_invalid(...) bad connectivity { %d "
+                  "(%d / %d / %f < %f)",
                   ret,
                   node->is_in_leafset,
                   node->is_in_routing_table,
@@ -195,13 +193,73 @@ bool __is_node_invalid(np_util_statemachine_t         *statemachine,
                _np_key_as_str(node_key));
     }
     log_trace_msg(LOG_TRACE,
-                  "end  : bool __is_node_invalid(...) { %d (%d / %d / %f < %f)",
+                  "end  : bool __is_node_invalid(...) token invalid { %d (%d / "
+                  "%d / %f < %f)",
                   ret,
                   node->is_in_leafset,
                   node->is_in_routing_table,
                   (node_key->created_at + BAD_LINK_REMOVE_GRACETIME),
                   np_time_now());
   }
+
+  log_trace(LOG_ROUTING, "%s ret %" PRIu8, FUNC, ret);
+  return ret;
+}
+
+// check whether the connection to a node has to be terminated
+bool __has_to_leave(np_util_statemachine_t *statemachine,
+                    const np_util_event_t   event) {
+  np_ctx_memory(statemachine->_user_data);
+  log_trace_msg(LOG_TRACE, "start: bool __is_node_invalid(...) {");
+
+  bool   ret = false;
+  double now = np_time_now();
+
+  if (!FLAG_CMP(event.type, evt_noop)) return false;
+
+  NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+  if (!ret) ret = !FLAG_CMP(node_key->type, np_key_type_node);
+
+  if (!ret &&
+      ((node_key->created_at + BAD_LINK_REMOVE_GRACETIME) > (now + NP_PI))) {
+    return false;
+  }
+
+  if (!ret) ret = (_np_key_get_node(node_key) == NULL);
+
+  if (!ret) // check for not in routing / leafset table anymore
+  {
+    np_node_t *node = _np_key_get_node(node_key);
+
+    ret = (!node->is_in_leafset && !node->is_in_routing_table) ||
+          (node->success_avg < BAD_LINK);
+    ret = (node->leave_send_at > node->join_send_at) ? true : ret;
+
+    if (ret) {
+      log_info(LOG_EXPERIMENT,
+               "bad node [no routing]: %s , is_in_leafset: %d, "
+               "is_in_routing_table: %d",
+               _np_key_as_str(node_key),
+               node->is_in_leafset,
+               node->is_in_routing_table);
+    }
+
+    log_trace_msg(LOG_TRACE,
+                  "end  : bool __has_to_leave(...) { %d (%d / %d / %f < %f)",
+                  ret,
+                  node->is_in_leafset,
+                  node->is_in_routing_table,
+                  (node_key->created_at + BAD_LINK_REMOVE_GRACETIME),
+                  np_time_now());
+  }
+  log_msg(LOG_INFO | LOG_MISC,
+          "__has_to_leave(...) == %s { [0]:%p [1]:%p [2]:%p [3]:%p }",
+          ret ? "true" : "false",
+          node_key->entity_array[0],
+          node_key->entity_array[1],
+          node_key->entity_array[2],
+          node_key->entity_array[3]);
 
   log_trace(LOG_ROUTING, "%s ret %" PRIu8, FUNC, ret);
   return ret;
@@ -468,195 +526,6 @@ void __np_filter_remove_passive_nodes(np_state_t *context,
   sll_free(np_key_ptr, to_remove_keys)
 }
 
-void __np_node_update(np_util_statemachine_t *statemachine,
-                      const np_util_event_t   event) {
-  np_ctx_memory(statemachine->_user_data);
-  log_trace_msg(LOG_TRACE, "start: void __np_node_update(...) {");
-
-  NP_CAST(statemachine->_user_data, np_key_t, node_key);
-  np_node_t *node  = _np_key_get_node(node_key);
-  float      total = 0.0;
-
-  float old = node->success_avg;
-  for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++) {
-    total += node->success_win[i];
-  }
-  node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
-  if (node->success_avg != old) {
-    log_info(LOG_MISC,
-             "connection status to node %.15s:%.6s success rate now: %1.2f "
-             "(idx:%2u / val:%2u)",
-             node->dns_name,
-             node->port,
-             node->success_avg,
-             node->success_win_index,
-             node->success_win[node->success_win_index]);
-  }
-
-  total = 0.0;
-  old   = node->latency;
-  for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++) {
-    total += node->latency_win[i];
-  }
-  node->latency = total / NP_NODE_SUCCESS_WINDOW;
-  if (node->latency != old) {
-    log_info(LOG_MISC,
-             "connection status to node %.15s:%.6s latency      now: %1.6f "
-             "(update with: %1.6fsec)",
-             node->dns_name,
-             node->port,
-             node->latency,
-             node->latency_win[node->latency_win_index]);
-  }
-  if (node->is_in_routing_table || node->is_in_leafset)
-    log_info(LOG_EXPERIMENT,
-             "connection to node %.15s:%.6s success rate now: %1.2f latency "
-             "now: %1.6f",
-             node->dns_name,
-             node->port,
-             node->success_avg,
-             node->latency);
-
-  // insert into the routing table after a specific time period
-  // reason: routing is based on latency, therefore we need a stable connection
-  // before inserting
-  if (node->is_in_routing_table == false &&
-      (node_key->created_at + MISC_SEND_PINGS_SEC) < np_time_now() &&
-      !FLAG_CMP(node->protocol, PASSIVE)) {
-    np_key_t  *added = NULL, *deleted = NULL;
-    np_node_t *node_1 = NULL;
-
-    _np_route_update(node_key, true, &deleted, &added);
-
-    if (added != NULL) {
-      node_1                      = _np_key_get_node(added);
-      node_1->is_in_routing_table = true;
-    }
-
-    if (deleted != NULL) {
-      node_1                      = _np_key_get_node(deleted);
-      node_1->is_in_routing_table = false;
-      // log_info(LOG_EXPERIMENT, "deleted from table  : %s:%s:%s / %f / %1.2f /
-      // %1.2f",
-      //     _np_key_as_str(deleted),
-      //     node_1->dns_name, node_1->port,
-      //     node_1->last_success,
-      //     node_1->success_avg,
-      //     node_1->latency
-      //     );
-      // TODO: issue leave event and delete node, respect leafset table
-    }
-  }
-
-  // follow up actions
-  if ((node->success_avg > BAD_LINK) &&
-      ((node->last_success + MISC_SEND_PINGS_SEC * node->success_avg) <=
-       np_time_now())) {
-    np_dhkey_t ping_dhkey = {0};
-    np_generate_subject(&ping_dhkey,
-                        _NP_MSG_PING_REQUEST,
-                        strnlen(_NP_MSG_PING_REQUEST, 256));
-
-    // issue ping messages
-    np_message_t *msg_out = NULL;
-    np_new_obj(np_message_t, msg_out, FUNC);
-    _np_message_create(msg_out,
-                       node_key->dhkey,
-                       context->my_node_key->dhkey,
-                       ping_dhkey,
-                       NULL);
-
-    log_info(LOG_ROUTING,
-             "(msg: %s) Sending internal ping event",
-             msg_out->uuid);
-
-    np_dhkey_t ping_out_dhkey =
-        _np_msgproperty_tweaked_dhkey(OUTBOUND, ping_dhkey);
-    np_util_event_t ping_event = {.type         = (evt_internal | evt_message),
-                                  .target_dhkey = node_key->dhkey,
-                                  .user_data    = msg_out};
-    _np_event_runtime_add_event(context,
-                                event.current_run,
-                                ping_out_dhkey,
-                                ping_event);
-
-    log_debug_msg(LOG_ROUTING,
-                  "submitted ping to target key %s / %p",
-                  _np_key_as_str(node_key),
-                  node_key);
-    np_unref_obj(np_message_t, msg_out, FUNC);
-  }
-
-  if ((node->success_avg > BAD_LINK) &&
-      (node->next_routing_table_update < np_time_now())) {
-    /* send one row of our routing table back to joiner #host# */
-    np_sll_t(np_key_ptr, sll_of_keys) = NULL;
-    sll_of_keys              = _np_route_row_lookup(context, node_key->dhkey);
-    char *source_sll_of_keys = "_np_route_row_lookup";
-
-    if (sll_size(sll_of_keys) < 1) {
-      // nothing found, send leafset to exchange some data at least
-      // prevents small clusters from not exchanging all data
-      np_key_unref_list(sll_of_keys, source_sll_of_keys); // only for completion
-      sll_free(np_key_ptr, sll_of_keys);
-      sll_of_keys        = _np_route_neighbour_lookup(context, node_key->dhkey);
-      source_sll_of_keys = "_np_route_neighbour_lookup";
-    }
-    // if (sll_size(sll_of_keys) < 4) {
-    //   // if the set is still too low we may return on all-we-know base
-    //   np_key_unref_list(sll_of_keys, source_sll_of_keys);
-    //   sll_free(np_key_ptr, sll_of_keys);
-    //   sll_of_keys        = _np_route_neighbour_lookup(context,
-    //   node_key->dhkey); source_sll_of_keys = "_np_route_neighbour_lookup";
-    // }
-    // filter out potential passive nodes from neighbour list
-    __np_filter_remove_passive_nodes(context, sll_of_keys, source_sll_of_keys);
-
-    if (sll_size(sll_of_keys) > 0) {
-      log_debug_msg(LOG_ROUTING | LOG_DEBUG,
-                    "job submit piggyinfo to %s:%s!",
-                    node->dns_name,
-                    node->port);
-
-      np_dhkey_t piggy_dhkey = {0};
-      np_generate_subject(&piggy_dhkey,
-                          _NP_MSG_PIGGY_REQUEST,
-                          strnlen(_NP_MSG_PIGGY_REQUEST, 256));
-
-      np_tree_t *msg_body = np_tree_create();
-      _np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
-
-      np_message_t *msg_out = NULL;
-      np_new_obj(np_message_t, msg_out); // ref_obj_creation
-      _np_message_create(msg_out,
-                         node_key->dhkey,
-                         context->my_node_key->dhkey,
-                         piggy_dhkey,
-                         msg_body);
-
-      log_info(LOG_ROUTING,
-               "(msg: %s) Sending internal piggy event",
-               msg_out->uuid);
-
-      np_dhkey_t piggy_out_dhkey =
-          _np_msgproperty_tweaked_dhkey(OUTBOUND, piggy_dhkey);
-      np_util_event_t piggy_event = {.type = (evt_internal | evt_message),
-                                     .target_dhkey = node_key->dhkey,
-                                     .user_data    = msg_out};
-      _np_event_runtime_add_event(context,
-                                  event.current_run,
-                                  piggy_out_dhkey,
-                                  piggy_event);
-      np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-    }
-    np_key_unref_list(sll_of_keys, source_sll_of_keys);
-    sll_free(np_key_ptr, sll_of_keys);
-
-    node->next_routing_table_update =
-        np_time_now() + MISC_SEND_PIGGY_REQUESTS_SEC;
-  }
-}
-
 void __np_node_add_to_leafset(np_util_statemachine_t         *statemachine,
                               NP_UNUSED const np_util_event_t event) {
   np_ctx_memory(statemachine->_user_data);
@@ -697,8 +566,9 @@ void __np_node_add_to_leafset(np_util_statemachine_t         *statemachine,
   }
 }
 
-void __np_node_remove_from_routing(np_util_statemachine_t         *statemachine,
-                                   NP_UNUSED const np_util_event_t event) {
+void __np_node_remove_from_routing_leafset(np_util_statemachine_t *statemachine,
+                                           NP_UNUSED const np_util_event_t
+                                               event) {
   np_ctx_memory(statemachine->_user_data);
   log_trace_msg(LOG_TRACE, "start: void __np_node_remove_from_routing(...) {");
 
@@ -712,6 +582,7 @@ void __np_node_remove_from_routing(np_util_statemachine_t         *statemachine,
     _np_route_leafset_update(node_key, false, &deleted, &added);
     ASSERT(added == NULL, "Cannot add to leafset here");
     if (deleted != NULL) {
+      _np_pheromone_exhale(context);
       _np_key_get_node(deleted)->is_in_leafset = false;
       log_info(LOG_EXPERIMENT,
                "[routing disturbance] deleted from leafset: %s:%s:%s / "
@@ -726,12 +597,25 @@ void __np_node_remove_from_routing(np_util_statemachine_t         *statemachine,
       log_error("deletion from leafset unsuccesful, reason unknown !!!");
     }
   }
+}
+
+void __np_node_remove_from_routing_table(np_util_statemachine_t *statemachine,
+                                         NP_UNUSED const np_util_event_t
+                                             event) {
+  np_ctx_memory(statemachine->_user_data);
+  log_trace_msg(LOG_TRACE, "start: void __np_node_remove_from_routing(...) {");
+
+  NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+  struct __np_node_trinity trinity = {0};
+  __np_key_to_trinity(node_key, &trinity);
 
   if (trinity.node->is_in_routing_table == true) {
     np_key_t *added = NULL, *deleted = NULL;
     _np_route_update(node_key, false, &deleted, &added);
 
     if (deleted != NULL) {
+      _np_pheromone_exhale(context);
       _np_key_get_node(deleted)->is_in_routing_table = false;
       log_info(LOG_EXPERIMENT,
                "[routing disturbance] deleted from routing table: %s:%s:%s / "
@@ -745,6 +629,17 @@ void __np_node_remove_from_routing(np_util_statemachine_t         *statemachine,
       log_error("deletion from routing table unsuccesful, reason unknown !!!");
     }
   }
+}
+
+void __np_node_remove_from_routing(np_util_statemachine_t         *statemachine,
+                                   NP_UNUSED const np_util_event_t event) {
+  np_ctx_memory(statemachine->_user_data);
+  log_trace_msg(LOG_TRACE, "start: void __np_node_remove_from_routing(...) {");
+
+  NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+  __np_node_remove_from_routing_leafset(statemachine, event);
+  __np_node_remove_from_routing_table(statemachine, event);
 }
 
 void __np_node_handle_completion_cleanup(void *context, np_util_event_t ev) {
@@ -769,7 +664,7 @@ void __np_node_handle_completion(np_util_statemachine_t *statemachine,
   np_generate_subject((np_subject *)&join_dhkey,
                       _NP_MSG_JOIN_REQUEST,
                       strnlen(_NP_MSG_JOIN_REQUEST, 256));
-  char hex[65];
+  // char hex[65];
   // log_msg(LOG_INFO, "hand %s\n", sodium_bin2hex(hex, 65, &hs_dhkey, 32));
   // log_msg(LOG_INFO, "join %s\n", sodium_bin2hex(hex, 65, &join_dhkey, 32));
 
@@ -893,6 +788,188 @@ void __np_node_identity_upgrade(np_util_statemachine_t *statemachine,
   }
 }
 
+void __np_node_update(np_util_statemachine_t *statemachine,
+                      const np_util_event_t   event) {
+  np_ctx_memory(statemachine->_user_data);
+  log_trace_msg(LOG_TRACE, "start: void __np_node_update(...) {");
+
+  NP_CAST(statemachine->_user_data, np_key_t, node_key);
+  np_node_t *node  = _np_key_get_node(node_key);
+  float      total = 0.0;
+
+  // calculate average ping success value
+  float old_success_avg = node->success_avg;
+  for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++) {
+    total += node->success_win[i];
+  }
+  node->success_avg = total / NP_NODE_SUCCESS_WINDOW;
+
+  // calculate average latency value
+  total                 = 0.0;
+  float old_latency_avg = node->latency;
+  for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++) {
+    total += node->latency_win[i];
+  }
+  node->latency = total / NP_NODE_SUCCESS_WINDOW;
+
+  if (node->latency != old_latency_avg ||
+      node->success_avg != old_success_avg ||
+      node->next_routing_table_update < np_time_now()) {
+    log_info(LOG_MISC | LOG_EXPERIMENT,
+             "connection status to node %.4s:%.15s:%.6s "
+             "success rate now: %1.2f (last update was %2u) "
+             "now: %1.6f (last update was %1.6fsec)",
+             _np_network_get_protocol_string(context, node->protocol),
+             node->dns_name,
+             node->port,
+             node->success_avg,
+             node->success_win[node->success_win_index],
+             node->latency,
+             node->latency_win[node->latency_win_index]);
+  }
+
+  // the node received a shuutdown event or decided to shutdown by the rules
+  // below do not furthe process
+  if (node->leave_send_at > node->join_send_at) {
+    return;
+  }
+
+  // insert into the routing table after a specific time period
+  // reason: routing is based on latency, therefore we need a stable connection
+  // before inserting
+  if (node->is_in_routing_table == false &&
+      node->success_win[node->success_win_index] == 1 &&
+      (node_key->created_at + MISC_SEND_PINGS_SEC) < np_time_now() &&
+      !FLAG_CMP(node->protocol, PASSIVE)) {
+    np_key_t  *added = NULL, *deleted = NULL;
+    np_node_t *node_1 = NULL;
+
+    _np_route_update(node_key, true, &deleted, &added);
+
+    if (added != NULL) {
+      // TODO: send an event to node_1 to remove it from the routing, otherwise
+      // we do not have the lock
+      node_1                      = _np_key_get_node(added);
+      node_1->is_in_routing_table = true;
+    }
+
+    if (deleted != NULL) {
+      // TODO: send an event to node_1 to remove it from the routing, otherwise
+      // we do not have the lock
+      node_1                      = _np_key_get_node(deleted);
+      node_1->is_in_routing_table = false;
+    }
+  }
+
+  // follow up actions
+  if ((node->success_avg > BAD_LINK) &&
+      (np_time_now() >= (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC *
+                                                  node->success_avg))) {
+    np_dhkey_t ping_dhkey = {0};
+    np_generate_subject(&ping_dhkey,
+                        _NP_MSG_PING_REQUEST,
+                        strnlen(_NP_MSG_PING_REQUEST, 256));
+
+    // issue ping messages
+    np_message_t *msg_out = NULL;
+    np_new_obj(np_message_t, msg_out, FUNC);
+    _np_message_create(msg_out,
+                       node_key->dhkey,
+                       context->my_node_key->dhkey,
+                       ping_dhkey,
+                       NULL);
+
+    log_info(LOG_ROUTING,
+             "(msg: %s) Sending internal ping event",
+             msg_out->uuid);
+
+    np_dhkey_t ping_out_dhkey =
+        _np_msgproperty_tweaked_dhkey(OUTBOUND, ping_dhkey);
+    np_util_event_t ping_event = {.type         = (evt_internal | evt_message),
+                                  .target_dhkey = node_key->dhkey,
+                                  .user_data    = msg_out};
+    _np_event_runtime_add_event(context,
+                                event.current_run,
+                                ping_out_dhkey,
+                                ping_event);
+
+    log_debug_msg(LOG_ROUTING,
+                  "submitted ping to target key %s / %p",
+                  _np_key_as_str(node_key),
+                  node_key);
+    np_unref_obj(np_message_t, msg_out, FUNC);
+  }
+
+  // there seem to be (a couple of) failure(s) to contact the peer node, remove
+  // it from the routing table if the link quality is below GOOD_LINK to have
+  // space for other nodes in the network
+  if (node->success_win[node->success_win_index] == 0 &&
+      node->is_in_routing_table == true && node->success_avg <= GOOD_LINK) {
+    __np_node_remove_from_routing_table(statemachine, event);
+  }
+
+  if ((node->success_avg > BAD_LINK) &&
+      (node->next_routing_table_update < np_time_now())) {
+    /* send one row of our routing table back to the peer node */
+    np_sll_t(np_key_ptr, sll_of_keys) = NULL;
+    sll_of_keys              = _np_route_row_lookup(context, node_key->dhkey);
+    char *source_sll_of_keys = "_np_route_row_lookup";
+
+    if (sll_size(sll_of_keys) < 1) {
+      // nothing found, send a pointer into the dht to exchange some data at
+      // least, prevents small clusters from not exchanging all data
+      np_key_unref_list(sll_of_keys,
+                        source_sll_of_keys); // only for completion
+      sll_free(np_key_ptr, sll_of_keys);
+      sll_of_keys        = _np_route_lookup(context, node_key->dhkey, 2);
+      source_sll_of_keys = "_np_route_lookup";
+    }
+
+    if (sll_size(sll_of_keys) > 0) {
+      log_debug_msg(LOG_ROUTING | LOG_DEBUG,
+                    "job submit piggyinfo to %s:%s!",
+                    node->dns_name,
+                    node->port);
+
+      np_dhkey_t piggy_dhkey = {0};
+      np_generate_subject(&piggy_dhkey,
+                          _NP_MSG_PIGGY_REQUEST,
+                          strnlen(_NP_MSG_PIGGY_REQUEST, 256));
+
+      np_tree_t *msg_body = np_tree_create();
+      _np_node_encode_multiple_to_jrb(msg_body, sll_of_keys, false);
+
+      np_message_t *msg_out = NULL;
+      np_new_obj(np_message_t, msg_out); // ref_obj_creation
+      _np_message_create(msg_out,
+                         node_key->dhkey,
+                         context->my_node_key->dhkey,
+                         piggy_dhkey,
+                         msg_body);
+
+      log_info(LOG_ROUTING,
+               "(msg: %s) Sending internal piggy event",
+               msg_out->uuid);
+
+      np_dhkey_t piggy_out_dhkey =
+          _np_msgproperty_tweaked_dhkey(OUTBOUND, piggy_dhkey);
+      np_util_event_t piggy_event = {.type = (evt_internal | evt_message),
+                                     .target_dhkey = node_key->dhkey,
+                                     .user_data    = msg_out};
+      _np_event_runtime_add_event(context,
+                                  event.current_run,
+                                  piggy_out_dhkey,
+                                  piggy_event);
+      np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+    }
+    np_key_unref_list(sll_of_keys, source_sll_of_keys);
+    sll_free(np_key_ptr, sll_of_keys);
+
+    node->next_routing_table_update =
+        np_time_now() + MISC_SEND_PIGGY_REQUESTS_SEC;
+  }
+}
+
 void __np_node_upgrade(np_util_statemachine_t *statemachine,
                        const np_util_event_t   event) {
   np_ctx_memory(statemachine->_user_data);
@@ -988,10 +1065,18 @@ void __np_node_update_token(np_util_statemachine_t *statemachine,
 
   if (node_key->entity_array[1] == NULL) {
     node_key->entity_array[1] = node_token;
-    np_ref_obj(np_aaatoken_t, node_token, "__np_node_set");
+    if (node_key->type == np_key_type_alias) {
+      np_ref_obj(np_aaatoken_t, node_token, "__np_alias_set");
+    } else {
+      np_ref_obj(np_aaatoken_t, node_token, "__np_node_set");
+    }
   }
   // TODO: add uuid check whether the two token match
   node_token->state = AAA_VALID;
+
+  if (node_key->type == np_key_type_alias) {
+    return;
+  }
 
   struct __np_node_trinity trinity = {0};
   __np_key_to_trinity(node_key, &trinity);
@@ -999,8 +1084,8 @@ void __np_node_update_token(np_util_statemachine_t *statemachine,
 
   if (session_key_is_set == true &&
       trinity.node->_joined_status < np_node_status_Connected) {
-    // send out our own join message, as we have just received the join request
-    // from the peer
+    // send out our own join message, as we have just received the join
+    // request from the peer
     np_dhkey_t join_dhkey =
         _np_msgproperty_dhkey(WIRE_FORMAT, _NP_MSG_JOIN_REQUEST);
     np_message_t *msg_out = NULL;
@@ -1028,12 +1113,12 @@ void __np_node_update_token(np_util_statemachine_t *statemachine,
         join_event);
     np_unref_obj(np_message_t, msg_out, FUNC);
 
-    log_trace_msg(
-        LOG_TRACE,
-        "start: __np_node_update_token(...) { node now (join)    : %p / %p %d",
-        node_key,
-        trinity.node,
-        trinity.node->_joined_status);
+    log_trace_msg(LOG_TRACE,
+                  "start: __np_node_update_token(...) { node now (join)    : "
+                  "%p / %p %d",
+                  node_key,
+                  trinity.node,
+                  trinity.node->_joined_status);
   }
 }
 
@@ -1062,6 +1147,21 @@ void __np_node_destroy(np_util_statemachine_t         *statemachine,
     np_unref_obj(np_aaatoken_t, node_key->entity_array[0], "__np_node_set");
 
   np_unref_obj(np_key_t, node_key, "__np_node_set");
+
+  node_key->type = np_key_type_unknown;
+}
+
+void __np_node_send_shutdown_event(np_util_statemachine_t *statemachine,
+                                   const np_util_event_t   event) {
+  np_ctx_memory(statemachine->_user_data);
+
+  NP_CAST(statemachine->_user_data, np_key_t, node_key);
+
+  np_dhkey_t      leave_dhkey  = node_key->dhkey;
+  np_util_event_t shutdown_evt = {.type         = (evt_internal | evt_shutdown),
+                                  .user_data    = NULL,
+                                  .target_dhkey = leave_dhkey};
+  _np_event_runtime_start_with_event(context, leave_dhkey, shutdown_evt);
 }
 
 void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
@@ -1106,9 +1206,11 @@ void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
 
     np_tree_free(jrb_my_node);
   }
+
   __np_node_remove_from_routing(statemachine, event);
-  log_info(LOG_KEY, "shutdown node key %s 1", _np_key_as_str(node_key));
-  node_key->type = np_key_type_unknown;
+
+  np_node_t *node     = _np_key_get_node(node_key);
+  node->leave_send_at = np_time_now();
 }
 
 void __np_create_client_network(np_util_statemachine_t         *statemachine,
@@ -1268,11 +1370,11 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
 
         _np_network_enable(new_network);
       } else {
-        log_msg(
-            LOG_WARNING,
-            "creation of client network failed, invalidating key %s (type: %d)",
-            _np_key_as_str(node_key),
-            node_key->type);
+        log_msg(LOG_WARNING,
+                "creation of client network failed, invalidating key %s "
+                "(type: %d)",
+                _np_key_as_str(node_key),
+                node_key->type);
         node_key->type = np_key_type_unknown;
       }
     }
@@ -1382,11 +1484,12 @@ void __np_node_split_message(np_util_statemachine_t *statemachine,
                 "sending    message (%s) part %" PRIu32 " to hop %s",
                 default_msg->uuid,
                 part_iter->val->part,
-                np_id_str(_buf, _np_key_as_str(node_key)));
+                _np_key_as_str(node_key));
 
       np_util_event_t send_event = event;
       send_event.user_data       = part_iter->val;
-      //_np_event_runtime_add_event(context, event.current_run, node_key->dhkey,
+      //_np_event_runtime_add_event(context, event.current_run,
+      // node_key->dhkey,
       // send_event);
       // run in same lock context
       _np_event_runtime_start_with_event(context, node_key->dhkey, send_event);
@@ -1468,7 +1571,8 @@ void __np_node_send_encrypted(np_util_statemachine_t *statemachine,
                   char tmp_hex[MSG_CHUNK_SIZE_1024*2+1] = { 0 };
                   sodium_bin2hex(tmp_hex, MSG_CHUNK_SIZE_1024*2+1, enc_buffer,
       MSG_CHUNK_SIZE_1024); log_debug(LOG_MESSAGE,
-                      "(msg: %s) appending to eventqueue (part: %"PRIu16"/%p) %p
+                      "(msg: %s) appending to eventqueue (part: %"PRIu16"/%p)
+      %p
       (%d bytes) to queue for %s:%s, hex: 0x%.5s...%s", part->uuid,
       part->part+1, part, enc_buffer, MSG_CHUNK_SIZE_1024,
       trinity.node->dns_name, trinity.node->port,tmp_hex, tmp_hex +
@@ -1673,12 +1777,20 @@ void __np_node_handle_response(np_util_statemachine_t *statemachine,
   np_node_t *node = _np_key_get_node(node_key);
 
   node->success_win_index++;
+  node->latency_win_index++;
+
   if (node->success_win_index == NP_NODE_SUCCESS_WINDOW)
     node->success_win_index = 0;
 
-  node->latency_win_index++;
   if (node->latency_win_index == NP_NODE_SUCCESS_WINDOW)
     node->latency_win_index = 0;
+
+  if (!FLAG_CMP(event.type, evt_timeout) &&
+      !FLAG_CMP(event.type, evt_response)) {
+    log_msg(LOG_INFO,
+            "unknown responsehandler called, not doing any action ...");
+    return;
+  }
 
   NP_CAST(event.user_data, np_responsecontainer_t, response);
 
@@ -1686,19 +1798,24 @@ void __np_node_handle_response(np_util_statemachine_t *statemachine,
     node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = 0;
     node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] =
         (response->expires_at - response->send_at);
-  } else if (FLAG_CMP(event.type, evt_response)) {
+  }
+
+  if (FLAG_CMP(event.type, evt_response)) {
     node->last_success = np_time_now();
     node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = 1;
+    double new_latency_value = (response->received_at - response->send_at);
     if (node->latency == -1) {
       for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++) {
-        node->latency_win[i] = (response->received_at - response->send_at);
+        node->latency_win[i] = new_latency_value;
       }
+    }
+
+    if (new_latency_value > 0.0) {
+      node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] =
+          new_latency_value;
     } else {
       node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] =
-          (response->received_at - response->send_at);
+          node->latency;
     }
-  } else {
-    log_msg(LOG_INFO,
-            "unknown responsehandler called, not doing any action ...");
   }
 }
