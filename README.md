@@ -27,25 +27,31 @@ clone the repository from https://gitlab.com/pi-lar/neuropil (development versio
 
 cd into the folder and build the code with scons.
 
-build in debug mode:
+First give the command
+	git submodule init
 
-    scons --DEBUG
+Followed by
+	git submodule update
 
-build in release mode:
+build either in debug mode with:
 
-    scons --RELEASE
+    scons -C build -f ../SConstruct --DEBUG
+
+or in release mode with:
+
+   	scons -C build -f ../SConstruct --RELEASE
 
 build the documentation (sphinx installation required):
 
-    scons doc=1
+    scons -C build -f ../SConstruct doc=1
 
 build the tests (criterion installation required):
 
-    scons tests
+    scons -C build -f ../SConstruct tests
 
-clean the project:
+clean/delete the project:
 
-    scons -c
+    scons -C build -f ../SConstruct -c
 
 
 There is also a Makefile available, but some path infos are hard coded and need to be adapted to your environment.
@@ -124,7 +130,7 @@ You can run the executables just as any executable, please have a look at the pa
 
 example 1: run the controller on port 1111
 
-	./build/neuropil/bin/neuropil_controller -b 1111
+	LD_LIBRARY_PATH=./build/neuropil/lib ./build/neuropil/bin/neuropil_controller -b 1111
 
 example 2: run a node on port 2222 and send a join message to another node:
 
