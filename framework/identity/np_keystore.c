@@ -354,8 +354,10 @@ enum np_return np_keystore_destroy(NP_UNUSED np_context *context,
 
   for (uint16_t x = 0; x < __keystore.identities_size; x++)
     free(__keystore.identities[x]);
+
   if (__keystore.identities != NULL) free(__keystore.identities);
 
+  __keystore.is_initialized = false;
   return np_ok;
 }
 

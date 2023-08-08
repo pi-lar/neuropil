@@ -218,7 +218,7 @@ void __np_switchwindow_draw(np_context *context) {
             if (line[c] < 32 || line[c] > 126) line[c] = ' ';
 
           if (y >= _current->cursor) {
-            mvwprintw(_current->win, displayedRows, 0, line);
+            mvwprintw(_current->win, displayedRows, 0, "%s", line);
             displayedRows++;
           }
           y++;
