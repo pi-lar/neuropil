@@ -28,9 +28,11 @@ clone the repository from https://gitlab.com/pi-lar/neuropil (development versio
 cd into the folder and build the code with scons.
 
 First give the command
+
 	git submodule init
 
 Followed by
+
 	git submodule update
 
 build either in debug mode with:
