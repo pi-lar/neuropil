@@ -90,11 +90,10 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
           np_message_t *msg_in_cache            = tmp->val.value.v;
           uint32_t      current_count_of_chunks = 0;
 
-          _LOCK_ACCESS(&msg_to_check->msg_chunks_lock) {
+          TSP_SCOPE(msg_to_check->msg_chunks) {
+            // get the messagepart we received
             np_messagepart_ptr to_add =
                 pll_first(msg_to_check->msg_chunks)->val;
-            // get the messagepart we received
-
             log_debug_msg(LOG_MESSAGE | LOG_DEBUG,
                           "message (%s) %p / %p / %p",
                           msg_uuid,
@@ -102,7 +101,7 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
                           msg_in_cache->msg_chunks,
                           to_add);
 
-            _LOCK_ACCESS(&msg_in_cache->msg_chunks_lock) {
+            TSP_SCOPE(msg_in_cache->msg_chunks) {
               // try to add the new received messagepart to the msg in cache
               if (pll_insert(np_messagepart_ptr,
                              msg_in_cache->msg_chunks,
@@ -195,7 +194,7 @@ np_message_t *_np_alias_check_msgpart_cache(np_state_t   *context,
   return ret;
 }
 
-void _np_alias_cleanup_msgpart_cache(np_state_t               *context,
+bool _np_alias_cleanup_msgpart_cache(np_state_t               *context,
                                      NP_UNUSED np_util_event_t event) {
   np_sll_t(np_dhkey_t, to_del);
   sll_init(np_dhkey_t, to_del);
@@ -263,6 +262,8 @@ void _np_alias_cleanup_msgpart_cache(np_state_t               *context,
           _prune_adjustment);
     }
   }
+
+  return true;
 }
 
 bool __is_alias_handshake_token(np_util_statemachine_t *statemachine,
@@ -650,20 +651,13 @@ void __np_alias_decrypt(
     const char buf[100] = "urn:np:message:toalias";
 #endif
 
-    double job_prio    = JOBQUEUE_PRIORITY_MOD_SUBMIT_ROUTE;
-    bool   is_internal = _np_message_is_internal(context, msg_in);
+    bool is_internal = _np_message_is_internal(context, msg_in);
 
-    if (is_internal) {
-      job_prio = NP_PRIORITY_MEDIUM;
-    } else {
-    }
-
-    if (!np_jobqueue_submit_event_with_prio(context,
-                                            0,
-                                            alias_key->dhkey,
-                                            in_message_evt,
-                                            buf,
-                                            job_prio)) {
+    if (!np_jobqueue_submit_event(context,
+                                  0,
+                                  alias_key->dhkey,
+                                  in_message_evt,
+                                  buf)) {
       log_warn(LOG_JOBS,
                "Jobqueue rejected new %smsg for alias %s",
                is_internal ? "internal " : "",
@@ -1058,10 +1052,15 @@ void __np_handle(np_util_statemachine_t *statemachine,
                  "handling   message (%s) for subject: %s",
                  msg_to_use->uuid,
                  buff);
-        _np_event_runtime_add_event(context,
-                                    event.current_run,
-                                    subject_dhkey_in,
-                                    msg_event);
+        np_jobqueue_submit_event(context,
+                                 0.0,
+                                 subject_dhkey_in,
+                                 msg_event,
+                                 "event: full message in");
+        // _np_event_runtime_add_event(context,
+        //                             event.current_run,
+        //                             subject_dhkey_in,
+        //                             msg_event);
       }
     } else {
       log_warn(LOG_MESSAGE,
@@ -1100,6 +1099,7 @@ void __np_handle_np_discovery(np_util_statemachine_t *statemachine,
   np_generate_subject((np_subject *)&avail_send_dhkey,
                       _NP_MSG_AVAILABLE_SENDER,
                       strnlen(_NP_MSG_AVAILABLE_SENDER, 256));
+
   bool find_receiver =
       _np_dhkey_equal(&avail_send_dhkey, &msg_subj.value.dhkey);
   bool find_sender = _np_dhkey_equal(&avail_recv_dhkey, &msg_subj.value.dhkey);
@@ -1137,10 +1137,15 @@ void __np_handle_np_discovery(np_util_statemachine_t *statemachine,
     discover_event.target_dhkey    = last_hop;
     discover_event.type            = (evt_internal | evt_message);
 
-    _np_event_runtime_add_event(context,
-                                event.current_run,
-                                discover_out_dhkey,
-                                discover_event);
+    np_jobqueue_submit_event(context,
+                             0.0,
+                             discover_out_dhkey,
+                             discover_event,
+                             "event: forward discovery");
+    // _np_event_runtime_add_event(context,
+    //                             event.current_run,
+    //                             discover_out_dhkey,
+    //                             discover_event);
   }
 
   // np_dhkey_t target_subject_dhkey = _np_msgproperty_tweaked_dhkey(INBOUND,
@@ -1265,12 +1270,16 @@ void __np_handle_np_forward(np_util_statemachine_t *statemachine,
   // set node key as target to prevent loops when forwarding
   forward_event.target_dhkey = alias_key->parent_dhkey;
   forward_event.type         = (evt_internal | evt_message);
-  _np_event_runtime_add_event(context,
-                              event.current_run,
-                              msg_handler,
-                              forward_event);
 
-  _np_increment_forwarding_counter(msg_subject_elem.value.dhkey);
+  np_jobqueue_submit_event(context,
+                           0.0,
+                           msg_handler,
+                           forward_event,
+                           "event: forward message");
+  // _np_event_runtime_add_event(context,
+  //                             event.current_run,
+  //                             msg_handler,
+  //                             forward_event);
 
 __np_cleanup__ : {}
 }

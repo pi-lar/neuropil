@@ -103,13 +103,13 @@ int main(int argc, char **argv) {
             np_get_connection_string(context));
 
     log_debug_msg(LOG_DEBUG, "starting http module");
-    _np_http_init(context, "localhost", "3114");
+    _np_http_init(context, "localhost", "31415");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
-    log_debug_msg(LOG_DEBUG, "starting file server");
-    np_files_open(context, file_seed, "");
+    log_msg(LOG_INFO, "starting file server");
+    np_files_open(context, file_seed, "", false);
 
     np_sysinfo_enable_server(context);
     np_searchnode_init(context, NULL);
@@ -128,8 +128,8 @@ int main(int argc, char **argv) {
       }
 
       if (np_get_status(context) == np_running) {
-        np_files_open(context, file_seed, "./test_data/articles");
-        // np_files_open(context, file_seed, "examples");
+        // np_files_open(context, file_seed, "./test_data/articles", true);
+        // np_files_open(context, file_seed, "examples", true);
         np_run(context, 0.5);
         // __np_example_helper_loop(context);
       }
@@ -143,12 +143,12 @@ int main(int argc, char **argv) {
         "billion dollars in February and well up from 2.88 billion dollars in "
         "January, the finance ministry said Tuesday."; //
     // "Lawyers for the Major League Baseball players' union and the commissioner's office are discussing ways to bring about a meeting between slugger Jason Giambi and doping investigator George Mitchell." \
-			// "Many voters hope efforts to reunify Cyprus will carry on whoever wins Sunday's presidential election in the Turkish-held north, despite \"pro-settlement\" leader Mehmet Ali Talat trailing in the polls."  \
-			// "President Bush's effort to limit public access to presidential records, already the subject of a federal lawsuit, came under attack from Congress Thursday when a California Republican announced he will fight it." \
-			// "A severe water shortage in Beijing has prompted the city to again hike prices, possibly by up to 20 percent, a top water official said Tuesday." \
-			// "John Edwards' decision this week to pull campaign resources in Nevada -- the same week that Barack Obama launched radio ads in the state -- reflects two difficulties for the Edwards candidacy: his lack of money and strong union backing." \
-			// "Christl Haas, the Austrian skier who won the women's downhill at the 1964 Olympics, drowned while swimming at a Mediterranean resort, the Austrian Embassy said. She was 57." \
-			// "Soccer Australia officials on Tuesday announced an Australian team to play Scotland in an international friendly match on November 15 at Glasgow, Scotland.";
+		// "Many voters hope efforts to reunify Cyprus will carry on whoever wins Sunday's presidential election in the Turkish-held north, despite \"pro-settlement\" leader Mehmet Ali Talat trailing in the polls."  \
+		// "President Bush's effort to limit public access to presidential records, already the subject of a federal lawsuit, came under attack from Congress Thursday when a California Republican announced he will fight it." \
+		// "A severe water shortage in Beijing has prompted the city to again hike prices, possibly by up to 20 percent, a top water official said Tuesday." \
+		// "John Edwards' decision this week to pull campaign resources in Nevada -- the same week that Barack Obama launched radio ads in the state -- reflects two difficulties for the Edwards candidacy: his lack of money and strong union backing." \
+		// "Christl Haas, the Austrian skier who won the women's downhill at the 1964 Olympics, drowned while swimming at a Mediterranean resort, the Austrian Embassy said. She was 57." \
+		// "Soccer Australia officials on Tuesday announced an Australian team to play Scotland in an international friendly match on November 15 at Glasgow, Scotland.";
 
     np_attributes_t  attr = {0};
     np_searchquery_t sq   = {0};
@@ -160,31 +160,41 @@ int main(int argc, char **argv) {
     np_data_value       search_val_title = {0};
     search_val_title.str                 = "";
 
-    np_tree_elem_t *tmp = NULL;
-    RB_FOREACH (tmp, np_tree_s, np_search_get_resultset(context, &sq)) {
-      np_searchresult_t *result = tmp->val.value.v;
+    np_tree_elem_t *tmp        = NULL;
+    np_tree_t      *result_set = np_tree_create();
+    if (np_search_get_resultset(context, &sq, result_set)) {
+      RB_FOREACH (tmp, np_tree_s, result_set) {
+        np_searchresult_t *result = tmp->val.value.v;
 
-      struct np_data_conf conf      = {0};
-      np_data_value       val_title = {0};
-      if (np_data_ok !=
-          np_get_data((np_datablock_t *)result->result_entry->intent.attributes,
-                      "title",
-                      &conf,
-                      &val_title)) {
-        val_title.str = "";
+        struct np_data_conf conf      = {0};
+        np_data_value       val_title = {0};
+        if (np_data_ok !=
+            np_get_data(
+                (np_datablock_t *)result->result_entry->intent.attributes,
+                "title",
+                &conf,
+                &val_title)) {
+          val_title.str = "";
+        }
+        fprintf(stdout,
+                "%5s :: %s :: %3u / %2.2f / %5s\n",
+                search_val_title.str,
+                tmp->key.value.s,
+                result->hit_counter,
+                result->level,
+                val_title.str);
       }
-      fprintf(stdout,
-              "%5s :: %s :: %3u / %2.2f / %5s\n",
-              search_val_title.str,
-              tmp->key.value.s,
-              result->hit_counter,
-              result->level,
-              val_title.str);
+    }
+    while (np_run(context, 0.5) == np_running) {
+      // np_files_open(context, file_seed, "./test_data/articles", true);
+      // np_files_open(context, file_seed, "examples", true);
+      // __np_example_helper_loop(context);
     }
 
     //////////////////////
-    np_searchnode_destroy(context);
+    // np_searchnode_destroy(context);
     np_files_close(context, file_seed);
+    np_destroy(context, false);
   }
 
   return ret;

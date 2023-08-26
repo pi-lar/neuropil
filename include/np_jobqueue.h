@@ -27,10 +27,11 @@ struct np_job_s {
   bool            is_periodic;
   np_util_event_t evt;
   np_dhkey_t      next;
-  size_t          priority;
 
+  size_t priority;
   double search_min_priority;
   double search_max_priority;
+
   double search_max_exec_not_before_tstamp;
 
   bool __del_processorFuncs;

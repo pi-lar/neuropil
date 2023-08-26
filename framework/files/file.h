@@ -57,7 +57,8 @@ void np_files_send_authorized(np_context *ac, struct np_token *token);
 // TODO: store additional attributes as fiel attributes (see xattr)
 void np_files_open(np_context *context,
                    np_id       identifier_seed,
-                   const char *dir_or_filename);
+                   const char *dir_or_filename,
+                   bool        searchable);
 
 // a callback function that can be passed to the neuropil library
 bool np_files_store_cb(np_context *context, struct np_message *msg);

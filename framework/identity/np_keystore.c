@@ -320,7 +320,8 @@ enum np_return np_keystore_init(np_context   *context,
 
     // TODO: create for each keystore_id
     np_skiplist_init(&__keystore._allowed_identities,
-                     __compare_nptoken_by_fingerprint);
+                     __compare_nptoken_by_fingerprint,
+                     NULL);
     __keystore._allowed_identities_filter =
         _np_neuropil_bloom_create(); // 512 identities
     __keystore._denied_identities_filter =
@@ -558,7 +559,8 @@ enum np_return np_keystore_load_identities(np_context *context,
   }
 
   np_skiplist_init(&__keystore._allowed_identities,
-                   __compare_nptoken_by_fingerprint);
+                   __compare_nptoken_by_fingerprint,
+                   NULL);
 
   void *current_pos = __keystore._mmap_region + cbor_size + crypto_box_MACBYTES;
   void *end_pos     = __keystore._mmap_region + full_size;

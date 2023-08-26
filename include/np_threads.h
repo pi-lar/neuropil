@@ -105,7 +105,7 @@ struct np_thread_s {
   /**
   this thread can only handle jobs up to the max_job_priority
   */
-  double max_job_priority;
+  size_t max_job_priority;
 
   bool                  _busy;
   enum np_thread_type_e thread_type;
@@ -274,18 +274,19 @@ _LOCK_ACCESS(&object->lock)
 */
 
 #define _LOCK_MODULE(TYPE)                                                     \
-  for (uint8_t _LOCK_MODULE_i##__LINE__ = 0;                                   \
-       (_LOCK_MODULE_i##__LINE__ < 1) &&                                       \
+  for (uint8_t CONCAT(_LOCK_MODULE_i_, __LINE__) = 0;                          \
+       (CONCAT(_LOCK_MODULE_i_, __LINE__) < 1) &&                              \
        0 == _np_threads_lock_module(context, TYPE##_lock, FUNC);               \
        _np_threads_unlock_module(context, TYPE##_lock),                        \
-               _LOCK_MODULE_i##__LINE__++)
+                                       CONCAT(_LOCK_MODULE_i_, __LINE__)++)
 
 #define _TRYLOCK_MODULE(TYPE)                                                  \
-  for (uint8_t _TRYLOCK_MODULE_i##LINE = 0;                                    \
-       (_TRYLOCK_MODULE_i##LINE < 1) &&                                        \
+  for (uint8_t CONCAT(_TRYLOCK_MODULE_i_, __LINE__) = 0;                       \
+       (CONCAT(_TRYLOCK_MODULE_i_, __LINE__) < 1) &&                           \
        0 == _np_threads_trylock_module(context, TYPE##_lock, FUNC);            \
        _np_threads_unlock_module(context, TYPE##_lock),                        \
-               _TRYLOCK_MODULE_i##LINE++)
+                                          CONCAT(_TRYLOCK_MODULE_i_,           \
+                                                 __LINE__)++)
 
 // protect access to a module in the rest of your code like this
 /*
@@ -346,9 +347,10 @@ int _np_spinlock_unlock(np_spinlock_t *x);
   np_spinlock_unlock(&NAME##_lock);
 
 #define TSP_SCOPE(NAME)                                                        \
-  for (uint8_t _LOCK_i##__LINE__ = 0;                                          \
-       (_LOCK_i##__LINE__ < 1) && 0 == np_spinlock_lock(&NAME##_lock);         \
-       np_spinlock_unlock(&NAME##_lock), _LOCK_i##__LINE__++)
+  for (uint8_t CONCAT(_LOCK_i_, __LINE__) = 0;                                 \
+       (CONCAT(_LOCK_i_, __LINE__) < 1) &&                                     \
+       0 == np_spinlock_lock(&NAME##_lock);                                    \
+       np_spinlock_unlock(&NAME##_lock), CONCAT(_LOCK_i_, __LINE__)++)
 
 void np_threads_busyness(np_state_t *context, np_thread_t *self, bool is_busy);
 #ifdef NP_STATISTICS_THREADS

@@ -14,6 +14,10 @@
 #include <yajl/yajl_gen.h>
 #include <yajl/yajl_parse.h>
 
+// #include "np_log.h"
+#include <yajl/yajl_gen.h>
+#include <yajl/yajl_parse.h>
+
 #include "example_helper.c"
 #include "files/file.h"
 
@@ -296,7 +300,7 @@ int main(int argc, char **argv) {
            255,
            "%s%s_%s.log",
            logpath,
-           "/neuropil_search_node",
+           "/neuropil_search_node_2",
            port);
   settings.log_level = 7U;
 
@@ -332,16 +336,20 @@ int main(int argc, char **argv) {
             np_get_connection_string(context));
 
     log_debug_msg(LOG_DEBUG, "starting http module");
-    _np_http_init(context, "localhost", "3114");
+    _np_http_init(context, "localhost", "31415");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
     log_debug_msg(LOG_DEBUG, "starting file server");
-    // np_files_open(context, file_seed, "");
+    // np_files_open(context, file_seed, "", false);
     np_sysinfo_enable_server(context);
 
-    np_searchnode_init(context);
+    log_debug_msg(LOG_DEBUG, "starting search module");
+    np_search_settings_t *search_settings = np_default_searchsettings();
+    search_settings->enable_remote_peers  = false;
+    search_settings->analytic_mode        = SEARCH_ANALYTICS_ON;
+    np_searchnode_init(context, search_settings);
     fprintf(stdout, "initialized searchnode ...\n");
 
     log_debug_msg(LOG_DEBUG, "starting job queue");
@@ -365,11 +373,15 @@ int main(int argc, char **argv) {
 
     // FILE* file = fopen("./pubmed-dataset/test.txt", "r");
     FILE *file = fopen("./pubmed-dataset/train.txt", "r");
-
+    if (file == NULL) {
+      log_msg(LOG_ERROR, "--------- could not read pubmed dataset");
+      abort();
+    }
     size_t         bufSize = 10240;
     unsigned char  fileData[bufSize];
     enum np_return np_ret = np_ok;
     size_t         rd     = 0;
+    log_msg(LOG_ERROR, "--------- started indexing of pubmed dataset");
     while (0 < (rd = fread((void *)fileData, 1, bufSize - 1, file))) {
       fileData[bufSize] = '\0';
       // fprintf(stdout, "read %u bytes\n", rd);
@@ -382,6 +394,8 @@ int main(int argc, char **argv) {
       // __np_example_helper_loop(context);
       np_run(context, 0.0);
     }
+    log_msg(LOG_ERROR, "--------- stopped indexing of pubmed dataset");
+
     // {
     if (ferror(file)) {
       fprintf(stdout, "error %s", strerror(errno));

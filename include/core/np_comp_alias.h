@@ -128,7 +128,7 @@ void __np_alias_update(np_util_statemachine_t *statemachine,
                        const np_util_event_t   event);
 
 NP_API_INTERN
-void _np_alias_cleanup_msgpart_cache(np_state_t               *context,
+bool _np_alias_cleanup_msgpart_cache(np_state_t               *context,
                                      NP_UNUSED np_util_event_t event);
 
 #ifdef __cplusplus

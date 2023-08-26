@@ -400,6 +400,7 @@ cmd = [
     "-D_NP_DO_NOT_USE_DEFAULT_H_FILES",
     # f"-I{pycparser_fake_libc.directory}",
     f"-I{os.path.join(project_root_path,'include')}",
+    f"-I{os.path.join(project_root_path,'framework')}",
     "-D__CLANG_MAX_ALIGN_T_DEFINED",
     "-DNP_PACKED(x)=",
     "-DNP_API_EXPORT=",

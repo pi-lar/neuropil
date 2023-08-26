@@ -24,7 +24,7 @@ setup ( name = 'neuropil',
         install_requires=["cffi>=1.0.0"],
         #ext_package="neuropil",
         cffi_modules=["neuropil_build.py:ffibuilder"],
-        py_modules = ["neuropil"],
+        py_modules = ["neuropil", "neuropil_search"],
         classifiers=[
            'Development Status :: 4 - Beta',
            'Environment :: Console',

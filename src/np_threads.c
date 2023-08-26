@@ -842,7 +842,7 @@ void _np_thread_t_new(NP_UNUSED np_state_t *context,
   thread->run_iterations = 0;
 #endif
 
-  thread->max_job_priority = DBL_MAX;
+  thread->max_job_priority = NP_PRIORITY_HIGHEST;
 
   char mutex_str[164];
   snprintf(mutex_str, 63, "urn:np:thread:%p:%" PRIsizet, thread, thread->id);
@@ -988,7 +988,6 @@ np_thread_t *__np_createThread(NP_UNUSED np_state_t *context,
   new_thread->thread_type      = type;
   new_thread->_busy            = false;
   new_thread->max_job_priority = NP_PRIORITY_LOWEST;
-  int r;
 
   np_spinlock_lock(&np_module(threads)->threads_lock);
   { sll_append(np_thread_ptr, np_module(threads)->threads, new_thread); }
@@ -1010,10 +1009,14 @@ void np_threads_shutdown_workers(np_state_t *context) {
   // wakeup jobqueue for cancellation of manager thread
   _np_threads_module_condition_broadcast(context, np_jobqueue_t_lock);
 
-  _np_event_invoke_in(context);
-  _np_event_invoke_out(context);
-  _np_event_invoke_file(context);
-  _np_event_invoke_http(context);
+  _np_event_reconfigure_loop_out(context);
+  // _np_event_invoke_out(context);
+  _np_event_reconfigure_loop_in(context);
+  // _np_event_invoke_in(context);
+  _np_event_reconfigure_loop_file(context);
+  // _np_event_invoke_file(context);
+  _np_event_reconfigure_loop_http(context);
+  // _np_event_invoke_http(context);
 
   while (iter_threads != NULL) {
     np_thread_t *thread = iter_threads->val;
@@ -1122,7 +1125,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
   if (pool_size > worker_threads) {
     pool_size--;
     special_thread = __np_createThread(context,
-                                       _np_event_out_run,
+                                       _np_event_out_run_triggered,
                                        true,
                                        np_thread_type_eventloop);
 #ifdef DEBUG_CALLBACKS

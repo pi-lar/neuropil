@@ -498,6 +498,9 @@ void _np_http_read_callback(struct ev_loop  *loop,
       log_msg(LOG_ERROR, "error parsing http request");
       client->ht_response.ht_status = HTTP_CODE_BAD_REQUEST;
       client->status                = RESPONSE;
+      client->ht_response.ht_header = np_tree_create();
+      client->ht_response.ht_body =
+          strndup("error parsing http request ...", 255);
     }
 
     if (PROCESSING == client->status) {

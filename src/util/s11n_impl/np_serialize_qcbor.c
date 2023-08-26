@@ -201,7 +201,8 @@ void __np_tree_deserialize_read_type(np_state_t         *context,
       value->value.tree = tree;
       value->size       = tree->size;
       log_debug_msg(LOG_SERIALIZATION | LOG_VERBOSE,
-                    "read:  buffer size for subtree %u (%hd %u)",
+                    "read:  buffer size for subtree %u (%" PRIsizet
+                    " %" PRIsizet ")",
                     value->size,
                     value->value.tree->size,
                     tree->byte_size);
@@ -492,7 +493,8 @@ void __np_tree_serialize_write_type(np_state_t         *context,
   case np_treeval_type_jrb_tree: {
     size_t buf_size = np_tree_get_byte_size(val.value.tree);
     log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-                  "write: buffer size for subtree %d (%hd %hd) %hd",
+                  "write: buffer size for subtree %d (%" PRIsizet " %" PRIsizet
+                  ") %" PRIsizet,
                   val.size,
                   val.value.tree->size,
                   val.value.tree->byte_size,
@@ -514,7 +516,7 @@ void __np_tree_serialize_write_type(np_state_t         *context,
         __np_tree_serialize_write_type(context, tmp->val, qcbor_ctx);
 
         log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-                      "known key type for serialization %hd / %hd",
+                      "known key type for serialization %" PRIsizet " / %hd",
                       qcbor_ctx->OutBuf.data_len,
                       qcbor_ctx->nesting.pCurrentNesting->uCount);
       } else {
@@ -553,7 +555,7 @@ void np_serializer_read_map(np_state_t              *context,
                                   "");
 
   log_debug_msg(LOG_INFO | LOG_SERIALIZATION,
-                " deserialization work  %" PRId32 " %" PRId16
+                " deserialization work  %" PRIsizet " %" PRIsizet
                 " items (%d / %d)",
                 buffer->_target_tree->size,
                 np_tree_get_byte_size(buffer->_target_tree),

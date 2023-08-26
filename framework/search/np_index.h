@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-struct np_index {
+struct np_index_s {
 
   // np_dhkey_t upper_dhkey;
   np_dhkey_t lower_dhkey;
@@ -41,22 +41,22 @@ struct np_index {
   bool is_final;
 };
 
-typedef struct np_index np_index_t;
+typedef struct np_index_s np_index_t;
 
 // init lsh data structure
 void np_index_init(np_index_t *index);
 void np_index_destroy(np_index_t *index);
 
-// push a new minhash entry into the np_index
+// push a new minhash entry into the np_index_s
 void np_index_update_with_dhkey(np_index_t *index, np_dhkey_t dhkey);
 void np_index_update_with_minhash(np_index_t *index, np_minhash_t *min_hash);
 
 // create the final "search" hash all pushed minhash/dhkey values
 void np_index_hash(np_index_t *index);
 
-// compare two np_index entries for adding to a table
+// compare two np_index_s entries for adding to a table
 int8_t _compare_index_entry_add(const void *old, const void *new);
-// compare two np_index entries for searching in a table
+// compare two np_index_s entries for searching in a table
 int8_t _compare_index_entry_query(const void *old, const void *new);
 
 #ifdef __cplusplus

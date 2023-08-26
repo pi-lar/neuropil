@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: OSL-3.0
 
 from neuropil import NeuropilNode, NeuropilCluster, neuropil, np_token, np_message
+from neuropil_search import NeuropilSearchCluster
 
 class TestHelper():
 
@@ -28,3 +29,9 @@ class TestHelper():
         node.set_accounting_cb(TestHelper.acc_allow_all)
         return node
 
+    @staticmethod
+    def disableAAA(search_cluster:NeuropilSearchCluster):
+        search_cluster.set_authenticate_cb(TestHelper.authn_allow_all)
+        search_cluster.set_authorize_cb(TestHelper.authz_allow_all)
+        search_cluster.set_accounting_cb(TestHelper.acc_allow_all)
+        return search_cluster

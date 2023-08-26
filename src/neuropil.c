@@ -911,13 +911,13 @@ enum np_return np_set_mx_authorize_cb(np_context      *ac,
     property->authorize_func = callback;
     ret                      = np_ok;
     log_debug(LOG_INFO,
-              "set authorization callback on subject (%08" PRIx32 ":%08" PRIx32
-              ") level",
+              "set authorization callback on inbound subject (%08" PRIx32
+              ":%08" PRIx32 ") level",
               subject_dhkey.t[0],
               subject_dhkey.t[1]);
   } else {
     log_debug(LOG_WARNING,
-              "cannot set authorization callback on subject (%08" PRIx32
+              "cannot set authorization callback on inbound subject (%08" PRIx32
               ":%08" PRIx32
               ") level, as it is already set or it doesn't exists",
               subject_dhkey.t[0],
@@ -929,17 +929,17 @@ enum np_return np_set_mx_authorize_cb(np_context      *ac,
     property->authorize_func = callback;
     ret                      = np_ok;
     log_debug(LOG_INFO,
-              "set authorization callback on subject (%08" PRIx32 ":%08" PRIx32
-              ") level",
+              "set authorization callback on outbound subject (%08" PRIx32
+              ":%08" PRIx32 ") level",
               subject_dhkey.t[0],
               subject_dhkey.t[1]);
   } else {
-    log_debug(LOG_WARNING,
-              "cannot set authorization callback on subject (%08" PRIx32
-              ":%08" PRIx32
-              ") level, as it is already set or it doesn't exists",
-              subject_dhkey.t[0],
-              subject_dhkey.t[1]);
+    log_debug(
+        LOG_WARNING,
+        "cannot set authorization callback on outbound subject (%08" PRIx32
+        ":%08" PRIx32 ") level, as it is already set or it doesn't exists",
+        subject_dhkey.t[0],
+        subject_dhkey.t[1]);
   }
 
   return ret;
@@ -1110,6 +1110,7 @@ void np_str_id(np_id(*id), const char str[65]) {
 }
 
 void np_destroy(np_context *ac, bool gracefully) {
+
   np_ctx_cast(ac);
 
   // Do not allow to call np_destroy more than one time one one context
@@ -1143,8 +1144,6 @@ void np_destroy(np_context *ac, bool gracefully) {
   _np_log_fflush(context, true);
 
   // verify all threads are stopped
-  TSP_SET(context->status, np_stopped);
-
   TSP_SET(context->status, np_shutdown);
   np_threads_shutdown_workers(context);
 

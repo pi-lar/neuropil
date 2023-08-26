@@ -331,17 +331,27 @@ int main(int argc, char **argv) {
             np_get_connection_string(context));
 
     log_debug_msg(LOG_DEBUG, "starting http module");
-    _np_http_init(context, "localhost", "3114");
+    _np_http_init(context, "localhost", "31415");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
     log_debug_msg(LOG_DEBUG, "starting file server");
-    // np_files_open(context, file_seed, "");
-    np_sysinfo_enable_server(context);
+    // np_files_open(context, file_seed, "", false);
+    np_sysinfo_enable_local(context);
+
+    np_search_settings_t *search_settings = np_default_searchsettings();
+
+    search_settings->enable_remote_peers = false;
+    search_settings->analytic_mode       = SEARCH_ANALYTICS_ON;
+    // search_settings->minhash_mode = SEARCH_MH_DD;
+    search_settings->minhash_mode = SEARCH_MH_FIX256;
+    search_settings->shingle_mode = SEARCH_1_SHINGLE;
+    // search_settings->shingle_mode = SEARCH_1_IN_2_SHINGLE;
+    // search_settings->shingle_mode = SEARCH_1_KMER;
 
     log_debug_msg(LOG_DEBUG, "starting search module");
-    np_searchnode_init(context, NULL);
+    np_searchnode_init(context, search_settings);
     fprintf(stdout, "initialized searchnode ...\n");
 
     log_debug_msg(LOG_DEBUG, "starting job queue");

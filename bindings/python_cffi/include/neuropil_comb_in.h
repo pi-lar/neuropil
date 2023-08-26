@@ -2,3 +2,4 @@
 #include "neuropil_data.h"
 #include "neuropil_attributes.h"
 #include "neuropil_log.h"
+#include "search/neuropil_search.h"

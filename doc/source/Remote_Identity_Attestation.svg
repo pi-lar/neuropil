@@ -133,11 +133,11 @@
                 <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 148px; height: 1px; padding-top: 171px; margin-left: 671px;">
                         <div style="box-sizing: border-box; font-size: 0px; text-align: center;" data-drawio-colors="color: rgba(0, 0, 0, 1); ">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">4: checks zkproof attribute</div>
+                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">4: checks ZKProof attribute</div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="745" y="175" fill="rgba(0, 0, 0, 1)" font-family="Helvetica" font-size="12px" text-anchor="middle">4: checks zkproof attribu...</text>
+                <text x="745" y="175" fill="rgba(0, 0, 0, 1)" font-family="Helvetica" font-size="12px" text-anchor="middle">4: checks ZKProof attribu...</text>
             </switch>
         </g>
         <path d="M 190 171 L 150 171 L 543.63 171" fill="none" stroke="rgba(0, 0, 0, 1)" stroke-miterlimit="10" pointer-events="stroke"/>
@@ -148,12 +148,12 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 171px; margin-left: 387px;">
                         <div style="box-sizing: border-box; font-size: 0px; text-align: center;" data-drawio-colors="color: rgba(0, 0, 0, 1); background-color: rgba(255, 255, 255, 1); ">
                             <div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; background-color: rgb(255, 255, 255); white-space: nowrap;">
-                                <div>PubSub</div>
+                                <div>Pub / Sub</div>
                             </div>
                         </div>
                     </div>
                 </foreignObject>
-                <text x="387" y="174" fill="rgba(0, 0, 0, 1)" font-family="Helvetica" font-size="11px" text-anchor="middle">PubSub</text>
+                <text x="387" y="174" fill="rgba(0, 0, 0, 1)" font-family="Helvetica" font-size="11px" text-anchor="middle">Pub / Sub</text>
             </switch>
         </g>
         <rect x="130" y="71" width="60" height="30" fill="#ffe6cc" stroke="#d79b00" pointer-events="all"/>
@@ -175,7 +175,7 @@
                 <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 188px; height: 1px; padding-top: 131px; margin-left: 41px;">
                         <div style="box-sizing: border-box; font-size: 0px; text-align: center;" data-drawio-colors="color: rgba(0, 0, 0, 1); ">
-                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">3: publish attestation w/o zkproof</div>
+                            <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">3: publish attestation w/o ZKProof</div>
                         </div>
                     </div>
                 </foreignObject>

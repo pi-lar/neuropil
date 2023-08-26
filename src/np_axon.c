@@ -148,11 +148,13 @@ __np_cleanup__:
   return ret;
 }
 
-void __np_axon_chunk_and_send(np_state_t         *context,
+bool __np_axon_chunk_and_send(np_state_t         *context,
                               np_event_runtime_t *current_run,
                               np_message_t       *msg,
                               np_dhkey_t          msg_to,
                               np_sll_t(np_dhkey_t, tmp)) {
+
+  bool ret = false;
 
   // 2: chunk the message if required
   if (msg->is_single_part == false) {
@@ -177,21 +179,22 @@ void __np_axon_chunk_and_send(np_state_t         *context,
   np_generate_subject(&_cache_msg_id, msg->uuid, NP_UUID_BYTES);
   np_generate_subject(&_cache_msg_id, &chunk_id, sizeof(uint16_t));
 
-  bool _send_before = false;
+  bool send_before = false;
   np_spinlock_lock(&context->msg_forward_filter_lock);
   {
-    _send_before =
+    send_before =
         _np_decaying_bloom_check(context->msg_forward_filter, _cache_msg_id);
-    if (!_send_before) {
+    if (!send_before) {
       _np_decaying_bloom_decay(context->msg_forward_filter);
       _np_decaying_bloom_add(context->msg_forward_filter, _cache_msg_id);
     } else {
       log_info(LOG_ROUTING,
-               "not sending message (%s) to target %s",
+               "not sending message (%s) to target %s, as msg was already send "
+               "before",
                msg->uuid,
-               np_id_str(buf, &msg_to));
+               np_id_str(buf, (const unsigned char *)&msg_to));
       np_spinlock_unlock(&context->msg_forward_filter_lock);
-      return;
+      return ret;
     }
   }
   np_spinlock_unlock(&context->msg_forward_filter_lock);
@@ -207,10 +210,15 @@ void __np_axon_chunk_and_send(np_state_t         *context,
       np_util_event_t send_event = {.type      = (evt_internal | evt_message),
                                     .user_data = msg,
                                     .target_dhkey = msg_to};
-      _np_event_runtime_add_event(context,
-                                  current_run,
-                                  key_iter->val,
-                                  send_event);
+      np_jobqueue_submit_event(context,
+                               0.0,
+                               key_iter->val,
+                               send_event,
+                               "event: message out");
+      // _np_event_runtime_add_event(context,
+      //                             current_run,
+      //                             key_iter->val,
+      //                             send_event);
       /* POSSIBLE ASYNC POINT
       char buf[100];
       snprintf(buf, 100, "urn:np:message:splitter:%s", msg->uuid);
@@ -220,13 +228,14 @@ void __np_axon_chunk_and_send(np_state_t         *context,
           );
       }
       */
+      ret = true;
     } else {
       char buf[65] = {0};
       log_info(LOG_ROUTING,
                "do not send message (%s) to hop %s as: %s %s %s",
                msg->uuid,
                np_id_str(buf, &key_iter->val),
-               _send_before ? "msg was already send;" : "",
+               send_before ? "msg was already send;" : "",
                _np_dhkey_equal(&key_iter->val, &context->my_node_key->dhkey)
                    ? "target would be me;"
                    : "",
@@ -236,6 +245,7 @@ void __np_axon_chunk_and_send(np_state_t         *context,
     }
     sll_next(key_iter);
   }
+  return ret;
 }
 
 int8_t __dhkey_compare(const np_dhkey_t left, const np_dhkey_t right) {
@@ -245,6 +255,7 @@ int8_t __dhkey_compare(const np_dhkey_t left, const np_dhkey_t right) {
 bool _np_out_forward(np_state_t *context, np_util_event_t event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_out_forward(...){");
 
+  bool ret = false;
   NP_CAST(event.user_data, np_message_t, forward_msg);
 
   // CHECK_STR_FIELD(forward_msg->header, _NP_MSG_HEADER_FROM, msg_from);
@@ -256,7 +267,7 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
         LOG_INFO,
         "--- request for forward message (%s) out, but no connections left ...",
         forward_msg->uuid);
-    return false;
+    return ret;
   }
 
   uint8_t i          = 0;
@@ -276,25 +287,38 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
     target_age -= 0.1;
   } while (sll_size(tmp) == 0 && i < 8);
 
-  if (sll_size(tmp) == 0) {
+  sll_iterator(np_dhkey_t) target_iter = sll_first(tmp);
+  while (NULL != target_iter) {
+    // remove previous hop from potential sender list
+    if (_np_dhkey_equal(&target_iter->val, &event.target_dhkey)) {
+
+#ifdef DEBUG
+      char buf[65];
+      buf[64] = '\0';
+      log_msg(LOG_DEBUG | LOG_ROUTING,
+              "discarding available message to previous hop %s",
+              np_id_str(buf, &target_iter->val));
+#endif // DEBUG
+
+      sll_delete(np_dhkey_t, tmp, target_iter);
+      break;
+    }
+    sll_next(target_iter);
+  }
+
+  if (sll_size(tmp) > 0) {
+    ret = __np_axon_chunk_and_send(context,
+                                   event.current_run,
+                                   forward_msg,
+                                   msg_to.value.dhkey,
+                                   tmp);
+    _np_increment_forwarding_counter(msg_subj.value.dhkey);
+  } else {
     log_info(
         LOG_ROUTING,
         "--- request for forward message (%s) out, but no routing found ...",
         forward_msg->uuid);
-    sll_free(np_dhkey_t, tmp);
-    return false;
-
-  } else {
-    log_info(LOG_ROUTING,
-             "--- forward message (%s) out, %d hops found ...",
-             forward_msg->uuid,
-             sll_size(tmp));
   }
-  __np_axon_chunk_and_send(context,
-                           event.current_run,
-                           forward_msg,
-                           msg_to.value.dhkey,
-                           tmp);
 
   // 4 cleanup
   sll_free(np_dhkey_t, tmp);
@@ -302,12 +326,13 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
 
 __np_cleanup__ : {}
 
-  return true;
+  return ret;
 }
 
 bool _np_out_default(np_state_t *context, np_util_event_t event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_out_default(...){");
 
+  bool ret = false;
   NP_CAST(event.user_data, np_message_t, default_msg);
 
   CHECK_STR_FIELD(default_msg->header, _NP_MSG_HEADER_TO, msg_to);
@@ -318,7 +343,7 @@ bool _np_out_default(np_state_t *context, np_util_event_t event) {
              "--- request for default message (%s)  out, but no connections "
              "left ...",
              default_msg->uuid);
-    return false;
+    return ret;
   }
 
   float target_probability  = 1.0;
@@ -337,20 +362,18 @@ bool _np_out_default(np_state_t *context, np_util_event_t event) {
     target_probability -= 0.1;
   };
 
-  if (sll_size(tmp) == 0) {
+  if (sll_size(tmp) > 0) {
+    ret = __np_axon_chunk_and_send(context,
+                                   event.current_run,
+                                   default_msg,
+                                   msg_to.value.dhkey,
+                                   tmp);
+  } else {
     log_info(
         LOG_ROUTING,
         "--- request for default message (%s) out, but no routing found ...",
         default_msg->uuid);
-    sll_free(np_dhkey_t, tmp);
-    return false;
   }
-
-  __np_axon_chunk_and_send(context,
-                           event.current_run,
-                           default_msg,
-                           msg_to.value.dhkey,
-                           tmp);
 
   // 4 cleanup
   sll_free(np_dhkey_t, tmp);
@@ -359,11 +382,13 @@ __np_cleanup__ : {}
 
   //_np_pheromone_exhale(context);
 
-  return true;
+  return ret;
 }
 
 bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_out_available_messages(...){");
+
+  bool ret = false;
 
   NP_CAST(event.user_data, np_message_t, available_msg);
   ASSERT(available_msg->header != NULL, "Header Tree has to be filled");
@@ -381,7 +406,7 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
         "--- request for available message {%s} out, but no connections "
         "left ...",
         available_msg->uuid);
-    return false;
+    return ret;
   }
 
   float original_target_age = 1.0;
@@ -431,28 +456,19 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
                   target_age);
   };
 
-  if (sll_size(tmp) == 0) {
-    log_debug_msg(
-        LOG_ROUTING,
-        "--- (msg: %s) request for available message (%s) out, but no "
-        "routing found ... find_receiver: %" PRIu8 " find_sender: %" PRIu8,
-        available_msg->uuid,
-        _msg_subj_str,
-        find_receiver,
-        find_sender);
-    sll_free(np_dhkey_t, tmp);
-    return false;
-  }
-
   sll_iterator(np_dhkey_t) target_iter = sll_first(tmp);
   while (NULL != target_iter) {
     // remove previous hop from sender list
-    char buf[65];
-    buf[64] = '\0';
     if (_np_dhkey_equal(&target_iter->val, &event.target_dhkey)) {
+
+#ifdef DEBUG
+      char buf[65];
+      buf[64] = '\0';
       log_msg(LOG_DEBUG | LOG_ROUTING,
               "discarding available message to previous hop %s",
               np_id_str(buf, &target_iter->val));
+#endif // DEBUG
+
       sll_delete(np_dhkey_t, tmp, target_iter);
       break;
     }
@@ -460,29 +476,31 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
   }
 
   if (sll_size(tmp) > 0) {
-    __np_axon_chunk_and_send(context,
-                             event.current_run,
-                             available_msg,
-                             msg_to.value.dhkey,
-                             tmp);
+    ret = __np_axon_chunk_and_send(context,
+                                   event.current_run,
+                                   available_msg,
+                                   msg_to.value.dhkey,
+                                   tmp);
   }
-  sll_free(np_dhkey_t, tmp);
 
+  sll_free(np_dhkey_t, tmp);
   _np_pheromone_exhale(context);
 
 __np_cleanup__ : {}
 
-  return true;
+  return ret;
 }
 
 bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
   log_trace_msg(LOG_TRACE, "start: bool _np_out_pheromone(...) {");
 
+  bool ret = false;
+
   if (!_np_route_my_key_has_connection(context)) {
     log_msg(LOG_WARNING,
             "--- request for pheromone update message out, but no connections "
             "left ...");
-    return false;
+    return ret;
   }
 
   NP_CAST(msg_event.user_data, np_message_t, pheromone_msg_out);
@@ -502,11 +520,11 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
   if (is_generic_direction) {
     // lookup based on 2: leafset excluded
     tmp = _np_route_lookup(context, msg_event.target_dhkey, 2);
-    if (sll_size(tmp) == 0) {
-      sll_free(np_key_ptr, tmp);
-      // lookup based on 1: leafset included
-      tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
-    }
+    // if (sll_size(tmp) == 0) {
+    //   sll_free(np_key_ptr, tmp);
+    //   // lookup based on 1: leafset included
+    //   tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
+    // }
     if (sll_size(tmp) > 0)
       sll_append(np_dhkey_t, tmp_dhkeys, sll_first(tmp)->val->dhkey);
 
@@ -523,11 +541,11 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
 
   if (sll_size(tmp_dhkeys) > 0) {
     // only send if a target has been found
-    __np_axon_chunk_and_send(context,
-                             msg_event.current_run,
-                             pheromone_msg_out,
-                             msg_event.target_dhkey,
-                             tmp_dhkeys);
+    ret = __np_axon_chunk_and_send(context,
+                                   msg_event.current_run,
+                                   pheromone_msg_out,
+                                   msg_event.target_dhkey,
+                                   tmp_dhkeys);
   }
 
   _np_pheromone_exhale(context);
@@ -539,7 +557,7 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
 
 __np_cleanup__ : {}
 
-  return true;
+  return ret;
 }
 
 /**
@@ -551,6 +569,7 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
                 "start: bool _np_send_ack(np_state_t* context, np_util_event_t "
                 "msg_event){");
 
+  bool ret = false;
   NP_CAST(event.user_data, np_message_t, ack_msg);
 
   CHECK_STR_FIELD(ack_msg->header,
@@ -563,7 +582,7 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
   if (!_np_route_my_key_has_connection(context)) {
     log_msg(LOG_INFO,
             "--- request for forward message out, but no connections left ...");
-    return false;
+    return ret;
   }
 
   float target_age          = 1.0;
@@ -595,24 +614,22 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
     }
   }
 
-  if (sll_size(tmp) == 0) { // exit early if no routing has been found
+  if (sll_size(tmp) >= 0) { // exit early if no routing has been found
+    ret = __np_axon_chunk_and_send(context,
+                                   event.current_run,
+                                   ack_msg,
+                                   msg_to.value.dhkey,
+                                   tmp);
+  } else {
     log_info(LOG_ROUTING,
              "--- request for ack message out, but no routing found ...");
-    sll_free(np_dhkey_t, tmp);
-    return false;
   }
-
-  __np_axon_chunk_and_send(context,
-                           event.current_run,
-                           ack_msg,
-                           msg_to.value.dhkey,
-                           tmp);
 
   sll_free(np_dhkey_t, tmp);
 
 __np_cleanup__ : {}
 
-  return true;
+  return ret;
 }
 
 bool _np_out_ping(np_state_t *context, const np_util_event_t event) {
@@ -630,7 +647,7 @@ bool _np_out_ping(np_state_t *context, const np_util_event_t event) {
   _np_message_add_response_handler(ping_msg, event, true);
 
   // 3: send over the message parts
-  _LOCK_ACCESS(&ping_msg->msg_chunks_lock) {
+  TSP_SCOPE(ping_msg->msg_chunks) {
     pll_iterator(np_messagepart_ptr) iter = pll_first(ping_msg->msg_chunks);
     while (NULL != iter) {
       memcpy(iter->val->uuid, ping_msg->uuid, NP_UUID_BYTES);
@@ -662,7 +679,7 @@ bool _np_out_piggy(np_state_t *context, const np_util_event_t event) {
   _np_message_serialize_chunked(context, piggy_msg);
 
   // 3: send over the message parts
-  _LOCK_ACCESS(&piggy_msg->msg_chunks_lock) {
+  TSP_SCOPE(piggy_msg->msg_chunks) {
     pll_iterator(np_messagepart_ptr) iter = pll_first(piggy_msg->msg_chunks);
     while (NULL != iter) {
 #ifdef DEBUG
@@ -738,7 +755,7 @@ bool _np_out_update(np_state_t *context, const np_util_event_t event) {
   _np_message_serialize_chunked(context, update_msg);
 
   // 5: send over the message parts
-  _LOCK_ACCESS(&update_msg->msg_chunks_lock) {
+  TSP_SCOPE(update_msg->msg_chunks) {
     pll_iterator(np_messagepart_ptr) iter = pll_first(update_msg->msg_chunks);
     while (NULL != iter) {
       log_debug_msg(LOG_ROUTING,
@@ -774,7 +791,7 @@ bool _np_out_leave(np_state_t *context, const np_util_event_t event) {
   _np_message_serialize_chunked(context, leave_msg);
 
   // 3: send over the message parts
-  _LOCK_ACCESS(&leave_msg->msg_chunks_lock) {
+  TSP_SCOPE(leave_msg->msg_chunks) {
     pll_iterator(np_messagepart_ptr) iter = pll_first(leave_msg->msg_chunks);
 
     while (NULL != iter) {
@@ -849,7 +866,7 @@ bool _np_out_join(np_state_t *context, const np_util_event_t event) {
     np_unref_obj(np_key_t, target_key, "_np_keycache_find");
   }
 #endif // DEBUG
-  _LOCK_ACCESS(&join_msg->msg_chunks_lock) {
+  TSP_SCOPE(join_msg->msg_chunks) {
     pll_iterator(np_messagepart_ptr) iter = pll_first(join_msg->msg_chunks);
     while (NULL != iter) {
       memcpy(iter->val->uuid, join_msg->uuid, NP_UUID_BYTES);
@@ -919,7 +936,7 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
                     target_node->dns_name,
                     target_node->port);
 
-      _LOCK_ACCESS(&hs_message->msg_chunks_lock) {
+      TSP_SCOPE(hs_message->msg_chunks) {
         pll_iterator(np_messagepart_ptr) iter =
             pll_first(hs_message->msg_chunks);
         np_ref_obj(np_messagepart_t, iter->val, FUNC);

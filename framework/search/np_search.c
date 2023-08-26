@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "http/urldecode.h"
 #include "parson/parson.h"
@@ -33,24 +34,67 @@
 #include "np_key.h"
 #include "np_legacy.h"
 #include "np_log.h"
+#include "np_message.h"
 #include "np_search_mxproperties.c"
 #include "np_threads.h"
 #include "np_token_factory.h"
 
+// a searchnode is capable to hold several (well, ehm, thousends ...) search
+// entries. the node_id is the main virtual rendezvous point for other peers to
+// route search entries. the tree will hold the different entries based on their
+// hamming distance to the search_index. we use eight search trees to
+// accommodate for the internal structure of the 256 bit search index. in our
+// first implementation we use a bktree because the algorithm is very
+// simplistic, but could be replaced with a structure having better hamming
+// distance metrics (vantage tree?). in peers we collect other search nodes that
+// have announced their own id to the other search participants
+struct np_searchnode_s {
+  np_dhkey_t node_id;
+
+  uint16_t     local_table_count;
+  np_bktree_t *tree[BKTREE_ARRAY_SIZE];
+
+  uint16_t   remote_peer_count;
+  np_dhkey_t peers[8][32]; // could be extended with additional third [128] in
+                           // the future
+  uint8_t min_distance; // derived internally from the distance calculation of
+                        // the peer table
+
+  np_tree_t        *results[UINT8_MAX];
+  np_searchquery_t *queries[UINT8_MAX];
+};
+typedef struct np_searchnode_s np_searchnode_t;
+
 np_module_struct(search) {
-  np_state_t     *context;    // the context
-  np_searchnode_t searchnode; // the searchnode structure
-  uint8_t         query_id; // a global counter of search queries of this nodes
+  np_state_t          *context;    // the context
+  np_search_settings_t searchcfg;  // store settings for later use
+  np_searchnode_t      searchnode; // the searchnode structure
+  uint8_t    query_id;    // a global counter of search queries of this nodes
   np_bloom_t peer_filter; // a counting bloom filter to check whether a peer has
                           // already been added
   np_tree_t
       pipeline_results; // pipelines in the meaning of callbacks, used to store
                         // intermediate results for queries / entries / ...
+
+  bool          on_shutdown_route;
   np_spinlock_t results_lock[UINT8_MAX];
   np_spinlock_t table_lock[BKTREE_ARRAY_SIZE];
   np_spinlock_t peer_lock[8 + 1];
   np_spinlock_t pipeline_lock;
 };
+
+bool _np_new_searchentry_cb(np_context               *ac,
+                            const np_message_t *const msg,
+                            np_tree_t                *body,
+                            void                     *localdata);
+bool _np_new_searchquery_cb(np_context               *ac,
+                            const np_message_t *const msg,
+                            np_tree_t                *body,
+                            void                     *localdata);
+bool _np_searchresult_receive_cb(np_context               *ac,
+                                 const np_message_t *const msg,
+                                 np_tree_t                *body,
+                                 void                     *localdata);
 
 struct search_pipeline_result {
 
@@ -69,14 +113,21 @@ struct search_pipeline_result {
   } obj;
 };
 
-static char       *__text_delimiter = " ,!'.\"-_[]{}/";
-static const char *SEARCH_PEERID    = "np:search:peerid";
-static const char *SEARCH_RESULTID  = "np:search:resultidx";
+static char       *__text_delimiter       = " ,!'.\"-_[]{}/";
+static const char *SEARCH_PEERID          = "np:search:peerid";
+static const char *SEARCH_PEERTYPE        = "np:search:type";
+static const char *SEARCH_RESULTID        = "np:search:resultidx";
+static const char *SEARCH_PEERTYPE_HYBRID = "np:search:type:hybrid";
+static const char *SEARCH_PEERTYPE_SERVER = "np:search:type:server";
+static const char *SEARCH_PEERTYPE_CLIENT = "np:search:type:client";
 
 static const uint16_t NP_SEARCH_CLEANUP_INTERVAL = NP_SEARCH_RESULT_REFRESH_TTL;
 
 bool __np_search_cleanup_pipeline(np_state_t               *context,
                                   NP_UNUSED np_util_event_t args) {
+
+  if (np_module(search)->on_shutdown_route == true) return true;
+
   np_tree_t      *pipeline_results = &np_module(search)->pipeline_results;
   np_tree_elem_t *tmp              = NULL;
 
@@ -90,6 +141,8 @@ bool __np_search_cleanup_pipeline(np_state_t               *context,
     }
   }
   np_spinlock_unlock(&np_module(search)->pipeline_lock);
+
+  return true;
 }
 
 // map reduce algorithms or parts of those
@@ -149,6 +202,8 @@ bool _deprecate_reduce_func(np_map_reduce_t *mr_struct, const void *element) {
 bool __np_search_deprecate_entries(np_state_t               *context,
                                    NP_UNUSED np_util_event_t args) {
   np_bktree_t *search_tree = NULL;
+
+  if (np_module(search)->on_shutdown_route == true) return true;
 
   np_dhkey_t _random_dhkey = {0};
   randombytes_buf(&_random_dhkey, NP_FINGERPRINT_BYTES);
@@ -228,6 +283,28 @@ void __lower_case(char *str, uint8_t strlen) {
   for (int i = 0; i < strlen; i++) {
     str[i] = tolower(str[i]);
   }
+}
+
+void __map_peer_to_subject_mask(
+    const char                       *new_peer_type,
+    enum np_required_search_subjects *peer_subject_mask) {
+  if (0 == strncmp(new_peer_type, SEARCH_PEERTYPE_HYBRID, 22))
+    *peer_subject_mask = HYBRID_NODE_PROSUMER;
+  if (0 == strncmp(new_peer_type, SEARCH_PEERTYPE_SERVER, 22))
+    *peer_subject_mask = SERVER_NODE_PROVIDER;
+  if (0 == strncmp(new_peer_type, SEARCH_PEERTYPE_CLIENT, 22))
+    *peer_subject_mask = CLIENT_NODE_PROVIDER;
+}
+
+void __map_self_to_subject_mask(
+    const char                       *new_peer_type,
+    enum np_required_search_subjects *peer_subject_mask) {
+  if (0 == strncmp(new_peer_type, SEARCH_PEERTYPE_HYBRID, 22))
+    *peer_subject_mask = HYBRID_NODE_PROSUMER;
+  if (0 == strncmp(new_peer_type, SEARCH_PEERTYPE_SERVER, 22))
+    *peer_subject_mask = SERVER_NODE_CONSUMER;
+  if (0 == strncmp(new_peer_type, SEARCH_PEERTYPE_CLIENT, 22))
+    *peer_subject_mask = CLIENT_NODE_CONSUMER;
 }
 
 // map reduce algorithms or parts of those
@@ -361,7 +438,7 @@ bool __np_search_authorize_entries_cb(np_context      *ac,
   //                 intent_token->public_key[4], intent_token->public_key[5]);
 
   log_msg(LOG_INFO,
-          "authz grant %s for %02x%02x%02x%02x%02x%02x : "
+          "search authz grant %s for %02x%02x%02x%02x%02x%02x : "
           "%02x%02x%02x%02x%02x%02x ...",
           intent_token->subject,
           intent_token->issuer[0],
@@ -440,8 +517,11 @@ bool __np_search_authorize_node_cb(np_context      *ac,
   struct np_data_conf  conf     = {0};
   struct np_data_conf *conf_ptr = &conf;
 
-  np_dhkey_t     new_peer_dhkey = {0};
-  unsigned char *bin_data       = NULL;
+  enum np_required_search_subjects peer_subject_mask;
+
+  np_dhkey_t     new_peer_dhkey    = {0};
+  char           new_peer_type[22] = {0};
+  unsigned char *bin_data          = NULL;
   // np_id new_peer_id = NULL;
   // log_msg(LOG_DEBUG,  "authz request %s from %02X%02X%02X%02X%02X%02X :
   // %02X%02X%02X%02X%02X%02X ...",
@@ -459,13 +539,28 @@ bool __np_search_authorize_node_cb(np_context      *ac,
                                           &bin_data)) {
     return false;
   }
-
   memcpy(&new_peer_dhkey, bin_data, NP_FINGERPRINT_BYTES);
 
   if (_np_dhkey_equal(&new_peer_dhkey, &searchnode->node_id) ||
       _np_dhkey_equal(&new_peer_dhkey, &_zero)) {
     return false;
   }
+
+  if (np_data_ok != np_get_token_attr_bin(intent_token,
+                                          SEARCH_PEERTYPE,
+                                          &conf_ptr,
+                                          &bin_data)) {
+    return false;
+  }
+  memcpy(new_peer_type, bin_data, conf_ptr->data_size);
+  new_peer_type[conf_ptr->data_size] = '\0';
+  __map_peer_to_subject_mask(new_peer_type, &peer_subject_mask);
+  // if (!FLAG_CMP(peer_subject_mask, SEARCH_SUBJECT_ENTRY) ||
+  //     !FLAG_CMP(peer_subject_mask, SEARCH_SUBJECT_QUERY) ||
+  //     !FLAG_CMP(peer_subject_mask, SEARCH_SUBJECT_RESULT))
+  // {
+  //   return false;
+  // }
 
   np_spinlock_lock(&np_module(search)->peer_lock[8]);
   if (np_module(search)->peer_filter.op.check_cb(
@@ -552,7 +647,7 @@ bool __np_search_authorize_node_cb(np_context      *ac,
     if (not_subscribed && ((dh_diff_old > dh_diff_new) || is_zero)) {
       // search internal message types
       np_sll_t(np_msgproperty_conf_ptr, msgproperties);
-      msgproperties = search_peer_msgproperties(context);
+      msgproperties = search_peer_msgproperties(context, peer_subject_mask);
       sll_iterator(np_msgproperty_conf_ptr) __np_search_messages =
           sll_first(msgproperties);
       while (__np_search_messages != NULL) {
@@ -572,7 +667,6 @@ bool __np_search_authorize_node_cb(np_context      *ac,
         np_id_str(property->msg_subject, &property->subject_dhkey);
 
         np_msgproperty_register(property);
-
         np_set_mx_authorize_cb(context,
                                &property->subject_dhkey,
                                __np_search_authorize_entries_cb);
@@ -644,7 +738,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
     }
 
     char *search_string = urlDecode(query_elem->val.value.s);
-    log_msg(LOG_DEBUG, "searching for: %s", search_string);
+    log_msg(LOG_DEBUG, "searching for: ## %s ##\n", search_string);
 
     clock_t start_time;
     clock_t query_stop_time;
@@ -654,10 +748,12 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
     np_searchquery_t sq   = {0};
     np_attributes_t  attr = {0};
     if (np_create_searchquery(context, &sq, search_string, &attr)) {
+      sq.target_similarity = 0.75; // TODO: replace with query argument
       np_search_query(context, &sq);
+
       query_stop_time = clock();
       // wait for external replies
-      np_time_sleep(0.250);
+      np_time_sleep(0.500);
       struct search_pipeline_result *pipeline = NULL;
       np_spinlock_lock(&np_module(search)->pipeline_lock);
       {
@@ -678,7 +774,6 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
         http_status = HTTP_CODE_NO_CONTENT;
         goto __json_return__;
       }
-
       np_tree_insert_str(ht_response->ht_header,
                          "Content-Type",
                          np_treeval_new_s("application/json"));
@@ -823,7 +918,9 @@ bool __np_search_query(np_context               *ac,
 
   mr.map_args.io       = &query->query_entry;
   mr.map_args.kv_pairs = np_tree_create();
-  np_tree_insert_int(mr.map_args.kv_pairs, 1, np_treeval_new_f(0.5));
+  np_tree_insert_int(mr.map_args.kv_pairs,
+                     1,
+                     np_treeval_new_f(query->target_similarity));
   sll_init(void_ptr, mr.map_result);
 
   if (!_np_dhkey_equal(&pipeline->sending_peer_dhkey,
@@ -1199,8 +1296,8 @@ bool __check_remote_peer_distribution(np_context               *ac,
         &pipeline->search_index,
         &np_module(search)->searchnode.peers[j][local_index]);
 
-    int8_t index = peer_diff_index.t[j];
-    int8_t delta = local_diff_index.t[j] - peer_diff_index.t[j];
+    int32_t index = peer_diff_index.t[j];
+    int32_t delta = local_diff_index.t[j] - peer_diff_index.t[j];
 
     log_msg(LOG_DEBUG,
             "%2d local distance %3d | peer distance %3d | %3d |",
@@ -1242,45 +1339,62 @@ bool __check_remote_peer_distribution(np_context               *ac,
                           &np_module(search)->searchnode.peers[j][best_index],
                           NP_FINGERPRINT_BYTES);
 
-      np_dhkey_t target_dhkey =
+      np_dhkey_t out_dhkey =
           _np_msgproperty_tweaked_dhkey(OUTBOUND, localized_subject);
+      np_msgproperty_run_t *out_property =
+          _np_msgproperty_run_get(context, OUTBOUND, localized_subject);
 
-      np_message_t *cloned_msg = NULL;
-      np_new_obj(np_message_t, cloned_msg, FUNC);
-      np_message_clone(cloned_msg, msg);
+      if (out_property) {
+        np_message_t *cloned_msg = NULL;
+        np_new_obj(np_message_t, cloned_msg, FUNC);
+        np_message_clone(cloned_msg, msg);
+        np_tree_replace_str(cloned_msg->header,
+                            _NP_MSG_HEADER_SUBJECT,
+                            np_treeval_new_dhkey(localized_subject));
+        np_tree_replace_str(cloned_msg->header,
+                            _NP_MSG_HEADER_TO,
+                            np_treeval_new_dhkey(out_property->current_fp));
 
-      np_tree_replace_str(cloned_msg->header,
-                          _NP_MSG_HEADER_SUBJECT,
-                          np_treeval_new_dhkey(localized_subject));
-      // np_tree_replace_str(cloned_msg->header,
-      //                     _NP_MSG_HEADER_FROM,
-      //                     np_treeval_new_dhkey(context->my_node_key->dhkey));
+        np_tree_replace_str(
+            cloned_msg->header,
+            _NP_MSG_HEADER_FROM,
+            np_treeval_new_dhkey(np_module(search)->searchnode.node_id));
 
-      np_util_event_t send_event = {.type      = (evt_internal | evt_message),
-                                    .user_data = cloned_msg,
-                                    .target_dhkey = dhkey_zero};
-      // _np_keycache_handle_event(context, subject_dhkey, send_event, false);
-      if (!np_jobqueue_submit_event(
-              context,
-              0.0,
-              target_dhkey,
-              send_event,
-              "event: userspace message delivery request")) {
-        log_msg(LOG_DEBUG,
-                "rejecting possible sending of message, please check jobqueue "
-                "settings!");
+        np_util_event_t send_event = {.type      = (evt_internal | evt_message),
+                                      .user_data = cloned_msg,
+                                      .target_dhkey = out_property->current_fp};
+
+        // _np_keycache_handle_event(context, subject_dhkey, send_event, false);
+        if (!np_jobqueue_submit_event(
+                context,
+                0.0,
+                out_dhkey,
+                send_event,
+                "event: userspace message delivery request")) {
+          log_msg(
+              LOG_DEBUG,
+              "rejecting possible sending of message, please check jobqueue "
+              "settings!");
+        } else {
+          char tmp[65];
+          np_id_str(tmp, &localized_subject);
+          log_msg(LOG_DEBUG,
+                  "send new search object to peer: %" PRIx32
+                  " via channel %s (%s)",
+                  np_module(search)->searchnode.peers[j][best_index].t[0],
+                  tmp,
+                  msg->uuid);
+        }
+        np_unref_obj(np_message_t, cloned_msg, FUNC);
+        pipeline->remote_distribution_count++;
       } else {
-        char tmp[65];
-        np_id_str(tmp, &localized_subject);
-        log_msg(LOG_DEBUG,
-                "send new search object to peer: %" PRIx32
-                " via channel %s (%s)",
-                np_module(search)->searchnode.peers[j][best_index].t[0],
-                tmp,
-                msg->uuid);
+        char temp[65] = {0};
+        log_warn(LOG_WARNING,
+                 "runtime property not found for index %" PRId16
+                 " and subject %s",
+                 best_index,
+                 np_id_str(temp, &localized_subject));
       }
-      np_unref_obj(np_message_t, cloned_msg, FUNC);
-      pipeline->remote_distribution_count++;
     }
 
     np_spinlock_unlock(&np_module(search)->peer_lock[j]);
@@ -1298,11 +1412,16 @@ bool _np_searchnode_announce_cb(np_context        *context,
 np_search_settings_t *np_default_searchsettings() {
   np_search_settings_t *settings = calloc(1, sizeof(np_search_settings_t));
   settings->enable_remote_peers  = true;
-  settings->local_table_count    = 16;
-  settings->local_table_count    = BKTREE_ARRAY_SIZE;
+  // settings->local_table_count    = 16;
+  settings->local_table_count = BKTREE_ARRAY_SIZE;
+  settings->node_type         = SEARCH_NODE_SERVER;
 
   memset(settings->search_space, 0, NP_FINGERPRINT_BYTES);
 
+  settings->minhash_mode      = SEARCH_MH_FIX256;
+  settings->analytic_mode     = SEARCH_ANALYTICS_OFF;
+  settings->shingle_mode      = SEARCH_1_SHINGLE;
+  settings->target_similarity = 0.75;
   // add more file specific settings
 
   return settings;
@@ -1314,24 +1433,32 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
 
   if (np_module_not_initiated(search)) {
     np_module_malloc(search);
-    np_module(search)->query_id = 0;
-
+    np_module(search)->query_id          = 0;
+    np_module(search)->on_shutdown_route = false;
     // np_module(search)->pipeline_results = np_tree_create();
     // np_module(search)->pipeline_results = np_tree_create();
 
-    if (settings)
+    if (settings) {
       np_module(search)->searchnode.local_table_count =
           settings->local_table_count;
-    else np_module(search)->searchnode.local_table_count = BKTREE_ARRAY_SIZE;
-
+      memcpy(&np_module(search)->searchcfg,
+             settings,
+             sizeof(np_search_settings_t));
+    } else {
+      settings = np_default_searchsettings();
+      memcpy(&np_module(search)->searchcfg,
+             settings,
+             sizeof(np_search_settings_t));
+      free(settings);
+    }
     randombytes_buf(&np_module(search)->searchnode.node_id,
                     NP_FINGERPRINT_BYTES);
 
-    for (uint8_t i = 0; i < UINT8_MAX; i++)
+    for (uint16_t i = 0; i < UINT8_MAX; i++)
       np_spinlock_init(&np_module(search)->results_lock[i],
                        PTHREAD_PROCESS_PRIVATE);
 
-    for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
+    for (uint16_t i = 0; i < np_module(search)->searchcfg.local_table_count;
          i++)
       np_spinlock_init(&np_module(search)->table_lock[i],
                        PTHREAD_PROCESS_PRIVATE);
@@ -1347,7 +1474,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
     np_id_str(_tmp, &np_module(search)->searchnode.node_id);
     log_msg(LOG_INFO, "starting up searchnode, peer id is: %s", _tmp);
 
-    for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
+    for (uint16_t i = 0; i < np_module(search)->searchcfg.local_table_count;
          i++) {
       np_dhkey_t seed = {0};
       randombytes_buf(&seed, sizeof(np_dhkey_t));
@@ -1362,7 +1489,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
            0,
            UINT8_MAX * sizeof(np_searchquery_t *));
 
-    if (settings == NULL || settings->enable_remote_peers == true) {
+    if (np_module(search)->searchcfg.enable_remote_peers == true) {
       memset(np_module(search)->searchnode.peers,
              0,
              sizeof(np_module(search)->searchnode.peers));
@@ -1374,13 +1501,36 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
                                 SEARCH_PEERID,
                                 &np_module(search)->searchnode.node_id,
                                 NP_FINGERPRINT_BYTES)) {
-        log_msg(LOG_DEBUG,
+        log_msg(LOG_WARNING,
+                "could not set search peer id to context / intent messages");
+      }
+
+      char *peer_type = NULL;
+      if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_SERVER))
+        peer_type = SEARCH_PEERTYPE_SERVER;
+      if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_CLIENT))
+        peer_type = SEARCH_PEERTYPE_CLIENT;
+
+      if (np_data_ok !=
+          np_set_ident_attr_bin(ac,
+                                NULL,
+                                NP_ATTR_INTENT_AND_IDENTITY,
+                                SEARCH_PEERTYPE,
+                                peer_type,
+                                strnlen(SEARCH_PEERTYPE_HYBRID, 255))) {
+        log_msg(LOG_WARNING,
                 "could not set search peer id to context / intent messages");
       }
 
       // search internal message types
       np_sll_t(np_msgproperty_conf_ptr, msgproperties);
-      msgproperties = default_search_msgproperties(context);
+
+      enum np_required_search_subjects required_subjects =
+          (SEARCH_NODE | SERVER_NODE_PROVIDER);
+      if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_CLIENT))
+        required_subjects = (SEARCH_NODE | CLIENT_NODE_PROVIDER);
+
+      msgproperties = search_msgproperties(context, required_subjects);
       sll_iterator(np_msgproperty_conf_ptr) __np_search_messages =
           sll_first(msgproperties);
 
@@ -1392,26 +1542,23 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
         // np_generate_subject(&property->subject_dhkey, property->msg_subject,
         // strnlen(property->msg_subject, 256));
 
-        if (property->audience_type ==
-            NP_MX_AUD_PRIVATE) { // seed the private subject with the peer id to
-                                 // disguise/localize the interface
+        if (property->audience_type == NP_MX_AUD_PRIVATE) {
+          // seed the private subject with the peer id to
+          // disguise/localize the interface
           np_generate_subject(&property->subject_dhkey,
                               property->msg_subject,
                               strnlen(property->msg_subject, 256));
           np_generate_subject(&property->subject_dhkey,
                               &np_module(search)->searchnode.node_id,
                               NP_FINGERPRINT_BYTES);
-        } else if (settings) { // seed the initial discovery subject with the
-                               // search space from the settings (create a
-                               // private sub-space for searching)
-          memcpy(&property->subject_dhkey,
-                 settings->search_space,
-                 NP_FINGERPRINT_BYTES);
-          np_generate_subject(&property->subject_dhkey,
-                              property->msg_subject,
-                              strnlen(property->msg_subject, 256));
         } else { // use the default search space (whoever defined it), so
                  // everybody can discover and use our search peer
+          memcpy(
+              &property->subject_dhkey, // seed with search space
+              np_module(search)
+                  ->searchcfg
+                  .search_space, // default search space is initialized with 0
+              NP_FINGERPRINT_BYTES);
           np_generate_subject(&property->subject_dhkey,
                               property->msg_subject,
                               strnlen(property->msg_subject, 256));
@@ -1419,7 +1566,6 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
 
         property->msg_subject = calloc(65, sizeof(char));
         np_id_str(property->msg_subject, &property->subject_dhkey);
-
         np_id_str(_tmp, &np_module(search)->searchnode.node_id);
         log_msg(LOG_INFO,
                 "adding peer search subject %s, peer id is %s / %s",
@@ -1506,164 +1652,18 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
                                       __np_search_cleanup_pipeline,
                                       "__np_search_cleanup_pipeline");
 
-    np_jobqueue_submit_event_periodic(context,
-                                      PRIORITY_MOD_USER_DEFAULT,
-                                      NP_SEARCH_CLEANUP_INTERVAL,
-                                      NP_SEARCH_CLEANUP_INTERVAL,
-                                      __np_search_deprecate_entries,
-                                      "__np_search_deprecate_entries");
-  }
-
-  // log_msg(LOG_DEBUG,  "pipeline_results %p->%p", context,
-  // &np_module(search)->pipeline_results);
-
-  if (np_module_initiated(http)) {
-    _np_add_http_callback(ac,
-                          "search",
-                          htp_method_GET,
-                          context,
-                          __np_search_handle_http_get);
-  }
-
-  np_add_shutdown_cb(ac, _np_search_shutdown_hook);
-  // log_msg(LOG_DEBUG,  "pipeline_results %p->%p", context,
-  // &np_module(search)->pipeline_results);
-}
-
-void np_searchclient_init(np_context *ac) {
-  np_ctx_cast(ac);
-
-  if (np_module_not_initiated(search)) {
-    np_module_malloc(search);
-    np_module(search)->query_id = 0;
-    // np_module(search)->pipeline_results = np_tree_create();
-
-    np_module(search)->searchnode.local_table_count = BKTREE_ARRAY_SIZE;
-    randombytes_buf(&np_module(search)->searchnode.node_id,
-                    NP_FINGERPRINT_BYTES);
-
-    for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
-         i++) {
-      np_dhkey_t seed = {0};
-      randombytes_buf(&seed, sizeof(np_dhkey_t));
-      np_module(search)->searchnode.tree[i] = malloc(sizeof(np_bktree_t));
-      np_bktree_init(np_module(search)->searchnode.tree[i], seed, 10);
-
-      memset(np_module(search)->searchnode.results,
-             0,
-             UINT8_MAX * sizeof(np_searchresult_t));
-      memset(np_module(search)->searchnode.queries,
-             0,
-             UINT8_MAX * sizeof(np_searchquery_t));
-      // np_bktree_init(__my_searchresults.entries[i], seed, 10);
+    if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_SERVER)) {
+      np_jobqueue_submit_event_periodic(context,
+                                        PRIORITY_MOD_USER_DEFAULT,
+                                        NP_SEARCH_CLEANUP_INTERVAL,
+                                        NP_SEARCH_CLEANUP_INTERVAL,
+                                        __np_search_deprecate_entries,
+                                        "__np_search_deprecate_entries");
     }
-
-    memset(np_module(search)->searchnode.peers,
-           0,
-           8 * 32 * NP_FINGERPRINT_BYTES);
-
-    np_set_authorize_cb(context, __np_search_authorize_node_cb);
-
-    np_subject search_node_subject = {0};
-    np_generate_subject(&search_node_subject,
-                        SEARCH_NODE_SUBJECT,
-                        strnlen(SEARCH_NODE_SUBJECT, 256));
-
-    struct np_mx_properties search_property =
-        np_get_mx_properties(context, search_node_subject);
-
-    search_property.role                = NP_MX_PROSUMER;
-    search_property.audience_type       = NP_MX_AUD_VIRTUAL;
-    search_property.intent_ttl          = NP_SEARCH_NODE_TTL;
-    search_property.intent_update_after = NP_SEARCH_INTENT_REFRESH_TTL;
-    np_set_mx_properties(context, search_node_subject, search_property);
-    np_set_mxp_attr_bin(context,
-                        search_node_subject,
-                        NP_ATTR_INTENT,
-                        SEARCH_PEERID,
-                        &np_module(search)->searchnode.node_id,
-                        NP_FINGERPRINT_BYTES);
-    np_set_mx_authorize_cb(context,
-                           search_node_subject,
-                           __np_search_authorize_node_cb);
-
-    log_msg(LOG_DEBUG,
-            "adding node as search client, peer id is %08" PRIx32 ":%08" PRIx32
-            "",
-            np_module(search)->searchnode.node_id.t[0],
-            np_module(search)->searchnode.node_id.t[1]);
-
-    np_subject search_result_subject = {0};
-    np_generate_subject(&search_result_subject,
-                        SEARCH_RESULT_SUBJECT,
-                        strnlen(SEARCH_RESULT_SUBJECT, 256));
-    np_generate_subject(&search_result_subject,
-                        &np_module(search)->searchnode.node_id,
-                        NP_FINGERPRINT_BYTES);
-    search_property.role                = NP_MX_CONSUMER;
-    search_property.audience_type       = NP_MX_AUD_PRIVATE;
-    search_property.intent_ttl          = NP_SEARCH_RESULT_TTL;
-    search_property.intent_update_after = NP_SEARCH_INTENT_REFRESH_TTL;
-    np_set_mx_properties(context, search_result_subject, search_property);
-    np_set_mxp_attr_bin(context,
-                        search_result_subject,
-                        NP_ATTR_INTENT,
-                        SEARCH_PEERID,
-                        &np_module(search)->searchnode.node_id,
-                        NP_FINGERPRINT_BYTES);
-    // TODO: set explicit callback for search entries. the same authz as for
-    // node, but without registration
-    np_set_mx_authorize_cb(context,
-                           search_result_subject,
-                           __np_search_authorize_entries_cb);
-
-    np_mx_properties_disable(context, search_result_subject);
-
-    // setup how entries can be queried / receiver channels
-    np_subject search_query_subject = {0};
-    np_generate_subject(&search_query_subject,
-                        SEARCH_QUERY_SUBJECT,
-                        strnlen(SEARCH_QUERY_SUBJECT, 256));
-    np_generate_subject(&search_query_subject,
-                        &np_module(search)->searchnode.node_id,
-                        NP_FINGERPRINT_BYTES);
-    randombytes_buf(search_property.reply_id, NP_FINGERPRINT_BYTES);
-    search_property.role                = NP_MX_PROVIDER;
-    search_property.audience_type       = NP_MX_AUD_PRIVATE;
-    search_property.intent_ttl          = NP_SEARCH_INTENT_TTL;
-    search_property.intent_update_after = NP_SEARCH_INTENT_REFRESH_TTL;
-    memcpy(search_property.reply_id,
-           search_result_subject,
-           NP_FINGERPRINT_BYTES);
-    np_set_mx_properties(context, search_query_subject, search_property);
-    np_set_mxp_attr_bin(context,
-                        search_query_subject,
-                        NP_ATTR_INTENT,
-                        SEARCH_PEERID,
-                        &np_module(search)->searchnode.node_id,
-                        NP_FINGERPRINT_BYTES);
-    // np_add_receive_cb(context, search_query_subject, _np_new_searchquery_cb);
-    np_set_mx_authorize_cb(context,
-                           search_query_subject,
-                           __np_search_authorize_entries_cb);
-    log_msg(LOG_DEBUG,
-            "listening on search query subject, id is %02X%02X%02X%02X%02X%02X",
-            search_query_subject[0],
-            search_query_subject[1],
-            search_query_subject[2],
-            search_query_subject[3],
-            search_query_subject[4],
-            search_query_subject[5]);
-
-    // np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
-    //                             np_crypt_rand_mm(0,
-    //                             SYSINFO_PROACTIVE_SEND_IN_SEC*1000) / 1000.,
-    //                             //sysinfo_response_props->msg_ttl /
-    //                             sysinfo_response_props->max_threshold,
-    //                             SYSINFO_PROACTIVE_SEND_IN_SEC+.0,
-    //                             _np_search_cleanup,
-    //                             "_np_search_cleanup");
   }
+
+  // log_msg(LOG_DEBUG,  "pipeline_results %p->%p", context,
+  // &np_module(search)->pipeline_results);
 
   if (np_module_initiated(http)) {
     _np_add_http_callback(ac,
@@ -1674,6 +1674,8 @@ void np_searchclient_init(np_context *ac) {
   }
 
   np_add_shutdown_cb(ac, _np_search_shutdown_hook);
+  // log_msg(LOG_DEBUG,  "pipeline_results %p->%p", context,
+  // &np_module(search)->pipeline_results);
 }
 
 void np_searchnode_destroy(np_context *ac) {
@@ -1681,24 +1683,33 @@ void np_searchnode_destroy(np_context *ac) {
 
   if (np_module_not_initiated(search)) {
     return;
-  }
-  np_module_var(search);
-
-  for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
-       i++) {
-    np_bktree_destroy(np_module(search)->searchnode.tree[i]);
+  } else {
+    np_module(search)->on_shutdown_route = true;
   }
 
   for (uint16_t i = 0; i < UINT8_MAX; i++) {
+    if (np_module(search)->searchnode.results[i] != NULL) {
+      np_tree_elem_t *tmp = NULL;
+      RB_FOREACH (tmp, np_tree_s, np_module(search)->searchnode.results[i]) {
+        np_searchresult_t *x = (np_searchresult_t *)tmp->val.value.v;
+        np_index_destroy(&x->result_entry->search_index);
+        free(x->result_entry);
+      }
+    }
     np_tree_free(np_module(search)->searchnode.results[i]);
     np_spinlock_destroy(&np_module(search)->results_lock[i]);
   }
 
-  for (uint8_t i = 0; i < np_module(search)->searchnode.local_table_count; i++)
+  for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
+       i++) {
+    np_bktree_destroy(np_module(search)->searchnode.tree[i]);
     np_spinlock_destroy(&np_module(search)->table_lock[i]);
-  for (uint8_t i = 0; i <= 8; i++)
+  }
+
+  for (uint8_t i = 0; i <= 8; i++) // 8+1
     np_spinlock_destroy(&np_module(search)->peer_lock[i]);
 
+  np_module_var(search);
   np_module_free(search);
 }
 
@@ -1792,11 +1803,11 @@ __np_cleanup__ : { /* return false; */
   return true;
 }
 
-np_tree_t *__encode_search_index(struct np_index *index) {
+np_tree_t *__encode_search_index(struct np_index_s *index) {
   np_tree_t *index_as_tree = np_tree_create();
 
-  char  *clk_data = NULL;
-  size_t clk_size = 0;
+  unsigned char *clk_data = NULL;
+  size_t         clk_size = 0;
   _np_neuropil_bloom_serialize(index->_clk_hash, &clk_data, &clk_size);
 
   np_tree_insert_str(index_as_tree,
@@ -1809,12 +1820,12 @@ np_tree_t *__encode_search_index(struct np_index *index) {
   return index_as_tree;
 }
 
-bool __decode_search_index(np_tree_t *tree, struct np_index *index) {
+bool __decode_search_index(np_tree_t *tree, struct np_index_s *index) {
   CHECK_STR_FIELD(tree, "idx", idx);
   CHECK_STR_FIELD(tree, "clk", clk);
 
   index->_clk_hash = _np_neuropil_bloom_create();
-  _np_neuropil_bloom_deserialize(index->_clk_hash, clk.value.bin, &clk.size);
+  _np_neuropil_bloom_deserialize(index->_clk_hash, clk.value.bin, clk.size);
   memcpy(&index->lower_dhkey, &idx.value.dhkey, NP_FINGERPRINT_BYTES);
 
   index->_cbl_index         = NULL;
@@ -1895,6 +1906,9 @@ np_tree_t *__encode_search_query(np_searchquery_t *data) {
                      "query.uuid",
                      np_treeval_new_s(data->result_uuid));
   np_tree_insert_str(query_as_tree,
+                     "query.similarity",
+                     np_treeval_new_f(data->target_similarity));
+  np_tree_insert_str(query_as_tree,
                      "query.index",
                      np_treeval_new_tree(__encode_search_index(
                          &data->query_entry.search_index)));
@@ -1911,12 +1925,14 @@ np_searchquery_t *__decode_search_query(np_tree_t *data) {
 
   CHECK_STR_FIELD(data, "query.query_id", search_query_id);
   CHECK_STR_FIELD(data, "query.uuid", search_uuid);
+  CHECK_STR_FIELD(data, "query.similarity", search_similarity);
   CHECK_STR_FIELD(data, "query.index", search_index);
   CHECK_STR_FIELD(data, "query.intent", search_intent);
 
   new_query = calloc(1, sizeof(np_searchquery_t));
 
-  new_query->query_id = search_query_id.value.ush;
+  new_query->query_id          = search_query_id.value.ush;
+  new_query->target_similarity = search_similarity.value.f;
   strncpy(new_query->result_uuid, search_uuid.value.s, NP_UUID_BYTES);
 
   if (!__decode_search_index(search_index.value.tree,
@@ -2007,12 +2023,12 @@ bool np_create_searchentry(np_context       *ac,
   np_data_value       val_urn = {0};
   if (np_data_ok ==
       np_get_data((np_datablock_t *)attributes, "urn", &conf, &val_urn)) {
-    np_index_init(&entry->search_index);
-
     // TODO: base minhash_seed on actual content type
     // (html/pdf/txt/sourcecode/newsfeed/...)
     np_dhkey_t   minhash_seed = np_dhkey_create_from_hostport("", "");
     np_minhash_t minhash      = {0};
+
+    np_index_init(&entry->search_index);
 
     // TODO: extract keyword using tf-idf (c99 / libbow) and add them to the
     // attributes
@@ -2042,58 +2058,98 @@ bool np_create_searchentry(np_context       *ac,
       part = strtok(NULL, __text_delimiter);
     }
 
-    // np_data_value val_title  = { 0 };
-    // if (np_data_ok == np_get_data((np_datablock_t*) attributes, "title",
-    // &conf, &val_title ) )
-    // {
-    //     log_msg(LOG_DEBUG,  "analyzing %s (%u unique words / %u words):",
-    //     val_title, text_occurance->size, text_as_array->size); uint16_t i =
-    //     0; uint16_t occurences[text_occurance->size]; np_tree_elem_t* tmp =
-    //     NULL; RB_FOREACH(tmp, np_tree_s, text_occurance)
-    //     {
-    //         uint16_t word_count = tmp->val.value.a2_ui[1];
-    //         if (word_count > 3 && word_count < 13)
-    //             log_msg(LOG_DEBUG,  "word: %s (pos: %u) appeared %u times",
-    //             tmp->key.value.s, tmp->val.value.a2_ui[0],
-    //             tmp->val.value.a2_ui[1]);
-    //         occurences[i++] = word_count;
-    //     }
-    //     qsort(occurences, text_occurance->size, sizeof(uint16_t),
-    //     __compare_uint16_t);
+    if (np_module(search)->searchcfg.analytic_mode == SEARCH_ANALYTICS_ON) {
+      np_data_value val_title = {0};
+      if (np_data_ok == np_get_data((np_datablock_t *)attributes,
+                                    "title",
+                                    &conf,
+                                    &val_title)) {
+        log_msg(LOG_INFO, "SEARCH_ANALYTICS START");
+        log_msg(LOG_INFO,
+                "analyzing %s (%u unique words / %u words):",
+                val_title,
+                text_occurance->size,
+                text_as_array->size);
+        uint16_t        i = 0;
+        uint16_t        occurences[text_occurance->size];
+        np_tree_elem_t *tmp = NULL;
 
-    //     log_msg(LOG_DEBUG,  "analyzing %u / %u / %u / %u / %u:",
-    //             occurences[text_occurance->size*1/32],
-    //             occurences[text_occurance->size*2/8],
-    //             occurences[text_occurance->size*4/8],
-    //             occurences[text_occurance->size*60/64],
-    //             occurences[text_occurance->size*63/64]);
-    //     np_minhash_t dd_minhash = {0};
+        RB_FOREACH (tmp, np_tree_s, text_occurance) {
+          uint16_t word_count = tmp->val.value.a2_ui[1];
+          if (word_count > 3 && word_count < 13)
+            log_msg(LOG_INFO,
+                    "word: %s (pos: %u) appeared %u times",
+                    tmp->key.value.s,
+                    tmp->val.value.a2_ui[0],
+                    tmp->val.value.a2_ui[1]);
+          occurences[i++] = word_count;
+        }
+        qsort(occurences,
+              text_occurance->size,
+              sizeof(uint16_t),
+              __compare_uint16_t);
 
-    //     np_minhash_init(&dd_minhash, 512, true, minhash_seed);
-    //     np_minhash_push_tree(&dd_minhash, text_as_array, 1, false);
+        log_msg(LOG_INFO,
+                "analysis word count distribution: %u / %u / %u / %u / %u",
+                occurences[text_occurance->size * 2 / 64],
+                occurences[text_occurance->size * 11 / 64],
+                occurences[text_occurance->size * 32 / 64],
+                occurences[text_occurance->size * 53 / 64],
+                occurences[text_occurance->size * 62 / 64]);
 
-    //     uint32_t dd_signature[512] = {0};
-    //     np_minhash_signature(&dd_minhash, &dd_signature);
-    //     for (uint32_t i = 0; i < 512; i++)
-    //     {
-    //         if (i > 0 && (i%16 == 0))
-    //             log_msg(LOG_DEBUG,  "");
-    //         log_msg(LOG_DEBUG,  "%10u ", dd_signature[i]);
-    //     }
-    //     log_msg(LOG_DEBUG,  "");
-    // }
+        np_minhash_t dd_minhash = {0};
+        np_minhash_init(&dd_minhash,
+                        256,
+                        MIXHASH_DATADEPENDANT_FIX,
+                        minhash_seed);
+        np_minhash_push_tree(&dd_minhash, text_as_array, 1, false);
 
-    // abort();
+        uint32_t dd_signature[256] = {0};
+        np_minhash_signature(&dd_minhash, &dd_signature);
+        char _number_string[256];
+        memset(_number_string, 256, '0');
+        _number_string[0] = '\0';
+
+        for (uint32_t i = 0; i < 256; i++) {
+          if (i > 0 && (i % 16 == 0)) {
+            log_msg(LOG_INFO, _number_string);
+            memset(_number_string, 256, '0');
+          }
+          snprintf(_number_string,
+                   256,
+                   "%s%10u ",
+                   _number_string,
+                   dd_signature[i]);
+        }
+        log_msg(LOG_INFO, "SEARCH_ANALYTICS END");
+      }
+    }
 
     // TODO: get a copy of intent token for H("filename") and extend it with
     // attributes
-    np_minhash_init(&minhash, 256, false, minhash_seed);
-    np_minhash_push_tree(&minhash, text_as_array, 1, false);
+
+    if (FLAG_CMP(np_module(search)->searchcfg.minhash_mode, SEARCH_MH_FIX256)) {
+      np_minhash_init(&minhash, 256, MIXHASH_MULTI, minhash_seed);
+    } else if (FLAG_CMP(np_module(search)->searchcfg.minhash_mode,
+                        SEARCH_MH_FIX512)) {
+      np_minhash_init(&minhash, 512, MIXHASH_MULTI, minhash_seed);
+    } else {
+      log_error(
+          "only fixed minhash sizes available, data dependant not implemented");
+      return false;
+    }
+
+    if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode, SEARCH_1_SHINGLE)) {
+      np_minhash_push_tree(&minhash, text_as_array, 1, false);
+    } else {
+      log_error("additional shingle modes currently not implemented");
+      return false;
+    }
 
     np_index_update_with_minhash(&entry->search_index, &minhash);
 
     np_dhkey_t urn_dhkey = {0};
-    np_generate_subject(&urn_dhkey, val_urn.str, strnlen(val_urn.str, 256));
+    np_generate_subject(&urn_dhkey, val_urn.str, conf.data_size);
     np_msgproperty_conf_t *prop =
         _np_msgproperty_get_or_create(np_module(search)->context,
                                       OUTBOUND,
@@ -2145,6 +2201,7 @@ bool np_create_searchquery(np_context       *ac,
   np_dhkey_t   minhash_seed = np_dhkey_create_from_hostport("", "");
   np_minhash_t minhash      = {0};
 
+  query->target_similarity = np_module(search)->searchcfg.target_similarity;
   np_index_init(&query->query_entry.search_index);
 
   // TODO: extract keyword using tf-idf (libbow) and add them to the attributes
@@ -2174,14 +2231,23 @@ bool np_create_searchquery(np_context       *ac,
     part = strtok(NULL, __text_delimiter);
   }
 
-  // TODO: get a copy of intent token for H("filename") and extend it with
-  // attributes
-  np_minhash_init(&minhash, 256, false, minhash_seed);
-  np_minhash_push_tree(
-      &minhash,
-      text_as_array,
-      1,
-      false); // 3 for shingles, has to be adopted for each kind of search
+  if (FLAG_CMP(np_module(search)->searchcfg.minhash_mode, SEARCH_MH_FIX256)) {
+    np_minhash_init(&minhash, 256, MIXHASH_MULTI, minhash_seed);
+  } else if (FLAG_CMP(np_module(search)->searchcfg.minhash_mode,
+                      SEARCH_MH_FIX512)) {
+    np_minhash_init(&minhash, 512, MIXHASH_MULTI, minhash_seed);
+  } else {
+    log_error(
+        "only fixed minhash sized available, data dependant not implemented");
+    return false;
+  }
+
+  if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode, SEARCH_1_SHINGLE)) {
+    np_minhash_push_tree(&minhash, text_as_array, 1, false);
+  } else {
+    log_error("additional shingle modes currently not implemented");
+    return false;
+  }
 
   np_index_update_with_minhash(&query->query_entry.search_index, &minhash);
 
@@ -2191,21 +2257,21 @@ bool np_create_searchquery(np_context       *ac,
   char *tmp = query->result_uuid;
   np_uuid_create(SEARCH_QUERY_SUBJECT, 0, &tmp);
 
-  np_subject search_query_subject = {0};
-  np_generate_subject(&search_query_subject,
+  np_subject search_result_subject = {0};
+  np_generate_subject(&search_result_subject,
                       SEARCH_RESULT_SUBJECT,
                       strnlen(SEARCH_RESULT_SUBJECT, 256));
-  np_generate_subject(&search_query_subject,
+  np_generate_subject(&search_result_subject,
                       &np_module(search)->searchnode.node_id,
                       NP_FINGERPRINT_BYTES);
 
-  np_dhkey_t search_query_dhkey = {0};
-  memcpy(&search_query_dhkey, search_query_subject, NP_FINGERPRINT_BYTES);
-  // create our own interest to share search attributes
+  np_dhkey_t search_result_dhkey = {0};
+  memcpy(&search_result_dhkey, search_result_subject, NP_FINGERPRINT_BYTES);
+  // create our own interest to retrieve search results and attributes
   np_msgproperty_conf_t *prop =
       _np_msgproperty_get_or_create(np_module(search)->context,
                                     INBOUND,
-                                    search_query_dhkey);
+                                    search_result_dhkey);
 
   // TODO: fetch the already existing mx token for this subject
   np_message_intent_public_token_t *token =
@@ -2252,8 +2318,8 @@ void np_search_add_entry(np_context *ac, np_searchentry_t *entry) {
   // size_t data_length = search_entry->byte_size;
   // unsigned char data[data_length];
   // np_tree2buffer(context, search_entry, data);
-  log_msg(LOG_DEBUG,
-          "searchentry (%s) as tree %p (%u / %u)",
+  log_msg(LOG_INFO,
+          "using searchentry (%s) as tree %p (%u / %u)",
           entry->intent.subject,
           search_entry,
           search_entry->byte_size,
@@ -2278,10 +2344,12 @@ void np_search_add_entry(np_context *ac, np_searchentry_t *entry) {
                                    new_entry_msg,
                                    new_entry_msg->body,
                                    &np_module(search)->pipeline_results);
-  __np_search_add_entry(ac,
-                        new_entry_msg,
-                        new_entry_msg->body,
-                        &np_module(search)->pipeline_results);
+
+  if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_SERVER))
+    __np_search_add_entry(ac,
+                          new_entry_msg,
+                          new_entry_msg->body,
+                          &np_module(search)->pipeline_results);
 
   // np_tree_free(search_entry); // deleted by message
   np_unref_obj(np_message_t, new_entry_msg, ref_obj_creation);
@@ -2293,6 +2361,8 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
 
   np_tree_t *pipeline_results = &np_module(search)->pipeline_results;
 
+  np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
+
   if (np_module(search)->searchnode.queries[query->query_id] != NULL) {
     np_searchquery_t *old_query =
         np_module(search)->searchnode.queries[query->query_id];
@@ -2301,7 +2371,6 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
   }
   np_module(search)->searchnode.queries[query->query_id] = query;
 
-  np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
   if (np_module(search)->searchnode.results[query->query_id] != NULL) {
     np_tree_elem_t *tmp = NULL;
     RB_FOREACH (tmp,
@@ -2314,6 +2383,7 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
     np_tree_free(np_module(search)->searchnode.results[query->query_id]);
   }
   np_module(search)->searchnode.results[query->query_id] = np_tree_create();
+
   np_spinlock_unlock(&np_module(search)->results_lock[query->query_id]);
 
   struct search_pipeline_result *pipeline =
@@ -2337,7 +2407,7 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
   // size_t data_length = search_query->byte_size;
   // unsigned char data[data_length];
   // np_tree2buffer(context, search_query, data);
-  log_msg(LOG_DEBUG,
+  log_msg(LOG_INFO,
           "using searchquery (%s / %s) as tree %p (%u / %u)",
           query->query_entry.intent.subject,
           query->result_uuid,
@@ -2351,7 +2421,8 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
 
   _np_message_create(new_query_msg,
                      pipeline->search_subject,
-                     context->my_node_key->dhkey,
+                     np_module(search)->searchnode.node_id,
+                     //  context->my_node_key->dhkey,
                      pipeline->search_subject,
                      search_query);
 
@@ -2360,22 +2431,74 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
                                    new_query_msg,
                                    new_query_msg->body,
                                    &np_module(search)->pipeline_results);
-  __np_search_query(ac,
-                    new_query_msg,
-                    new_query_msg->body,
-                    &np_module(search)->pipeline_results);
+
+  if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_SERVER))
+    __np_search_query(ac,
+                      new_query_msg,
+                      new_query_msg->body,
+                      &np_module(search)->pipeline_results);
 
   np_unref_obj(np_message_t, new_query_msg, ref_obj_creation);
 }
 
-np_tree_t *np_search_get_resultset(np_context *ac, np_searchquery_t *query) {
+bool np_search_get_resultset(np_context       *ac,
+                             np_searchquery_t *query,
+                             np_tree_t        *result_tree) {
   np_ctx_cast(ac);
 
   if (np_module_not_initiated(search)) {
     np_searchnode_init(context, NULL);
+    return false;
   }
 
-  return np_module(search)->searchnode.results[query->query_id];
+  // stop waiting for results, prevents concurrent acces to result list
+  struct search_pipeline_result *pipeline = NULL;
+  np_spinlock_lock(&np_module(search)->pipeline_lock);
+  {
+    pipeline = np_tree_find_str(&np_module(search)->pipeline_results,
+                                query->result_uuid)
+                   ->val.value.v;
+    if (pipeline) pipeline->stop_time = np_time_now();
+  }
+  np_spinlock_unlock(&np_module(search)->pipeline_lock);
+
+  if (np_module(search)->searchnode.results[query->query_id] &&
+      np_module(search)->searchnode.results[query->query_id]->size == 0) {
+    return false;
+  }
+
+  np_tree_elem_t *tmp = NULL;
+
+  np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
+  RB_FOREACH (tmp,
+              np_tree_s,
+              np_module(search)->searchnode.results[query->query_id]) {
+    np_searchresult_t *result = (np_searchresult_t *)tmp->val.value.v;
+
+    struct np_data_conf conf      = {0};
+    np_data_value       val_title = {0};
+
+    if (np_data_ok !=
+        np_get_data((np_datablock_t *)result->result_entry->intent.attributes,
+                    "title",
+                    &conf,
+                    &val_title)) {
+      val_title.str = "";
+    }
+
+    np_tree_insert_int(result_tree,
+                       result->hit_counter,
+                       np_treeval_new_v(result));
+    log_msg(LOG_DEBUG,
+            ":: %s :: %3u / %2.2f / %25s",
+            tmp->key.value.s,
+            result->hit_counter,
+            result->level,
+            val_title.str);
+  }
+  np_spinlock_unlock(&np_module(search)->results_lock[query->query_id]);
+
+  return true;
 }
 
 void _np_searchnode_withdraw(np_context *ac, struct np_searchnode_s *node) {}
@@ -2435,7 +2558,7 @@ bool _np_new_searchquery_cb(np_context               *ac,
                             void                     *localdata) {
   np_ctx_cast(ac);
 
-  log_msg(LOG_DEBUG,
+  log_msg(LOG_INFO,
           "received new searchquery from peer with uuid: %s",
           query_msg->uuid);
 
@@ -2448,23 +2571,8 @@ bool _np_new_searchquery_cb(np_context               *ac,
                       SEARCH_QUERY_SUBJECT,
                       strnlen(SEARCH_QUERY_SUBJECT, 256));
 
-  struct np_data_conf *conf = NULL;
-  np_data_value        val;
-  // TODO: check whether pipeline // query already exists (node is the
-  // originator of the query)
-  if (np_data_ok == np_get_data(query_msg->decryption_token->attributes,
-                                SEARCH_PEERID,
-                                conf,
-                                &val)) {
-    memcpy(&pipeline->sending_peer_dhkey, val.bin, NP_FINGERPRINT_BYTES);
-  } else { // no reply path available? stop the query!
-    log_msg(LOG_INFO,
-            "no peer-id in sender token, rejecting searchquery from peer with "
-            "uuid: %s",
-            query_msg->uuid);
-    free(pipeline);
-    return false;
-  }
+  np_dhkey_t search_peer_dhkey = _np_message_get_sender(query_msg);
+  _np_dhkey_assign(&pipeline->sending_peer_dhkey, &search_peer_dhkey);
 
   log_msg(LOG_DEBUG,
           "searchquery as tree %p (%u / %u)",
@@ -2496,7 +2604,7 @@ void _np_searchresult_send(np_context        *ac,
   np_ctx_cast(ac);
 
   np_tree_t *search_result = __encode_search_result(result);
-  log_msg(LOG_DEBUG,
+  log_msg(LOG_INFO,
           "sending searchresult (%s / %s) as tree %p (%u bytes / %u)",
           result->result_entry->intent.subject,
           result->result_uuid,
@@ -2564,8 +2672,8 @@ bool _np_searchresult_receive_cb(np_context         *ac,
     pipeline = np_tree_find_str(pipeline_results, new_result->result_uuid)
                    ->val.value.v;
   }
-  np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
+  np_spinlock_unlock(&np_module(search)->pipeline_lock);
   if (_np_dhkey_equal(&pipeline->sending_peer_dhkey, &dhkey_zero)) {
     np_spinlock_lock(&np_module(search)->pipeline_lock);
     if (pipeline->stop_time > pipeline->start_time) {
@@ -2577,8 +2685,19 @@ bool _np_searchresult_receive_cb(np_context         *ac,
     }
     np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
+    assert(np_module(search)->on_shutdown_route == false);
+
+    np_spinlock_lock(&np_module(search)->results_lock[new_result->query_id]);
+
+    if (&np_module(search)->searchnode.queries[new_result->query_id] == NULL) {
+      np_spinlock_unlock(
+          &np_module(search)->results_lock[new_result->query_id]);
+      return false;
+    };
+
     np_map_reduce_t mr = {.map    = _map_np_searchentry,
                           .reduce = _reduce_np_searchentry};
+
     mr.reduce_result =
         np_module(search)->searchnode.results[new_result->query_id];
     mr.map_args.io = &np_module(search)
@@ -2587,9 +2706,9 @@ bool _np_searchresult_receive_cb(np_context         *ac,
 
     //        np_searchquery_t* query =
     //        np_module(search)->searchnode.queries[new_result->query_id];
-    np_spinlock_lock(&np_module(search)->results_lock[new_result->query_id]);
     mr.reduce(&mr, new_result->result_entry);
     np_spinlock_unlock(&np_module(search)->results_lock[new_result->query_id]);
+
   } else {
     log_msg(LOG_DEBUG,
             "re-sending searchresult as tree %p (%u bytes / %u)",
@@ -2606,7 +2725,138 @@ bool _np_searchresult_receive_cb(np_context         *ac,
                         NP_FINGERPRINT_BYTES);
 
     _np_searchresult_send(context, result_subject, new_result);
+    // pipeline->stop_time = np_time_now();
   }
 
+  return true;
+}
+
+//
+// python wrapper functions
+// the followig function are used by the python binding to execute a search on a
+// given neuropil node set
+//
+// create and add a new searchentry. expects "urn" and "title" to be present as
+// attributes
+bool pysearch_entry(np_context            *context,
+                    struct np_searchentry *entry,
+                    const char            *text,
+                    np_attributes_t        attributes) {
+  bool ret = false;
+  // log_msg(LOG_DEBUG,  "%p : %s", &attributes, attributes);
+  // np_iterate_data(attributes, __print_attributes, "-- external --");
+
+  np_subject          urn_subject = {0};
+  struct np_data_conf conf        = {0};
+  np_data_value       val_urn     = {0};
+  if (np_data_ok ==
+      np_get_data((np_datablock_t *)attributes, "urn", &conf, &val_urn))
+    np_generate_subject(&urn_subject, val_urn.str, strnlen(val_urn.str, 256));
+
+  // np_searchentry_t searchentry = {};
+  np_searchentry_t *searchentry = calloc(1, sizeof(np_searchentry_t));
+  if (np_create_searchentry(context, searchentry, text, attributes)) {
+    np_search_add_entry(context, searchentry);
+    np_mx_properties_disable(context, urn_subject);
+
+    memcpy(&entry->search_index,
+           &searchentry->search_index,
+           NP_FINGERPRINT_BYTES);
+    memcpy(&entry->intent, &searchentry->intent, sizeof(struct np_token));
+    ret = true;
+  }
+  return ret;
+}
+
+// read a query text and create the searchentry using the attributes
+bool pysearch_query(np_context            *context,
+                    float                  search_probability,
+                    struct np_searchquery *query,
+                    const char            *query_text,
+                    np_attributes_t        attributes) {
+  bool              ret         = false;
+  np_searchquery_t *searchquery = calloc(1, sizeof(np_searchquery_t));
+
+  if (np_create_searchquery(context, searchquery, query_text, attributes)) {
+    searchquery->target_similarity = search_probability;
+
+    query->query_id   = searchquery->query_id;
+    query->similarity = searchquery->target_similarity;
+    memcpy(&query->result_uuid, &searchquery->result_uuid, NP_UUID_BYTES);
+    memcpy(&query->query_entry.search_index,
+           &searchquery->query_entry.search_index,
+           NP_FINGERPRINT_BYTES);
+    memcpy(&query->query_entry.intent,
+           &searchquery->query_entry.intent,
+           sizeof(struct np_token));
+
+    np_search_query(context, searchquery);
+
+    ret = true;
+  }
+  return ret;
+}
+
+// return the amount of searchresults
+uint32_t pysearch_pullresult_size(np_context            *ac,
+                                  struct np_searchquery *query) {
+  np_ctx_cast(ac);
+
+  uint32_t resultset_size = 0;
+  np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
+  resultset_size = np_module(search)->searchnode.results[query->query_id]->size;
+  np_spinlock_unlock(&np_module(search)->results_lock[query->query_id]);
+  return resultset_size;
+}
+
+// pull a searchresult from the query
+bool pysearch_pullresult(np_context            *context,
+                         struct np_searchquery *query,
+                         struct np_searchresult py_result[],
+                         size_t                 elements_to_fetch) {
+
+  np_tree_t       *result_tree  = np_tree_create();
+  np_searchquery_t searchquery  = {0};
+  searchquery.query_id          = query->query_id;
+  searchquery.target_similarity = query->similarity;
+  memcpy(&searchquery.result_uuid, &query->result_uuid, NP_UUID_BYTES);
+
+  if (np_search_get_resultset(context, &searchquery, result_tree)) {
+    uint16_t        counter = 0;
+    np_tree_elem_t *tmp     = NULL;
+    // fprintf(stdout,  "mapping result %zu\n", elements_to_fetch);
+    // get the top x search results
+    RB_FOREACH (tmp, np_tree_s, result_tree) {
+      if (counter >= elements_to_fetch) break;
+
+      np_searchresult_t *result = (np_searchresult_t *)tmp->val.value.v;
+      // fprintf(stdout,  "mapping result %s : %d : %f\n", result->label,
+      // result->hit_counter, result->level);
+      log_msg(LOG_DEBUG,
+              "mapping result %s : %d : %f",
+              result->label,
+              result->hit_counter,
+              result->level);
+
+      py_result[counter].hit_counter = result->hit_counter;
+      py_result[counter].level       = result->level;
+      strncpy(py_result[counter].label,
+              result->label,
+              strnlen(result->label, 255));
+      // py_result[counter].result_entry = calloc(1, sizeof(struct
+      // np_searchentry));
+      memcpy(&py_result[counter].result_entry.intent,
+             &result->result_entry->intent,
+             sizeof(struct np_token));
+      memcpy(&py_result[counter].result_entry.search_index,
+             &result->result_entry->search_index.lower_dhkey,
+             NP_FINGERPRINT_BYTES);
+
+      counter++;
+    }
+  } else {
+    return false;
+  }
+  np_tree_free(result_tree);
   return true;
 }

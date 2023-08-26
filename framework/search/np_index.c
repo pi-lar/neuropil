@@ -43,7 +43,7 @@ void _split_minhash_into_bands(np_index_t         *index,
     }
     // fprintf(stdout, "    LSH %u(%u):%u(%u) => %u (%u) to dhkey at %u/%u",
     // _band, var_bands, _row, var_rows, j, minhash->minimums[j], _band, _k);
-    _index_dhkeys[_band].t[_k] += minhash->minimums[j];
+    _index_dhkeys[_band].t[_k] += minhash->_minimums[j];
 
     _k++;
 
@@ -94,6 +94,15 @@ void np_index_destroy(np_index_t *index) {
 
 void np_index_update_with_minhash(np_index_t *index, np_minhash_t *min_hash) {
   uint8_t bands = min_hash->size / 8;
+
+  // np_dhkey_t _minhash_dhkey = {0};
+  // for (uint16_t j = 0; j < min_hash->size; j++)
+  // {
+  //     _minhash_dhkey.t[ j%8 ] = min_hash->minimums[j];
+  //     if (((j+1) % 8) == 0) { index->_clk_hash->op.add_cb(index->_clk_hash,
+  //     _minhash_dhkey ); }
+  // }
+
   while (bands > 1) {
     _split_minhash_into_bands(index, min_hash, bands);
     bands = bands >> 1;
@@ -176,6 +185,19 @@ void np_index_hash(np_index_t *index) {
   index->_octile_values[7] = ((float)_cb_values[(cb_size * 14 / 16)] +
                               _cb_values[(cb_size * 14 / 16) + 1]) /
                              2;
+
+  // index->_octile_values[1] = ( (float) _cb_values[ (cb_size* 1/16) ] +
+  // _cb_values[ (cb_size* 1/16)+1 ] ) / 2; index->_octile_values[2] = ( (float)
+  // _cb_values[ (cb_size* 3/16) ] + _cb_values[ (cb_size* 3/16)+1 ] ) / 2;
+  // index->_octile_values[3] = ( (float) _cb_values[ (cb_size* 6/16) ] +
+  // _cb_values[ (cb_size* 6/16)+1 ] ) / 2; index->_octile_values[4] = ( (float)
+  // _cb_values[ (cb_size*10/16) ] + _cb_values[ (cb_size*10/16)+1 ] ) / 2;
+  // index->_octile_values[5] = ( (float) _cb_values[ (cb_size*13/16) ] +
+  // _cb_values[ (cb_size*13/16)+1 ] ) / 2; index->_octile_values[6] = ( (float)
+  // _cb_values[ (cb_size*15/16) ] + _cb_values[ (cb_size*15/16)+1 ] ) / 2;
+
+  // index->_octile_values[7] = ( (float) _cb_values[ (cb_size*14/16) ] +
+  // _cb_values[ (cb_size*14/16)+1 ] ) / 2;
 
   // fprintf(stdout, "\nlower  q12.5: %f / %f / %f : q37.5\n",
   // index->_octile_values[1], index->_octile_values[2],
@@ -270,6 +292,42 @@ void np_index_hash(np_index_t *index) {
     // _parity += 1; } else    { /* fprintf(stdout, "error calculating bit index
     // value"); */ abort(); }
 
+    // 0001
+    // 0011
+    // 0111
+    // 0110
+    // 1110
+    // 1100
+    // 1000
+    // 000
+    // 001
+    // 011
+    // 010
+    // 110
+    // 100
+    // 000
+
+    // // np values
+    // if      (index->_cbl_index->_bitset[_local_pos] <
+    // index->_octile_values[1]) { /*_value._as_u32 |= (0x00000000 << shift);
+    // _parity += 0;*/ } else if (index->_cbl_index->_bitset[_local_pos] <
+    // index->_octile_values[2]) { _value._as_u32 |= (0x00000001 << shift);
+    // _parity += 1; } else if (index->_cbl_index->_bitset[_local_pos] <
+    // index->_octile_values[3]) { _value._as_u32 |= (0x00000003 << shift);
+    // _parity += 2; } else if (index->_cbl_index->_bitset[_local_pos] <
+    // index->_octile_values[4]) { _value._as_u32 |= (0x00000002 << shift);
+    // _parity += 1; } else if (index->_cbl_index->_bitset[_local_pos] <
+    // index->_octile_values[5]) { _value._as_u32 |= (0x00000006 << shift);
+    // _parity += 2; } else if (index->_cbl_index->_bitset[_local_pos] <=
+    // index->_octile_values[6]) { _value._as_u32 |= (0x00000004 << shift);
+    // _parity += 1; } else if (index->_cbl_index->_bitset[_local_pos] >
+    // index->_octile_values[6]) { /*_value._as_u32 |= (0x00000006 << shift);
+    // _parity += 2; */ }
+    // // else if (index->_cbl_index->_bitset[_local_pos] >=
+    // index->_octile_values[7]) { _value. _as_u32 |= (0x00000004 << shift);
+    // _parity += 1; } else    { /* fprintf(stdout, "error calculating bit index
+    // value"); */ abort(); }
+
     // fprintf(stdout, "%3u / 0x%08x  ( %3u : %3u ) \n",
     // index->_cbl_index->_bitset[_local_pos], _value._as_u32, shift, _parity);
 
@@ -313,6 +371,13 @@ void np_index_hash(np_index_t *index) {
   memcpy(&index->lower_dhkey, &_index_value[0], 32);
 
   // fprintf(stdout, "%08x %08x %08x %08x %08x %08x %08x %08x\n",
+  //                 index->lower_dhkey.t[0], index->lower_dhkey.t[1],
+  //                 index->lower_dhkey.t[2], index->lower_dhkey.t[3],
+  //                 index->lower_dhkey.t[4], index->lower_dhkey.t[5],
+  //                 index->lower_dhkey.t[6], index->lower_dhkey.t[7]
+  //                 );
+
+  // fprintf(stdout, "%08o %08o %08o %08o %08o %08o %08o %08o\n",
   //                 index->lower_dhkey.t[0], index->lower_dhkey.t[1],
   //                 index->lower_dhkey.t[2], index->lower_dhkey.t[3],
   //                 index->lower_dhkey.t[4], index->lower_dhkey.t[5],

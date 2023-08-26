@@ -133,25 +133,25 @@ bool _np_pheromone_inhale_target(np_state_t *context,
 
   np_bloom_t *_scent = _np_neuropil_bloom_create();
   _np_neuropil_bloom_add(_scent, target);
+
   bool ret = find_sender | find_receiver;
+
+  np_pheromone_t _pheromone = {0};
+  _pheromone._subj_bloom    = _scent;
+
   if (find_sender) {
-    np_pheromone_t _pheromone = {0};
-    _pheromone._subj_bloom    = _scent;
-    _pheromone._receiver      = pheromone_source;
+    _pheromone._receiver = pheromone_source;
     _pheromone._pos =
         _np_pheromone_calc_table_position(target,
                                           np_pheromone_direction_sender);
-    ret &= _np_pheromone_inhale(context, _pheromone);
   }
   if (find_receiver) {
-    np_pheromone_t _pheromone = {0};
-    _pheromone._subj_bloom    = _scent;
-    _pheromone._sender        = pheromone_source;
+    _pheromone._sender = pheromone_source;
     _pheromone._pos =
         _np_pheromone_calc_table_position(target,
                                           np_pheromone_direction_receiver);
-    ret &= _np_pheromone_inhale(context, _pheromone);
   }
+  ret &= _np_pheromone_inhale(context, _pheromone);
   _np_bloom_free(_scent);
   return ret;
 }

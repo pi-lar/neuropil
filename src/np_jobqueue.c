@@ -86,8 +86,7 @@ void _np_job_free(np_state_t *context, np_job_t *n) {
   if (n->evt.user_data != NULL) {
     np_unref_obj(np_unknown_t, n->evt.user_data, "np_jobqueue_submit_event");
   }
-  if (n->__del_processorFuncs != NULL)
-    sll_free(np_evt_callback_t, n->processorFuncs);
+  if (n->__del_processorFuncs) sll_free(np_evt_callback_t, n->processorFuncs);
 }
 /**
  * @brief Selects the next job to execute for a given max prio thread.
@@ -107,7 +106,7 @@ double __np_jobqueue_select_job_to_run(np_state_t *context,
   ASSERT(max_prio <= NP_PRIORITY_MAX_QUEUES, "");
   double ret  = NP_PI / 100;
   bool   stop = false;
-  for (int queue_idx = 0; queue_idx <= max_prio; queue_idx++) {
+  for (size_t queue_idx = 0; queue_idx <= max_prio; queue_idx++) {
     _TRYLOCK_ACCESS(&np_module(jobqueue)->job_queues[queue_idx].job_list_lock) {
       if (!pheap_is_empty(
               np_job_t,
@@ -142,7 +141,7 @@ bool _np_jobqueue_insert(np_state_t *context,
          "jobs priority does not match a jobqueue.");
   // if there is only the user loop we need to priorize
   // all jobs in one queue as
-  if (context->settings->n_threads <= 0) new_job.priority = NP_PRIORITY_HIGHEST;
+  if (context->settings->n_threads == 0) new_job.priority = NP_PRIORITY_HIGHEST;
 
   NP_PERFORMANCE_POINT_START(jobqueue_insert);
 
@@ -770,7 +769,7 @@ void __np_jobqueue_run_once(np_state_t *context, np_job_t job_to_execute) {
       enum np_memory_types_e _t =
           np_memory_get_type(job_to_execute.evt.user_data);
       if (_t == np_memory_types_np_message_t) {
-        log_debug(LOG_DEBUG,
+        log_trace(LOG_DEBUG,
                   "executing job with message %s",
                   ((np_message_t *)job_to_execute.evt.user_data)->uuid);
       }

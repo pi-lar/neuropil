@@ -25,6 +25,7 @@
 
 // neuropil framework include files
 #include "files/file.h"
+#include "http/urldecode.h"
 
 #include "http/np_http.h"
 #include "search/np_search.h"
@@ -32,6 +33,7 @@
 // define max memory we will allocate for mmap'ed files
 // TODO: only load file content up to the defined upper max (lazy loading)
 #define NP_FILE_MEMORY_MAX 1024 * 1000 * 64 // 64 MB
+#define SHARE_FILES        "share_file"
 
 enum mime_types {
   application_graphql = 0,
@@ -106,6 +108,7 @@ struct np_common_info {
   char            subject[76];
   char           *name;
   struct timespec last_modified;
+  char            cwd[PATH_MAX];
 
   send_cb send_entry;
 };
@@ -118,8 +121,6 @@ struct np_file_info {
   off_t   file_size;
   uint8_t mime_type;
   int     fd;
-
-  char cwd[PATH_MAX];
 };
 
 struct np_dir_info {
@@ -179,15 +180,16 @@ void __load_file(struct np_file_info *info) {
   // for(uint8_t x = 0; x < __indent_level; x++) fprintf(stdout, __indent_str);
   // fprintf(stdout, "loading file %s / %s \n", info->ci.name,
   // info->ci.subject);
+  np_context *context = __files.context;
 
   char cwd[PATH_MAX];
   getcwd(cwd, sizeof(cwd));
 
-  chdir(info->cwd);
+  chdir(info->ci.cwd);
 
   int fd = open(info->ci.name, O_RDONLY);
   if (-1 == fd) {
-    fprintf(stdout, "unable to open file (%s)\n", strerror(errno));
+    log_msg(LOG_WARNING, "unable to open file (%s)\n", strerror(errno));
     close(fd);
     return;
   } else {
@@ -197,7 +199,7 @@ void __load_file(struct np_file_info *info) {
   void *_content =
       mmap(NULL, info->file_size, PROT_READ, MAP_SHARED, info->fd, 0);
   if (_content == MAP_FAILED) {
-    fprintf(stdout, "unable to mmap file (%s)\n", strerror(errno));
+    log_msg(LOG_WARNING, "unable to mmap file (%s)\n", strerror(errno));
     close(fd);
     return;
   }
@@ -229,7 +231,9 @@ void __close_file(struct np_file_info *info) {
   __files.bytes_in_memory -= info->file_size;
 }
 
-void __create_file_info(struct np_file_info *_info, np_tree_t *dir_tree) {
+void __create_file_info(struct np_file_info *_info,
+                        np_tree_t           *dir_tree,
+                        bool                 include_content) {
   ASSERT(_info != NULL, "no dir info given");
   ASSERT(dir_tree != NULL, "no target tree given");
 
@@ -243,6 +247,7 @@ void __create_file_info(struct np_file_info *_info, np_tree_t *dir_tree) {
                      "np_id",
                      np_treeval_new_s(np_id_str(id_str, (_info->ci.id))));
   np_tree_insert_str(dir_tree, "name", np_treeval_new_s(_info->ci.name));
+  np_tree_insert_str(dir_tree, "path", np_treeval_new_s(_info->ci.cwd));
   np_tree_insert_str(dir_tree,
                      "last_modified",
                      np_treeval_new_ul(_info->ci.last_modified.tv_sec));
@@ -251,10 +256,13 @@ void __create_file_info(struct np_file_info *_info, np_tree_t *dir_tree) {
   np_tree_insert_str(dir_tree,
                      "mimetype",
                      np_treeval_new_s(mime_type_str[_info->mime_type]));
-  np_tree_insert_str(dir_tree, "encoding", np_treeval_new_s(s));
-  np_tree_insert_str(dir_tree,
-                     "content",
-                     np_treeval_new_bin(_info->mmap_region, _info->file_size));
+  // np_tree_insert_str(dir_tree, "encoding", np_treeval_new_s(s));
+
+  if (include_content && _info->loaded)
+    np_tree_insert_str(
+        dir_tree,
+        "content",
+        np_treeval_new_bin(_info->mmap_region, _info->file_size));
 }
 
 void __create_dir_info(struct np_dir_info *_info, np_tree_t *dir_tree) {
@@ -266,6 +274,7 @@ void __create_dir_info(struct np_dir_info *_info, np_tree_t *dir_tree) {
                      "np_id",
                      np_treeval_new_s(np_id_str(id_str, (_info->ci.id))));
   np_tree_insert_str(dir_tree, "name", np_treeval_new_s(_info->ci.name));
+  np_tree_insert_str(dir_tree, "path", np_treeval_new_s(_info->ci.cwd));
   np_tree_insert_str(dir_tree,
                      "last_modified",
                      np_treeval_new_ul(_info->ci.last_modified.tv_sec));
@@ -307,60 +316,52 @@ int __np_file_handle_http_get_file(ht_request_t  *ht_request,
     np_tree_elem_t *elem = np_tree_find_str(__files._file_tree, file_start);
     if (NULL != elem) {
       struct np_file_info *_info = (struct np_file_info *)elem->val.value.v;
+      bool                 include_content = true;
       if (_info->file_size >= UINT16_MAX) {
-        fprintf(stdout, "too large ...");
-        json_obj = __np_generate_error_json(
-            "request invalid",
-            "looks like you are using a wrong url ...");
-        http_status = HTTP_CODE_BAD_REQUEST;
-        goto __json_return__;
+        include_content = false;
+        // fprintf(stdout, "too large ...");
+        // json_obj = __np_generate_error_json("request invalid", "looks like
+        // you are using a wrong url ..."); http_status = HTTP_CODE_BAD_REQUEST;
+        // goto __json_return__;
+      } else if (false == _info->loaded) {
+        __load_file(_info);
       }
 
-      if (false == _info->loaded) __load_file(_info);
+      // fprintf(stdout, "http request for: %s\n", file_start);
+      np_tree_t *file_tree = np_tree_create();
 
-      if (true == _info->loaded) {
-        fprintf(stdout, "http request for: %s\n", file_start);
-        np_tree_t *file_tree = np_tree_create();
+      np_tree_insert_str(ht_response->ht_header,
+                         "Content-Type",
+                         np_treeval_new_s(mime_type_str[_info->mime_type]));
 
-        np_tree_insert_str(ht_response->ht_header,
-                           "Content-Type",
-                           np_treeval_new_s(mime_type_str[_info->mime_type]));
+      __create_file_info(_info, file_tree, include_content);
+      http_status = HTTP_CODE_OK;
 
-        __create_file_info(_info, file_tree);
-        http_status = HTTP_CODE_OK;
+      JSON_Value *file_in_json = np_tree2json(context, file_tree);
+      ht_response->ht_body     = np_json2char(file_in_json, true);
+      ht_response->ht_length = strnlen(ht_response->ht_body, UINT16_MAX + 4096);
+      http_status            = HTTP_CODE_OK;
 
-        JSON_Value *file_in_json = np_tree2json(context, file_tree);
-        ht_response->ht_body     = np_json2char(file_in_json, true);
-        ht_response->ht_length =
-            strnlen(ht_response->ht_body, UINT16_MAX + 4096);
-        http_status = HTTP_CODE_OK;
+      np_tree_free(file_tree);
+      json_value_free(file_in_json);
 
-        np_tree_free(file_tree);
-        json_value_free(file_in_json);
+      ht_response->cleanup_body = true;
 
-        ht_response->cleanup_body = true;
-
-        __close_file(_info);
-      } else {
-        fprintf(stdout, "not loaded");
-        json_obj = __np_generate_error_json(
-            "request invalid",
-            "looks like you are using a wrong url ...");
-        http_status = HTTP_CODE_BAD_REQUEST;
-        goto __json_return__;
-      }
+      __close_file(_info);
     } else {
-      fprintf(stdout, "not in tree");
-
+      // fprintf(stdout, "not in tree");
       json_obj =
           __np_generate_error_json("request invalid",
                                    "looks like you are using a wrong url ...");
       http_status = HTTP_CODE_INTERNAL_SERVER_ERROR;
-      goto __json_return__;
+      // goto __json_return__;
     }
   }
 
-__json_return__:
+  // by now there should be a response
+  if (http_status == HTTP_CODE_INTERNAL_SERVER_ERROR) {
+    log_msg(LOG_ERROR, "HTTP return is not defined for this code path");
+  }
 
   if (json_obj != NULL) {
     log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
@@ -392,13 +393,28 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
   int         http_status = HTTP_CODE_INTERNAL_SERVER_ERROR; // HTTP_CODE_OK
   JSON_Value *json_obj    = NULL;
 
+  if (NULL != ht_request->ht_query_args) {
+    log_msg(LOG_INFO,
+            "have %d query argument(s)",
+            ht_request->ht_query_args->size);
+    np_tree_elem_t *new_file_or_dir =
+        np_tree_find_str(ht_request->ht_query_args, SHARE_FILES);
+    if (new_file_or_dir != NULL) {
+      char *file_or_dir = urlDecode(new_file_or_dir->val.value.s);
+      log_msg(LOG_INFO, "user requested to share file: %s", file_or_dir);
+      np_id _zero = {0};
+      np_files_open(context, _zero, file_or_dir, false);
+      free(file_or_dir);
+    }
+  }
+
   if (NULL != ht_request->ht_path) {
     char *file_start = ht_request->ht_path + 1; // without leading '/'
 
     np_tree_elem_t *elem = np_tree_find_str(__files._file_tree, file_start);
     if (NULL != elem) {
       struct np_dir_info *_info = (struct np_dir_info *)elem->val.value.v;
-      fprintf(stdout,
+      log_msg(LOG_INFO,
               "http request for: %s (%d directories / %d files)\n",
               _info->ci.name,
               _info->dir_entries_counter,
@@ -415,7 +431,7 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
       np_tree_free(dir_tree);
       json_value_free(dir_in_json);
     } else {
-      fprintf(stdout, "not in tree");
+      log_msg(LOG_DEBUG, "not in tree");
 
       json_obj =
           __np_generate_error_json("request invalid",
@@ -490,10 +506,10 @@ void __send_file(np_state_t *ac, const char *id) {
   if (false == _info->loaded) __load_file(_info);
 
   if (true == _info->loaded) {
-    fprintf(stdout, "np request for: %s\n", _info->ci.name);
+    // fprintf(stdout, "np request for: %s\n", _info->ci.name);
 
     np_tree_t *file_tree = np_tree_create();
-    __create_file_info(_info, file_tree);
+    __create_file_info(_info, file_tree, true);
 
     size_t buffer_size = np_tree_get_byte_size(file_tree);
     // np_serializer_add_map_bytesize(file_tree, &buffer_size);
@@ -515,7 +531,10 @@ void np_files_send_authorized(np_context *ac, struct np_token *token) {
   }
 }
 
-bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
+bool __file_open(np_state_t *context,
+                 np_id(**child_id),
+                 const char *filename,
+                 bool        searchable) {
   bool ret = false;
 
   char       subject[76] = {0};
@@ -542,7 +561,7 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
     _info->ci.last_modified    = _f_info.st_mtim;
 #endif
 
-    getcwd(_info->cwd, sizeof(_info->cwd));
+    getcwd(_info->ci.cwd, sizeof(_info->ci.cwd));
     _info->file_size = _f_info.st_size;
     _info->loaded    = false;
     _info->mime_type = __find_mime_type(filename);
@@ -550,6 +569,9 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
     __load_file(_info);
 
     np_tree_insert_str(__files._file_tree, subject, np_treeval_new_v(_info));
+
+    // fprintf(stdout, "-------------------- filename: %-5s (%s)
+    // --------------------\n", filename, subject);
 
     struct np_mx_properties mxp = np_get_mx_properties(context, subject_id);
     mxp.role                    = NP_MX_PROVIDER;
@@ -575,7 +597,7 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
                             __np_file_handle_http_get_file);
     }
 
-    if (np_module_initiated(search)) {
+    if (np_module_initiated(search) && searchable) {
       np_datablock_t attr[NP_EXTENSION_BYTES] = {0};
       np_init_datablock(attr, NP_EXTENSION_BYTES);
 
@@ -621,10 +643,8 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
       // )
 
       {
-        fprintf(stdout,
-                "--- filename: %-50s --- (%-50s) ---\n",
-                filename,
-                subject);
+        // fprintf(stdout, "--- filename: %-50s --- (%-50s) ---\n", filename,
+        // subject);
 
         // np_searchquery_t sq = {0};
         // if (np_create_searchquery(context, &sq, _info->mmap_region, &attr))
@@ -632,16 +652,13 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
         //     np_search_query(context, &sq);
         //     np_index_destroy(&sq.query_entry.search_index);
         // }
-        char     rotator[]      = {'/', '-', '\\', '|'};
-        uint16_t i              = 1;
-        size_t   left_file_size = _info->file_size;
-        char    *text_start     = _info->mmap_region;
+        // char rotator[] = { '/', '-', '\\', '|' };
+        // uint16_t i = 1;
+        size_t left_file_size = _info->file_size;
+        char  *text_start     = _info->mmap_region;
         while (text_start != NULL && left_file_size > 0) {
-          fprintf(stdout,
-                  "--- adding search indices: %5u %c \r",
-                  i,
-                  rotator[i % 4]);
-          fflush(stdout);
+          // fprintf(stdout, "--- adding search indices: %5u %c \r", i,
+          // rotator[i%4]); fflush(stdout);
 
           char *text_end    = memchr(text_start, '\n', left_file_size);
           char *search_text = strndup(text_start, text_end - text_start);
@@ -650,17 +667,11 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
           if (/*0 == strncmp(search_text, "theme funds", strlen("theme funds"))
                  &&*/
               np_create_searchentry(context, se, search_text, &attr)) {
-            fprintf(stdout,
-                    "--- adding search indices: %5u %c \r",
-                    i,
-                    rotator[i % 4]);
-            fflush(stdout);
+            // fprintf(stdout, "--- adding search indices: %5u %c \r", i,
+            // rotator[i%4]); fflush(stdout);
             np_search_add_entry(context, se);
-            fprintf(stdout,
-                    "--- adding search indices: %5u %c \r",
-                    i,
-                    rotator[i % 4]);
-            fflush(stdout);
+            // fprintf(stdout, "--- adding search indices: %5u %c \r", i,
+            // rotator[i%4]); fflush(stdout);
           }
 
           // fprintf(stdout, "\t%s\n", search_text);
@@ -669,16 +680,13 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
           left_file_size -= text_end - text_start + 1;
           text_start = text_end;
           if (text_start != NULL) text_start++;
-          i++;
-          fprintf(stdout,
-                  "--- adding search indices: %5u %c \r",
-                  i,
-                  rotator[i % 4]);
-          fflush(stdout);
-          // throttle to prevent overload of other systems
-          np_time_sleep(NP_PI / 31);
+          // i++;
+          // fprintf(stdout, "--- adding search indices: %5u %c \r", i,
+          // rotator[i%4]); fflush(stdout); throttle to prevent overload of
+          // other systems
+          np_time_sleep(NP_PI / 157);
         }
-        fprintf(stdout, "\n");
+        // fprintf(stdout, "\n");
       }
     }
 
@@ -692,7 +700,10 @@ bool __file_open(np_state_t *context, np_id(**child_id), const char *filename) {
   return ret;
 }
 
-bool __dir_open(np_state_t *context, np_id(**child_id), const char *dirname) {
+bool __dir_open(np_state_t *context,
+                np_id(**child_id),
+                const char *dirname,
+                bool        searchable) {
   bool ret = false;
 
   // open the directory and read basic values
@@ -745,6 +756,8 @@ bool __dir_open(np_state_t *context, np_id(**child_id), const char *dirname) {
   chdir(dirname);
   __indent_level++;
 
+  getcwd(dir_info->ci.cwd, sizeof(dir_info->ci.cwd));
+
   DIR           *dir        = opendir(".");
   struct dirent *_dir_entry = NULL;
   while ((_dir_entry = readdir(dir)) != NULL) {
@@ -756,7 +769,7 @@ bool __dir_open(np_state_t *context, np_id(**child_id), const char *dirname) {
     if (0 == stat(_dir_entry->d_name, &_f_info)) {
       np_id *_id = NULL;
       if (S_ISDIR(_f_info.st_mode)) {
-        if (__dir_open(context, &_id, _dir_entry->d_name)) {
+        if (__dir_open(context, &_id, _dir_entry->d_name, searchable)) {
           dir_info->dir_entries =
               realloc(dir_info->dir_entries,
                       sizeof(np_id *) * (dir_info->dir_entries_counter + 1));
@@ -766,7 +779,7 @@ bool __dir_open(np_state_t *context, np_id(**child_id), const char *dirname) {
       }
 
       if (S_ISREG(_f_info.st_mode)) {
-        if (__file_open(context, &_id, _dir_entry->d_name)) {
+        if (__file_open(context, &_id, _dir_entry->d_name, searchable)) {
           dir_info->file_entries =
               realloc(dir_info->file_entries,
                       sizeof(np_id *) * (dir_info->file_entries_counter + 1));
@@ -811,7 +824,8 @@ bool __dir_open(np_state_t *context, np_id(**child_id), const char *dirname) {
 
 void np_files_open(np_context *ac,
                    np_id       identifier_seed,
-                   const char *dir_or_filename) {
+                   const char *dir_or_filename,
+                   bool        searchable) {
   const char *subject    = "files";
   np_subject  subject_id = {0};
   np_generate_subject(subject_id, subject, strnlen(subject, 6));
@@ -819,16 +833,16 @@ void np_files_open(np_context *ac,
   char cwd[PATH_MAX];
   getcwd(cwd, sizeof(cwd));
 
-  np_state_t *context = (np_state_t *)ac;
-  // if (np_module_not_initiated(file))
+  np_state_t         *context  = (np_state_t *)ac;
   struct np_dir_info *dir_info = NULL;
   if (NULL == __files._file_tree) {
     char id_seed_str[65];
     __files.context    = ac;
     __files._file_tree = np_tree_create();
+
     np_spinlock_init(&__files._lock, PTHREAD_PROCESS_PRIVATE);
     memcpy(__files.seed, identifier_seed, NP_FINGERPRINT_BYTES);
-    fprintf(stdout,
+    log_msg(LOG_INFO,
             "initialized file server, seed is %s\n",
             np_id_str(id_seed_str, identifier_seed));
 
@@ -873,7 +887,6 @@ void np_files_open(np_context *ac,
                             &__files,
                             __np_file_handle_http_get_dir);
     }
-
   } else {
     dir_info = np_tree_find_str(__files._file_tree, subject)->val.value.v;
   }
@@ -882,7 +895,7 @@ void np_files_open(np_context *ac,
   if (0 == stat(dir_or_filename, &_f_info)) {
     np_id *_id = NULL;
     if (S_ISDIR(_f_info.st_mode)) {
-      if (__dir_open(context, &_id, dir_or_filename)) {
+      if (__dir_open(context, &_id, dir_or_filename, searchable)) {
         dir_info->dir_entries =
             realloc(dir_info->dir_entries,
                     sizeof(np_id *) * (dir_info->dir_entries_counter + 1));
@@ -891,7 +904,7 @@ void np_files_open(np_context *ac,
       }
     }
     if (S_ISREG(_f_info.st_mode)) {
-      if (__file_open(context, &_id, dir_or_filename)) {
+      if (__file_open(context, &_id, dir_or_filename, searchable)) {
         dir_info->file_entries =
             realloc(dir_info->file_entries,
                     sizeof(np_id *) * (dir_info->file_entries_counter + 1));
@@ -900,7 +913,7 @@ void np_files_open(np_context *ac,
       }
     }
   } else {
-    fprintf(stdout,
+    log_msg(LOG_WARNING,
             "np_file: could not stat given filename # %s # (%d) : %s \n",
             dir_or_filename,
             errno,
@@ -929,7 +942,7 @@ bool np_files_store_cb(np_context *context, struct np_message *msg) {
                 O_CREAT | O_WRONLY | O_TRUNC,
                 S_IRUSR | S_IWUSR);
   if (fd == -1) {
-    fprintf(stdout,
+    log_msg(LOG_WARNING,
             "error: %s for filename %s",
             strerror(errno),
             _np_id->val.value.s);

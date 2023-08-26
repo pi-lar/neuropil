@@ -109,13 +109,13 @@ int main(int argc, char **argv) {
 
     if (i == 0) {
       np_example_print(context[i], stdout, "starting http module\n");
-      _np_http_init(context[i], "localhost", "3114");
+      _np_http_init(context[i], "localhost", "31415");
     }
 
     memset(file_seed[i], 0, NP_FINGERPRINT_BYTES);
 
     np_example_print(context[i], stdout, "starting file server\n");
-    // np_files_open(context[i], file_seed, "");
+    // np_files_open(context[i], file_seed, "", false);
 
     //  np_sysinfo_enable_server(context);
     np_example_print(context[i], stdout, "starting search module\n");
@@ -208,7 +208,9 @@ int main(int argc, char **argv) {
   // }
 
   run = true;
-  fprintf(stdout, "now adding search entries from file system");
+  fprintf(stdout, "now adding search entries from file system\n");
+  fflush(stdout);
+
   while (run) {
     for (uint8_t i = 0; i < cloud_size; i++) {
       enum np_return node_status = np_run(context[i], 0.0);
@@ -221,8 +223,8 @@ int main(int argc, char **argv) {
       }
 
       if (i == 0)
-        // np_files_open(context[i], file_seed, "./test_data/articles");
-        np_files_open(context[i], file_seed[i], "./neuropil_crawl");
+        // np_files_open(context[i], file_seed, "./test_data/articles", true);
+        np_files_open(context[i], file_seed[i], "./neuropil_crawl", true);
     }
     np_time_sleep(0.003);
   }

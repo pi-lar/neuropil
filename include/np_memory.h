@@ -95,7 +95,7 @@ void np_memory_randomize_space(np_state_t *context,
                                void       *data);
 
 NP_API_INTERN
-void _np_memory_job_memory_management(np_state_t     *context,
+bool _np_memory_job_memory_management(np_state_t     *context,
                                       np_util_event_t event);
 
 NP_API_INTERN

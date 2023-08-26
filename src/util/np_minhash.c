@@ -21,26 +21,212 @@
 
 #include "np_dhkey.h"
 
+// pushes a new string value to the minhash and the minhash signature, but uses
+// the data dependant flex scheme
+void np_minhash_push_dd_flex(np_minhash_t        *minhash,
+                             const unsigned char *bytes,
+                             uint16_t             bytes_length) {
+  unsigned char sip_hash[crypto_shorthash_BYTES];
+  uint64_t      v1 = UINT64_MAX;
+  uint64_t      v2 = UINT64_MAX;
+
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[0]);
+  memcpy(&v1, &sip_hash[0], sizeof(uint64_t));
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[16]);
+  memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
+
+  uint32_t half = minhash->size / 2;
+  if (minhash->_dd_pos >= half) {
+    minhash->size += minhash->size;
+    minhash->_minimums = (uint32_t *)realloc(minhash->_minimums,
+                                             sizeof(uint32_t) * minhash->size);
+    memmove(&minhash->_minimums[minhash->size / 2],
+            &minhash->_minimums[minhash->_dd_pos + half],
+            minhash->_dd_pos);
+  }
+
+  // uint32_t old_hash_l = minhash->_minimums[minhash->_dd_pos       ];
+  // uint32_t old_hash_u = minhash->_minimums[minhash->_dd_pos + half];
+
+  // fprintf(stdout, "..%u->%u:%u..\n", minhash->_dd_pos,
+  // minhash->_minimums[minhash->_dd_pos], minhash->_minimums[minhash->_dd_pos +
+  // half]);
+  uint32_t hash = (uint32_t)((v1 + minhash->mh_mode * v2) & 0xFFFFFFFF);
+
+  minhash->_minimums[minhash->_dd_pos] -= hash;
+  minhash->_minimums[minhash->_dd_pos + half] += hash;
+
+  // bool increase_counter = false;
+  // if (minhash->_minimums[minhash->_dd_pos] > old_hash_l)
+  // {
+  //     increase_counter |= true;
+  // }
+  // if (minhash->_minimums[minhash->_dd_pos + half] < old_hash_u)
+  // {
+  //     increase_counter &= true;
+  // }
+  // fprintf(stdout, "..%u->%u:%u..\n", minhash->_dd_pos,
+  // minhash->_minimums[minhash->_dd_pos], minhash->_minimums[minhash->_dd_pos +
+  // half]); if (increase_counter)
+  minhash->_dd_pos++;
+}
+
+// pushes a new string value to the minhash and the minhash signature, but uses
+// the data dependant fix scheme
+void np_minhash_push_dd_fix(np_minhash_t        *minhash,
+                            const unsigned char *bytes,
+                            uint16_t             bytes_length) {
+  unsigned char sip_hash[crypto_shorthash_BYTES];
+  uint64_t      v1 = UINT64_MAX;
+  uint64_t      v2 = UINT64_MAX;
+
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[0]);
+  memcpy(&v1, &sip_hash[0], sizeof(uint64_t));
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[16]);
+  memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
+
+  uint16_t half = minhash->size / 2;
+  if (minhash->_dd_pos >= half) {
+    // fprintf(stdout, "minhash dd is full ...\n");
+    return;
+  }
+
+  // uint32_t old_hash_l = minhash->_minimums[minhash->_dd_pos       ];
+  // uint32_t old_hash_u = minhash->_minimums[minhash->_dd_pos + half];
+  // fprintf(stdout, "..%u->%u:%u..\n", minhash->_dd_pos,
+  // minhash->_minimums[minhash->_dd_pos], minhash->_minimums[minhash->_dd_pos +
+  // half]);
+
+  uint32_t hash_1 = (uint32_t)((v1)&0xFFFFFFFF);
+  uint32_t hash_2 = (uint32_t)((v2)&0xFFFFFFFF);
+
+  // bool increase_counter = false;
+  // if ((minhash->_minimums[minhash->_dd_pos] - hash) > old_hash_l)
+  // {
+  //     increase_counter |= true;
+  // }
+  // if ((minhash->_minimums[minhash->_dd_pos + half] + hash) < old_hash_u)
+  // {
+  //     increase_counter &= true;
+  // }
+  // fprintf(stdout, "..%u->%u:%u..\n", minhash->_dd_pos,
+  // minhash->_minimums[minhash->_dd_pos], minhash->_minimums[minhash->_dd_pos +
+  // half]); if (increase_counter)
+
+  if (hash_1 > hash_2) {
+    minhash->_minimums[minhash->_dd_pos]        = hash_2;
+    minhash->_minimums[minhash->_dd_pos + half] = hash_1;
+  } else {
+    minhash->_minimums[minhash->_dd_pos]        = hash_1;
+    minhash->_minimums[minhash->_dd_pos + half] = hash_2;
+  }
+  minhash->_dd_pos++;
+}
+
+// pushes a new string value to the minhash and the minhash signature, but uses
+// the single value scheme
+void np_minhash_push_single(np_minhash_t        *minhash,
+                            const unsigned char *bytes,
+                            uint16_t             bytes_length) {
+  unsigned char sip_hash[crypto_shorthash_BYTES];
+  uint64_t      v1 = UINT64_MAX;
+  uint64_t      v2 = UINT64_MAX;
+
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[0]);
+  memcpy(&v1, &sip_hash[0], sizeof(uint64_t));
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[16]);
+  memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
+
+  uint16_t half = minhash->size / 2;
+
+  uint32_t min_h   = UINT32_MAX;
+  uint32_t max_h   = 0;
+  uint16_t min_idx = 0, max_idx = 0 + half;
+
+  for (uint16_t i = 0; i < minhash->size / 2; i++) {
+    uint32_t hash = (uint32_t)((v1 + i * v2) & 0xFFFFFFFF);
+
+    min_idx = (hash < min_h && hash < minhash->_minimums[i]) ? i : min_idx;
+    min_h   = (hash < min_h && hash < minhash->_minimums[i]) ? hash : min_h;
+    max_idx = (hash > max_h && hash > minhash->_minimums[i + half]) ? i + half
+                                                                    : max_idx;
+    max_h =
+        (hash > max_h && hash > minhash->_minimums[i + half]) ? hash : max_h;
+  }
+  // fprintf(stdout, "min_idx %"PRIu32"\t min_h %"PRIu32"\t max_idx %"PRIu32"\t
+  // max_h %"PRIu32" )\n",
+  //                 min_idx, min_h, max_idx, max_h);
+  // only set when an position has been found
+  if (min_h < UINT32_MAX) minhash->_minimums[min_idx] = min_h;
+  if (max_h > 0) minhash->_minimums[max_idx] = max_h;
+}
+
+// pushes a new string value to the minhash and the minhash signature, but uses
+// the multi value scheme
+void np_minhash_push_multi(np_minhash_t        *minhash,
+                           const unsigned char *bytes,
+                           uint16_t             bytes_length) {
+  unsigned char sip_hash[crypto_shorthash_BYTES];
+  uint64_t      v1 = UINT64_MAX;
+  uint64_t      v2 = UINT64_MAX;
+
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[0]);
+  memcpy(&v1, &sip_hash[0], sizeof(uint64_t));
+  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[16]);
+  memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
+
+  uint16_t half = minhash->size / 2;
+
+  uint32_t min_h = UINT32_MAX;
+  uint32_t max_h = 0;
+
+  for (uint16_t i = 0; i < minhash->size / 2; i++) {
+    uint32_t hash = (uint32_t)((v1 + i * v2) & 0xFFFFFFFF);
+    min_h = max_h = hash;
+    if (min_h < minhash->_minimums[i]) {
+      minhash->_minimums[i] = min_h;
+    }
+    if (max_h > minhash->_minimums[i + half]) {
+      minhash->_minimums[i + half] = max_h;
+    }
+  }
+}
+
 // initialize a minhash structure by allocation memory, setting size and copying
 // seed to the right place
-void np_minhash_init(np_minhash_t    *minhash,
-                     const uint32_t   size,
-                     bool             data_dependant,
-                     const np_dhkey_t seed) {
+void np_minhash_init(np_minhash_t        *minhash,
+                     const uint16_t       size,
+                     enum np_mixhash_mode mode,
+                     const np_dhkey_t     seed) {
   assert(size % 2 == 0);
 
-  minhash->dd     = data_dependant;
-  minhash->dd_pos = 0;
+  minhash->mh_mode = mode;
+  minhash->_dd_pos = 0;
 
-  minhash->size     = size;
-  minhash->minimums = (uint32_t *)calloc(size, sizeof(uint32_t));
+  switch (minhash->mh_mode) {
+  case MIXHASH_DATADEPENDANT_FIX:
+    minhash->_push_func = np_minhash_push_dd_fix;
+    break;
+  case MIXHASH_DATADEPENDANT_FLEX:
+    minhash->_push_func = np_minhash_push_dd_flex;
+    break;
+  case MIXHASH_SINGLE:
+    minhash->_push_func = np_minhash_push_single;
+    break;
+  case MIXHASH_MULTI:
+  default:
+    minhash->_push_func = np_minhash_push_multi;
+    break;
+  }
+  minhash->size      = size;
+  minhash->_minimums = (uint32_t *)calloc(size, sizeof(uint32_t));
 
-  // for (uint32_t i = 0;             i < minhash->size; i++)
-  // minhash->minimums[i] = UINT32_MAX;
-  for (uint32_t i = 0; i < minhash->size / 2; i++)
-    minhash->minimums[i] = UINT32_MAX;
-  for (uint32_t i = minhash->size / 2; i < minhash->size; i++)
-    minhash->minimums[i] = 0;
+  // for (uint16_t i = 0;             i < minhash->size; i++)
+  // minhash->_minimums[i] = UINT32_MAX;
+  for (uint16_t i = 0; i < minhash->size / 2; i++)
+    minhash->_minimums[i] = UINT32_MAX;
+  for (uint16_t i = minhash->size / 2; i < minhash->size; i++)
+    minhash->_minimums[i] = 0;
 
   memcpy(&minhash->seed[0], &seed.t[0], sizeof(uint32_t));
   memcpy(&minhash->seed[4], &seed.t[1], sizeof(uint32_t));
@@ -52,88 +238,13 @@ void np_minhash_init(np_minhash_t    *minhash,
   memcpy(&minhash->seed[28], &seed.t[7], sizeof(uint32_t));
 }
 
-void np_minhash_destroy(np_minhash_t *minhash) { free(minhash->minimums); }
-
-// pushes a new string value to the minhash and the minhash signature, but uses
-// the data dependant scheme
-void np_minhash_push_dd(np_minhash_t        *minhash,
-                        const unsigned char *bytes,
-                        uint16_t             bytes_length) {
-  unsigned char sip_hash[crypto_shorthash_BYTES];
-  uint64_t      v1 = UINT64_MAX;
-  uint64_t      v2 = UINT64_MAX;
-
-  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[0]);
-  memcpy(&v1, &sip_hash[0], sizeof(uint64_t));
-  crypto_shorthash_siphash24(sip_hash, bytes, bytes_length, &minhash->seed[16]);
-  memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
-
-  uint32_t half = minhash->size / 2;
-  if (minhash->dd_pos >= half) {
-    // fprintf(stdout, "minhash dd is full ...\n");
-    return;
-  }
-  uint32_t old_hash_l = minhash->minimums[minhash->dd_pos];
-  uint32_t old_hash_u = minhash->minimums[minhash->dd_pos + half];
-
-  // fprintf(stdout, "..%u->%u:%u..\n", minhash->dd_pos,
-  // minhash->minimums[minhash->dd_pos], minhash->minimums[minhash->dd_pos +
-  // half]);
-
-  uint32_t hash = (uint32_t)((v1 + minhash->dd_pos * v2) & 0xFFFFFFFF);
-
-  minhash->minimums[minhash->dd_pos] -= hash;
-  minhash->minimums[minhash->dd_pos + half] += hash;
-
-  bool increase_counter = false;
-  if (minhash->minimums[minhash->dd_pos] > old_hash_l) {
-    increase_counter |= true;
-  }
-  if (minhash->minimums[minhash->dd_pos + half] < old_hash_u) {
-    increase_counter &= true;
-  }
-
-  // fprintf(stdout, "..%u->%u:%u..\n", minhash->dd_pos,
-  // minhash->minimums[minhash->dd_pos], minhash->minimums[minhash->dd_pos +
-  // half]);
-  if (increase_counter) minhash->dd_pos++;
-}
+void np_minhash_destroy(np_minhash_t *minhash) { free(minhash->_minimums); }
 
 // pushes a new string value to the minhash and the minhash signature
 void np_minhash_push(np_minhash_t        *minhash,
                      const unsigned char *bytes,
                      uint16_t             bytes_length) {
-  if (minhash->dd) {
-    np_minhash_push_dd(minhash, bytes, bytes_length);
-    return;
-  } else {
-    unsigned char sip_hash[crypto_shorthash_BYTES];
-    uint64_t      v1 = UINT64_MAX;
-    uint64_t      v2 = UINT64_MAX;
-
-    crypto_shorthash_siphash24(sip_hash,
-                               bytes,
-                               bytes_length,
-                               &minhash->seed[0]);
-    memcpy(&v1, &sip_hash[0], sizeof(uint64_t));
-    crypto_shorthash_siphash24(sip_hash,
-                               bytes,
-                               bytes_length,
-                               &minhash->seed[16]);
-    memcpy(&v2, &sip_hash[0], sizeof(uint64_t));
-
-    uint32_t half = minhash->size / 2;
-
-    for (uint32_t i = 0; i < minhash->size / 2; i++) {
-      uint32_t hash = (uint32_t)((v1 + i * v2) & 0xFFFFFFFF);
-      if (hash < minhash->minimums[i]) {
-        minhash->minimums[i] = hash;
-      }
-      if (hash > minhash->minimums[i + half]) {
-        minhash->minimums[i + half] = hash;
-      }
-    }
-  }
+  minhash->_push_func(minhash, bytes, bytes_length);
 }
 
 int __compare_minhash_elements(const void *left, const void *right) {
@@ -247,32 +358,66 @@ void np_minhash_push_tree(np_minhash_t    *minhash,
 // extracts the single minimum hash value from the signature
 void np_minhash_value(const np_minhash_t *minhash, uint32_t *value) {
   *value = UINT32_MAX;
-  for (uint32_t i = 0; i < minhash->size; i++) {
-    if (minhash->minimums[i] < *value) *value = minhash->minimums[i];
+  for (uint16_t i = 0; i < minhash->size; i++) {
+    if (minhash->_minimums[i] < *value) *value = minhash->_minimums[i];
   }
 }
 
 // stores the minhash signature of a document in an array
 // passed array must have the same size as the minhash signature
 void np_minhash_signature(const np_minhash_t *minhash, uint32_t *signature[]) {
-  memcpy(signature, minhash->minimums, sizeof(uint32_t) * minhash->size);
+  memcpy(signature, minhash->_minimums, sizeof(uint32_t) * minhash->size);
 }
 
 // np_minhash_similarity compares two minhash sets, result is placed in result
 void np_minhash_similarity(const np_minhash_t *minhash_1,
                            const np_minhash_t *minhash_2,
                            float              *result) {
-  if (sizeof(minhash_1->size) != sizeof(minhash_2->size)) {
-    *result = 0.0; // not similar at all
+  if (minhash_1->mh_mode != minhash_2->mh_mode) {
+    *result = 0.0;
     return;
   }
 
-  uint32_t intersect_count = 0;
-  for (uint32_t i = 0; i < minhash_1->size; i++) {
-    if (minhash_1->minimums[i] == minhash_2->minimums[i]) intersect_count++;
+  uint16_t union_size   = minhash_1->size; // the max number of possible matches
+  uint16_t compare_size = minhash_1->size; // the number of elements to compare
+
+  if (minhash_1->mh_mode == MIXHASH_DATADEPENDANT_FLEX) {
+    // calculate data dependant flex hashing limits
+    // adjust campare size to the lower limit
+    compare_size =
+        minhash_1->size < minhash_2->size ? minhash_1->size : minhash_2->size;
+    // adjust union size to the upper limit
+    union_size =
+        minhash_1->size < minhash_2->size ? minhash_2->size : minhash_1->size;
+  } else {
+    if (sizeof(minhash_1->size) != sizeof(minhash_2->size)) {
+      *result = 0.0; // not similar at all
+      return;
+    }
   }
 
-  *result = (float)intersect_count / minhash_1->size;
+  uint16_t intersect_count = 0;
+
+  for (uint16_t i = 0; i < compare_size; i++) {
+    if (minhash_1->mh_mode !=
+        MIXHASH_MULTI) { // ignore initial min-max values when dealing with
+                         // single hashing
+      // they do not add meaningful information to single-hahsing similarity
+      if (minhash_1->_minimums[i] == UINT32_MAX ||
+          minhash_2->_minimums[i] == UINT32_MAX) {
+        if (minhash_1->_minimums[i] == minhash_2->_minimums[i]) union_size--;
+        continue;
+      }
+      if (minhash_1->_minimums[i] == 0 || minhash_2->_minimums[i] == 0) {
+        if (minhash_1->_minimums[i] == minhash_2->_minimums[i]) union_size--;
+        continue;
+      }
+    }
+
+    if (minhash_1->_minimums[i] == minhash_2->_minimums[i]) intersect_count++;
+  }
+
+  *result = (float)intersect_count / union_size;
 }
 
 // np_minhash_merge inserts the signature of minhash_2 into minhash_1 if the
@@ -282,14 +427,17 @@ void np_minhash_merge(np_minhash_t *minhash_1, const np_minhash_t *minhash_2) {
   if (sizeof(minhash_1->size) != sizeof(minhash_2->size)) {
     return;
   }
-
-  for (uint64_t i = 0; i < minhash_1->size / 2; i++) {
-    if (minhash_2->minimums[i] < minhash_1->minimums[i])
-      minhash_1->minimums[i] = minhash_2->minimums[i];
+  if (minhash_1->mh_mode != minhash_2->mh_mode) {
+    return;
   }
 
-  for (uint64_t i = minhash_1->size / 2 + 1; i < minhash_1->size; i++) {
-    if (minhash_2->minimums[i] > minhash_1->minimums[i])
-      minhash_1->minimums[i] = minhash_2->minimums[i];
+  for (uint16_t i = 0; i < minhash_1->size / 2; i++) {
+    if (minhash_2->_minimums[i] < minhash_1->_minimums[i])
+      minhash_1->_minimums[i] = minhash_2->_minimums[i];
+  }
+
+  for (uint16_t i = minhash_1->size / 2 + 1; i < minhash_1->size; i++) {
+    if (minhash_2->_minimums[i] > minhash_1->_minimums[i])
+      minhash_1->_minimums[i] = minhash_2->_minimums[i];
   }
 }

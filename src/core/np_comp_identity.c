@@ -486,6 +486,7 @@ void __np_identity_handle_authn(np_util_statemachine_t *statemachine,
       // "_np_keycache_find_or_create");
 
       _np_key_get_node(context->my_node_key)->joined_network = true;
+
     } else if (false == join_allowed && context->enable_realm_client == false) {
       np_dhkey_t leave_dhkey = np_aaatoken_get_fingerprint(authn_token, false);
       np_util_event_t shutdown_evt = {.type = (evt_internal | evt_shutdown),

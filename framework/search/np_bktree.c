@@ -148,15 +148,14 @@ bool __np_bktree_insert(np_bktree_node_t *tree_node,
           }
       }
   */
-  // fprintf(stdout, "--- %p:%p ( %f ) ---\n", tree_node, tree_node->_values,
-  // _jc);
 
   if (tree_node->_values != NULL && _jc > 0.9)
   // if (tree_node->values != NULL && _np_dhkey_equal(&tree_node->_key, &key))
   {
-    // int8_t res = _compare_lph_entry(tree_node->_values->root.item, value);
-    // if (-1 <= res && res <= 1)
-    // fprintf(stdout, ":%1.1f:%p !! ", _jc, tree_node->_values);
+    // fprintf(stdout, "--- %p:%p ( %u : %f ) ---\n", tree_node,
+    // tree_node->_values, tree_node->_values->_num_elements, _jc); int8_t res =
+    // _compare_lph_entry(tree_node->_values->root.item, value); if (-1 <= res
+    // && res <= 1) fprintf(stdout, ":%1.1f:%p !! ", _jc, tree_node->_values);
     np_skiplist_add(tree_node->_values, value);
     ret = true;
   }
@@ -205,7 +204,8 @@ bool __np_bktree_insert(np_bktree_node_t *tree_node,
     _np_dhkey_assign(&tree_node->_child_nodes[bin_index]->_key, &key);
     tree_node->_child_nodes[bin_index]->_values = malloc(sizeof(np_skiplist_t));
     np_skiplist_init(tree_node->_child_nodes[bin_index]->_values,
-                     _compare_npindex_entry_add);
+                     _compare_npindex_entry_add,
+                     NULL);
     np_skiplist_add(tree_node->_child_nodes[bin_index]->_values, value);
     // fprintf(stdout, "%1.1f:%u:%p !! ", 1.0, bin_index,
     // tree_node->_child_nodes[bin_index]->_values); fprintf(stdout, "inserted
@@ -280,15 +280,13 @@ void __np_bktree_query(np_bktree_node_t *tree_node,
   // }
   // fprintf(stdout, "\n");
 
-  // fprintf(stdout, "--- %p:%p ( %f ) ---\n", tree_node, tree_node->_values,
-  // _jc);
-
   if (tree_node->_values != NULL /*&& _jc > 0.5*/)
   // if (_do_map && tree_node->_values != NULL)
   {
-    // int8_t res = _compare_lph_entry(tree_node->_values->root.item, value);
-    // if (-1 <= res && res <= 1)
-    // fprintf(stdout, ":%:%p !! ", _jc, tree_node->_values);
+    // fprintf(stdout, "--- %p:%p ( %u : %f ) ---\n", tree_node,
+    // tree_node->_values, tree_node->_values->_num_elements , _jc); int8_t res
+    // = _compare_lph_entry(tree_node->_values->root.item, value); if (-1 <= res
+    // && res <= 1) fprintf(stdout, ":%:%p !! ", _jc, tree_node->_values);
     // fprintf(stdout, ":%1.1f:%p !! ", _jc, tree_node->_values);
     np_skiplist_map(tree_node->_values, mr_struct);
   }

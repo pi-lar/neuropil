@@ -863,6 +863,11 @@ bool _np_neuropil_bloom_intersect_test(np_bloom_t *result,
       if (result->_bitset[k + 1] >= to_intersect->_bitset[k + 1])
         j += to_intersect->_bitset[k + 1];
     }
+
+    if ((result->_bitset[k] > 0 && to_intersect->_bitset[k] == 0) ||
+        (result->_bitset[k] == 0 && to_intersect->_bitset[k] > 0)) {
+      return false;
+    }
     /*
     fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
                     result->_bitset[k  ], result->_bitset[k+1],

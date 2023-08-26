@@ -54,7 +54,7 @@ typedef union {
   int32_t        integer;
   uint32_t       unsigned_integer;
   char          *str;
-} np_data_value;
+} np_data_value       NP_PACKED(1);
 typedef unsigned char np_datablock_t;
 
 NP_API_EXPORT

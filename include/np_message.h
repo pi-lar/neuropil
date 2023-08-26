@@ -35,8 +35,7 @@ struct np_message_s {
   bool     is_single_part;
   uint16_t no_of_chunks;
   uint16_t no_of_chunk;
-  np_pll_t(np_messagepart_ptr, msg_chunks);
-  np_mutex_t msg_chunks_lock;
+  TSP(np_pll_t(np_messagepart_ptr, ), msg_chunks);
 
   // np_msgproperty_conf_ptr msg_property;
   double send_at;

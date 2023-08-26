@@ -52,24 +52,38 @@ extern "C" {
  * TODO: allow k-mer splitting for binary data entries
  *
  */
-struct np_minhash_s {
-  uint32_t      size;
-  unsigned char seed[crypto_shorthash_KEYBYTES * 2];
-  uint32_t     *minimums;
 
-  // flags and temp storage for data dependant minhashing scheme
-  bool     dd;
-  uint32_t dd_pos;
+enum np_mixhash_mode {
+  MIXHASH_MULTI              = 0,
+  MIXHASH_SINGLE             = 1,
+  MIXHASH_DATADEPENDANT_FIX  = 2,
+  MIXHASH_DATADEPENDANT_FLEX = 3,
 };
 
 typedef struct np_minhash_s np_minhash_t;
+typedef void (*np_minhash_push_func)(np_minhash_t        *minhash,
+                                     const unsigned char *bytes,
+                                     uint16_t             bytes_length);
+
+struct np_minhash_s {
+  // public, set via np_minhash_init
+  uint16_t             size;
+  unsigned char        seed[crypto_shorthash_KEYBYTES * 2];
+  enum np_mixhash_mode mh_mode;
+
+  // private
+  // temp storage for data dependant minhashing scheme
+  uint32_t            *_minimums;
+  uint16_t             _dd_pos;
+  np_minhash_push_func _push_func;
+};
 
 // initialize a minhash structure by allocation memory, setting size and copying
 // seed to the right place
-void np_minhash_init(np_minhash_t    *minhash,
-                     const uint32_t   size,
-                     bool             data_dependant,
-                     const np_dhkey_t seed);
+void np_minhash_init(np_minhash_t        *minhash,
+                     const uint16_t       size,
+                     enum np_mixhash_mode mode,
+                     const np_dhkey_t     seed);
 // void np_minhash_init(np_minhash_t* minhash, const uint32_t size, const
 // np_dhkey_t seed);
 void np_minhash_destroy(np_minhash_t *minhash);

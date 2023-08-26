@@ -283,7 +283,7 @@ bool _np_keycache_exists_state(np_state_t *context, np_util_event_t args) {
   }
   sll_free(np_dhkey_t, tmp_to_transition);
 
-  _np_memory_job_memory_management(context, args);
+  // _np_memory_job_memory_management(context, args);
 
   return true;
 }

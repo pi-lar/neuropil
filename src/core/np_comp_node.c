@@ -1473,7 +1473,7 @@ void __np_node_split_message(np_util_statemachine_t *statemachine,
   struct __np_node_trinity trinity = {0};
   __np_key_to_trinity(node_key, &trinity);
 
-  _LOCK_ACCESS(&default_msg->msg_chunks_lock) {
+  TSP_SCOPE(default_msg->msg_chunks) {
     pll_iterator(np_messagepart_ptr) part_iter =
         pll_first(default_msg->msg_chunks);
     while (NULL != part_iter) {
@@ -1488,11 +1488,13 @@ void __np_node_split_message(np_util_statemachine_t *statemachine,
 
       np_util_event_t send_event = event;
       send_event.user_data       = part_iter->val;
-      //_np_event_runtime_add_event(context, event.current_run,
-      // node_key->dhkey,
-      // send_event);
+      _np_event_runtime_add_event(context,
+                                  event.current_run,
+                                  node_key->dhkey,
+                                  send_event);
       // run in same lock context
-      _np_event_runtime_start_with_event(context, node_key->dhkey, send_event);
+      // _np_event_runtime_start_with_event(context, node_key->dhkey,
+      // send_event);
 
       pll_next(part_iter);
     }
@@ -1525,15 +1527,21 @@ void __np_node_send_encrypted(np_util_statemachine_t *statemachine,
   int encryption = -1;
   _LOCK_ACCESS(&part->work_lock) {
     // replace with our onw local sequence number for next hop
-    np_tree_replace_str(part->instructions,
-                        _NP_MSG_INST_SEQ,
-                        np_treeval_new_ul(trinity.network->seqend++));
-    // increase resend counter for hop measurement
-    np_tree_elem_t *jrb_send_counter =
-        np_tree_find_str(part->instructions, _NP_MSG_INST_SEND_COUNTER);
-    jrb_send_counter->val.value.ush++;
+    // TODO: doesn't work at the moment, instructions are already serialized in
+    // part->msg_part
 
-    _np_messagepart_trace_info("MSGPART_OUT_ENCRYPTED", part);
+    // np_tree_elem_t *jrb_seq_number =
+    //     np_tree_find_str(part->instructions, _NP_MSG_INST_SEQ);
+    // jrb_seq_number->val.value.ul = trinity.network->seqend++;
+    // np_tree_replace_str(part->instructions,
+    //                     _NP_MSG_INST_SEQ,
+    //                     np_treeval_new_ul(trinity.network->seqend++));
+    // increase resend counter for hop measurement
+    // np_tree_elem_t *jrb_send_counter =
+    //     np_tree_find_str(part->instructions, _NP_MSG_INST_SEND_COUNTER);
+    // jrb_send_counter->val.value.ush++;
+
+    // _np_messagepart_trace_info("MSGPART_OUT_ENCRYPTED", part);
 
     // add protection from replay attacks ...
     unsigned char nonce[crypto_secretbox_NONCEBYTES];

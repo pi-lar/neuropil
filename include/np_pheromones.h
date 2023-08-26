@@ -70,8 +70,8 @@ NP_API_INTERN
 bool _np_pheromone_inhale_target(np_state_t *context,
                                  np_dhkey_t  target,
                                  np_dhkey_t  pheromone_source,
-                                 bool        is_sender,
-                                 bool        is_receiver);
+                                 bool        find_sender,
+                                 bool        find_receiver);
 NP_API_INTERN
 void _np_pheromone_inhale_scent(np_state_t *context,
                                 uint16_t    pos,

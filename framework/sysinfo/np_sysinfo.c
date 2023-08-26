@@ -7,6 +7,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#include "../framework/http/urldecode.h"
+#include "inttypes.h"
 #include "parson/parson.h"
 
 #include "neuropil.h"
@@ -33,6 +35,7 @@
 
 #define _NP_SYSINFO_MY_NEIGHBOURS "neighbour_nodes"
 #define _NP_SYSINFO_MY_ROUTES     "routing_nodes"
+#define _NP_SYSINFO_CONNECT       "connect_string"
 
 #define _NP_SYSINFO_SOURCE "source_hash"
 #define _NP_SYSINFO_TARGET "target_hash"
@@ -267,7 +270,7 @@ bool _np_in_sysinfo(np_state_t *context, struct np_message *msg) {
                           np_treeval_new_tree(&payload));
 
       char new_sysinfo[9 + 64 + 1];
-      snprintf(new_sysinfo, 9 + 64 + 1, "/sysinfo/%s", source_val);
+      snprintf(new_sysinfo, 9 + 64 + 1, "sysinfo/%s", source_val);
       _np_add_http_callback(context,
                             new_sysinfo,
                             htp_method_GET,
@@ -581,14 +584,25 @@ int _np_http_handle_sysinfo_all(ht_request_t  *request,
   /**
    * Default behavior if no argument is given: display own node informations
    */
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                "parse path arguments of %s",
-                request->ht_path);
+  log_msg(LOG_INFO, "parse path arguments of %s", request->ht_path);
+
+  if (NULL != request->ht_query_args) {
+    log_msg(LOG_INFO,
+            "have %d query argument(s)",
+            request->ht_query_args->size);
+    np_tree_elem_t *new_join =
+        np_tree_find_str(request->ht_query_args, _NP_SYSINFO_CONNECT);
+    if (new_join != NULL) {
+      char *url = urlDecode(new_join->val.value.s);
+      log_msg(LOG_INFO, "user requested to join: %s", url);
+      np_join(context, url);
+      free(url);
+    }
+  }
 
   np_tree_t *sysinfo = NULL;
-
   if (NULL != request->ht_path) {
-    if (0 == strncmp(request->ht_path, "/sysinfo", 9)) {
+    if (0 == strncmp(request->ht_path, "/sysinfo", 8)) {
       sysinfo = np_sysinfo_get_all(context);
     } else {
       json_obj = _np_generate_error_json("provided key invalid.",

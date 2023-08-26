@@ -745,11 +745,8 @@ char *np_statistics_print(np_state_t *context, bool asOneLine) {
 
   uint32_t tenth           = 1;
   char     tmp_format[512] = {0};
-  uint32_t minimize[]      = {
-           routes,
-           all_total_received + all_total_send,
-  };
-  char s[32];
+  uint32_t minimize[]      = {routes, all_total_received + all_total_send};
+  char     s[32];
 
   for (uint32_t i = 0; i < (sizeof(minimize) / sizeof(uint32_t)); i++) {
     snprintf(s, 32, "%d", minimize[i]);
@@ -913,6 +910,7 @@ void __np_statistics_increment_pheromones_inhale(np_state_t *context) {
         1);
   }
 }
+
 void __np_statistics_increment_pheromones_exhale(np_state_t *context) {
   if (np_module_initiated(statistics)) {
     prometheus_metric_inc(
@@ -935,6 +933,7 @@ void __np_increment_received_msgs_counter(np_state_t *context,
         1);
   }
 }
+
 void __np_increment_send_msgs_counter(np_state_t *context, np_dhkey_t subject) {
   if (np_module_initiated(statistics)) {
     prometheus_metric_inc(
@@ -970,23 +969,22 @@ void __np_statistics_add_received_bytes(np_state_t *context, uint32_t add) {
 _np_statistics_debug_t *__np_statistics_debug_get(np_state_t *context,
                                                   char       *key) {
   _np_statistics_debug_t *ret = NULL;
-  _LOCK_MODULE(np_utilstatistics_t) {
-    assert(np_module(statistics) != NULL);
-    assert(np_module(statistics)->__np_debug_statistics != NULL);
-    sll_iterator(void_ptr) iter =
-        sll_first(np_module(statistics)->__np_debug_statistics);
+  assert(np_module(statistics) != NULL);
+  assert(np_module(statistics)->__np_debug_statistics != NULL);
+  sll_iterator(void_ptr) iter =
+      sll_first(np_module(statistics)->__np_debug_statistics);
 
-    while (iter != NULL) {
-      _np_statistics_debug_t *item = (_np_statistics_debug_t *)iter->val;
-      if (strncmp(item->key, key, 255) == 0) {
-        ret = item;
-        break;
-      }
-      sll_next(iter);
+  while (iter != NULL) {
+    _np_statistics_debug_t *item = (_np_statistics_debug_t *)iter->val;
+    if (strncmp(item->key, key, 255) == 0) {
+      ret = item;
+      break;
     }
+    sll_next(iter);
   }
   return ret;
 }
+
 char *__np_statistics_debug_print(np_state_t *context) {
   char *ret = NULL;
   if (np_module_initiated(statistics)) {
@@ -1018,14 +1016,18 @@ char *__np_statistics_debug_print(np_state_t *context) {
   }
   return ret;
 }
+
 void _np_statistics_debug_ele_destroy(np_state_t *context, void *item) {
   _np_statistics_debug_t *ele = (_np_statistics_debug_t *)item;
   _np_threads_mutex_destroy(context, &ele->lock);
   free(ele);
 }
+
 _np_statistics_debug_t *
 _np_statistics_debug_add(np_state_t *context, char *key, double value) {
-  _np_statistics_debug_t *item;
+
+  _np_statistics_debug_t *item = NULL;
+
   _LOCK_MODULE(np_utilstatistics_t) {
     item = __np_statistics_debug_get(context, key);
     if (item == NULL) {
@@ -1046,16 +1048,19 @@ _np_statistics_debug_add(np_state_t *context, char *key, double value) {
     }
   }
 
-  _LOCK_ACCESS(&item->lock) {
-    item->avg = (item->avg * item->count + value) / (item->count + 1);
-    item->count++;
+  if (item != NULL) {
+    _LOCK_ACCESS(&item->lock) {
+      item->avg = (item->avg * item->count + value) / (item->count + 1);
+      item->count++;
 
-    item->max = fmax(value, item->max);
-    item->min = fmin(value, item->min);
+      item->max = fmax(value, item->max);
+      item->min = fmin(value, item->min);
+    }
   }
 
   return item;
 }
+
 void _np_statistics_debug_destroy(np_state_t *context) {
   _LOCK_MODULE(np_utilstatistics_t) {
     sll_iterator(void_ptr) iter_np_debug_statistics =

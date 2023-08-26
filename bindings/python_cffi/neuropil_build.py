@@ -10,7 +10,7 @@ ffibuilder = FFI()
 PATH = os.path.dirname(os.path.abspath(__file__))
 
 library_dirs = [
-    os.path.join(PATH, "..","..","build",'neuropil',"lib"), #dev build
+    os.path.join(PATH, "..","..","build","neuropil","lib"), #dev build
     os.path.join(os.sep,"usr", "lib"),
     os.path.join(os.sep,"usr", "local","lib"),
     os.path.join(os.sep,"usr", "lib", "neuropil"),
@@ -24,6 +24,7 @@ if DYLD_LIBRARY_PATH:
     library_dirs = [DYLD_LIBRARY_PATH]+library_dirs
 include_dirs = [
     os.path.join(PATH, "..", "..", "include"), # dev build
+    os.path.join(PATH, "..", "..", "framework"), # dev build
     os.path.join(os.sep,"usr", "include"),
     os.path.join(os.sep,"usr", "local","include"),
     os.path.join(os.sep,"usr", "include", "neuropil"),
@@ -50,6 +51,7 @@ ffibuilder.set_source(
         #include "neuropil_data.h"
         #include "neuropil_attributes.h"
         #include "neuropil_log.h"
+        #include "search/neuropil_search.h"
     """,
     libraries=['neuropil'],   # library name, for the linker
     library_dirs=library_dirs,

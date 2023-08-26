@@ -131,7 +131,7 @@
     EV_P = _np_event_get_loop_##LOOPNAME(context);                             \
     ev_set_invoke_pending_cb(np_module(events)->__loop_##LOOPNAME,             \
                              _l_invoke_##LOOPNAME);                            \
-    _LOCK_MODULE(np_event_##LOOPNAME##_t) { ev_run(EV_A_(0)); }                \
+    _LOCK_MODULE(np_event_##LOOPNAME##_t) { ev_run(EV_A_ EVRUN_NOWAIT); }      \
     log_info(LOG_THREADS,                                                      \
              "thread %" PRIsizet " type %" PRIsizet " stopping ...",           \
              thread->id,                                                       \
@@ -178,8 +178,8 @@ __NP_EVENT_LOOP_FNs(out);
 __NP_EVENT_LOOP_FNs(http);
 __NP_EVENT_LOOP_FNs(file);
 
-void async_cb(EV_P_ NP_UNUSED ev_async *w,
-              NP_UNUSED int revents) { /* just used for the side effects */
+void async_cb(EV_P_ NP_UNUSED ev_async *w, NP_UNUSED int revents) {
+  /* just used for the side effects */
 }
 
 bool _np_event_init(np_state_t *context) {

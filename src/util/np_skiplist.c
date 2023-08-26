@@ -31,9 +31,9 @@ uint8_t __pick_height(uint32_t elements) {
   return (k > max_height) ? max_height : k;
 }
 
-void np_skiplist_print(np_skiplist_t *skiplist) {
-  np_skiplist_node_t *u = &skiplist->root;
-  uint8_t             i = 0;
+void np_skiplist_print(const np_skiplist_t *skiplist) {
+  const np_skiplist_node_t *u = &skiplist->root;
+  uint8_t                   i = 0;
 
   fprintf(stdout, "\n                      :");
   for (uint8_t j = 0; j < u->_height; j++) {
@@ -52,7 +52,8 @@ void np_skiplist_print(np_skiplist_t *skiplist) {
 }
 
 void np_skiplist_init(np_skiplist_t        *skiplist,
-                      compare_skiplist_item compare_func) {
+                      compare_skiplist_item compare_func,
+                      hash_skiplist_item    hash_func) {
   skiplist->_num_elements = 0;
 
   skiplist->root._height  = 0;
@@ -61,6 +62,7 @@ void np_skiplist_init(np_skiplist_t        *skiplist,
   skiplist->root._nodes   = NULL;
 
   skiplist->compare_func = compare_func;
+  skiplist->hash_func    = hash_func;
   // skiplist->root._nodes = calloc(sizeof(np_skiplist_node_t));
   // skiplist->root._spinlock = malloc(sizeof(np_spinlock_t));
 }

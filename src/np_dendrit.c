@@ -151,10 +151,15 @@ bool _check_and_send_destination_ack(np_state_t     *context,
       np_util_event_t ack_event = {.type         = evt_message | evt_internal,
                                    .target_dhkey = ack_out_dhkey,
                                    .user_data    = msg_out};
-      _np_event_runtime_add_event(context,
-                                  msg_event.current_run,
-                                  ack_out_dhkey,
-                                  ack_event);
+      np_jobqueue_submit_event(context,
+                               0.0,
+                               ack_out_dhkey,
+                               ack_event,
+                               "event: ack out");
+      // _np_event_runtime_add_event(context,
+      //                             msg_event.current_run,
+      //                             ack_out_dhkey,
+      //                             ack_event);
       np_unref_obj(np_message_t, msg_out, FUNC);
     }
   }
@@ -680,9 +685,16 @@ bool _np_in_available_sender(np_state_t *context, np_util_event_t msg_event) {
 
   // extract e2e encryption details for sender
   np_message_intent_public_token_t *msg_token = NULL;
-  np_tree_elem_t                   *intent_token_ele =
+  // TODO: use CHECK_STR_FIELD(...)
+  np_tree_elem_t *intent_token_ele =
       np_tree_find_str(available_msg_in->body, _NP_URN_INTENT_PREFIX);
 
+  if (intent_token_ele == NULL) {
+    log_warn(LOG_ROUTING,
+             "received NO sender token via msg (%s).",
+             available_msg_in->uuid);
+    return true;
+  }
   msg_token = np_token_factory_read_from_tree(context,
                                               intent_token_ele->val.value.tree);
   if (msg_token) {
@@ -708,7 +720,7 @@ bool _np_in_available_sender(np_state_t *context, np_util_event_t msg_event) {
     np_unref_obj(np_aaatoken_t, msg_token, "np_token_factory_read_from_tree");
   } else {
     log_warn(LOG_ROUTING,
-             "Received NO sender token (%s) via msg (%s).",
+             "Received NO sender token () via msg (%s).",
              available_msg_in->uuid);
   }
   return true;

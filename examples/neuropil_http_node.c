@@ -102,13 +102,13 @@ int main(int argc, char **argv) {
             np_get_connection_string(context));
 
     log_debug_msg(LOG_DEBUG, "starting http module");
-    _np_http_init(context, "localhost", "3114");
+    _np_http_init(context, "localhost", "31415");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
     log_debug_msg(LOG_DEBUG, "starting file server");
-    np_files_open(context, file_seed, "examples");
+    np_files_open(context, file_seed, "examples", false);
     np_sysinfo_enable_server(context);
 
     log_debug_msg(LOG_DEBUG, "starting job queue");
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
       }
 
       while (np_get_status(context) == np_running) {
-        np_files_open(context, file_seed, "examples");
+        np_files_open(context, file_seed, "examples", false);
         np_run(context, 0.5);
         // __np_example_helper_loop(context);
       }
