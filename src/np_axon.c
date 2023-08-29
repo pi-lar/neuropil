@@ -185,7 +185,6 @@ bool __np_axon_chunk_and_send(np_state_t         *context,
     send_before =
         _np_decaying_bloom_check(context->msg_forward_filter, _cache_msg_id);
     if (!send_before) {
-      _np_decaying_bloom_decay(context->msg_forward_filter);
       _np_decaying_bloom_add(context->msg_forward_filter, _cache_msg_id);
     } else {
       log_info(LOG_ROUTING,

@@ -100,10 +100,6 @@ extern "C" {
 #define NP_STATISTICS_PROMETHEUS_DATA_GATHERING_INTERVAL (NP_PI / 10)
 #endif
 
-#ifndef NP_LOG_FLUSH_INTERVAL
-#define NP_LOG_FLUSH_INTERVAL (NP_PI / 100)
-#endif
-
 #ifndef NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL
 #define NP_BOOTSTRAP_REACHABLE_CHECK_INTERVAL (NP_PI * 10)
 #endif
@@ -173,15 +169,27 @@ extern "C" {
 #define MSG_ENCRYPTION_BYTES_40                                                \
   (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
+// log file handling
 #ifndef MISC_LOG_FLUSH_INTERVAL_SEC
 #define MISC_LOG_FLUSH_INTERVAL_SEC (NP_PI / 30)
 #endif
-#ifndef MISC_LOG_FLUSH_MAX_ITEMS
-#define MISC_LOG_FLUSH_MAX_ITEMS (1000)
-#endif
 #ifndef MISC_LOG_FLUSH_AFTER_X_ITEMS
-#define MISC_LOG_FLUSH_AFTER_X_ITEMS (20)
+#define MISC_LOG_FLUSH_AFTER_X_ITEMS (31)
 #endif
+#ifndef LOG_ROTATE_COUNT
+#define LOG_ROTATE_COUNT (3)
+#endif
+#ifndef LOG_ROTATE_AFTER_BYTES
+#define LOG_ROTATE_AFTER_BYTES (10000000 /* 10 MB */)
+#endif
+#ifndef LOG_ROTATE_ENABLE
+#if defined(DEBUG) && DEBUG == 1
+#define LOG_ROTATE_ENABLE false
+#else
+#define LOG_ROTATE_ENABLE true
+#endif
+#endif
+
 #ifndef MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC
 #define MISC_REJOIN_BOOTSTRAP_INTERVAL_SEC (NP_PI)
 #endif
@@ -258,22 +266,6 @@ extern "C" {
 #ifndef JOBQUEUE_MAX_SIZE
 // Should never exceed USHRT_MAX (65535)
 #define JOBQUEUE_MAX_SIZE (512)
-#endif
-
-#ifndef LOG_ROTATE_COUNT
-#define LOG_ROTATE_COUNT (3)
-#endif
-
-#ifndef LOG_ROTATE_AFTER_BYTES
-#define LOG_ROTATE_AFTER_BYTES (1000000 /* 10 MB */)
-#endif
-
-#ifndef LOG_ROTATE_ENABLE
-#if defined(DEBUG) && DEBUG == 1
-#define LOG_ROTATE_ENABLE false
-#else
-#define LOG_ROTATE_ENABLE true
-#endif
 #endif
 
 #ifndef NP_NETWORK_MAX_MSGS_PER_SCAN_OUT

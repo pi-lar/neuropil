@@ -714,11 +714,11 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
       dll_size(property_run->msg_cache));
 
   // get message from cache (maybe only for one way mep ?!)
-  uint16_t msg_available            = 0;
-  msg_available                     = dll_size(property_run->msg_cache);
+  uint32_t msg_visit_counter        = dll_size(property_run->msg_cache);
   dll_iterator(np_message_ptr) peek = NULL;
 
-  while (0 < msg_available && msg_available <= property_conf->cache_size) {
+  while (0 < msg_visit_counter &&
+         msg_visit_counter <= property_conf->cache_size) {
     np_message_t *msg_out = NULL;
     // if messages are available in cache, send them !
     if (FLAG_CMP(property_conf->cache_policy, FIFO)) {
@@ -727,7 +727,7 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
           _np_intent_has_crypto_session(
               my_property_key,
               *_np_message_get_sessionid(peek->val))) {
-        msg_out = dll_head(np_message_ptr, property_run->msg_cache);
+        msg_out = peek->val;
       }
       peek = dll_next(peek);
 
@@ -737,14 +737,14 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
           _np_intent_has_crypto_session(
               my_property_key,
               *_np_message_get_sessionid(peek->val))) {
-        msg_out = dll_tail(np_message_ptr, property_run->msg_cache);
+        msg_out = peek->val;
       }
       peek = dll_previous(peek);
     }
 
     // check for more messages in cache after head/tail command
     // msg_available = dll_size(send_prop->msg_cache_out);
-    msg_available--;
+    msg_visit_counter--;
 
     if (NULL != msg_out) {
       log_debug(LOG_ROUTING,
@@ -772,6 +772,7 @@ void _np_msgproperty_check_msgcache(np_util_statemachine_t *statemachine,
                                     msg_event);
       }
       np_unref_obj(np_message_t, msg_out, ref_msgproperty_msgcache);
+      dll_remove(np_message_ptr, property_run->msg_cache, msg_out);
     }
   }
 }
@@ -795,15 +796,15 @@ void _np_msgproperty_check_msgcache_for(np_util_statemachine_t *statemachine,
                 dll_size(property_run->msg_cache),
                 np_id_str(buf, &event.target_dhkey));
   // get message from cache (maybe only for one way mep ?!)
-  uint16_t msg_available = 0;
 
   if (!_np_intent_has_crypto_session(my_property_key, event.target_dhkey))
     return;
 
-  msg_available = dll_size(property_run->msg_cache);
+  uint32_t msg_visit_counter = dll_size(property_run->msg_cache);
 
   dll_iterator(np_message_ptr) peek = NULL;
-  while (0 < msg_available && msg_available <= property_conf->cache_size) {
+  while (0 < msg_visit_counter &&
+         msg_visit_counter <= property_conf->cache_size) {
     // grab a message
     np_message_t *msg = NULL;
     // if messages are available in cache, try to decode them !
@@ -825,7 +826,7 @@ void _np_msgproperty_check_msgcache_for(np_util_statemachine_t *statemachine,
       }
       peek = dll_previous(peek);
     }
-    msg_available--;
+    msg_visit_counter--;
 
     // handle selected message
     if (NULL != msg) {

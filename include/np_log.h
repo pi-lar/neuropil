@@ -39,7 +39,7 @@ NP_API_EXPORT
 void _np_log_destroy(np_state_t *context);
 
 NP_API_INTERN
-void _np_log_rotate(np_state_t *context, bool force);
+void _np_log_rotation(np_state_t *context);
 
 NP_API_EXPORT
 void np_log_setlevel(np_state_t *context, uint32_t level);
@@ -54,9 +54,7 @@ void np_log_message(np_state_t   *context,
                     const char   *funcName,
                     uint16_t      lineno,
                     const char   *msg,
-                    ...)
-    // TODO: add context? __attribute__((__format__ (__printf__, 5,6) ))
-    ;
+                    ...) __attribute__((__format__(__printf__, 6, 7)));
 
 #ifndef log_msg
 #define log_msg(level, msg, ...)                                               \

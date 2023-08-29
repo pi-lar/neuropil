@@ -227,6 +227,10 @@ bool _np_alias_cleanup_msgpart_cache(np_state_t               *context,
     sll_free(np_dhkey_t, to_del);
   }
 
+  TSP_SCOPE(context->msg_forward_filter) {
+    _np_decaying_bloom_decay(context->msg_forward_filter);
+  }
+
   uint16_t _peer_nodes =
       _np_route_my_key_count_routes(context); /* +
       _np_route_my_key_count_neighbors(context, NULL, NULL); */
