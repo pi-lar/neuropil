@@ -37,10 +37,10 @@ void                  np_get_id(np_id(*id), const char *string, size_t length);
 enum np_return        np_generate_subject(np_subject(*subject_id),
                                           const char *subject,
                                           size_t      length);
-enum np_return        np_regenerate_subject(np_context *ac,
-                                            const char *subject_buffer,
-                                            size_t      buffer_length,
-                                            np_subject *subject);
+enum np_return        np_regenerate_subject(np_context      *ac,
+                                            char            *subject_buffer,
+                                            size_t           buffer_length,
+                                            const np_subject subject);
 struct np_log_entry {
   char  *string;
   size_t string_length;
@@ -87,6 +87,7 @@ struct np_token
                                double      expires_at,
                                unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]);
 enum np_return np_use_identity(np_context *ac, struct np_token identity);
+enum np_return np_use_token(np_context *ac, struct np_token token);
 enum np_return
 np_sign_identity(np_context *ac, struct np_token *identity, bool self_sign);
 enum np_return np_token_fingerprint(np_context     *ac,
@@ -216,6 +217,8 @@ enum np_data_return   np_get_data(np_datablock_t      *block,
                                   char                 key[255],
                                   struct np_data_conf *out_data_config,
                                   np_data_value       *out_data);
+enum np_data_return   np_get_data_size(np_datablock_t *block,
+                                       size_t         *out_block_size);
 enum np_data_return   np_merge_data(np_datablock_t *dest, np_datablock_t *src);
 typedef bool (*np_iterate_data_cb)(struct np_data_conf *out_data_config,
                                    np_data_value       *out_data,

@@ -681,7 +681,7 @@ class _NeuropilHelper:
                 ret = np_subject(s)
             elif type.cname == "struct np_mx_properties":
                 ret = np_mx_properties(node, **ret)
-            if type.cname == 'struct np_searchentry':
+            elif type.cname == 'struct np_searchentry':
                 ret = np_searchentry(s, **ret)
             elif  type.cname == 'struct np_searchquery':
                 ret = np_searchquery(s, **ret)
