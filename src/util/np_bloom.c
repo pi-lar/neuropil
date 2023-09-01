@@ -401,7 +401,7 @@ void _np_decaying_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
 bool _np_decaying_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
   bool ret = true;
 
-  for (uint8_t k = 0; k < 8; k++) {
+  for (uint8_t k = 0; k < 8 && ret; k++) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
     uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
     if (bloom->_d == 8) {
@@ -987,21 +987,34 @@ void _np_neuropil_bloom_similarity(np_bloom_t *first,
 
   for (uint16_t k = 0; k < first->_num_blocks * first->_size * first->_d / 8;
        k += 2) {
-    union_count +=
-        (first->_bitset[k + 1] > 0 || second->_bitset[k + 1] > 0) ? 1 : 0;
 
-    intersection_count +=
-        ((first->_bitset[k + 1] > 0 && second->_bitset[k + 1] > 0) &&
-         (first->_bitset[k + 1] == second->_bitset[k + 1]))
-            ? 1
-            : 0;
+    if (first->_bitset[k + 1] > 0 || second->_bitset[k + 1] > 0) {
+
+      union_count += first->_bitset[k + 1] >= second->_bitset[k + 1]
+                         ? first->_bitset[k + 1]
+                         : 0;
+      union_count += first->_bitset[k + 1] < second->_bitset[k + 1]
+                         ? second->_bitset[k + 1]
+                         : 0;
+      if (first->_bitset[k + 1] > 0 && second->_bitset[k + 1] > 0) {
+        intersection_count += (first->_bitset[k + 1] >= second->_bitset[k + 1])
+                                  ? second->_bitset[k + 1]
+                                  : 0;
+        intersection_count += (first->_bitset[k + 1] < second->_bitset[k + 1])
+                                  ? first->_bitset[k + 1]
+                                  : 0;
+      }
+    }
   }
 
   if (union_count > 0) *result = ((float)intersection_count) / union_count;
   else *result = 0.0;
 
-  // fprintf(stdout, "bloom: union: %02d --> intersection: %02d --> result:
-  // %f\n", union_count, intersection_count, *result);
+  // fprintf(stdout,
+  //         "bloom: union: %02d --> intersection: %02d --> result: %f\n",
+  //         union_count,
+  //         intersection_count,
+  //         *result);
 
   /*
   fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,
@@ -1013,8 +1026,8 @@ void _np_neuropil_bloom_similarity(np_bloom_t *first,
 void _np_neuropil_bloom_containment(np_bloom_t *first,
                                     np_bloom_t *second,
                                     bool       *result) {
-  // containment only uses the number of query elements (of first) for the union
-  // count
+  // containment only uses the number of query elements (of first) for the
+  // union count
   ASSERT(first->_type == neuropil_bf, "");
   ASSERT(first->_type == second->_type, "");
   ASSERT(first->_size == SCALE3D_X * SCALE3D_Y * SCALE3D_Z, "");
@@ -1024,17 +1037,18 @@ void _np_neuropil_bloom_containment(np_bloom_t *first,
   ASSERT(first->_free_items <= SCALE3D_FREE_ITEMS, "");
   ASSERT(second->_free_items <= SCALE3D_FREE_ITEMS, "");
 
-  uint16_t union_count        = 0;
-  uint16_t intersection_count = 0; // prevent division by zero in line 773
+  uint16_t second_count = 0;
+  uint16_t first_count  = 0; // prevent division by zero in line 773
 
   for (uint16_t k = 0; k < first->_num_blocks * first->_size * first->_d / 8;
        k += 2) {
-    intersection_count += (second->_bitset[k + 1] > 0) ? 1 : 0;
-    union_count +=
-        ((first->_bitset[k + 1] > 0 && second->_bitset[k + 1] > 0)) ? 1 : 0;
+    if (second->_bitset[k + 1] > 0) {
+      second_count++;
+      first_count += (second->_bitset[k + 1] <= first->_bitset[k + 1]) ? 1 : 0;
+    }
   }
 
-  *result = (intersection_count == union_count);
+  *result = (first_count == second_count);
 
   /*
   fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,

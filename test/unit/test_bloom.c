@@ -650,6 +650,222 @@ Test(np_bloom_t,
 }
 
 Test(np_bloom_t,
+     _bloom_neuropil_union_similarity,
+     .description =
+         "test the similarity functions of the neuropil bloom filter") {
+  //  char test_string[65];
+  np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+  //  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+  //  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+  //  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+  //  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+  //  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+
+  struct np_bloom_optable_s neuropil_operations = {
+      .add_cb       = _np_neuropil_bloom_add,
+      .check_cb     = _np_neuropil_bloom_check,
+      .clear_cb     = _np_neuropil_bloom_clear,
+      .union_cb     = _np_neuropil_bloom_union,
+      .intersect_cb = _np_neuropil_bloom_intersect,
+  };
+
+  //    fprintf(stdout, "###\n");
+  //    fprintf(stdout, "### Testing neuropil bloom filter now\n");
+  //    fprintf(stdout, "###\n");
+
+  np_bloom_t *neuropil_bloom     = _np_neuropil_bloom_create();
+  neuropil_bloom->op             = neuropil_operations;
+  np_bloom_t *union_bloom        = _np_neuropil_bloom_create();
+  union_bloom->op                = neuropil_operations;
+  np_bloom_t *intersection_bloom = _np_neuropil_bloom_create();
+  intersection_bloom->op         = neuropil_operations;
+  np_bloom_t *test4_bloom        = _np_neuropil_bloom_create();
+  test4_bloom->op                = neuropil_operations;
+  np_bloom_t *test5_bloom        = _np_neuropil_bloom_create();
+  test5_bloom->op                = neuropil_operations;
+
+  neuropil_bloom->op.add_cb(neuropil_bloom, test2);
+  neuropil_bloom->op.add_cb(neuropil_bloom, test4);
+  neuropil_bloom->op.add_cb(neuropil_bloom, test5);
+  cr_expect(true == neuropil_bloom->op.check_cb(neuropil_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == neuropil_bloom->op.check_cb(neuropil_bloom, test4),
+            "expect that the id test4 is not found in bloom filter");
+  cr_expect(true == neuropil_bloom->op.check_cb(neuropil_bloom, test5),
+            "expect that the id test5 is not found in bloom filter");
+
+  test4_bloom->op.add_cb(test4_bloom, test4);
+  cr_expect(true == test4_bloom->op.check_cb(test4_bloom, test4),
+            "expect that the id test4 is     found in bloom filter");
+
+  test5_bloom->op.add_cb(test5_bloom, test5);
+  cr_expect(true == test5_bloom->op.check_cb(test5_bloom, test5),
+            "expect that the id test5 is     found in bloom filter");
+
+  intersection_bloom->op.add_cb(intersection_bloom, test2);
+  cr_expect(true == intersection_bloom->op.check_cb(intersection_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+
+  union_bloom->op.union_cb(union_bloom, test4_bloom);
+  union_bloom->op.union_cb(union_bloom, test5_bloom);
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test4),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test5),
+            "expect that the id test2 is     found in bloom filter");
+
+  float similarity = 0.0;
+  _np_neuropil_bloom_similarity(neuropil_bloom, test4_bloom, &similarity);
+  cr_expect_float_eq(8 / 24,
+                     similarity,
+                     0.5,
+                     "expect that the similarity is approx. one third");
+
+  _np_neuropil_bloom_similarity(test4_bloom, neuropil_bloom, &similarity);
+  cr_expect_float_eq(8 / 24,
+                     similarity,
+                     0.5,
+                     "expect that the similarity is approx. one third");
+
+  _np_neuropil_bloom_similarity(neuropil_bloom, test5_bloom, &similarity);
+  cr_expect_float_eq(8 / 24,
+                     similarity,
+                     0.5,
+                     "expect that the similarity is approx. one third");
+
+  _np_neuropil_bloom_similarity(neuropil_bloom, union_bloom, &similarity);
+  cr_expect_float_eq(16 / 24,
+                     similarity,
+                     1,
+                     "expect that the similarity is approx. two third");
+
+  _np_neuropil_bloom_similarity(neuropil_bloom,
+                                intersection_bloom,
+                                &similarity);
+  cr_expect_float_eq(8 / 24,
+                     similarity,
+                     0.5,
+                     "expect that the similarity is approx. two third");
+
+  _np_neuropil_bloom_similarity(union_bloom, intersection_bloom, &similarity);
+  cr_expect_float_eq(0 / 24,
+                     similarity,
+                     0.5,
+                     "expect that the similarity is approx. zero");
+
+  _np_bloom_free(union_bloom);
+  _np_bloom_free(neuropil_bloom);
+  _np_bloom_free(intersection_bloom);
+
+  // _np_bloom_free(test2_bloom);
+  _np_bloom_free(test4_bloom);
+  _np_bloom_free(test5_bloom);
+}
+
+Test(np_bloom_t,
+     _bloom_neuropil_union_containment,
+     .description =
+         "test the containment functions of the neuropil bloom filter") {
+  //  char test_string[65];
+  np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+  //  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+  //  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+  //  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+  //  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+  //  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
+
+  struct np_bloom_optable_s neuropil_operations = {
+      .add_cb       = _np_neuropil_bloom_add,
+      .check_cb     = _np_neuropil_bloom_check,
+      .clear_cb     = _np_neuropil_bloom_clear,
+      .union_cb     = _np_neuropil_bloom_union,
+      .intersect_cb = _np_neuropil_bloom_intersect,
+  };
+
+  //    fprintf(stdout, "###\n");
+  //    fprintf(stdout, "### Testing neuropil bloom filter now\n");
+  //    fprintf(stdout, "###\n");
+
+  np_bloom_t *neuropil_bloom     = _np_neuropil_bloom_create();
+  neuropil_bloom->op             = neuropil_operations;
+  np_bloom_t *union_bloom        = _np_neuropil_bloom_create();
+  union_bloom->op                = neuropil_operations;
+  np_bloom_t *intersection_bloom = _np_neuropil_bloom_create();
+  intersection_bloom->op         = neuropil_operations;
+  np_bloom_t *test4_bloom        = _np_neuropil_bloom_create();
+  test4_bloom->op                = neuropil_operations;
+  np_bloom_t *test5_bloom        = _np_neuropil_bloom_create();
+  test5_bloom->op                = neuropil_operations;
+
+  neuropil_bloom->op.add_cb(neuropil_bloom, test2);
+  neuropil_bloom->op.add_cb(neuropil_bloom, test4);
+  neuropil_bloom->op.add_cb(neuropil_bloom, test5);
+  cr_expect(true == neuropil_bloom->op.check_cb(neuropil_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == neuropil_bloom->op.check_cb(neuropil_bloom, test4),
+            "expect that the id test4 is not found in bloom filter");
+  cr_expect(true == neuropil_bloom->op.check_cb(neuropil_bloom, test5),
+            "expect that the id test5 is not found in bloom filter");
+
+  test4_bloom->op.add_cb(test4_bloom, test4);
+  cr_expect(true == test4_bloom->op.check_cb(test4_bloom, test4),
+            "expect that the id test4 is     found in bloom filter");
+
+  test5_bloom->op.add_cb(test5_bloom, test5);
+  cr_expect(true == test5_bloom->op.check_cb(test5_bloom, test5),
+            "expect that the id test5 is     found in bloom filter");
+
+  intersection_bloom->op.add_cb(intersection_bloom, test2);
+  cr_expect(true == intersection_bloom->op.check_cb(intersection_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+
+  union_bloom->op.union_cb(union_bloom, test4_bloom);
+  union_bloom->op.union_cb(union_bloom, test5_bloom);
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test4),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test5),
+            "expect that the id test2 is     found in bloom filter");
+
+  bool is_contained_in = false;
+  _np_neuropil_bloom_containment(neuropil_bloom, test4_bloom, &is_contained_in);
+  cr_expect(true == is_contained_in, "expect that the containment is true");
+
+  _np_neuropil_bloom_containment(test4_bloom, neuropil_bloom, &is_contained_in);
+  cr_expect(false == is_contained_in, "expect that the containment is true");
+
+  _np_neuropil_bloom_containment(neuropil_bloom, test5_bloom, &is_contained_in);
+  cr_expect(true == is_contained_in, "expect that the containment is true");
+
+  _np_neuropil_bloom_containment(neuropil_bloom, union_bloom, &is_contained_in);
+  cr_expect(true == is_contained_in, "expect that the containment is true");
+
+  _np_neuropil_bloom_containment(neuropil_bloom,
+                                 intersection_bloom,
+                                 &is_contained_in);
+  cr_expect(true == is_contained_in, "expect that the containment is true");
+
+  _np_neuropil_bloom_containment(union_bloom,
+                                 intersection_bloom,
+                                 &is_contained_in);
+  cr_expect(false == is_contained_in, "expect that the containment is true");
+
+  _np_bloom_free(union_bloom);
+  _np_bloom_free(neuropil_bloom);
+  _np_bloom_free(intersection_bloom);
+
+  // _np_bloom_free(test2_bloom);
+  _np_bloom_free(test4_bloom);
+  _np_bloom_free(test5_bloom);
+}
+
+Test(np_bloom_t,
      _bloom_neuropil_serialize,
      .description =
          "test the (de-)serialize functions of the neuropil bloom filter") {
