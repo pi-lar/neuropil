@@ -543,6 +543,7 @@ programs = [
     (True, "receiver", ["neuropil"]),
     (True, "sender", ["neuropil"]),
     (True, "identity", ["neuropil"]),
+    (True, "identity_showcase", ["neuropil"]),
     (True, "file_receiver", ["neuropil", "ncurses", "sodium"]),
     (True, "http_node", ["neuropil", "ncurses", "sodium"]),
     (True, "search_node", ["neuropil", "ncurses", "sodium"]),

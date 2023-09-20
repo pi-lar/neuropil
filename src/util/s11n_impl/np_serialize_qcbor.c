@@ -1053,9 +1053,9 @@ bool np_serializer_write_nptoken(const struct np_token *token,
         (struct q_useful_buf_c){.ptr = token->audience,
                                 .len = NP_FINGERPRINT_BYTES});
 
-  QCBOREncode_AddDoubleToMapN(&encoder, 4, token->expires_at);
+  QCBOREncode_AddDoubleToMapN(&encoder, 6, token->expires_at);
   QCBOREncode_AddDoubleToMapN(&encoder, 5, token->not_before);
-  QCBOREncode_AddDoubleToMapN(&encoder, 6, token->issued_at);
+  QCBOREncode_AddDoubleToMapN(&encoder, 4, token->issued_at);
 
   QCBOREncode_AddTextToMapN(
       &encoder,
@@ -1174,11 +1174,11 @@ bool np_serializer_read_nptoken(const void      *buffer,
       memmove(token->audience, token_element.ptr, NP_FINGERPRINT_BYTES);
   }
   double temp_value = 0.0;
-  QCBORDecode_GetDoubleInMapN(&decoder, 4, &temp_value);
+  QCBORDecode_GetDoubleInMapN(&decoder, 6, &temp_value);
   if (decoder.uLastError == QCBOR_SUCCESS) token->expires_at = temp_value;
   QCBORDecode_GetDoubleInMapN(&decoder, 5, &temp_value);
   if (decoder.uLastError == QCBOR_SUCCESS) token->not_before = temp_value;
-  QCBORDecode_GetDoubleInMapN(&decoder, 6, &temp_value);
+  QCBORDecode_GetDoubleInMapN(&decoder, 4, &temp_value);
   if (decoder.uLastError == QCBOR_SUCCESS) token->issued_at = temp_value;
 
   QCBORDecode_GetTextStringInMapN(&decoder, 7, &token_element);
@@ -1294,11 +1294,13 @@ bool np_serializer_write_ed25519(
   }
   // 3 - used algorithm (do not use for now)
 
-  // 4 - [ 1(sign), 2(verify), 7(derive key) ]
+  // 4 - [ 1(sign), 2(verify)]
   QCBOREncode_OpenArrayInMapN(&encoder, 4);
-  QCBOREncode_AddUInt64(&encoder, 1); // sign
-  QCBOREncode_AddUInt64(&encoder, 2); // verify
-  QCBOREncode_AddUInt64(&encoder, 7); // derive key
+  // key can be used for ...
+  QCBOREncode_AddUInt64(&encoder, 1); // signing
+  QCBOREncode_AddUInt64(&encoder, 2); // verifying
+  // QCBOREncode_AddUInt64(&encoder, 7); // key derivivation
+  // TODO: add storage of key derivation token
   QCBOREncode_CloseArray(&encoder);
 
   // 5 - iv (do not use for now)
@@ -1308,17 +1310,19 @@ bool np_serializer_write_ed25519(
   // Private key (sk)
   QCBOREncode_AddInt64ToMapN(&encoder, -1, 6);
   char null_block[NP_SECRET_KEY_BYTES] = {0};
+
   if (memcmp(pk_value, &null_block, NP_PUBLIC_KEY_BYTES) != 0)
     QCBOREncode_AddBytesToMapN(
         &encoder,
         -2,
         (struct q_useful_buf_c){.ptr = pk_value, .len = NP_PUBLIC_KEY_BYTES});
+
   if (include_secret_key &&
-      memcmp(sk_value, &null_block, NP_SECRET_KEY_BYTES) != 0)
+      memcmp(sk_value, &null_block, NP_PUBLIC_KEY_BYTES) != 0)
     QCBOREncode_AddBytesToMapN(
         &encoder,
         -4,
-        (struct q_useful_buf_c){.ptr = sk_value, .len = NP_SECRET_KEY_BYTES});
+        (struct q_useful_buf_c){.ptr = sk_value, .len = NP_PUBLIC_KEY_BYTES});
 
   QCBOREncode_CloseMap(&encoder);
 
@@ -1374,14 +1378,14 @@ bool np_serializer_read_ed25519(const void    *buffer,
   }
   // 3 - used algorithm (do not use for now)
 
-  // 4 - [ 1(sign), 2(verify), 7(derive key) ]
+  // 4 - [ 1(sign), 2(verify)]
   QCBORDecode_EnterArrayFromMapN(&decoder, 4);
   QCBORDecode_GetInt64(&decoder, &value);
   if (value != 1) return false;
   QCBORDecode_GetInt64(&decoder, &value);
   if (value != 2) return false;
-  QCBORDecode_GetInt64(&decoder, &value);
-  if (value != 7) return false;
+  // QCBORDecode_GetInt64(&decoder, &value);
+  // if (value != 7) return false;
   QCBORDecode_ExitArray(&decoder);
 
   // 5 - iv (do not use for now)
@@ -1399,9 +1403,13 @@ bool np_serializer_read_ed25519(const void    *buffer,
     // empty, add checks for more errors
   } else {
     if (qcbor_error == QCBOR_SUCCESS ||
-        item.uDataType == QCBOR_TYPE_BYTE_STRING)
+        item.uDataType == QCBOR_TYPE_BYTE_STRING) {
       memmove(pk_value, key_element.ptr, NP_PUBLIC_KEY_BYTES);
-    private_or_public_key_set = true;
+      memmove(((char *)sk_value) + NP_PUBLIC_KEY_BYTES,
+              key_element.ptr,
+              NP_PUBLIC_KEY_BYTES);
+      private_or_public_key_set = true;
+    }
   }
 
   QCBORDecode_GetByteStringInMapN(&decoder, -4, &key_element);
@@ -1410,19 +1418,22 @@ bool np_serializer_read_ed25519(const void    *buffer,
     // empty, add checks for more errors
   } else {
     if (qcbor_error == QCBOR_SUCCESS ||
-        item.uDataType == QCBOR_TYPE_BYTE_STRING)
-      memmove(sk_value, key_element.ptr, NP_SECRET_KEY_BYTES);
-    private_or_public_key_set = true;
+        item.uDataType == QCBOR_TYPE_BYTE_STRING) {
+      memmove(sk_value, key_element.ptr, NP_PUBLIC_KEY_BYTES);
+      private_or_public_key_set = true;
+    }
   }
 
   if (private_or_public_key_set == false) return false;
 
   QCBORDecode_ExitMap(&decoder);
-  QCBORDecode_Finish(&decoder);
+  QCBORError qcbor_ret = QCBORDecode_Finish(&decoder);
 
   if (!(decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
-        decoder.uLastError == QCBOR_SUCCESS))
+        decoder.uLastError == QCBOR_SUCCESS)) {
+    //      fprintf(stdout, "%s", qcbor_err_to_str(qcbor_ret));
     return false;
+  }
 
   *buffer_length = decoder.InBuf.cursor;
 
@@ -1444,7 +1455,11 @@ bool np_serializer_write_encrypted(void                *crypted_buffer,
   QCBOREncode_Init(&encoder, cose_encrypt0_buffer);
 
   QCBOREncode_AddTag(&encoder, CBOR_TAG_COSE_ENCRYPT0);
+  // add empty unprotected element
   QCBOREncode_OpenArray(&encoder);
+  UsefulBufC empty = {.len = 0, .ptr = NULL};
+  QCBOREncode_AddBytes(&encoder, empty);
+  // add protected element
   QCBOREncode_OpenMap(&encoder);
   QCBOREncode_AddBytesToMapN(
       &encoder,
@@ -1488,7 +1503,8 @@ bool np_serializer_read_encrypted(const void    *input_buffer,
   }
 
   QCBORDecode_EnterArray(&decoder, &item);
-
+  QCBORDecode_GetNext(&decoder,
+                      &item); // step over empty unprotected element
   QCBORDecode_EnterMap(&decoder, &item);
   struct q_useful_buf_c crypt_element = {0};
   QCBORDecode_GetByteStringInMapN(&decoder, 6, &crypt_element);
@@ -1507,12 +1523,14 @@ bool np_serializer_read_encrypted(const void    *input_buffer,
   } else {
     return false;
   }
-  QCBORDecode_Finish(&decoder);
+  QCBORDecode_ExitArray(&decoder);
+  QCBORError qcbor_ret = QCBORDecode_Finish(&decoder);
 
   if (!(decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
-        decoder.uLastError == QCBOR_SUCCESS))
+        decoder.uLastError == QCBOR_SUCCESS)) {
+    // fprintf(stdout, "%s", qcbor_err_to_str(qcbor_ret));
     return false;
-
+  }
   *ib_length = decoder.InBuf.cursor;
 
   return true;
