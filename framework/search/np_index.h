@@ -1,8 +1,8 @@
 //
-// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
-// neuropil is copyright 2016-2022 by pi-lar GmbH
+// neuropil is copyright 2016-2024 by pi-lar GmbH
 
 #ifndef NP_FWK_SEARCH_INDEX_H_
 #define NP_FWK_SEARCH_INDEX_H_

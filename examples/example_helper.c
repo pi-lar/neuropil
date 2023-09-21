@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include "../examples/example_helper.h"
@@ -1734,7 +1734,7 @@ bool example_http_server_init(np_context *context) {
     if (ud->opt_http_port == NULL) {
       if (ud->opt_http_port == NULL) ud->opt_http_port = TO_STRING(HTTP_PORT);
     }
-    ret = _np_http_init(context, ud->opt_http_domain, ud->opt_http_port);
+    ret = _np_http_init(context, "localhost", ud->opt_http_port);
     if (ret == false) {
       log_msg(LOG_WARNING, "Node could not start HTTP interface");
       np_example_print(context,

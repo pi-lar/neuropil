@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 from _neuropil import lib as neuropil, ffi
 from datetime import datetime, timezone
@@ -96,6 +96,7 @@ class np_log_entry(object):
 
     def __str__(self):
         return self.string
+
 
 class np_subject(np_id):
     def __init__(self, id_cdata):
@@ -240,26 +241,27 @@ class np_message(object):
 
         return data
 
-class np_searchentry(object):
 
+class np_searchentry(object):
     def __init__(self, _raw, **entries):
         self._ignore_at_conversion = ["_raw"]
         self._raw = _raw
         self.__dict__.update(entries)
+
 
 class np_searchquery(object):
-
     def __init__(self, _raw, **entries):
         self._ignore_at_conversion = ["_raw"]
         self._raw = _raw
         self.__dict__.update(entries)
+
 
 class np_searchresult(object):
-
     def __init__(self, _raw, **entries):
         self._ignore_at_conversion = ["_raw"]
         self._raw = _raw
         self.__dict__.update(entries)
+
 
 class NeuropilCluster(object):
     def __init__(
@@ -631,10 +633,10 @@ class _NeuropilHelper:
         return ffi.from_handle(handle)
 
     @staticmethod
-    def convert_struct_field(node:NeuropilNode, s, fields ):
-        for field,fieldtype in fields:
-            if fieldtype.type.kind == 'primitive':
-                yield (field,getattr( s, field ))
+    def convert_struct_field(node: NeuropilNode, s, fields):
+        for field, fieldtype in fields:
+            if fieldtype.type.kind == "primitive":
+                yield (field, getattr(s, field))
             else:
                 if field == "data":
                     yield (field, getattr(s, field))
@@ -667,9 +669,9 @@ class _NeuropilHelper:
 
         if type == None:
             pass
-        elif type.kind == 'struct':
-            ret = dict(_NeuropilHelper.convert_struct_field(node,  s, type.fields))
-            if  type.cname == 'struct np_log_entry':
+        elif type.kind == "struct":
+            ret = dict(_NeuropilHelper.convert_struct_field(node, s, type.fields))
+            if type.cname == "struct np_log_entry":
                 ret = np_log_entry(node, s, **ret)
             elif type.cname == "struct np_message":
                 ret = np_message(ret, s, **ret)
@@ -681,15 +683,15 @@ class _NeuropilHelper:
                 ret = np_subject(s)
             elif type.cname == "struct np_mx_properties":
                 ret = np_mx_properties(node, **ret)
-            elif type.cname == 'struct np_searchentry':
+            elif type.cname == "struct np_searchentry":
                 ret = np_searchentry(s, **ret)
-            elif  type.cname == 'struct np_searchquery':
+            elif type.cname == "struct np_searchquery":
                 ret = np_searchquery(s, **ret)
-            elif  type.cname == 'struct np_searchresult':
+            elif type.cname == "struct np_searchresult":
                 ret = np_searchresult(s, **ret)
-        elif type.kind == 'array':
-            if type.item.kind == 'primitive':
-                if type.item.cname == 'char':
+        elif type.kind == "array":
+            if type.item.kind == "primitive":
+                if type.item.cname == "char":
                     ret = ffi.string(s)
                     try:
                         ret = ret.decode("utf-8")

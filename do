@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
 
 # colorcodes https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
 RED='\033[0;31m'

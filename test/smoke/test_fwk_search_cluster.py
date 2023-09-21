@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 
 import unittest
@@ -51,11 +51,11 @@ class FrameworkSearchTest(unittest.TestCase):
             print(f"setting up single query node (client only)", end="\r")
             FrameworkSearchTest.query_node = NeuropilSearchNode(
                 4040,
+                node_type=neuropil.SEARCH_NODE_CLIENT,
                 host=b"localhost",
                 proto=b"pas4",
                 auto_run=False,
                 log_file="logs/smoke_test_fwk_search_query.log",
-                node_type=neuropil.SEARCH_NODE_CLIENT,
             )
             TestHelper.disableAAA(FrameworkSearchTest.query_node).run(0)
             print(f"connecting single query node", end="\r")
@@ -66,13 +66,12 @@ class FrameworkSearchTest(unittest.TestCase):
         if FrameworkSearchTest.search_cluster is None:
             print(f"setting up search cluster", end="\r")
             FrameworkSearchTest.search_cluster = NeuropilSearchCluster(
+                node_type=neuropil.SEARCH_NODE_SERVER,
                 count=8,
                 port_range=4020,
                 auto_run=False,
                 proto=b"pas4",
                 log_file_prefix=f"logs/smoke_test_fwk_search_content_cluster_",
-                node_type=neuropil.SEARCH_NODE_SERVER,
-                analytic_mode=neuropil.SEARCH_ANALYTICS_ON,
             )
             # WARNING ! never disable authorizations in real environment
             TestHelper.disableAAA(FrameworkSearchTest.search_cluster).run(0)
@@ -90,15 +89,17 @@ class FrameworkSearchTest(unittest.TestCase):
         # eventually, you may create private search clusters
         if FrameworkSearchTest.private_search_cluster is None:
             print(f"setting up private search cluster", end="\r")
-            private_space = np_get_id(to_id="my private search cluster")
+            private_space = np_get_id(
+                to_id="my private search cluster"
+            )  # use a seed to create a sub-search-space
             FrameworkSearchTest.private_search_cluster = NeuropilSearchCluster(
+                node_type=neuropil.SEARCH_NODE_SERVER,
+                search_space=private_space,
                 count=2,
                 port_range=4030,
                 auto_run=False,
                 proto=b"pas4",
                 log_file_prefix=f"logs/smoke_test_fwk_search_private_cluster_",
-                node_type=neuropil.SEARCH_NODE_SERVER,
-                search_space=private_space,
             )
             # WARNING ! never disable authorizations in real environment
             TestHelper.disableAAA(FrameworkSearchTest.private_search_cluster).run(0)

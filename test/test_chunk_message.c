@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include <assert.h>

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+# SPDX-License-Identifier: OSL-3.0
 # WIP DRAFT
 # TODO:
 # - add criterion testing

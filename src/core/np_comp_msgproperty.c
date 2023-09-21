@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 // original version is based on the chimera project
@@ -2215,6 +2215,7 @@ void __np_property_handle_out_msg(np_util_statemachine_t *statemachine,
               FUNC,
               user_result);
   }
+
   sll_iterator(np_evt_callback_t) iter = sll_first(property_run->callbacks);
   while (iter != NULL && user_result) {
     if (iter->val != NULL) {

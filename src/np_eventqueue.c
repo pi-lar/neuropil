@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -38,7 +38,6 @@
 #include "np_messagepart.h"
 #include "np_route.h"
 #include "np_settings.h"
-#include "np_statistics.h"
 #include "np_threads.h"
 #include "np_types.h"
 #include "np_util.h"
