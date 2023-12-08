@@ -74,29 +74,37 @@ typedef enum _np_network_runtime_status {
 
 np_module_struct(network) {
   np_state_t *context;
-  TSP(size_t, __msgs_per_sec_in);
-  TSP(size_t, __msgs_per_sec_out);
+
   /**
    * @brief Runtime constant how many messages per second this node can handle,
    * set to 0 to disable.
    */
-  size_t max_msgs_per_sec;
+  uint16_t max_msgs_per_sec;
+
+  TSP(np_bloom_t *, __msgs_per_sec_in);
+  TSP(np_bloom_t *, __msgs_per_sec_out);
 };
 
 bool __np_network_module_periodic_capacity_reset(
     np_state_t *context, NP_UNUSED np_util_event_t event) {
-  size_t last_msgs_per_sec_in = 0, last_msgs_per_sec_out = 0;
+  uint32_t last_msgs_per_sec_in = 0, last_msgs_per_sec_out = 0;
+
+  if (np_module_not_initiated(network) ||
+      np_module(network)->max_msgs_per_sec == 0)
+    return true;
+
   TSP_SCOPE(np_module(network)->__msgs_per_sec_in) {
-    last_msgs_per_sec_in = np_module(network)->__msgs_per_sec_in;
-    np_module(network)->__msgs_per_sec_in = 0;
+    _np_counting_bloom_clear_r(np_module(network)->__msgs_per_sec_in,
+                               &last_msgs_per_sec_in);
   }
   TSP_SCOPE(np_module(network)->__msgs_per_sec_out) {
-    last_msgs_per_sec_out = np_module(network)->__msgs_per_sec_out;
-    np_module(network)->__msgs_per_sec_out = 0;
+    _np_counting_bloom_clear_r(np_module(network)->__msgs_per_sec_out,
+                               &last_msgs_per_sec_out);
   }
+
   if (last_msgs_per_sec_in > 0 || last_msgs_per_sec_out > 0)
-    log_info(LOG_EXPERIMENT,
-             "[network capacity] total in:%" PRIsizet " total out:%" PRIsizet,
+    log_info(LOG_INFO,
+             "[network capacity] total in:%" PRIu32 " total out:%" PRIu32,
              last_msgs_per_sec_in,
              last_msgs_per_sec_out);
   return true;
@@ -106,23 +114,28 @@ bool _np_network_module_init(np_state_t *context) {
   if (!np_module_initiated(network)) {
     np_module_malloc(network);
 
-    TSP_INITD(_module->__msgs_per_sec_in, 0);
-    TSP_INITD(_module->__msgs_per_sec_out, 0);
-    if (context->settings->max_msgs_per_sec > 0) {
-      _module->max_msgs_per_sec = context->settings->max_msgs_per_sec;
-    } else {
-      _module->max_msgs_per_sec = NP_NETWORK_DEFAULT_MAX_MSGS_PER_SEC;
-    }
+    _module->max_msgs_per_sec = context->settings->max_msgs_per_sec > 0
+                                    ? context->settings->max_msgs_per_sec
+                                    : NP_NETWORK_DEFAULT_MAX_MSGS_PER_SEC;
+    // TODO should be based on the number of routing/neighbour nodes
+    uint32_t filter_size = 8192;
 
+    _module->__msgs_per_sec_in = _np_counting_bloom_create(filter_size, 8, 1);
+    TSP_INIT(_module->__msgs_per_sec_in);
+
+    _module->__msgs_per_sec_out = _np_counting_bloom_create(filter_size, 8, 1);
+    TSP_INIT(_module->__msgs_per_sec_out);
+
+    // we want max_messages per second "on average"
+    // this callback reduces the contained counters by half of the current value
     np_jobqueue_submit_event_periodic(
         context,
         NP_PRIORITY_HIGH,
-        0,
-        1,
+        0.88,
+        0.88,
         __np_network_module_periodic_capacity_reset,
         "__np_network_module_periodic_capacity_reset");
   }
-
   return (true);
 }
 
@@ -244,10 +257,11 @@ bool _np_network_get_address(np_state_t       *context,
 
 bool _np_network_send_data(np_state_t   *context,
                            np_network_t *network,
+                           np_dhkey_t    target,
                            void         *data_to_send) {
-  ssize_t write_per_data   = 0;
-  bool    node_at_capacity = false;
-  bool    ret              = false;
+  ssize_t  write_per_data        = 0;
+  uint32_t current_load_capacity = 0;
+  bool     ret                   = false;
 
 #ifdef DEBUG
   unsigned char hash[crypto_generichash_BYTES] = {0};
@@ -257,9 +271,6 @@ bool _np_network_send_data(np_state_t   *context,
                      MSG_CHUNK_SIZE_1024,
                      NULL,
                      0);
-  // char hex[MSG_CHUNK_SIZE_1024 * 2 + 1];
-  // sodium_bin2hex(hex, MSG_CHUNK_SIZE_1024 * 2 + 1, data_to_send,
-  // MSG_CHUNK_SIZE_1024);
   char hex[crypto_generichash_BYTES * 2 + 1] = {0};
   sodium_bin2hex(hex,
                  crypto_generichash_BYTES * 2 + 1,
@@ -273,89 +284,90 @@ bool _np_network_send_data(np_state_t   *context,
             hex);
 #endif // DEBUG
 
-  size_t msgs_per_sec_out = 0;
-
   if (np_module_initiated(network) &&
       np_module(network)->max_msgs_per_sec > 0) {
     TSP_SCOPE(np_module(network)->__msgs_per_sec_out) {
-      node_at_capacity = np_module(network)->__msgs_per_sec_out >
-                         np_module(network)->max_msgs_per_sec;
-      if (np_module(network)->__msgs_per_sec_out < SIZE_MAX)
-        msgs_per_sec_out = np_module(network)->__msgs_per_sec_out++;
+      _np_counting_bloom_check_r(np_module(network)->__msgs_per_sec_out,
+                                 target,
+                                 &current_load_capacity);
     }
   }
 
-  if (node_at_capacity) {
-    log_warn(LOG_NETWORK,
-             "Dropping data package due to msgs per sec constraint (%" PRIsizet
-             " / %" PRIsizet " | OUT)",
-             msgs_per_sec_out,
+  if (current_load_capacity > np_module(network)->max_msgs_per_sec) {
+    log_warn(LOG_WARNING,
+             "Re-scheduling data package due to msgs per sec constraint "
+             "(current: %" PRIu32 " / max: %" PRIsizet " | OUT)",
+             current_load_capacity,
              np_module(network)->max_msgs_per_sec);
-  } else {
-
-    do {
-      ssize_t bytes_written = 0;
-      if (FLAG_CMP(network->socket_type, PASSIVE)) {
-        bytes_written =
-            sendto(network->socket,
-                   (((unsigned char *)data_to_send)) + write_per_data,
-                   MSG_CHUNK_SIZE_1024 - write_per_data,
-#ifdef MSG_NOSIGNAL
-                   MSG_NOSIGNAL,
-#else
-                   0,
-#endif
-                   network->remote_addr,
-                   network->remote_addr_len);
-
-      } else {
-        bytes_written = send(network->socket,
+    return ret;
+  }
+  //
+  do {
+    ssize_t bytes_written = 0;
+    if (FLAG_CMP(network->socket_type, PASSIVE)) {
+      bytes_written = sendto(network->socket,
                              (((unsigned char *)data_to_send)) + write_per_data,
                              MSG_CHUNK_SIZE_1024 - write_per_data,
 #ifdef MSG_NOSIGNAL
-                             MSG_NOSIGNAL
+                             MSG_NOSIGNAL,
 #else
-                             0
+                             0,
 #endif
-        );
-      }
+                             network->remote_addr,
+                             network->remote_addr_len);
 
-      if (bytes_written > 0 && bytes_written <= MSG_CHUNK_SIZE_1024) {
-        write_per_data += bytes_written;
-      } else {
-        break;
-      }
-
-    } while (write_per_data < MSG_CHUNK_SIZE_1024);
-
-    _np_debug_log_bin(data_to_send,
-                      MSG_CHUNK_SIZE_1024,
-                      LOG_NETWORK,
-                      "Did send    data (%" PRIsizet
-                      " bytes / %p) via fd: %d: %s",
-                      write_per_data,
-                      data_to_send,
-                      network->socket);
-
-    if (write_per_data == MSG_CHUNK_SIZE_1024) {
-      _np_statistics_add_send_bytes(write_per_data);
-
-      network->last_send_date = np_time_now();
-      ret                     = true;
-      log_debug(LOG_NETWORK,
-                "Did send package %p via %p -> %d",
-                data_to_send,
-                network,
-                network->socket);
     } else {
-      log_error("Could not send package %p (%zd/%d) over fd: %d msg: %s (%d)",
-                data_to_send,
-                write_per_data,
-                MSG_CHUNK_SIZE_1024,
-                network->socket,
-                strerror(errno),
-                errno);
+      bytes_written = send(network->socket,
+                           (((unsigned char *)data_to_send)) + write_per_data,
+                           MSG_CHUNK_SIZE_1024 - write_per_data,
+#ifdef MSG_NOSIGNAL
+                           MSG_NOSIGNAL
+#else
+                           0
+#endif
+      );
     }
+
+    if (bytes_written > 0 && bytes_written <= MSG_CHUNK_SIZE_1024) {
+      write_per_data += bytes_written;
+    } else {
+      break;
+    }
+
+  } while (write_per_data < MSG_CHUNK_SIZE_1024);
+
+  _np_debug_log_bin(data_to_send,
+                    MSG_CHUNK_SIZE_1024,
+                    LOG_NETWORK,
+                    "Did send    data (%" PRIsizet
+                    " bytes / %p) via fd: %d: %s",
+                    write_per_data,
+                    data_to_send,
+                    network->socket);
+
+  if (write_per_data == MSG_CHUNK_SIZE_1024) {
+    _np_statistics_add_send_bytes(write_per_data);
+
+    network->last_send_date = np_time_now();
+    ret                     = true;
+    log_debug(LOG_NETWORK,
+              "Did send package %p via %p -> %d",
+              data_to_send,
+              network,
+              network->socket);
+
+    if (np_module(network)->max_msgs_per_sec > 0)
+      TSP_SCOPE(np_module(network)->__msgs_per_sec_out) {
+        _np_counting_bloom_add(np_module(network)->__msgs_per_sec_out, target);
+      }
+  } else {
+    log_error("Could not send package %p (%zd/%d) over fd: %d msg: %s (%d)",
+              data_to_send,
+              write_per_data,
+              MSG_CHUNK_SIZE_1024,
+              network->socket,
+              strerror(errno),
+              errno);
   }
   return ret;
 }
@@ -374,15 +386,18 @@ void _np_network_write(struct ev_loop *loop, ev_io *event, int revents) {
 
   _TRYLOCK_ACCESS(&network->access_lock) {
     uint8_t send_items_counter = 0;
-
-    void *data_to_send = NULL;
     // if a data packet is available, try to send it
-    data_to_send = sll_head(void_ptr, network->out_events);
-    if (data_to_send != NULL) {
-      send_items_counter++;
-      _np_network_send_data(context, network, data_to_send);
+    if (sll_size(network->out_events) > 0) {
+      if (_np_network_send_data(
+              context,
+              network,
+              ((_np_network_data_t *)event->data)->owner_dhkey,
+              sll_first(network->out_events)->val)) {
+        send_items_counter++;
+        void *data_to_send = sll_head(void_ptr, network->out_events);
+        np_unref_obj(BLOB_1024, data_to_send, ref_obj_creation);
+      }
     }
-    np_unref_obj(BLOB_1024, data_to_send, ref_obj_creation);
 
 #ifdef DEBUG
     if (sll_size(network->out_events) > 0) {
@@ -511,6 +526,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents) {
                          ng->socket_type,
                          data_container.ipstr,
                          data_container.port,
+                         context->settings->max_msgs_per_sec,
                          client_fd,
                          UNKNOWN_PROTO)) {
       new_network->is_multiuse_socket = false;
@@ -659,133 +675,135 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
 #endif
 
     if (in_msg_len == MSG_CHUNK_SIZE_1024) {
-      bool   node_at_capacity  = false;
-      size_t __msgs_per_sec_in = SIZE_MAX;
+
+      np_dhkey_t search_key =
+          np_dhkey_create_from_hostport(&data_container.ipstr[0],
+                                        &data_container.port[0]);
+
+      uint32_t current_load_capacity = 0;
+      if (np_module_initiated(network) &&
+          np_module(network)->max_msgs_per_sec > 0) {
+
+        TSP_SCOPE(np_module(network)->__msgs_per_sec_in) {
+          _np_counting_bloom_check_r(np_module(network)->__msgs_per_sec_in,
+                                     search_key,
+                                     &current_load_capacity);
+        }
+      }
+      if (current_load_capacity > np_module(network)->max_msgs_per_sec) {
+        log_warn(LOG_WARNING,
+                 "Dropping data package due to msgs per sec constraint "
+                 "(current: %" PRIu32 " / max: %" PRIsizet " | IN)",
+                 current_load_capacity,
+                 np_module(network)->max_msgs_per_sec);
+        np_unref_obj(BLOB_1024, data_container.data, ref_obj_creation);
+        return;
+      }
+      msgs_received++;
       if (np_module_initiated(network) &&
           np_module(network)->max_msgs_per_sec > 0) {
         TSP_SCOPE(np_module(network)->__msgs_per_sec_in) {
-          node_at_capacity = np_module(network)->__msgs_per_sec_in >
-                             np_module(network)->max_msgs_per_sec;
-          if (np_module(network)->__msgs_per_sec_in < SIZE_MAX)
-            __msgs_per_sec_in = np_module(network)->__msgs_per_sec_in++;
-        }
-      }
-      msgs_received++;
-      if (node_at_capacity) {
-        log_warn(
-            LOG_NETWORK,
-            "Dropping data package due to msgs per sec constraint (%" PRIsizet
-            " / %" PRIsizet " | IN)",
-            __msgs_per_sec_in,
-            np_module(network)->max_msgs_per_sec);
-      } else {
-        data_container.in_msg_len = in_msg_len;
-
-        // we registered this token info before in the first handshake message
-        // np_dhkey_t search_key;
-        // if (FLAG_CMP(ng->socket_type, TCP)) {
-        //     search_key = ng->__tcp_alias_dhkey;
-        // }else{
-        np_dhkey_t search_key =
-            np_dhkey_create_from_hostport(&data_container.ipstr[0],
-                                          &data_container.port[0]);
-        // }
-        np_key_t *alias_key = _np_keycache_find(context, search_key);
-
-        np_util_event_t in_event = {.type      = evt_external | evt_message,
-                                    .user_data = data_container.data,
-                                    .cleanup =
-                                        _np_network_read_msg_event_cleanup,
-                                    .target_dhkey = search_key};
-
-        if (NULL == alias_key) // && FLAG_CMP(ng->socket_type, UDP))
-        {
-          __create_new_alias_key(context,
-                                 UDP,
-                                 data_container.ipstr,
-                                 data_container.port,
+          _np_counting_bloom_add(np_module(network)->__msgs_per_sec_in,
                                  search_key);
         }
-
-        char msg_identifier[crypto_generichash_BYTES * 2 + 1 + 30] =
-            "urn:np:event:extern_message";
-#ifdef DEBUG
-        unsigned char hash[crypto_generichash_BYTES] = {0};
-        crypto_generichash(hash,
-                           sizeof hash,
-                           data_container.data,
-                           MSG_CHUNK_SIZE_1024,
-                           NULL,
-                           0);
-        // char hex[MSG_CHUNK_SIZE_1024 * 2 + 1];
-        // sodium_bin2hex(hex, MSG_CHUNK_SIZE_1024 * 2 + 1, data_to_send,
-        // MSG_CHUNK_SIZE_1024);
-        char hex[crypto_generichash_BYTES * 2 + 1] = {0};
-        sodium_bin2hex(hex,
-                       crypto_generichash_BYTES * 2 + 1,
-                       hash,
-                       crypto_generichash_BYTES);
-
-        log_debug(LOG_NETWORK | LOG_EXPERIMENT,
-                  "IN DATAPACKAGE %s:%s %s",
-                  data_container.ipstr,
-                  data_container.port,
-                  hex);
-        snprintf(msg_identifier, 95, "urn:np:event:extern_message:%s", hex);
-#endif // DEBUG
-
-        // get handshake status lock conform...
-        enum np_node_status _handshake_status = np_node_status_Disconnected;
-        if (alias_key) {
-          _LOCK_ACCESS(&alias_key->key_lock) {
-            np_node_t *alias_node = _np_key_get_node(alias_key);
-
-            if (alias_node) {
-              _handshake_status = alias_node->_handshake_status;
-            }
-          }
-        }
-
-        if (FLAG_CMP(ng->socket_type, PASSIVE) ||
-            (_handshake_status < np_node_status_Initiated)) {
-          np_ref_obj(BLOB_1024, data_container.data, FUNC);
-          char buf[100] = {0};
-          log_debug(LOG_NETWORK,
-                    "send data to owner %s",
-                    np_id_str(buf, &owner_dhkey));
-          if (!np_jobqueue_submit_event(context,
-                                        0.0,
-                                        owner_dhkey,
-                                        in_event,
-                                        msg_identifier)) {
-            log_error(
-                "Dropping data package send to owner as jobqueue is rejecting "
-                "it");
-            np_unref_obj(BLOB_1024, data_container.data, FUNC);
-          }
-        } else if (NULL != alias_key) {
-          np_ref_obj(BLOB_1024, data_container.data, FUNC);
-          log_debug(LOG_NETWORK, "send data to alias");
-          if (!np_jobqueue_submit_event(context,
-                                        0.0,
-                                        alias_key->dhkey,
-                                        in_event,
-                                        msg_identifier)) {
-            log_error(
-                "Dropping data package send to alias key as jobqueue is "
-                "rejecting it");
-            np_unref_obj(BLOB_1024, data_container.data, FUNC);
-          }
-        } else {
-          log_debug_msg(LOG_ERROR,
-                        "network in unknown state for key %s",
-                        _np_key_as_str(alias_key));
-        }
-
-        if (NULL != alias_key)
-          np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
       }
 
+      data_container.in_msg_len = in_msg_len;
+
+      np_key_t *alias_key = _np_keycache_find(context, search_key);
+
+      np_util_event_t in_event = {.type      = evt_external | evt_message,
+                                  .user_data = data_container.data,
+                                  .cleanup = _np_network_read_msg_event_cleanup,
+                                  .target_dhkey = search_key};
+
+      if (NULL == alias_key) // && FLAG_CMP(ng->socket_type, UDP))
+      {
+        __create_new_alias_key(context,
+                               UDP,
+                               data_container.ipstr,
+                               data_container.port,
+                               search_key);
+      }
+
+      char msg_identifier[crypto_generichash_BYTES * 2 + 1 + 30] =
+          "urn:np:event:extern_message";
+#ifdef DEBUG
+      unsigned char hash[crypto_generichash_BYTES] = {0};
+      crypto_generichash(hash,
+                         sizeof hash,
+                         data_container.data,
+                         MSG_CHUNK_SIZE_1024,
+                         NULL,
+                         0);
+      // char hex[MSG_CHUNK_SIZE_1024 * 2 + 1];
+      // sodium_bin2hex(hex, MSG_CHUNK_SIZE_1024 * 2 + 1, data_to_send,
+      // MSG_CHUNK_SIZE_1024);
+      char hex[crypto_generichash_BYTES * 2 + 1] = {0};
+      sodium_bin2hex(hex,
+                     crypto_generichash_BYTES * 2 + 1,
+                     hash,
+                     crypto_generichash_BYTES);
+
+      log_debug(LOG_NETWORK | LOG_EXPERIMENT,
+                "IN DATAPACKAGE %s:%s %s",
+                data_container.ipstr,
+                data_container.port,
+                hex);
+      snprintf(msg_identifier, 95, "urn:np:event:extern_message:%s", hex);
+#endif // DEBUG
+
+      // get handshake status lock conform...
+      enum np_node_status _handshake_status = np_node_status_Disconnected;
+      if (alias_key) {
+        _LOCK_ACCESS(&alias_key->key_lock) {
+          np_node_t *alias_node = _np_key_get_node(alias_key);
+
+          if (alias_node) {
+            _handshake_status = alias_node->_handshake_status;
+          }
+        }
+      }
+
+      if (FLAG_CMP(ng->socket_type, PASSIVE) ||
+          (_handshake_status < np_node_status_Initiated)) {
+        np_ref_obj(BLOB_1024, data_container.data, FUNC);
+        char buf[100] = {0};
+        log_debug(LOG_NETWORK,
+                  "send data to owner %s",
+                  np_id_str(buf, (np_id *)&owner_dhkey));
+        if (!np_jobqueue_submit_event(context,
+                                      0.0,
+                                      owner_dhkey,
+                                      in_event,
+                                      msg_identifier)) {
+          log_error(
+              "Dropping data package send to owner as jobqueue is rejecting "
+              "it");
+          np_unref_obj(BLOB_1024, data_container.data, FUNC);
+        }
+      } else if (NULL != alias_key) {
+        np_ref_obj(BLOB_1024, data_container.data, FUNC);
+        log_debug(LOG_NETWORK, "send data to alias");
+        if (!np_jobqueue_submit_event(context,
+                                      0.0,
+                                      alias_key->dhkey,
+                                      in_event,
+                                      msg_identifier)) {
+          log_error(
+              "Dropping data package send to alias key as jobqueue is "
+              "rejecting it");
+          np_unref_obj(BLOB_1024, data_container.data, FUNC);
+        }
+      } else {
+        log_debug_msg(LOG_ERROR,
+                      "network in unknown state for key %s",
+                      _np_key_as_str(alias_key));
+      }
+
+      if (NULL != alias_key) {
+        np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
+      }
     } else {
       if (network_receive_timeout) {
         log_info(LOG_NETWORK,
@@ -946,19 +964,20 @@ void _np_network_t_new(np_state_t       *context,
                        void             *data) {
   log_trace_msg(LOG_TRACE | LOG_NETWORK,
                 "start: void _np_network_t_new(void* nw){");
-  np_network_t *ng       = (np_network_t *)data;
-  ng->is_multiuse_socket = false;
-  ng->socket             = -1;
-  ng->addr_in            = NULL;
-  ng->out_events         = NULL;
-  ng->initialized        = false;
-  ng->is_running         = np_network_stopped;
-  ng->watcher_in.data    = NULL;
-  ng->watcher_out.data   = NULL;
-  ng->type               = np_network_type_none;
-  ng->last_send_date     = 0.0;
-  ng->last_received_date = 0.0;
-  ng->seqend             = 0;
+  np_network_t *ng            = (np_network_t *)data;
+  ng->is_multiuse_socket      = false;
+  ng->socket                  = -1;
+  ng->addr_in                 = NULL;
+  ng->out_events              = NULL;
+  ng->initialized             = false;
+  ng->is_running              = np_network_stopped;
+  ng->watcher_in.data         = NULL;
+  ng->watcher_out.data        = NULL;
+  ng->type                    = np_network_type_none;
+  ng->last_send_date          = 0.0;
+  ng->last_received_date      = 0.0;
+  ng->max_messages_per_second = context->settings->max_msgs_per_sec;
+  ng->seqend                  = 0;
 
   ng->ip[0]   = 0;
   ng->port[0] = 0;
@@ -1018,6 +1037,7 @@ bool _np_network_init(np_network_t *ng,
                       socket_type   type,
                       char         *hostname,
                       char         *service,
+                      uint16_t      max_messages_per_second,
                       int           prepared_socket_fd,
                       socket_type   passive_socket_type) {
   np_ctx_memory(ng);
@@ -1041,6 +1061,7 @@ bool _np_network_init(np_network_t *ng,
 
   log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
 
+  ng->max_messages_per_second = max_messages_per_second;
   // only need for client setup, but initialize to have zero size of list
   if (ng->out_events == NULL) sll_init(void_ptr, ng->out_events);
 
@@ -1124,7 +1145,7 @@ bool _np_network_init(np_network_t *ng,
       ev_io_init(&ng->watcher_in, _np_network_read, ng->socket, EV_READ);
     } else {
       log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                    "don't know how to setup server network of type %" PRIu8,
+                    "don't know how to setup server network of type %" PRIx8,
                     type);
     }
     ((_np_network_data_t *)ng->watcher_in.data)->network = ng;

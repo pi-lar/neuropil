@@ -236,6 +236,7 @@ void __np_create_identity_network(np_util_statemachine_t *statemachine,
                            my_node->protocol,
                            context->hostname,
                            my_node->port,
+                           context->settings->max_msgs_per_sec,
                            -1,
                            UNKNOWN_PROTO)) {
         _np_network_set_key(my_network, my_identity_key->dhkey);

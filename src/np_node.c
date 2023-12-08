@@ -86,6 +86,8 @@ void _np_node_t_new(np_state_t       *context,
     entry->latency_win[i] = 0.01;
   entry->latency_win_index = 0;
   entry->latency           = -1;
+
+  entry->max_messages_per_sec = context->settings->max_msgs_per_sec;
 }
 
 void _np_node_t_del(np_state_t       *context,
@@ -178,12 +180,8 @@ void _np_node_encode_to_jrb(np_tree_t *data,
 
   if (true == include_stats) {
     np_tree_insert_str(data,
-                       NP_SERIALISATION_NODE_CREATED_AT,
-                       np_treeval_new_d(node_key->created_at));
-    np_tree_insert_str(data,
-                       NP_SERIALISATION_NODE_LAST_SUCCESS,
-                       np_treeval_new_d(node->last_success));
-
+                       NP_SERIALISATION_NODE_MAX_MESSAGES,
+                       np_treeval_new_ui(node->max_messages_per_sec));
     np_tree_insert_str(data,
                        NP_SERIALISATION_NODE_SUCCESS_AVG,
                        np_treeval_new_f(node->success_avg));
@@ -316,15 +314,18 @@ np_node_t *_np_node_decode_from_jrb(np_state_t *context, np_tree_t *data) {
                   s_host_name,
                   s_host_port);
   }
-  /*
+
   if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_LATENCY))) {
-  new_node->latency = ele->val.value.d;
+    new_node->latency = ele->val.value.d;
   }
-  if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_SUCCESS_AVG)))
-  { new_node->success_avg = ele->val.value.f;
+  if (NULL !=
+      (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_SUCCESS_AVG))) {
+    new_node->success_avg = ele->val.value.f;
   }
-  */
-  // ref_replace_reason(np_node_t, new_node, ref_obj_creation, FUNC);
+  if (NULL !=
+      (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_MAX_MESSAGES))) {
+    new_node->max_messages_per_sec = ele->val.value.ui;
+  }
 
   return (new_node);
 }

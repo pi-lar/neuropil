@@ -70,7 +70,8 @@ struct np_node_s {
   float   success_avg;
 
   // load average of the node
-  float load;
+  float    load;
+  uint16_t max_messages_per_sec;
 
 } NP_API_INTERN;
 

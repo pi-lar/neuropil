@@ -1289,6 +1289,7 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
                              my_node->protocol,
                              node_trinity.node->dns_name,
                              node_trinity.node->port,
+                             node_trinity.node->max_messages_per_sec,
                              my_network->socket,
                              PASSIVE)) {
           node_key->entity_array[3] = new_network;
@@ -1321,6 +1322,7 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
                              my_node->protocol,
                              alias_trinity.node->dns_name,
                              alias_trinity.node->port,
+                             alias_trinity.node->max_messages_per_sec,
                              alias_trinity.network->socket,
                              PASSIVE)) {
           np_ref_obj(np_network_t, new_network, "__np_create_client_network");
@@ -1340,6 +1342,7 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
                            node_trinity.node->protocol,
                            node_trinity.node->dns_name,
                            node_trinity.node->port,
+                           node_trinity.node->max_messages_per_sec,
                            -1,
                            UNKNOWN_PROTO)) {
         if (FLAG_CMP(my_node->protocol, PASSIVE)) {
@@ -1355,6 +1358,7 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
                            node_trinity.node->protocol,
                            node_trinity.node->dns_name,
                            node_trinity.node->port,
+                           node_trinity.node->max_messages_per_sec,
                            new_network->socket,
                            UNKNOWN_PROTO);
           _np_network_set_key(new_network, context->my_identity->dhkey);

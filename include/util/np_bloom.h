@@ -129,11 +129,18 @@ np_bloom_t *_np_counting_bloom_create(size_t size, uint8_t d, uint8_t p);
 NP_API_INTERN
 void _np_counting_bloom_clear(np_bloom_t *res);
 NP_API_INTERN
+void _np_counting_bloom_clear_r(np_bloom_t *res, uint32_t *item_count);
+NP_API_INTERN
 void _np_counting_bloom_add(np_bloom_t *bloom, np_dhkey_t id);
 NP_API_INTERN
 void _np_counting_bloom_remove(np_bloom_t *bloom, np_dhkey_t id);
 NP_API_INTERN
 bool _np_counting_bloom_check(np_bloom_t *bloom, np_dhkey_t id);
+NP_API_INTERN
+void _np_counting_bloom_check_r(np_bloom_t *bloom,
+                                np_dhkey_t  id,
+                                uint32_t   *count);
+
 NP_API_INTERN
 void _np_counting_bloom_containment(np_bloom_t *first,
                                     np_bloom_t *second,

@@ -474,17 +474,30 @@ np_bloom_t *_np_counting_bloom_create(size_t size, uint8_t d, uint8_t p) {
   res->_d = d;
   res->_p = p;
 
-  res->_bitset = calloc(size, res->_d / 8);
+  res->_bitset = calloc(size, res->_d >> 3);
   // simplified max elements calculation
-  res->_free_items = size * res->_d / 16;
+  res->_free_items = size * res->_d >> 4;
   res->_num_blocks = 1;
 
   return res;
 }
 
 void _np_counting_bloom_clear(np_bloom_t *res) {
-  memset(res->_bitset, 0, res->_num_blocks * res->_size * res->_d / 8);
-  res->_free_items = res->_size / 16;
+  memset(res->_bitset, 0, (res->_num_blocks * res->_size * res->_d) >> 3);
+  res->_free_items = (res->_size * res->_d) >> 4;
+}
+
+void _np_counting_bloom_clear_r(np_bloom_t *res, uint32_t *item_count) {
+  uint32_t zeroed_blocks = 1;
+  for (size_t k = 0; k < (res->_num_blocks * res->_size * res->_d) >> 3; k++) {
+    if (res->_bitset[k] == 1) zeroed_blocks++;
+    res->_bitset[k] >>= res->_p;
+    *item_count = res->_bitset[k] > *item_count ? res->_bitset[k] : *item_count;
+  }
+
+  res->_free_items += (*item_count * zeroed_blocks) << res->_p;
+  if (res->_free_items > ((res->_size * res->_d) >> 4))
+    res->_free_items = ((res->_size * res->_d) >> 4);
 }
 
 void _np_counting_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
@@ -494,7 +507,7 @@ void _np_counting_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
 
   for (uint8_t k = 0; k < 8; ++k) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
-    uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+    uint32_t _local_pos     = _bit_array_pos * bloom->_d >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
     (*_current_val)++;
 
@@ -502,8 +515,8 @@ void _np_counting_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
     // char test_string[65];
     // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
     // np_id_str(test_string, &bloom->_bitset[i]);
-    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string,
-    // _local_pos, bloom->_bitset[_local_pos]);
+    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i,
+    // test_string, _local_pos, bloom->_bitset[_local_pos]);
     // }
     // #endif
   }
@@ -517,16 +530,16 @@ void _np_counting_bloom_remove(np_bloom_t *bloom, np_dhkey_t id) {
 
   for (uint8_t k = 0; k < 8; ++k) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
-    uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+    uint32_t _local_pos     = _bit_array_pos * bloom->_d >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
     (*_current_val)--;
 
     // #ifdef DEBUG
     // char test_string[65];
-    // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
+    // for (size_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
     // np_id_str(test_string, &bloom->_bitset[i]);
-    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string,
-    // _local_pos, bloom->_bitset[_local_pos]);
+    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i,
+    // test_string, _local_pos, bloom->_bitset[_local_pos]);
     // }
     // #endif
   }
@@ -538,14 +551,14 @@ bool _np_counting_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
 
   for (uint8_t k = 0; k < 8; ++k) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
-    uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+    uint32_t _local_pos     = _bit_array_pos * bloom->_d >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-    if (0 == (*_current_val)) ret = false;
+    if (0 == (*_current_val) || UINT8_MAX == (*_current_val)) ret = false;
     // #ifdef DEBUG
     // char test_string[65];
-    // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
-    //   np_id_str(test_string, &bloom->_bitset[i]); log_msg(LOG_DEBUG, "%3d:
-    //   add: %s --> pos=%3d (%02x)\n", i, test_string, _local_pos,
+    // for (size_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
+    //   np_id_str(test_string, &bloom->_bitset[i]); log_msg(LOG_DEBUG,
+    //   "%3d: add: %s --> pos=%3d (%02x)\n", i, test_string, _local_pos,
     //   bloom->_bitset[_local_pos]);
     // }
     // #endif
@@ -553,15 +566,37 @@ bool _np_counting_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
   return (ret);
 }
 
+void _np_counting_bloom_check_r(np_bloom_t *bloom,
+                                np_dhkey_t  id,
+                                uint32_t   *count) {
+
+  for (uint8_t k = 0; k < 8; ++k) {
+    uint32_t _bit_array_pos = id.t[k] & (bloom->_size - 1);
+    uint32_t _local_pos     = _bit_array_pos * bloom->_d >> 3;
+    uint8_t *_current_val   = &bloom->_bitset[_local_pos];
+    if (0 == (*_current_val) || UINT8_MAX == (*_current_val)) return;
+
+    *count = (*_current_val > *count) ? (*_current_val) : (*count);
+    // #ifdef DEBUG
+    // char test_string[65];
+    // for (size_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
+    //   np_id_str(test_string, &bloom->_bitset[i]); log_msg(LOG_DEBUG,
+    //   "%3d: add: %s --> pos=%3d (%02x)\n", i, test_string, _local_pos,
+    //   bloom->_bitset[_local_pos]);
+    // }
+    // #endif
+  }
+}
+
 void _np_counting_bloom_containment(np_bloom_t *first,
                                     np_bloom_t *second,
                                     float      *result) {
-  // containment only uses the number of query elements (of first) for the union
-  // count
+  // containment only uses the number of query elements (of first) for the
+  // union count
   uint16_t union_count        = 0;
   uint16_t intersection_count = 0; // prevent division by zero in line 773
 
-  for (uint16_t k = 0; k < first->_num_blocks * first->_size * first->_d / 8;
+  for (size_t k = 0; k < first->_num_blocks * first->_size * first->_d / 8;
        k++) {
     union_count += (first->_bitset[k] > 0) ? 1 : 0;
 

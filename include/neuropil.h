@@ -195,8 +195,8 @@ struct np_settings {
   uint32_t              log_level;
   uint8_t               leafset_size;
   np_log_write_callback log_write_fn;
-  size_t                jobqueue_size;
-  size_t                max_msgs_per_sec;
+  uint16_t              jobqueue_size;
+  uint16_t              max_msgs_per_sec;
   // ...
 } NP_PACKED(1);
 

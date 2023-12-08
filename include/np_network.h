@@ -76,19 +76,17 @@ struct np_network_s {
   struct sockaddr *remote_addr;
   socklen_t        remote_addr_len;
 
-  double last_send_date;
-  double last_received_date;
-  np_sll_t(void_ptr, out_events);
-
   uint32_t seqend;
+  uint16_t max_messages_per_second;
+  double   last_send_date;
+  double   last_received_date;
+  np_sll_t(void_ptr, out_events);
 
   char ip[CHAR_LENGTH_IP];
   char port[CHAR_LENGTH_PORT];
 
   np_mutex_t access_lock;
   TSP(bool, can_be_enabled);
-
-  // np_dhkey_t __tcp_alias_dhkey;
 
 } NP_API_INTERN;
 
@@ -136,13 +134,14 @@ bool _np_network_init(np_network_t *network,
                       socket_type   type,
                       char         *hostname,
                       char         *service,
+                      uint16_t      max_messages_per_second,
                       int           prepared_socket_fd,
                       socket_type   passive_socket_type);
 
-NP_API_INTERN
-bool _np_network_send_data(np_state_t   *context,
-                           np_network_t *network,
-                           void         *data_to_send);
+// NP_API_INTERN
+// bool _np_network_send_data(np_state_t   *context,
+//                            np_network_t *network,
+//                            void         *data_to_send);
 /**
  ** _np_network_append_msg_to_out_queue:
  ** Sends a message to host

@@ -675,6 +675,7 @@ bool _np_http_init(np_state_t *context, char *in_domain, char *port) {
                      TCP | IPv4,
                      domain,
                      port,
+                     context->settings->max_msgs_per_sec,
                      -1,
                      UNKNOWN_PROTO);
     np_ref_obj(np_network_t, _module->network, ref_obj_creation);
