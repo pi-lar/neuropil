@@ -183,10 +183,10 @@ bool __np_axon_chunk_and_send(np_state_t         *context,
   np_spinlock_lock(&context->msg_forward_filter_lock);
   {
     send_before =
-        _np_decaying_bloom_check(context->msg_forward_filter, _cache_msg_id);
-    if (!send_before) {
-      _np_decaying_bloom_add(context->msg_forward_filter, _cache_msg_id);
-    } else {
+        context->msg_forward_filter->op.check_cb(context->msg_forward_filter,
+                                                 _cache_msg_id);
+
+    if (send_before) {
       log_info(LOG_ROUTING,
                "not sending message (%s) to target %s, as msg was already send "
                "before",

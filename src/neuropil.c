@@ -259,15 +259,22 @@ np_context *np_new_context(struct np_settings *settings_in) {
         .check_cb = _np_decaying_bloom_check,
         .clear_cb = _np_standard_bloom_clear,
     };
-    TSP_INIT(context->msg_forward_filter);
-    TSP_SCOPE(context->msg_forward_filter) {
-      context->msg_forward_filter =
-          _np_decaying_bloom_create(NP_MSG_FORWARD_FILTER_SIZE, 16, 1);
-      context->msg_forward_filter->op = decaying_op;
-    }
     context->msg_part_filter =
         _np_decaying_bloom_create(NP_MSG_PART_FILTER_SIZE, 16, 1);
     context->msg_part_filter->op = decaying_op;
+
+    TSP_INIT(context->msg_forward_filter);
+    TSP_SCOPE(context->msg_forward_filter) {
+      struct np_bloom_optable_s stable_op = {
+          .add_cb   = _np_stable_bloom_add,
+          .check_cb = _np_stable_bloom_check,
+          .clear_cb = _np_standard_bloom_clear,
+      };
+
+      context->msg_forward_filter =
+          _np_stable_bloom_create(NP_MSG_FORWARD_FILTER_SIZE, 16, 1);
+      context->msg_forward_filter->op = stable_op;
+    }
   }
 
   TSP_INITD(context->status, np_uninitialized);

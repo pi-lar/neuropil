@@ -227,13 +227,8 @@ bool _np_alias_cleanup_msgpart_cache(np_state_t               *context,
     sll_free(np_dhkey_t, to_del);
   }
 
-  TSP_SCOPE(context->msg_forward_filter) {
-    _np_decaying_bloom_decay(context->msg_forward_filter);
-  }
-
-  uint16_t _peer_nodes =
-      _np_route_my_key_count_routes(context); /* +
-      _np_route_my_key_count_neighbors(context, NULL, NULL); */
+  uint16_t _peer_nodes = _np_route_my_key_count_routes(context) +
+                         _np_route_my_key_count_neighbors(context, NULL, NULL);
   uint8_t _size_modifier = floor(cbrt(_peer_nodes));
 
   _LOCK_MODULE(np_message_part_cache_t) {
@@ -257,13 +252,22 @@ bool _np_alias_cleanup_msgpart_cache(np_state_t               *context,
     }
 
     uint8_t _prune_adjustment = 1;
-    if (_size_modifier > 1) _prune_adjustment = _size_modifier;
+    if (_size_modifier > _prune_adjustment) _prune_adjustment = _size_modifier;
     if (context->msg_part_filter->_p != _prune_adjustment) {
       context->msg_part_filter->_p = _prune_adjustment;
       log_debug_msg(
           LOG_MISC,
           "MSG_PART_TABLE duplicate check adjusted, now using bit-pruning: %d)",
           _prune_adjustment);
+    }
+  }
+  TSP_SCOPE(context->msg_forward_filter) {
+    if (_size_modifier > 1) {
+      context->msg_forward_filter->_p = _size_modifier;
+      log_debug_msg(
+          LOG_MISC,
+          "FORWARD duplicate check adjusted, now using bit-pruning: %d)",
+          _size_modifier);
     }
   }
 

@@ -158,17 +158,19 @@ void _np_standard_bloom_clear(np_bloom_t *res) {
 }
 
 np_bloom_t *_np_stable_bloom_create(size_t size, uint8_t d, uint8_t p) {
-  np_bloom_t *res = (np_bloom_t *)calloc(1, sizeof(np_bloom_t));
-  res->_type      = stable_bf;
-  res->_size      = size;
 
+  assert(size % 2 == 0);
+
+  np_bloom_t *res  = (np_bloom_t *)calloc(1, sizeof(np_bloom_t));
+  res->_type       = stable_bf;
+  res->_size       = size;
   res->_d          = d;
   res->_p          = p;
   res->_num_blocks = 1;
 
-  res->_bitset = calloc(1, (size / 8) * res->_d);
+  res->_bitset = calloc(1, (size * res->_d) >> 3);
   // simplified max elements calculation
-  res->_free_items = size * res->_d / 16;
+  res->_free_items = (size * res->_d) >> 4;
 
   return res;
 }
@@ -177,11 +179,8 @@ void _np_stable_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
   uint32_t _as_number   = 0;
   uint32_t _killed_bits = 0;
 
-  if (bloom->_free_items == 0) {
-    ABORT("");
-  }
-
   for (uint8_t p = 0; p < bloom->_p; ++p) {
+
     // shameless stolen from bind9 random() implementation
 #if RAND_MAX >= 0xfffff
     /* We have at least 20 bits.  Use lower 16 excluding lower most 4 */
@@ -191,19 +190,24 @@ void _np_stable_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
     _as_number = ((rand() >> 4) & 0x000007ff) | ((rand() << 7) & 0x003ff800) |
                  ((rand() << 18) & 0xffc00000);
 #endif
-    uint32_t _bit_array_pos = (_as_number) % bloom->_size;
-    uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+
+    uint32_t _bit_array_pos = _as_number & (bloom->_size - 1);
+    uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
     if (*_current_val > 0) {
       (*_current_val)--;
       _killed_bits++;
-      if (_killed_bits % (bloom->_p / 8)) bloom->_free_items++;
     }
+  }
+  _killed_bits = _killed_bits >> 3;
+  while (_killed_bits > 0) {
+    bloom->_free_items++;
+    _killed_bits = _killed_bits >> 3;
   }
 
   for (uint8_t k = 0; k < 8; ++k) {
-    uint32_t _bit_array_pos = id.t[k] % bloom->_size;
-    uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+    uint32_t _bit_array_pos = id.t[k] & (bloom->_size - 1);
+    uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
     (*_current_val) |= ((1 << bloom->_d) - 1);
 
@@ -211,8 +215,8 @@ void _np_stable_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
     // char test_string[65];
     // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
     // np_id_str(test_string, &bloom->_bitset[i]);
-    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string,
-    // _local_pos, bloom->_bitset[_local_pos]);
+    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i,
+    // test_string, _local_pos, bloom->_bitset[_local_pos]);
     // }
     // #endif
   }
@@ -223,16 +227,16 @@ bool _np_stable_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
   bool ret = true;
 
   for (uint8_t k = 0; k < 8; ++k) {
-    uint32_t _bit_array_pos = id.t[k] % bloom->_size;
-    uint32_t _local_pos     = _bit_array_pos * bloom->_d / 8;
+    uint32_t _bit_array_pos = id.t[k] & (bloom->_size - 1);
+    uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
     if (0 == (*_current_val)) ret = false;
     // #ifdef DEBUG
     // char test_string[65];
     // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
     //   np_id_str(test_string, &bloom->_bitset[i]);
-    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i, test_string,
-    // _local_pos, bloom->_bitset[_local_pos]);
+    // log_msg(LOG_DEBUG, "%3d:   add: %s --> pos=%3d (%02x)\n", i,
+    // test_string, _local_pos, bloom->_bitset[_local_pos]);
     // }
     // #endif
   }
