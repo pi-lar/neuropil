@@ -977,3 +977,91 @@ Test(np_bloom_t,
   _np_bloom_free(neuropil_bloom_in);
   _np_bloom_free(neuropil_bloom_out);
 }
+
+// Test(np_bloom_t,
+//      _new_bloom_neuropil_performance,
+//      .description = "test the performance of the new neuropil bloom filter")
+//      {
+//   uint32_t num_test_elements = 10240;
+
+//   np_dhkey_t data[num_test_elements];
+//   np_dhkey_t invalid_data[num_test_elements];
+
+//   for (uint32_t i = 0; i < num_test_elements; i++) {
+//     char   input[256]   = {'\0'};
+//     char   input_2[256] = {'\0'};
+//     double now          = _np_time_now(NULL);
+//     snprintf(input,
+//              255,
+//              "%s:%lu:%16.16f",
+//              "test-string-der-sehr-lang-ist",
+//              random(),
+//              now);
+//     snprintf(input_2,
+//              255,
+//              "%s:%lu:%16.16f",
+//              "test-string-der-sehr-kurz-ist",
+//              random(),
+//              now);
+//     // log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
+//     crypto_generichash_blake2b(&data[i].t[0],
+//                                32,
+//                                (unsigned char *)input,
+//                                256,
+//                                NULL,
+//                                0);
+//     crypto_generichash_blake2b(&invalid_data[i].t[0],
+//                                32,
+//                                (unsigned char *)input_2,
+//                                256,
+//                                NULL,
+//                                0);
+//   }
+
+//   np_bloom_t *new_bloom =
+//       _np_standard_bloom_create((((((1 << 8) << 4) << 4) << 4) << 4) >> 2);
+
+//   struct np_bloom_optable_s neuropil_operations = {
+//       .add_cb       = _np_standard_bloom_add,
+//       .check_cb     = _np_standard_bloom_check,
+//       .clear_cb     = _np_standard_bloom_clear,
+//       .union_cb     = _np_standard_bloom_union,
+//       .intersect_cb = _np_standard_bloom_intersect,
+//   };
+//   new_bloom->op = neuropil_operations;
+
+//   double insert_func[num_test_elements], check_func_valid[num_test_elements],
+//       check_func_invalid[num_test_elements];
+
+//   for (uint32_t i = 0; i < num_test_elements; i++) {
+//     MEASURE_TIME(insert_func, i, _np_standard_bloom_add(new_bloom, data[i]));
+//   }
+//   CALC_AND_PRINT_STATISTICS("[ 10k ] insert bloom",
+//                             insert_func,
+//                             num_test_elements);
+
+//   for (uint32_t i = 0; i < num_test_elements; i++) {
+//     MEASURE_TIME(check_func_valid,
+//                  i,
+//                  assert(true == _np_standard_bloom_check(new_bloom,
+//                  data[i])));
+//   }
+
+//   CALC_AND_PRINT_STATISTICS("[ 10k ] check valid bloom",
+//                             check_func_valid,
+//                             num_test_elements);
+
+//   for (uint32_t i = 0; i < num_test_elements; i++) {
+//     MEASURE_TIME(check_func_invalid,
+//                  i,
+//                  // assert(false == _np_standard_bloom_check(new_bloom,
+//                  // invalid_data[i])));
+//                  _np_standard_bloom_check(new_bloom, invalid_data[i]));
+//   }
+
+//   CALC_AND_PRINT_STATISTICS("[ 10k ] check invalid bloom",
+//                             check_func_invalid,
+//                             num_test_elements);
+
+//   _np_bloom_free(new_bloom);
+// }

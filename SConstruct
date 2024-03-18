@@ -180,9 +180,12 @@ if "Darwin" in platform.system():
     default_env.Append(CCFLAGS=["-mmacosx-version-min=10.11"])
     default_env.Append(
         CPPPATH=[
-            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
+            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include",
+            # "/opt/homebrew/include",
         ]
     )
+#     default_env.Append(LIBPATH=["/opt/homebrew/lib"])
+#     default_env.Append(LIBS=["criterion"])
 
 if "Linux" in platform.system():
     default_env.Append(LIBS=["m"])
@@ -331,6 +334,8 @@ if not neuropil_conf.CheckLib("qcbor"):
     neuropil_env.Append(CCFLAGS=["-DQCBOR_DISABLE_INDEFINITE_LENGTH_STRINGS"])
     neuropil_env.Append(CCFLAGS=["-DQCBOR_DISABLE_INDEFINITE_LENGTH_ARRAYS"])
     neuropil_env.Append(CCFLAGS=["-DQCBOR_DISABLE_PREFERRED_FLOAT"])
+    neuropil_env.Append(CCFLAGS=["-DNP_USE_QCBOR"])
+
 
     SOURCES += DEPENDENCIES
 
@@ -499,7 +504,8 @@ if not test_env_conf.CheckLib("criterion"):
         os.path.join(project_root_path, "ext_tools", "Criterion"),
         f'cd \'{os.path.join(project_root_path,"ext_tools","Criterion")}\' && '
         + f'mkdir -p \'{os.path.join(project_root_path,"build","ext_tools","Criterion","build")}\' && '
-        + f'meson \'{os.path.join(project_root_path,"build","ext_tools","Criterion","build")}\' && '
+        + f'export CC=clang && '
+        + f'meson setup \'{os.path.join(project_root_path,"build","ext_tools","Criterion","build")}\' && '
         + f'ninja -C \'{os.path.join(project_root_path,"build","ext_tools","Criterion","build")}\' && '
         + f'cd \'{os.path.join(project_root_path,"build","ext_tools","Criterion","build")}\' && '
         + f'export DESTDIR=\'{os.path.join(project_root_path,"build","ext_tools","Criterion")}\' && '

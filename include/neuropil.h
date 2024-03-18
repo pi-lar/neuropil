@@ -114,11 +114,13 @@ enum np_status {
 
 enum np_return {
   np_ok = 0,
+  np_operation_failed,
   np_unknown_error,
   np_not_implemented,
   np_network_error,
   np_invalid_argument,
   np_invalid_operation,
+  np_out_of_memory,
   np_startup,
 } NP_CONST_ENUM;
 

@@ -3,7 +3,7 @@
 
 
 default:
-  image: $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
+  image: $CI_REGISTRY_IMAGE/ci-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   
@@ -37,14 +37,14 @@ setup:
     - echo "$CI_DEPLOY_PASSWORD" | docker login -u $CI_DEPLOY_USER $CI_REGISTRY --password-stdin
     - |
         docker build \
-          --cache-from "$CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID" \
-          -t $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_SHA \
-          -t $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID \
-          -f configs/docker/ci-enviroment.Dockerfile \
+          --cache-from "$CI_REGISTRY_IMAGE/ci-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID" \
+          -t $CI_REGISTRY_IMAGE/ci-environment:$CI_COMMIT_SHA \
+          -t $CI_REGISTRY_IMAGE/ci-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID \
+          -f configs/docker/ci-environment/Dockerfile \
           --build-arg CI_REPOSITORY_URL=$CI_REPOSITORY_URL \
           --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL \
           ./
-    - docker push $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
+    - docker push $CI_REGISTRY_IMAGE/ci-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
   image: docker:latest
   services:
     - docker:dind
@@ -53,7 +53,7 @@ setup:
     - if: $CI_COMMIT_TAG != null
     - if: $CI_MERGE_REQUEST_ID != null
     - changes:
-        - configs/docker/ci-enviroment.Dockerfile
+        - configs/docker/ci-environment/Dockerfile
         - requirements.txt
 
 ci_configuration:
@@ -91,8 +91,10 @@ documentation:
 docker_test_enviroment:
   stage: build
   script:
+    - ./do clean
     - ./do ensure_dependencies
-    - ./do build --DEBUG all
+    - ./do build --RELEASE criterion
+    - ./do build --DEBUG bindings tests
   artifacts:
     paths:
       - build
@@ -345,7 +347,7 @@ python_docker:
     - |
         docker build \
           -t $CI_REGISTRY_IMAGE/python-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
-          -f configs/docker/python-enviroment.Dockerfile \
+          -f configs/docker/python-enviroment/Dockerfile \
           --build-arg NEUROPIL_BASE_IMAGE=$CI_REGISTRY_IMAGE/prod-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
           --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL \
           ./

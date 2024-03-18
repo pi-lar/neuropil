@@ -60,6 +60,20 @@ np_dhkey_t _np_dhkey_generate_hash(const unsigned char *data,
   return kResult;
 }
 
+enum np_return np_hkey_generate_hash(const unsigned char *data,
+                                     const size_t         data_size,
+                                     union np_hkey       *out) {
+  unsigned char hash_value[32] = {0};
+  crypto_generichash_blake2b(out->_as_uc,
+                             NP_FINGERPRINT_BYTES,
+                             data,
+                             data_size,
+                             NULL,
+                             0);
+  // crypto_hash_sha256(md_value, data, data_size);
+  return (np_ok);
+}
+
 np_dhkey_t np_dhkey_create_from_hash(const char *strOrig) {
   log_trace_msg(
       LOG_TRACE,

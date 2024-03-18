@@ -62,7 +62,7 @@ struct np_bloom_s {
 
   // runtime variables
   uint8_t *_bitset;     // ponter to bitset
-  uint8_t  _num_blocks; // for scalable bloom filter
+  uint32_t _num_blocks; // for scalable bloom filter
   uint16_t _free_items; // item counter for bitste (initial value is max,
                         // decremented per insert)
 

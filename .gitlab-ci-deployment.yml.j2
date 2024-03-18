@@ -1,5 +1,5 @@
 default:
-  image: $CI_REGISTRY_IMAGE/ci-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
+  image: $CI_REGISTRY_IMAGE/ci-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
 
 cache:
   key: "${CI_COMMIT_SHA}"

@@ -13,14 +13,27 @@
 
 #include "np_dhkey.h"
 
-typedef struct sl_item_s {
+struct sl_item_s {
   uint16_t key;
   double   value;
-} sl_item_t;
+};
+
+int8_t _compare_hkey(const void *old, const void *new) {
+  union np_hkey *it_1 = (union np_hkey *)old;
+  union np_hkey *it_2 = (union np_hkey *)new;
+
+  int res = memcmp(it_1->_as_us, it_2->_as_us, 32);
+  // fprintf(stdout,
+  //         "compare result %0X <-> %0X == %d\n ",
+  //         it_1->_as_uc,
+  //         it_2->_as_uc,
+  //         res);
+  return res;
+}
 
 int8_t _compare_double(const void *old, const void *new) {
-  sl_item_t *it_1 = (sl_item_t *)old;
-  sl_item_t *it_2 = (sl_item_t *)new;
+  struct sl_item_s *it_1 = (struct sl_item_s *)old;
+  struct sl_item_s *it_2 = (struct sl_item_s *)new;
 
   // cr_log_info("comparing to : %p (%d) <-> (%d) %p    ", new, it_2->key,
   // it_1->key, old);
@@ -44,14 +57,14 @@ Test(np_skiplist,
 
   np_skiplist_init(&skiplist, _compare_double, NULL);
 
-  sl_item_t d_a = {.key = 1, .value = 3.1415};
-  sl_item_t d_b = {.key = 2, .value = 1.0};
-  sl_item_t d_c = {.key = 4, .value = 7.4321};
-  sl_item_t d_d = {.key = 8, .value = 100000000.4};
-  sl_item_t d_e = {.key = 2, .value = 2.333333333};
-  sl_item_t d_f = {.key = 3, .value = 3.333333333};
-  sl_item_t d_g = {.key = 9, .value = 9.333333333};
-  sl_item_t d_h = {.key = 13, .value = 13.333333333};
+  struct sl_item_s d_a = {.key = 1, .value = 3.1415};
+  struct sl_item_s d_b = {.key = 2, .value = 1.0};
+  struct sl_item_s d_c = {.key = 4, .value = 7.4321};
+  struct sl_item_s d_d = {.key = 8, .value = 100000000.4};
+  struct sl_item_s d_e = {.key = 2, .value = 2.333333333};
+  struct sl_item_s d_f = {.key = 3, .value = 3.333333333};
+  struct sl_item_s d_g = {.key = 9, .value = 9.333333333};
+  struct sl_item_s d_h = {.key = 13, .value = 13.333333333};
 
   bool ret = true;
   cr_log_info("adding     to : %p (%d)    ", &d_a, d_a.key);
@@ -90,8 +103,8 @@ Test(np_skiplist,
   cr_expect(ret == true, "expect result of adding an element to be true");
   cr_expect(skiplist._num_elements == 4, "expect the element count to be four");
 
-  sl_item_t  d_s        = {.key = 5, .value = 0};
-  sl_item_t *d_s_result = &d_s;
+  struct sl_item_s  d_s        = {.key = 5, .value = 0};
+  struct sl_item_s *d_s_result = &d_s;
   cr_log_info("searching for: %p (%d)    ", d_s_result, d_s_result->key);
   ret = np_skiplist_find(&skiplist, (void **)&d_s_result);
   // cr_log_info("returning    : %p (%d)    ", d_s_result, d_s_result->key);
@@ -148,16 +161,16 @@ Test(np_skiplist,
   double   add_func[count], get_func[count];
 
   for (uint32_t i = 0; i < count; i++) {
-    sl_item_t *d_a = malloc(sizeof(sl_item_t));
-    d_a->key       = rand();
-    d_a->value     = 3.1415;
+    struct sl_item_s *d_a = malloc(sizeof(struct sl_item_s));
+    d_a->key              = rand();
+    d_a->value            = 3.1415;
 
     MEASURE_TIME(add_func, i, { np_skiplist_add(&skiplist, d_a); })
   }
 
   for (uint32_t i = 0; i < count; i++) {
-    sl_item_t *d_a = malloc(sizeof(sl_item_t));
-    d_a->key       = i;
+    struct sl_item_s *d_a = malloc(sizeof(struct sl_item_s));
+    d_a->key              = i;
 
     MEASURE_TIME(get_func, i, { np_skiplist_find(&skiplist, &d_a); });
   }
@@ -168,3 +181,84 @@ Test(np_skiplist,
   // np_skiplist_print(&skiplist);
   np_skiplist_destroy(&skiplist);
 }
+
+// Test(np_skiplist,
+//      np_skiplist_perf_10000,
+//      .description =
+//          "test the addition/substraction of dhkeys to a np_cupidtrie") {
+
+//   uint16_t      num_elements = 10240;
+//   union np_hkey data[num_elements];
+//   union np_hkey invalid_data[num_elements];
+//   for (uint16_t i = 0; i < num_elements; i++) {
+//     char   input_1[256] = {'\0'};
+//     char   input_2[256] = {'\0'};
+//     double now          = _np_time_now(NULL);
+//     snprintf(input_1,
+//              255,
+//              "%s:%u:%16.16f",
+//              "test-string-der-sehr-lang-ist",
+//              i,
+//              now);
+//     snprintf(input_2,
+//              255,
+//              "%s:%u:%16.16f",
+//              "test-string-der-sehr-kurz-ist",
+//              i,
+//              now);
+//     // log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
+//     crypto_generichash_blake2b(data[i]._as_uc,
+//                                32,
+//                                (unsigned char *)input_1,
+//                                256,
+//                                NULL,
+//                                0);
+//     crypto_generichash_blake2b(invalid_data[i]._as_uc,
+//                                32,
+//                                (unsigned char *)input_2,
+//                                256,
+//                                NULL,
+//                                0);
+//   }
+//   np_skiplist_t skiplist;
+//   np_skiplist_init(&skiplist, _compare_hkey, NULL);
+
+//   double sl_insert_func[num_elements], sl_check_func_valid[num_elements],
+//       sl_check_func_invalid[num_elements], sl_clear_func[num_elements];
+
+//   for (uint16_t i = 0; i < num_elements; i++) {
+//     MEASURE_TIME(sl_insert_func, i, np_skiplist_add(&skiplist, &data[i]));
+//   }
+//   CALC_AND_PRINT_STATISTICS("[ new ] insert np_skiplist_t",
+//                             sl_insert_func,
+//                             num_elements);
+
+//   // np_skiplist_print(&skiplist);
+//   for (uint16_t i = 0; i < num_elements; i++) {
+//     void *data_ptr = &data[i];
+//     MEASURE_TIME(sl_check_func_valid,
+//                  i,
+//                  cr_expect(true == np_skiplist_find(&skiplist, &data_ptr)));
+//   }
+//   CALC_AND_PRINT_STATISTICS("[ new ] check valid np_skiplist_t",
+//                             sl_check_func_valid,
+//                             num_elements);
+
+//   for (uint16_t i = 0; i < num_elements; i++) {
+//     void *data_ptr = &invalid_data[i];
+//     MEASURE_TIME(sl_check_func_invalid,
+//                  i,
+//                  cr_expect(false == np_skiplist_find(&skiplist, &data_ptr)));
+//   }
+//   CALC_AND_PRINT_STATISTICS("[ new ] check invalid np_skiplist_t",
+//                             sl_check_func_invalid,
+//                             num_elements);
+// for (uint16_t i = 0; i < num_elements; i++) {
+//   MEASURE_TIME(sl_clear_func,
+//                i,
+//                cr_expect(true == np_skiplist_remove(&skiplist, &data[i])));
+// }
+// CALC_AND_PRINT_STATISTICS("[ new ] check clear np_skiplist_t",
+//                           sl_clear_func,
+//                           num_elements);
+// }

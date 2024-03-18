@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: OSL-3.0
 //
 // original version is based on the chimera project
-#ifndef _NP_DHKEY_H_
-#define _NP_DHKEY_H_
 
 #include "util/np_list.h"
 
 #include "np_types.h"
+
+#ifndef _NP_DHKEY_H_
+#define _NP_DHKEY_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,6 +17,14 @@ extern "C" {
 
 struct np_dhkey_s {
   uint32_t t[8];
+} NP_PACKED(1);
+
+union np_hkey {
+  uint64_t      _as_ull[4];
+  uint32_t      _as_ul[8];
+  uint8_t       _as_ui[16];
+  uint8_t       _as_us[32];
+  unsigned char _as_uc[32];
 } NP_PACKED(1);
 
 NP_SLL_GENERATE_PROTOTYPES(np_dhkey_t);
@@ -136,6 +145,13 @@ NP_API_INTERN
 void _np_str_dhkey(const char *key_string, np_dhkey_t *k);
 NP_API_INTERN
 np_dhkey_t _np_dhkey_generate_hash(const unsigned char *data, size_t data_size);
+
+/* new interface */
+NP_API_INTERN
+enum np_return np_hkey_generate_hash(const unsigned char *data,
+                                     const size_t         data_size,
+                                     union np_hkey       *out);
+
 #ifdef __cplusplus
 }
 #endif
