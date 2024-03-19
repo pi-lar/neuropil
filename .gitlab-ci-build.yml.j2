@@ -92,7 +92,7 @@ prod_docker:
     - |
         docker build \
           -t $CI_REGISTRY_IMAGE/prod-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
-          -f configs/docker/prod-enviroment/Dockerfile \
+          -f configs/docker/prod-environment/Dockerfile \
           --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL \
           ./
     - docker push $CI_REGISTRY_IMAGE/prod-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG
