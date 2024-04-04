@@ -1,0 +1,102 @@
+attacker[active]
+
+principal NA[
+    generates nta,uuidA,hndsM
+    fpA= HASH(nta,nil,nil)
+    knows private na
+    gna = G^na
+]
+NA ->NB:[gna],[fpA]
+principal NB[
+    generates ntB, seq0101,uuidB
+    fpB = HASH(ntB,nil,nil)
+    knows private nb
+    gnb = G^nb
+]
+NB ->NA:[gnb],[fpB]
+principal NA[
+    shAB =   gnb^na
+]
+principal NB[
+    shBA = gna^nb
+]
+NB ->NC:[fpB],[gnb]
+principal NC[
+    generates ntC,subj_dhl ,seq01
+    fpC = HASH(ntC,nil,nil)
+    knows private nc
+    gnc = G^nc
+    shCB = gnb^nc
+]
+
+NC ->NB :[fpC],[gnc]
+
+principal NB [
+    shBC = gnc^nb
+]
+
+NC ->ND:[fpC],[gnc]
+
+principal ND[
+    generates  ntD     // fp =  fingerprint of Della
+    fpD= HASH(ntD,nil,nil)
+    knows private nd
+    gnd = G^nd
+]
+ND ->NC:[gnd],[fpD]
+
+principal NC[
+    dht_M  =  CONCAT(seq01,fpD) //dhk_M is  Message of dhk
+    dht = AEAD_ENC(shCB,dht_M,nil) 
+   
+]
+NC ->NB:[dht]
+principal NB[
+    dht_dec = AEAD_DEC(shBC,dht,nil)?
+    subj_dhl_,seq01_,fpD_= SPLIT(dht_dec)
+    dht_fp = CONCAT(fpC,fpD_)
+    dht_M1= CONCAT(subj_dhl_, seq01_,seq0101, dht_fp,uuidB)   // adding  Bob's sequence number, add bob's fingerprint instead of carl
+    dht01 = AEAD_ENC(shBA,dht_M1,nil)
+    //dht01_m = MAC(shBA,dht01)
+ 
+]
+NB ->NA :[dht01] //,dht01_m
+
+principal NA[
+    //_ =ASSERT(MAC(shAB,dht01),dht01_m)?
+    dht01_dec =AEAD_DEC(shAB,dht01,nil)?
+    subj_dhl_0, seq01_0, seq0101_,dht_fp_,uuidB_=SPLIT(dht01_dec)
+    ping =AEAD_ENC(shAB,uuidA,nil)
+   
+]
+NA ->NB : [ping]
+
+principal NA[
+    fpC_0,fpD_0 = SPLIT(dht_fp_)
+] 
+principal NB[
+    ping_dec = AEAD_DEC(shBA,ping,nil)? 
+    ack= AEAD_ENC(shBA,ping_dec,nil)
+    //ackM = MAC(shBA,ack)
+]
+NB ->NA : [ack] //,ackM
+
+principal NA[
+    //_=ASSERT(MAC(shAB,ack),ackM)?
+    ack_dec = AEAD_DEC(shAB,ack,nil)?
+    _= ASSERT(uuidA,ack_dec)?
+]
+
+NA ->ND:[hndsM]
+
+ queries[
+    equivalence?shAB,shBA
+    confidentiality?ack 
+    confidentiality?ping
+    authentication?NB ->NA : ack
+    confidentiality? uuidA
+    freshness? uuidA
+    equivalence?uuidA,ack_dec
+    
+ ]
+

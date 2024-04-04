@@ -1,0 +1,95 @@
+attacker[active]
+ 
+principal NA[
+    generates na
+    gna = G^na
+]
+
+principal NC[
+    generates nc,seq01
+    gnc =G^nc
+]
+
+NC-> NA:[gnc]
+principal NA[
+    shAC = gnc^na
+]
+NA->NC:[gna]
+principal NC[
+    shCA = gna^nc
+]
+NC->ND:[gnc]
+
+principal ND[
+    generates nd,r
+    gnd = G^nd
+    shDC = gnc^nd
+]
+
+ND->NC:[gnd]
+
+principal NC[
+    shCD = gnd^nc
+]
+principal NA[
+    knows private n
+    sub = HASH(n)
+]
+
+principal Della[
+    knows private n,d, nfpD,ifpD,sd
+    gd = G^d
+    subj = HASH(n)
+    sgD =SIGN(d,subj)
+    msg0 = CONCAT(gd,subj,sgD,nfpD,ifpD)
+    msg1 = AEAD_ENC(sd,msg0,nil)
+]
+Della-> ND :[msg1]
+
+principal ND[
+    knows private n,sd
+    subj0 = HASH(n)
+    msg1_de = AEAD_DEC(sd,msg1,nil)
+    flgR = CONCAT(subj0,r)
+    m0 = CONCAT(msg1_de,flgR)
+    msgDC = AEAD_ENC(shDC,m0,nil)
+]
+ND->NC:[msgDC]
+
+principal NC[
+    knows private n
+    subj_0 = Hash(n)
+    msgDC_de = AEAD_DEC(shCD,msgDC,nil)?
+    msg2,flgR1 = SPLIT(msgDC_de )
+    subj1,r1 = SPLIT(flgR1)
+    _= ASSERT(subj1,subj_0)?
+    flgR2= CONCAT(subj1,r1,seq01)
+    m1 = CONCAT(msg2,flgR2)
+    msgCA = AEAD_ENC(shCA,m1,nil)
+]
+NC->NA:[msgCA]
+
+principal NA[
+   msgCA_de= AEAD_DEC(shAC,msgCA,nil)?
+   msg3,flgR3 = SPLIT(msgCA_de)
+   subj2,r2,seq01_1 = SPLIT(flgR3)
+   gd_,subj4,sgD_,nfpD_,ifpD_= SPLIT(msg3)
+   proof = SIGNVERIF(gd_,subj4,sgD_)?
+
+
+]
+
+
+
+queries[
+    authentication? ND->NC:msgDC
+    confidentiality? msgDC
+    confidentiality? r1
+    confidentiality?msgCA
+    confidentiality? n
+    confidentiality? nfpD
+    equivalence?subj4, sub
+    confidentiality? nfpD_
+    confidentiality? gd
+    equivalence? gd,gd_
+ ]

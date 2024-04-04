@@ -1,0 +1,68 @@
+attacker[active]
+
+
+principal Alice[
+    knows private epk,sub,s,c
+    generates up
+    en = AEAD_ENC(epk,up,c)
+]
+Alice->NA:[en]
+
+principal NA[
+    knows private shAC,sub,s,c
+    hd1 = CONCAT(sub,s)
+    h = AEAD_ENC(shAC,hd1,c)
+    m = CONCAT(h,en,c)
+] 
+
+NA->NC:[m]
+
+principal NC[
+    knows private shAC,shCD,sub,s
+    generates seq01
+    h_,en_,c_ = SPLIT(m)
+    h_de = AEAD_DEC(shAC,h_,c_)?
+    _ = ASSERT(CONCAT(sub,s),h_de)?
+    hd2 = CONCAT(h_de,seq01)
+    h2 = AEAD_ENC(shCD,hd2,c_)
+    
+
+]
+NC->ND:[h2],[en_],[c_]
+
+principal ND[
+    knows private shCD,sub,s
+    h2_de = AEAD_DEC(shCD,h2,c_)?
+    h_de_1,seq01_ = SPLIT(h2_de)
+    sub_,s_ = SPLIT(h_de_1)
+    _= ASSERT(s,s_)?
+
+]
+
+ND->Della:[en_],[c_]
+
+principal Della[
+    knows private epk,sub,s
+    en_de = AEAD_DEC(epk,en_,c_)?
+     
+]
+ND->Dory:[en_],[c_]
+
+principal Dory[
+     knows private epk,sub,s
+     en_de1 = AEAD_DEC(epk,en_,c_)?
+     
+
+]
+
+queries[
+    authentication? NA->NC:m
+    authentication? NC->ND:h2
+    equivalence? sub_,sub
+    authentication? ND->Dory:en_
+    confidentiality?en_
+    confidentiality? up
+    confidentiality? c
+    equivalence? c,c_
+   
+]

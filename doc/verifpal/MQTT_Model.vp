@@ -1,0 +1,58 @@
+attacker[active]
+principal Broker[
+  knows private hn,usnP,pwd //hn=hostname of 
+]
+principal Publisher[
+    knows private hn, usnP,pwd,psk1
+    cnt1 = CONCAT(usnP,pwd)
+]
+Publisher->Broker:cnt1
+principal broker[
+    usnP_,pwd_ = SPLIT(cnt1)
+    generates salt1
+    h1 = HASH(pwd_,salt1)
+    _ = ASSERT(h1,HASH(pwd,salt1))?
+]
+principal Publisher[
+    generates tp1,tp2,aa 
+]
+Publisher->Broker: tp1, tp2 // it transmitted like tp1/tp2
+principal Client[
+    knows private hn, usnC1, pwd1,psk1
+]
+Client-> Broker:usnC1, pwd1
+Broker-> CLient :tp1, tp2
+principal Client2[
+    knows private hn,usnC2,pwd2,psk1
+]
+Client2->Broker:usnC2,pwd2 
+Broker-> CLient2 :tp1, tp2
+principal Publisher[
+ m = AEAD_ENC(psk1,aa,tp2)
+]
+Publisher->Broker:m
+Broker->Client: m
+principal Client[
+    m_de = AEAD_DEC(psk1,m,tp2)?
+]
+Broker->Client2:m
+principal Client3[
+   knows private hn,usnC3,pwd3
+]
+Client3->Broker:usnC3,pwd3
+Broker->Client3:tp1, tp2,m
+principal  Client2[
+    m_de2 = AEAD_DEC(psk1,m,tp2)?
+]
+queries[
+    
+    authentication? Publisher->Broker:cnt1
+    confidentiality? cnt1
+    equivalence? pwd,pwd_
+    confidentiality? pwd
+    authentication? Broker->Client:m
+    confidentiality?m
+    confidentiality?aa
+
+]
+

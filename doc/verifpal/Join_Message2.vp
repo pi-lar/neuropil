@@ -1,0 +1,72 @@
+attacker[active]
+
+principal Bob[
+   knows private ntB,itb,sb
+   generates b
+   gb = G^b
+   nfpB= HASH(ntB)
+]
+principal NB[
+    generates nb
+    gnb = G^nb
+
+]
+principal NA[
+  generates na
+  gna = G^na
+  
+]
+
+NB->NA :[gnb]
+NA->NB :[gna]
+
+principal NB[
+  knows private ntB,itb,c2,sb
+  ifpb=HASH(itb)
+] 
+
+principal Bob [
+    js1 = SIGN(b, nfpB)
+    j = CONCAT(gb,js1,nfpB)
+    j0 = AEAD_ENC(sb,j,nil)
+]
+Bob-> NB:[j0]
+
+principal NB[
+    s1 = gna^nb
+    j0_de = AEAD_DEC(sb,j0,nil)
+    j1 = AEAD_ENC(s1,j0_de,c2)
+] 
+NB-> NA :[j1],c2
+
+principal NA[
+    s = gnb^na
+    j1_de = AEAD_DEC(s,j1,c2)
+    gb_,js1_,nfpB_ = SPLIT(j1_de)
+    _ = SIGNVERIF(gb_,nfpB_,js1_)? 
+]
+principal NB[
+    js2 =SIGN(nb,ifpb)
+    js3 = CONCAT(js2,ifpb)
+    j2 = AEAD_ENC(s1,js3,c2)
+]
+
+NB-> NA :[j2]
+
+principal NA[
+    j2_de = AEAD_DEC(s,j2,c2)?
+    js2_,ifpb_ = SPLIT(j2_de)
+    _ = SIGNVERIF(gnb,ifpb_,js2_)?
+
+]
+
+
+queries[
+    authentication? NB->NA:j1
+    authentication? NB->NA:j2
+    equivalence? s,s1
+    confidentiality? ifpb
+    confidentiality? ntB
+    confidentiality? nfpB  
+ 
+]

@@ -1,0 +1,37 @@
+attacker[active]
+
+principal NA[
+   knows private na 
+   gna = G^na
+   generates hostname1, port1
+   data=CONCAT(hostname1, port1)
+   sign_NA = SIGN(na,data)
+
+]
+
+principal NB[
+    knows private nb 
+    gnb = G^nb
+    generates hostname2, port2
+    messg=CONCAT(hostname2, port2)
+    sign_NB = SIGN(nb,messg)
+]
+
+NA->NB:[gna],sign_NA,data 
+
+principal NB[
+    _ = SIGNVERIF(gna,data,sign_NA)?
+]
+NB->NA:[gnb],sign_NB,messg
+
+principal NA[
+    _ = SIGNVERIF(gnb,messg,sign_NB)?
+]
+
+queries[
+    authentication? NA->NB: sign_NA
+    authentication? NB->NA: sign_NB
+    confidentiality? data
+    confidentiality? messg
+    confidentiality? hostname1
+]

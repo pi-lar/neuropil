@@ -1,0 +1,73 @@
+attacker[active]
+
+principal Alice[
+   knows private nt,it,sa
+   generates a
+   ga = G^a 
+   nfp= HASH(nt)
+]
+principal NA[
+  generates na
+  gna = G^na
+  
+]
+
+principal NB[
+    generates nb
+    gnb = G^nb
+
+]
+
+NA->NB :[gna]
+NB->NA :[gnb]
+
+principal NA[
+  knows private  nt,it,c1,sa
+  ifp=HASH(it)
+] 
+
+principal Alice [
+    js1 = SIGN(a, nfp)
+    j = CONCAT(ga,js1,nfp)
+    j0 = AEAD_ENC(sa,j,nil)
+]
+Alice-> NA:[j0]
+
+principal NA[
+    s = gnb^na
+    j0_de = AEAD_DEC(sa,j0,nil)
+    j1 = AEAD_ENC(s,j0_de,c1)
+] 
+NA-> NB :[j1],c1
+
+principal NB[
+    s1 = gna^nb
+    j1_de = AEAD_DEC(s1,j1,c1)
+    ga_,js1_,nfp_ = SPLIT(j1_de)
+    _ = SIGNVERIF(ga_,nfp_,js1_)? 
+]
+principal NA[
+    js2 =SIGN(na,ifp)
+    js3 = CONCAT(js2,ifp)
+    j2 = AEAD_ENC(s,js3,c1)
+]
+
+NA-> NB :[j2]
+
+principal NB[
+    j2_de = AEAD_DEC(s1,j2,c1)?
+    js2_,ifp_ = SPLIT(j2_de)
+    _ = SIGNVERIF(gna,ifp_,js2_)?
+
+]
+
+
+queries[
+    authentication? NA->NB:j1
+    authentication? NA->NB:j2
+    equivalence? s,s1
+    confidentiality? ifp
+    confidentiality? nt
+    confidentiality? nfp  
+ 
+]

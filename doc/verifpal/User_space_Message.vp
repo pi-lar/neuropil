@@ -1,0 +1,75 @@
+attacker[active]
+
+principal NA[
+ knows private shAC,sub,s,c
+]
+principal NC[
+ knows private shAC,shCD,sub,s
+ generates seq01
+
+]
+principal ND[
+  knows private shCD,sub,s
+]
+principal Alice[
+   knows private a,sub,s,c
+   ga = G^a
+]
+Alice->Della:[ga]
+
+principal Della[
+    knows private d,sub,s
+    gd = g^d
+    sk1 = ga^d
+]
+Della->Alice:[gd]
+
+principal Alice[
+    generates epk
+    sk = gd^a
+    en = AEAD_ENC(sk,epk,c)
+]
+Alice->NA:[en]
+
+principal NA[
+    hd1 = CONCAT(sub,s)
+    h = AEAD_ENC(shAC,hd1,c)
+    m = CONCAT(h,en,c)
+] 
+
+NA->NC:[m]
+
+principal NC[
+    h_,en_,c_ = SPLIT(m)
+    h_de = AEAD_DEC(shAC,h_,c_)?
+    _ = ASSERT(CONCAT(sub,s),h_de)?
+    hd2 = CONCAT(h_de,seq01)
+    h2 = AEAD_ENC(shCD,hd2,c_)
+]
+NC->ND:[h2],[en_],[c_]
+
+principal ND[
+    h2_de = AEAD_DEC(shCD,h2,c_)?
+    h_de_1,seq01_ = SPLIT(h2_de)
+    sub_,s_ = SPLIT(h_de_1)
+    _= ASSERT(s,s_)?
+
+]
+
+ND->Della:[en_],[c_]
+
+principal Della[
+    en_de = AEAD_DEC(sk1,en_,c_)?
+     
+]
+
+queries[
+    authentication? NA->NC:m
+    authentication? NC->ND:h2
+    equivalence? sub_,sub
+    equivalence? sk,sk1
+    confidentiality? epk
+    confidentiality? c
+    equivalence? c,c_
+    equivalence? epk, en_de
+]

@@ -1,0 +1,142 @@
+attacker[active]
+principal NA[
+    generates na,s
+    gna = G^na
+]
+principal NB[
+    generates nb,seq0101
+    gnb =G^nb
+]
+
+NA-> NB:[gna]
+NB-> NA:[gnb]
+
+principal NC[
+    generates nc,seq01
+    gnc =G^nc
+]
+
+NB-> NC:[gnb]
+NC->NB:[gnc]
+
+principal ND[
+    generates nd,r
+    gnd = G^nd
+]
+
+NC-> ND:[gnc]
+ND->NC:[gnd]
+
+principal Alice[
+    knows private n
+    
+]
+principal NA[
+    knows private n,uuidA
+    sub = HASH(n)
+    h1,h2,h3 = HKDF(sub,nil,nil)
+    h0 = CONCAT(h1,uuidA)
+    flgS = CONCAT(sub,s)
+]
+principal Della[
+    knows private n
+] 
+principal ND[
+    knows private n,uuidD
+    subj= HASH(n)
+    h11,h12,h13 = HKDF(subj,nil,nil)
+]
+
+NA-> NC:[gna]
+NC-> NA:[gnc]
+
+principal NA[
+    shAB = gnb^na
+    shAC = gnc^na
+    m1=AEAD_ENC(shAB,h0,flgS)
+    m2=AEAD_ENC(shAC,h0,flgS)
+]
+NA-> NB:[m1],[flgS]
+principal NB[
+    shBA = gna^nb
+    shBC = gnc^nb
+    m1_de = AEAD_DEC(shBA,m1,flgS)?
+    h10_,uuidA0_ = SPLIT(m1_de)
+    m1_de0 =  CONCAT(h10_,uuidA0_,seq0101)
+    sub_,s_ = SPLIT(flgS)
+    flgS1 = CONCAT(sub_,s_)
+    m3 = AEAD_ENC(shBC,m1_de0,flgS1)
+]
+NA-> NC:[m2],[flgS]
+principal NC[
+    shCA = gna^nc
+    shCB =gnb^nc
+    shCD =gnd^nc
+    m2_dec = AEAD_DEC(shCA,m2,flgS)?
+    h1_,uuidA_ = SPLIT(m2_dec)
+    m2_dec0 = CONCAT(h1_,uuidA_,seq01)
+    sub_0,s_0 = SPLIT(flgS)
+    flgS2 = CONCAT(sub_0,s_0)
+    mA2C = AEAD_ENC(shCD,m2_dec0,flgS2)
+
+]   
+
+NB->NC :[m3],[flgS1]
+
+principal NC[
+ m3_de = AEAD_DEC(shCB,m3,flgS1)?
+ h10_1,uuidA0_1,seq0101_ = SPLIT(m3_de)
+ sub_1,s_1 = SPLIT(flgS1)
+ _ = ASSERT(sub_0,sub_1)?
+]
+
+NC->ND:[mA2C],[flgS2]
+
+principal ND[
+    shDC = gnc^nd
+    mA2C_de = AEAD_DEC(shDC,mA2C,flgS2)?
+    sub_10,s_10 =SPLIT(flgS2) 
+    h100_,uuidA1_,seq01_ =SPLIT(mA2C_de)
+    h10 = CONCAT(h11,uuidD)
+    flgR = CONCAT(subj,r)
+    m11=AEAD_ENC(shDC,h10,flgR)
+
+] 
+
+ND->NC:[m11],[flgR]
+
+principal NC[
+   
+    m11_de = AEAD_DEC(shCD, m11,flgR)?
+    subj_,r_= SPLIT(flgR)
+    flgR1 = CONCAT(subj_,r_)
+    h11_,uuidD_ = SPLIT(m11_de)
+    m11_de0= CONCAT( h11_,uuidD_ ,seq01)
+    mDC_A= AEAD_ENC(shCA,m11_de,flgR1)
+
+]
+NC->NA:[mDC_A],[flgR1]
+
+principal NA[
+    mDC_A_de = AEAD_DEC(shAC,mDC_A,flgR1)?
+    h110_,uuidD0_ ,seq01_1 = SPLIT(mDC_A_de)
+    subj_1,r_1 = SPLIT(flgR1)
+
+]
+
+queries[
+    
+    confidentiality? n
+    equivalence? sub,subj
+    confidentiality? h11
+    confidentiality?mDC_A
+    equivalence?h1,h110_
+    confidentiality? uuidD_
+    authentication?NC->ND:mA2C
+    equivalence?h100_,h11
+    equivalence? uuidA0_,uuidA0_1
+    confidentiality? uuidA0_
+    equivalence?h10_1,h1_
+    equivalence? subj,sub_10
+]
+
