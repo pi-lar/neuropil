@@ -94,7 +94,7 @@ int main(void) {
   char  controller_passwort[]            = {0};
   char  controller_passphrase_id_str[65] = {0};
   printf("Geben Sie ein Passwort für den Controller an\n");
-  gets_s(controller_passwort, 64);
+  fgets(controller_passwort, 64, stdin);
   printf("%s\n", controller_passwort);
   const char *controller_passphrase = controller_passwort;
   np_get_id(&controller_passphrase_id,
@@ -107,7 +107,7 @@ int main(void) {
   char  robot_passwort[]            = {0};
   char  robot_passphrase_id_str[65] = {0};
   printf("Geben Sie ein Passwort für den Robot an\n");
-  gets_s(robot_passwort, 64);
+  fgets(robot_passwort, 64, stdin);
   printf("%s\n", robot_passwort);
   const char *robot_passphrase = robot_passwort;
   np_get_id(&robot_passphrase_id,
