@@ -383,7 +383,7 @@ task_ensure_dependencies() {
   rm -f .git/hooks/pre-commit
   ln -s .git_hooks/pre-commit .git/hooks/pre-commit
 
-  echo "neuropil development enviroment is ready"
+  echo "neuropil development environment is ready"
 }
 
 task_run_script(){

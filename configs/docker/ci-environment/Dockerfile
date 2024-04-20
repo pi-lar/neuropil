@@ -1,5 +1,5 @@
 #
-# neuropil development enviroment Dockerfile
+# neuropil development environment Dockerfile
 #
 #
 

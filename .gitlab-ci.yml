@@ -13,7 +13,7 @@ cache:
     - .venv
 
 stages:
-  - enviroment
+  - environment
   - prepare
   - build
   - test
@@ -29,7 +29,7 @@ workflow:
     - when: always
 
 setup:
-  stage: enviroment
+  stage: environment
   before_script:
     - docker info
   script:
@@ -88,7 +88,7 @@ documentation:
     paths:
       - build/doc/html
 
-docker_test_enviroment:
+docker_test_environment:
   stage: build
   script:
     - ./do clean
@@ -102,7 +102,7 @@ docker_test_enviroment:
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
 
-docker_production_enviroment:
+docker_production_environment:
   stage: build
   script:
     - ./do ensure_dependencies
@@ -129,7 +129,7 @@ unit_tests:
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
 
 code_tidy:
   stage: test
@@ -146,7 +146,7 @@ code_tidy:
   rules:
     - if: '$CI_COMMIT_TAG == null'
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
 
 code_format:
   stage: test
@@ -163,7 +163,7 @@ code_format:
   rules:
     - if: '$CI_COMMIT_TAG == null'
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
 
 smoke_tests:
   stage: qa
@@ -184,7 +184,7 @@ smoke_tests:
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
     - job: unit_tests
       artifacts: false
 
@@ -213,7 +213,7 @@ helgrind_tests:
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
     - job: unit_tests
       artifacts: false
 
@@ -235,7 +235,7 @@ callgrind_tests:
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
     - job: unit_tests
       artifacts: false
 
@@ -254,7 +254,7 @@ valgrind_tests:
   rules:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG == null
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
     - job: unit_tests
       artifacts: false
 
@@ -272,7 +272,7 @@ code_analyze:
   rules:
     - if: '$CI_COMMIT_TAG == null'
   needs:
-    - docker_test_enviroment
+    - docker_test_environment
     - job: unit_tests
       artifacts: false
 
@@ -335,7 +335,7 @@ gitlab-pypi:
     - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null
       when: always
   needs:
-    - docker_production_enviroment
+    - docker_production_environment
 
 python_docker:
   stage: release
@@ -346,12 +346,12 @@ python_docker:
     - echo "$CI_DEPLOY_PASSWORD" | docker login -u $CI_DEPLOY_USER $CI_REGISTRY --password-stdin
     - |
         docker build \
-          -t $CI_REGISTRY_IMAGE/python-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
-          -f configs/docker/python-enviroment/Dockerfile \
-          --build-arg NEUROPIL_BASE_IMAGE=$CI_REGISTRY_IMAGE/prod-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
+          -t $CI_REGISTRY_IMAGE/python-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
+          -f configs/docker/python-environment/Dockerfile \
+          --build-arg NEUROPIL_BASE_IMAGE=$CI_REGISTRY_IMAGE/prod-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG \
           --build-arg GITLAB_USER_EMAIL=$GITLAB_USER_EMAIL \
           ./
-    - docker push $CI_REGISTRY_IMAGE/python-enviroment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG
+    - docker push $CI_REGISTRY_IMAGE/python-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG
   image: docker:latest
   services:
     - docker:dind
@@ -359,9 +359,9 @@ python_docker:
     - if: $CI_COMMIT_REF_PROTECTED == "true" && $CI_MERGE_REQUEST_ID == null
   needs:
     - crossbuild
-    - job: docker_test_enviroment
+    - job: docker_test_environment
       optional: true
-    - job: docker_production_enviroment
+    - job: docker_production_environment
       optional: true
 #pypi:
 #  stage: release
@@ -374,4 +374,4 @@ python_docker:
 #    - if: $CI_COMMIT_REF_PROTECTED && $CI_COMMIT_TAG != null && $PYPI_TOKEN
 #      when: always
 #  needs:
-#    - docker_production_enviroment
+#    - docker_production_environment

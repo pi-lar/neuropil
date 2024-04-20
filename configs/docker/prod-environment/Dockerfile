@@ -1,6 +1,6 @@
 
 #
-# neuropil production enviroment Dockerfile
+# neuropil production environment Dockerfile
 #
 #
 
