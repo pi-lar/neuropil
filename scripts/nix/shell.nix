@@ -1,39 +1,44 @@
 # SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
-
-{ pkgs ? (import <nixpkgs> {})
-, version ? "dev"
-, withLuajit ? true
-, withPython ? true
+{
+  pkgs ? (import <nixpkgs> {}),
+  version ? "dev",
+  withLuajit ? true,
+  withPython ? true,
 }:
-
-with pkgs;
-
-let
-  neuropil_luajit =
-    callPackage ./neuropil-luajit.nix { neuropil = libneuropil; inherit pkgs; };
-  neuropil_python =
-    callPackage ./neuropil-python.nix { neuropil = libneuropil; inherit pkgs; };
+with pkgs; let
+  neuropil_luajit = callPackage ./neuropil-luajit.nix {
+    neuropil = libneuropil;
+    inherit pkgs;
+  };
+  neuropil_python = callPackage ./neuropil-python.nix {
+    neuropil = libneuropil;
+    inherit pkgs;
+  };
 in
-mkShell rec {
-  name = "neuropil-shell";
+  mkShell {
+    pname = "neuropil-shell";
 
-  buildInputs = [ clang libneuropil ]
-  ++ lib.optionals withLuajit [ neuropil_luajit luajit ]
-  ++ lib.optionals withPython
-    [
-      (
-        python3.withPackages (
-          ps: with ps; [
-            neuropil_python
-          ]
+    buildInputs =
+      [clang libneuropil]
+      ++ lib.optionals withLuajit [neuropil_luajit luajit]
+      ++ lib.optionals withPython
+      [
+        (
+          python3.withPackages (
+            ps:
+              with ps; [
+                neuropil_python
+              ]
+          )
         )
-      )
-    ];
+      ];
 
-  shellHook = ''
-    export LD_LIBRARY_PATH="${lib.makeLibraryPath [ libneuropil ]}"
-  '' + lib.optionalString withLuajit ''
-    export LUA_PATH="${luajitPackages.getLuaPath neuropil_luajit}"
-  '';
-}
+    shellHook =
+      ''
+        export LD_LIBRARY_PATH="${lib.makeLibraryPath [libneuropil]}"
+      ''
+      + lib.optionalString withLuajit ''
+        export LUA_PATH="${luajitPackages.getLuaPath neuropil_luajit}"
+      '';
+  }

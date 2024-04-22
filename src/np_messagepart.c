@@ -246,6 +246,6 @@ void _np_messagepart_trace_info(char *desc, np_messagepart_t *msg_in) {
                                   msg_in->part);
 #endif
 
-  log_debug(LOG_MESSAGE, info_str);
+  log_debug(LOG_MESSAGE, "%s", info_str);
   free(info_str);
 }

@@ -1,6 +1,6 @@
 {
   "nodes": {
-    "msgpack-cmp": {
+    "msgpack-cmp-src": {
       "flake": false,
       "locked": {
         "lastModified": 1533400718,
@@ -12,18 +12,18 @@
       },
       "original": {
         "owner": "camgunz",
-        "ref": "9fc01ddf",
         "repo": "cmp",
+        "rev": "9fc01ddf4fd41d87267267a3221c92225c383e07",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1605830903,
-        "narHash": "sha256-l+UGOgeSLtUJ1AEqEdDL25Xz7WyRY9K4p+ttTMCQDSg=",
+        "lastModified": 1693858070,
+        "narHash": "sha256-QCH3nO/zMkNCH9Y7K3D+HYSRqmfOiedr9p09lr0c3o4=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "854f78d1555e55d4f623b46b528d180a5c2a5008",
+        "rev": "ca6ed1cc8d4771d5d115d16b9f67157c658e36d8",
         "type": "github"
       },
       "original": {
@@ -32,28 +32,28 @@
         "type": "github"
       }
     },
-    "parson": {
+    "qcbor-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1543259536,
-        "narHash": "sha256-ovJsdJDZncPu9pVU5IRQrHjX94uMuivyfyVzKH4R2b4=",
-        "owner": "kgabis",
-        "repo": "parson",
-        "rev": "302fba9cbb31ffc523bf10a1ce705040194c289d",
+        "lastModified": 1659980347,
+        "narHash": "sha256-cSi1504SnTDAi8Xr7aChq5GJjPQuX6LW9wmPwoCjgQI=",
+        "owner": "laurencelundblade",
+        "repo": "QCBOR",
+        "rev": "07653df2bbdb2d090d98d0df514fa019ac23dff3",
         "type": "github"
       },
       "original": {
-        "owner": "kgabis",
-        "ref": "302fba9",
-        "repo": "parson",
+        "owner": "laurencelundblade",
+        "repo": "QCBOR",
+        "rev": "07653df2bbdb2d090d98d0df514fa019ac23dff3",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
-        "msgpack-cmp": "msgpack-cmp",
+        "msgpack-cmp-src": "msgpack-cmp-src",
         "nixpkgs": "nixpkgs",
-        "parson": "parson"
+        "qcbor-src": "qcbor-src"
       }
     }
   },

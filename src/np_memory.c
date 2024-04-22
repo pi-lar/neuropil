@@ -1229,7 +1229,7 @@ void np_mem_printpool_reasons(np_state_t *context) {
                   iter_reasons_counter++;
                   sll_next(iter_reasons);
                 }
-                log_info(LOG_EXPERIMENT | LOG_MEMORY, ret);
+                log_info(LOG_EXPERIMENT | LOG_MEMORY, "%s", ret);
                 free(ret);
               }
             }

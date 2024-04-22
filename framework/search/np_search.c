@@ -2110,7 +2110,7 @@ bool np_create_searchentry(np_context       *ac,
 
         for (uint32_t i = 0; i < 256; i++) {
           if (i > 0 && (i % 16 == 0)) {
-            log_msg(LOG_INFO, _number_string);
+            log_msg(LOG_INFO, "%s", _number_string);
             memset(_number_string, 256, '0');
           }
           snprintf(_number_string,

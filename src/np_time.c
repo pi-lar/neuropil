@@ -24,7 +24,7 @@ double _np_time_force_now() { return ev_time(); }
 
 double _np_time_force_now_nsec() {
   struct timespec ts;
-  timespec_get(&ts, TIME_UTC);
+  clock_gettime(CLOCK_MONOTONIC, &ts);
   return ts.tv_sec + (ts.tv_nsec / 1000000000.);
 }
 
