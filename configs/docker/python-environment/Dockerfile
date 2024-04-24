@@ -8,7 +8,6 @@ LABEL maintainer="${GITLAB_USER_EMAIL}"
 COPY "build/bindings/python/dist/neuropil-*.zip" neuropil.zip
 RUN rm /usr/local/lib/libneuropil.so.* && rm /usr/local/lib/libneuropil.a.* 
 
-RUN rm /usr/local/lib/libneuropil.so.* && rm /usr/local/lib/libneuropil.a.* 
 RUN ldconfig 
 RUN apt-get update && apt-get -y install python3 libffi curl python3-pip
 RUN pip3 install neuropil.zip && rm neuropil.zip
