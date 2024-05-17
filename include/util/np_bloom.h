@@ -18,6 +18,19 @@
 extern "C" {
 #endif
 
+struct uint128_s {
+  uint64_t low;
+  uint64_t high;
+};
+
+struct list_node_s {
+  struct list_node_s *prev;
+  int                 box_index;
+  struct uint128_s   *value;
+  struct list_node_s *next;
+  bool                sentinel;
+};
+
 typedef struct np_bloom_s np_bloom_t;
 
 typedef np_bloom_t *(*bloom_factory_create)(const char *bloom_type,
@@ -61,8 +74,14 @@ struct np_bloom_s {
   // or decaying rate/shift for attenuated bloom filter
 
   // runtime variables
-  uint8_t *_bitset;     // ponter to bitset
-  uint32_t _num_blocks; // for scalable bloom filter
+  uint64_t          **_bitset_64_array;
+  uint64_t           *_bitset_64;
+  uint8_t            *_bitset;
+  struct uint128_s  **_bitset_128;
+  struct list_node_s *_bitset_128_list;
+  // pointer to sentinel to get quickly to the beginning of list when necessary
+  struct list_node_s *_bitset_128_list_sentinel;
+  uint8_t             _num_blocks; // for scalable bloom filter
   uint16_t _free_items; // item counter for bitste (initial value is max,
                         // decremented per insert)
 
@@ -94,6 +113,15 @@ NP_API_INTERN
 void _np_standard_bloom_union(np_bloom_t *result, np_bloom_t *first);
 NP_API_INTERN
 void _np_standard_bloom_clear(np_bloom_t *res);
+
+// enhanced bloom filters
+np_bloom_t *_np_enhanced_bloom_create(size_t bit_size);
+void        _np_enhanced_bloom_add(np_bloom_t *bloom, np_dhkey_t id);
+void        _np_enhanced_bloom_free(np_bloom_t *bloom);
+bool        _np_enhanced_bloom_check(np_bloom_t *bloom, np_dhkey_t id);
+bool        _np_enhanced_bloom_intersect(np_bloom_t *result, np_bloom_t *first);
+void        _np_enhanced_bloom_union(np_bloom_t *result, np_bloom_t *first);
+void        _np_enhanced_bloom_clear(np_bloom_t *res);
 
 // stable bloom filter
 NP_API_INTERN

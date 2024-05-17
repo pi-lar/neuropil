@@ -28,6 +28,353 @@
 // _free_items per bloom filter is  70 _size of bit array : 2048 -> max
 // _free_items per bloom filter is 140
 
+np_bloom_t *_np_enhanced_bloom_create(size_t bit_size) {
+  assert(bit_size % 16 == 0);
+
+  np_bloom_t *enhanced = (np_bloom_t *)calloc(1, sizeof(np_bloom_t));
+  enhanced->_type      = standard_bf;
+  enhanced->_size      = bit_size;
+  enhanced->_d         = 1;
+
+  // enhanced->_bitset_128 =
+  //     calloc(enhanced->_num_blocks, sizeof(struct uint128_s *));
+
+  enhanced->_bitset_128_list =
+      (struct list_node_s *)malloc(sizeof(struct list_node_s));
+  enhanced->_free_items                 = bit_size * enhanced->_d / 16;
+  enhanced->_bitset_128_list->sentinel  = true;
+  enhanced->_bitset_128_list->prev      = NULL;
+  enhanced->_bitset_128_list->value     = calloc(1, sizeof(struct uint128_s));
+  enhanced->_bitset_128_list->box_index = -1;
+  enhanced->_bitset_128_list_sentinel   = enhanced->_bitset_128_list;
+  enhanced->_bitset_128_list->next      = NULL;
+
+  return enhanced;
+}
+
+void _np_enhanced_bloom_search(np_bloom_t **bloom, int search_box) {
+  np_bloom_t *result = *bloom;
+  while ((result->_bitset_128_list->box_index < search_box) &&
+         (result->_bitset_128_list->next != NULL)) {
+    result->_bitset_128_list = result->_bitset_128_list->next;
+  }
+  while ((result->_bitset_128_list->box_index > search_box) &&
+         (result->_bitset_128_list->prev != NULL)) {
+    result->_bitset_128_list = result->_bitset_128_list->prev;
+  }
+  *bloom = result;
+}
+
+void _np_enhanced_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
+  if ((bloom->_free_items) == 0) {
+    ABORT("");
+  }
+  int uint128_box = 0;
+  for (int i = 0; i < 8; ++i) {
+    // determining which pointer for uint128 to use
+    uint128_box = id.t[i] % (UINT32_MAX / 128);
+    // if (bloom->_bitset_128[uint128_box] == 0) {
+    //   bloom->_bitset_128[uint128_box] = calloc(1, sizeof(struct uint128_s));
+    // }
+
+    // determining the local position where a bit shall be set to 1
+    uint8_t _local_pos = (id.t[i]) % 128;
+    // shifting 128 bit until a 1 is at previously determined local_position
+    struct uint128_s    _bitmask       = {0};
+    struct list_node_s *bloom_pointer  = bloom->_bitset_128_list;
+    bool                inserted_check = false;
+
+    while (uint128_box > bloom_pointer->box_index) {
+      if (bloom_pointer->next == NULL) {
+        break;
+      }
+      bloom_pointer = bloom_pointer->next;
+    }
+
+    while (uint128_box < bloom_pointer->box_index) {
+      if (bloom_pointer->sentinel == true) {
+        break;
+      }
+      bloom_pointer = bloom_pointer->prev;
+    }
+
+    if (bloom_pointer->next == NULL) {
+      bloom_pointer->next =
+          (struct list_node_s *)malloc(sizeof(struct list_node_s));
+      bloom_pointer->next->prev = bloom_pointer;
+      bloom_pointer             = bloom_pointer->next;
+      bloom_pointer->next       = NULL;
+      inserted_check            = true;
+    } else {
+      bloom_pointer->next->prev =
+          (struct list_node_s *)malloc(sizeof(struct list_node_s));
+      bloom_pointer->next->prev->prev = bloom_pointer;
+      bloom_pointer->next->prev->next = bloom_pointer->next;
+      bloom_pointer->next             = bloom_pointer->next->prev;
+      bloom_pointer                   = bloom_pointer->next;
+    }
+    bloom_pointer->box_index = uint128_box;
+    bloom_pointer->value     = calloc(1, sizeof(struct uint128_s));
+    bloom_pointer->sentinel  = false;
+
+    if (_local_pos < 64) {
+      _bitmask.high = (0x8000000000000000 >> (_local_pos));
+      bloom_pointer->value->high |= _bitmask.high;
+    } else {
+      _bitmask.low = (0x8000000000000000 >> (_local_pos - 64));
+      bloom_pointer->value->low |= _bitmask.low;
+    }
+    bloom->_bitset_128_list = bloom_pointer;
+  }
+  bloom->_free_items--;
+}
+
+void _np_enhanced_bloom_free(np_bloom_t *bloom) {
+
+  if (bloom->_bitset_128_list->sentinel != true) {
+    bloom->_bitset_128_list = bloom->_bitset_128_list_sentinel;
+  }
+
+  while (bloom->_bitset_128_list->next != NULL) {
+    bloom->_bitset_128_list = bloom->_bitset_128_list->next;
+    free(bloom->_bitset_128_list->prev->value);
+    free(bloom->_bitset_128_list->prev);
+  }
+  free(bloom->_bitset_128_list->value);
+  free(bloom->_bitset_128_list);
+}
+
+bool _np_enhanced_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
+
+  int uint128_box = 0;
+  for (int i = 0; i < 8; ++i) {
+    // determining which box to look at
+    uint128_box = id.t[i] % (UINT32_MAX / 128);
+
+    // determining where we expect a 1
+    uint8_t _local_pos = (id.t[i]) % 128;
+    // shifting 128 bit until a 1 is at previously determined local_position
+    struct uint128_s    _bitmask      = {0};
+    struct list_node_s *bloom_pointer = bloom->_bitset_128_list;
+
+    // looking for the right box
+    while (uint128_box > bloom_pointer->box_index) {
+      if (bloom_pointer->next == NULL) {
+
+        break;
+      }
+      bloom_pointer = bloom_pointer->next;
+    }
+    while (uint128_box < bloom_pointer->box_index) {
+      if (bloom_pointer->sentinel == true) {
+        break;
+      }
+      bloom_pointer = bloom_pointer->prev;
+    }
+    uint64_t result = 0;
+
+    if (bloom_pointer->box_index != uint128_box) {
+      return false;
+    } else if (_local_pos < 64) {
+      _bitmask.high = (0x8000000000000000 >> (_local_pos));
+      result        = bloom_pointer->value->high |= _bitmask.high;
+    } else {
+      _bitmask.low = (0x8000000000000000 >> (_local_pos - 64));
+      result       = bloom_pointer->value->low |= _bitmask.low;
+    }
+  }
+  return (true);
+}
+
+int _np_enhanced_bloom_right_intersection(np_bloom_t **p_result,
+                                          np_bloom_t **p_first) {
+  np_bloom_t *result = *p_result;
+  np_bloom_t *first  = *p_first;
+
+  do {
+    // if the boxes match, an intersection shall be done for the low and high
+    // value bits
+    // delete result boxes until it is equal or larger than first box
+    struct list_node_s *left_off_node = result->_bitset_128_list->prev;
+    while (((result->_bitset_128_list->box_index) <
+            (first->_bitset_128_list->box_index)) &&
+           result->_bitset_128_list->next != NULL) {
+      struct list_node_s *delete = result->_bitset_128_list;
+
+      result->_bitset_128_list       = result->_bitset_128_list->next;
+      left_off_node->next            = result->_bitset_128_list;
+      result->_bitset_128_list->prev = left_off_node;
+      free(delete->value);
+      free(delete);
+    }
+    if ((result->_bitset_128_list->next == NULL) &&
+        (result->_bitset_128_list->box_index <
+         first->_bitset_128_list->box_index)) {
+      result->_bitset_128_list = result->_bitset_128_list->prev;
+      free(result->_bitset_128_list->next->value);
+      free(result->_bitset_128_list->next);
+      result->_bitset_128_list->next = NULL;
+    }
+
+    if (result->_bitset_128_list->box_index ==
+        first->_bitset_128_list->box_index) {
+      int stak_var = result->_bitset_128_list->value->low &
+                     first->_bitset_128_list->value->low;
+      stak_var += result->_bitset_128_list->value->high &
+                  first->_bitset_128_list->value->high;
+
+      result->_bitset_128_list->value->low &=
+          first->_bitset_128_list->value->low;
+      result->_bitset_128_list->value->high &=
+          first->_bitset_128_list->value->high;
+
+      // if afterwards the low and high value bits both are zero, the box is
+      // empty and shall be removed
+      if ((result->_bitset_128_list->value->low == 0) &&
+          (result->_bitset_128_list->value->high == 0)) {
+        result->_bitset_128_list       = result->_bitset_128_list->next;
+        result->_bitset_128_list->prev = result->_bitset_128_list->prev->prev;
+        free(result->_bitset_128_list->prev->next->value);
+        free(result->_bitset_128_list->prev->next);
+        result->_bitset_128_list->prev->next = result->_bitset_128_list;
+      } else if (result->_bitset_128_list->next != NULL) {
+        result->_bitset_128_list = result->_bitset_128_list->next;
+      }
+    }
+    // go to the next box in first which is equal or bigger than the current box
+    while (((first->_bitset_128_list->box_index) <
+            (result->_bitset_128_list->box_index)) &&
+           (first->_bitset_128_list->next != NULL)) {
+      first->_bitset_128_list = first->_bitset_128_list->next;
+    }
+
+  } while ((result->_bitset_128_list->next != NULL) &&
+           (first->_bitset_128_list->next != NULL));
+
+  // Rest von Result löschen wenn first am ende ist aber result noch nicht
+  struct list_node_s *delete_node;
+  delete_node                    = result->_bitset_128_list->next;
+  result->_bitset_128_list->next = NULL;
+  while (delete_node != NULL) {
+    struct list_node_s *delete_this = delete_node;
+    free(delete_this->value);
+    free(delete_this);
+    delete_node = delete_node->next;
+  }
+
+  *p_result = result;
+  *p_first  = first;
+  return EXIT_SUCCESS;
+}
+
+void _np_enhanced_bloom_clear(np_bloom_t *res) {
+  res->_bitset_128_list = res->_bitset_128_list_sentinel->next;
+
+  while (res->_bitset_128_list->next != NULL) {
+    res->_bitset_128_list->prev->next = NULL;
+    free(res->_bitset_128_list->prev);
+    res->_bitset_128_list->prev->prev = NULL;
+    free(res->_bitset_128_list->value);
+    res->_bitset_128_list = res->_bitset_128_list->next;
+  }
+  res->_bitset_128_list->prev->next = NULL;
+  res->_bitset_128_list->prev       = NULL;
+  free(res->_bitset_128_list->value);
+  free(res->_bitset_128_list);
+  res->_bitset_128_list = res->_bitset_128_list_sentinel;
+
+  res->_free_items = res->_size * res->_d / 16;
+}
+
+bool _np_enhanced_bloom_intersect(np_bloom_t *result, np_bloom_t *first) {
+  ASSERT(first->_type == standard_bf, "");
+  ASSERT(first->_type == result->_type, "");
+  ASSERT(first->_size == result->_size, "");
+  ASSERT(first->_d == result->_d, "");
+
+  // simplified max elements calculation
+  result->_free_items =
+      0; // not altered, we cannot further intersect this filter
+  if (result->_bitset_128_list_sentinel->next == NULL) {
+    result->_free_items = 0;
+    return 1;
+  }
+  if (first->_bitset_128_list_sentinel->next == NULL) {
+    _np_enhanced_bloom_clear(result);
+    result->_free_items = 0;
+    return 1;
+  }
+  result->_bitset_128_list = result->_bitset_128_list_sentinel->next;
+  first->_bitset_128_list  = first->_bitset_128_list_sentinel->next;
+
+  int i = _np_enhanced_bloom_right_intersection(&result, &first);
+  return (i == 0) ? true : false;
+}
+
+void _np_enhanced_bloom_union(np_bloom_t *result, np_bloom_t *first) {
+  ASSERT(first->_type == standard_bf, "");
+  ASSERT(first->_type == result->_type, "");
+  ASSERT(first->_size == result->_size, "");
+  ASSERT(first->_d == result->_d, "");
+  ASSERT(first->_num_blocks == result->_num_blocks, "");
+
+  // simplified max elements calculation
+  ASSERT(first->_free_items + result->_free_items >= result->_size / 16, "");
+  result->_free_items += (first->_free_items - result->_size / 16);
+
+  // go to the sentinel in list for union, only if an element after sentinel
+  // exists. if not, abort.
+  ASSERT(first->_bitset_128_list_sentinel->next != NULL, "")
+
+  first->_bitset_128_list = first->_bitset_128_list_sentinel->next;
+
+  while (first->_bitset_128_list != NULL) {
+    // go to the first node in list
+
+    _np_enhanced_bloom_search(&result, (first->_bitset_128_list->box_index));
+    if ((result->_bitset_128_list->box_index) ==
+        (first->_bitset_128_list->box_index)) {
+      result->_bitset_128_list->value->low |=
+          first->_bitset_128_list->value->low;
+      result->_bitset_128_list->value->high |=
+          first->_bitset_128_list->value->high;
+    } else {
+      if (result->_bitset_128_list->next == NULL) {
+        result->_bitset_128_list->next = malloc(sizeof(struct list_node_s));
+        result->_bitset_128_list->next->prev = result->_bitset_128_list;
+        result->_bitset_128_list             = result->_bitset_128_list->next;
+        result->_bitset_128_list->box_index =
+            first->_bitset_128_list->box_index;
+        result->_bitset_128_list->sentinel = false;
+        result->_bitset_128_list->next     = NULL;
+        result->_bitset_128_list->value = calloc(1, sizeof(struct uint128_s));
+        result->_bitset_128_list->value->low |=
+            first->_bitset_128_list->value->low;
+        result->_bitset_128_list->value->high |=
+            first->_bitset_128_list->value->high;
+      } else {
+        result->_bitset_128_list->next->prev =
+            malloc(sizeof(struct list_node_s));
+        result->_bitset_128_list->next->prev->next =
+            result->_bitset_128_list->next;
+        result->_bitset_128_list->next->prev->prev = result->_bitset_128_list;
+        result->_bitset_128_list->next = result->_bitset_128_list->next->prev;
+        result->_bitset_128_list       = result->_bitset_128_list->next;
+        result->_bitset_128_list->box_index =
+            first->_bitset_128_list->box_index;
+        result->_bitset_128_list->sentinel = false;
+        result->_bitset_128_list->value = calloc(1, sizeof(struct uint128_s));
+        result->_bitset_128_list->value->low |=
+            first->_bitset_128_list->value->low;
+        result->_bitset_128_list->value->high |=
+            first->_bitset_128_list->value->high;
+      }
+    }
+    first->_bitset_128_list = first->_bitset_128_list->next;
+  }
+  first->_bitset_128_list = first->_bitset_128_list_sentinel->next;
+}
+
 np_bloom_t *_np_standard_bloom_create(size_t bit_size) {
   np_bloom_t *res  = (np_bloom_t *)calloc(1, sizeof(np_bloom_t));
   res->_type       = standard_bf;

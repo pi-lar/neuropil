@@ -1,77 +1,152 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2022 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
-#include "../test/test_macros.c"
+#include "neuropil.h"
 
-#include "neuropil_data.h"
+#include "util/np_bloom.h"
+
+#include "np_util.h"
 
 #undef cr_expect
 #define cr_expect(A, B) assert((A) && B)
 int main() {
-  enum np_return      tmp_ret;
-  struct np_data_conf deserialized_data_conf = {0};
-  unsigned char      *deserialized_data      = NULL;
+  np_dhkey_t test1 = np_dhkey_create_from_hostport("test_1", "0");
+  //  np_id_str(test_string, test1); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test2 = np_dhkey_create_from_hostport("test_2", "0");
+  //  np_id_str(test_string, test2); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test3 = np_dhkey_create_from_hostport("test_3", "0");
+  //  np_id_str(test_string, test3); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test4 = np_dhkey_create_from_hostport("test_4", "0");
+  //  np_id_str(test_string, test4); fprintf(stdout, "%s\n", test_string);
+  np_dhkey_t test5 = np_dhkey_create_from_hostport("test_5", "0");
+  //  np_id_str(test_string, test5); fprintf(stdout, "%s\n", test_string);
 
-  size_t        datablock_size = 2000;
-  unsigned char datablock[datablock_size];
-  char          hex_datablock[2 * datablock_size + 1];
+  struct np_bloom_optable_s neuropil_operations = {
+      .add_cb       = _np_enhanced_bloom_add,
+      .check_cb     = _np_enhanced_bloom_check,
+      .clear_cb     = _np_enhanced_bloom_clear,
+      .union_cb     = _np_enhanced_bloom_union,
+      .intersect_cb = _np_enhanced_bloom_intersect,
+  };
 
-  uint32_t      data_size = 452;
-  unsigned char data1[452];
-  memset(data1, 'A', data_size);
-  unsigned char data2[452];
-  memset(data2, 'B', data_size);
+  //    fprintf(stdout, "###\n");
+  //    fprintf(stdout, "### Testing neuropil bloom filter now\n");
+  //    fprintf(stdout, "###\n");
 
-  // init datatablock
-  ASSERT(np_ok == (tmp_ret = np_init_datablock(datablock, datablock_size)),
-         "expect initialized datablock. (ret: %" PRIu32 ")",
-         tmp_ret);
+  np_bloom_t *standard_bloom = _np_enhanced_bloom_create(512);
+  standard_bloom->op         = neuropil_operations;
 
-  // insert TEST with data1
-  struct np_data_conf data_conf =
-      (struct np_data_conf){.key       = "TEST",
-                            .type      = NP_DATA_TYPE_BIN,
-                            .data_size = data_size};
-  ASSERT(np_ok == (tmp_ret = np_set_data(datablock, data_conf, data1)),
-         "expect inserted data. (ret: %" PRIu32 ")",
-         tmp_ret);
-  // insert TEST2 with data2
-  struct np_data_conf data_conf2 =
-      (struct np_data_conf){.key       = "TEST2",
-                            .type      = NP_DATA_TYPE_BIN,
-                            .data_size = data_size};
-  ASSERT(np_ok == (tmp_ret = np_set_data(datablock, data_conf2, data2)),
-         "expect inserted data. (ret: %" PRIu32 ")",
-         tmp_ret);
-  // insert TEST with data2
-  struct np_data_conf data_conf3 =
-      (struct np_data_conf){.key       = "TEST",
-                            .type      = NP_DATA_TYPE_BIN,
-                            .data_size = data_size};
-  ASSERT(np_ok == (tmp_ret = np_set_data(datablock, data_conf3, data2)),
-         "expect inserted data. (ret: %" PRIu32 ")",
-         tmp_ret);
+  np_bloom_t *union_bloom = _np_enhanced_bloom_create(512);
+  union_bloom->op         = neuropil_operations;
 
-  // check TEST for data2
-  ASSERT(np_ok == (tmp_ret = np_get_data(datablock,
-                                         "TEST",
-                                         &deserialized_data_conf,
-                                         &deserialized_data)),
-         "expect inserted data. (ret: %" PRIu32 ")",
-         tmp_ret);
-  ASSERT(deserialized_data_conf.type == NP_DATA_TYPE_BIN,
-         "Expected BIN container not %" PRIu32,
-         deserialized_data_conf.type);
-  ASSERT(0 == strncmp(deserialized_data_conf.key, "TEST", 4),
-         "Expected BIN container key to match. not %s",
-         deserialized_data_conf.key);
-  ASSERT(deserialized_data_conf.data_size == data_size,
-         "Expected BIN container size to match. not %" PRIu32,
-         deserialized_data_conf.data_size);
-  ASSERT(0 == memcmp(deserialized_data,
-                     data2,
-                     MIN(data_size, deserialized_data_conf.data_size)),
-         "Expected BIN data to be the same");
+  np_bloom_t *test2_bloom = _np_enhanced_bloom_create(512);
+  test2_bloom->op         = neuropil_operations;
+  np_bloom_t *test4_bloom = _np_enhanced_bloom_create(512);
+  test4_bloom->op         = neuropil_operations;
+  np_bloom_t *test5_bloom = _np_enhanced_bloom_create(512);
+  test5_bloom->op         = neuropil_operations;
+
+  standard_bloom->op.add_cb(standard_bloom, test2);
+  standard_bloom->op.add_cb(standard_bloom, test4);
+  standard_bloom->op.add_cb(standard_bloom, test5);
+
+  test2_bloom->op.add_cb(test2_bloom, test2);
+  test4_bloom->op.add_cb(test4_bloom, test4);
+  test5_bloom->op.add_cb(test5_bloom, test5);
+
+  cr_expect(true == standard_bloom->op.check_cb(standard_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == standard_bloom->op.check_cb(standard_bloom, test4),
+            "expect that the id test4 is not found in bloom filter");
+  cr_expect(true == standard_bloom->op.check_cb(standard_bloom, test5),
+            "expect that the id test5 is not found in bloom filter");
+
+  cr_expect(true == test2_bloom->op.check_cb(test2_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == test4_bloom->op.check_cb(test4_bloom, test4),
+            "expect that the id test4 is     found in bloom filter");
+  cr_expect(true == test5_bloom->op.check_cb(test5_bloom, test5),
+            "expect that the id test5 is     found in bloom filter");
+
+  cr_expect(32 == union_bloom->_free_items,
+            "expect that the number of free_items is 32");
+
+  union_bloom->op.union_cb(union_bloom, test2_bloom);
+  cr_expect(31 == union_bloom->_free_items,
+            "expect that the number of free_items is 31");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(false == union_bloom->op.check_cb(union_bloom, test4),
+            "expect that the id test4 is not found in bloom filter");
+  cr_expect(false == union_bloom->op.check_cb(union_bloom, test5),
+            "expect that the id test5 is not found in bloom filter");
+
+  union_bloom->op.union_cb(union_bloom, test4_bloom);
+  cr_expect(30 == union_bloom->_free_items,
+            "expect that the number of free_items is 30");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test4),
+            "expect that the id test4 is     found in bloom filter");
+  cr_expect(false == union_bloom->op.check_cb(union_bloom, test5),
+            "expect that the id test5 is not found in bloom filter");
+
+  union_bloom->op.union_cb(union_bloom, test5_bloom);
+  cr_expect(29 == union_bloom->_free_items,
+            "expect that the number of free_items is 29");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test4),
+            "expect that the id test4 is     found in bloom filter");
+  cr_expect(true == union_bloom->op.check_cb(union_bloom, test5),
+            "expect that the id test5 is     found in bloom filter");
+
+  np_bloom_t *intersect_bloom = _np_enhanced_bloom_create(512);
+  intersect_bloom->op         = neuropil_operations;
+  intersect_bloom->op.union_cb(intersect_bloom,
+                               union_bloom); // add a default set
+
+  intersect_bloom->op.intersect_cb(intersect_bloom, test2_bloom);
+  cr_expect(0 == intersect_bloom->_free_items,
+            "expect that the number of free_items is 0");
+  cr_expect(true == intersect_bloom->op.check_cb(intersect_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test4),
+            "expect that the id test4 is not found in bloom filter");
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test5),
+            "expect that the id test5 is not found in bloom filter");
+
+  intersect_bloom->op.clear_cb(intersect_bloom);
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test2),
+            "expect that the id test2 is not found in bloom filter");
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test4),
+            "expect that the id test4 is not found in bloom filter");
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test5),
+            "expect that the id test5 is not found in bloom filter");
+  intersect_bloom->op.union_cb(intersect_bloom,
+                               union_bloom); // ... re-add a default set
+
+  np_bloom_t *test1_bloom = _np_enhanced_bloom_create(512);
+  test1_bloom->op         = neuropil_operations;
+  standard_bloom->op.add_cb(standard_bloom, test1);
+
+  intersect_bloom->op.intersect_cb(intersect_bloom, test1_bloom);
+  cr_expect(0 == intersect_bloom->_free_items,
+            "expect that the number of free_items is 0");
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test2),
+            "expect that the id test2 is     found in bloom filter");
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test4),
+            "expect that the id test4 is     found in bloom filter");
+  cr_expect(false == intersect_bloom->op.check_cb(intersect_bloom, test5),
+            "expect that the id test5 is     found in bloom filter");
+
+  _np_enhanced_bloom_free(union_bloom);
+  _np_enhanced_bloom_free(standard_bloom);
+  _np_enhanced_bloom_free(intersect_bloom);
+
+  _np_enhanced_bloom_free(test2_bloom);
+  _np_enhanced_bloom_free(test4_bloom);
+  _np_enhanced_bloom_free(test5_bloom);
 }
