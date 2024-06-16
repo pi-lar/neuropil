@@ -712,13 +712,14 @@ enum np_return np_send_to(np_context          *ac,
   // the side effect
   np_msgproperty_conf_t *property_conf =
       _np_msgproperty_get_or_create(ac, OUTBOUND, subject_dhkey);
-  np_msgproperty_run_t *property_run =
-      _np_msgproperty_run_get(ac, OUTBOUND, subject_dhkey);
 
   if (property_conf->audience_type == NP_MX_AUD_VIRTUAL)
     return np_invalid_operation;
 
   np_msgproperty_register(property_conf);
+
+  np_msgproperty_run_t *property_run =
+      _np_msgproperty_run_get(ac, OUTBOUND, subject_dhkey);
 
   np_tree_t *body = np_tree_create();
   np_tree_insert_str(body,
