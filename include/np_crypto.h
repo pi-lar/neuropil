@@ -129,9 +129,6 @@ int np_crypto_verify_signature(
 
 void np_crypt_export(np_crypto_t *self, struct np_token *dest);
 
-uint32_t np_crypt_rand();
-uint32_t np_crypt_rand_mm(uint32_t min, uint32_t max);
-
 // TODO: rm after dhke rework
 int __np_crypt_decrypt(np_crypto_transport_message_t *tmessage,
                        unsigned char                 *secret_key,

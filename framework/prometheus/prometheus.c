@@ -117,12 +117,11 @@ prometheus_metric *prometheus_register_metric(prometheus_context *c,
   pthread_mutex_init(&ret->rw_lock, &ret->rw_lock_attr);
 
   prometheus_item *n_item = calloc(1, sizeof(prometheus_item));
-  if (pthread_mutex_lock(&c->w_lock) == 0) {
-    n_item->next = c->metrics;
-    n_item->data = ret;
-    c->metrics   = n_item;
-    pthread_mutex_unlock(&c->w_lock);
-  }
+  pthread_mutex_lock(&c->w_lock);
+  n_item->next = c->metrics;
+  n_item->data = ret;
+  c->metrics   = n_item;
+  pthread_mutex_unlock(&c->w_lock);
 
   return ret;
 }

@@ -65,11 +65,6 @@ bool np_simple_cache_get(np_state_t                    *context,
                          void                         **value) {
   ASSERT(key != NULL, "cache key cannot be NULL!");
 
-  log_trace_msg(
-      LOG_TRACE,
-      "start: np_cache_item_t* np_simple_cache_get(np_simple_cache_table_t "
-      "*table, const char *key){");
-
   bool ret = false;
 
   unsigned char bucket_hash[crypto_shorthash_BYTES];
@@ -79,9 +74,10 @@ bool np_simple_cache_get(np_state_t                    *context,
                              NP_FINGERPRINT_BYTES,
                              table->_seed);
   memcpy(&bucket_bigint, &bucket_hash[0], crypto_shorthash_BYTES);
-  uint16_t bucket = ((uint16_t)(bucket_bigint)&0xffff) % (table->_bucket_size);
+  uint16_t bucket =
+      ((uint16_t)(bucket_bigint) & 0xffff) % (table->_bucket_size);
 
-  // log_debug_msg(LOG_DEBUG, "cache::get() %d -> %s (%d)", bucket, key,
+  // log_debug(LOG_DEBUG, NULL, "cache::get() %d -> %s (%d)", bucket, key,
   // sll_size(&table->_bucket[bucket]));
   np_spinlock_lock(&table->_bucket_guard[bucket]);
   {
@@ -108,10 +104,6 @@ bool np_simple_cache_add(np_state_t                    *context,
   ASSERT(key != NULL, "cache key cannot be NULL!");
   // Contract end
 
-  log_trace_msg(LOG_TRACE,
-                "start: int np_simple_cache_insert(context, "
-                "np_simple_cache_table_t *table, char *key, void *value) {");
-
   bool ret = false;
 
   char *internal_key = malloc((NP_FINGERPRINT_BYTES + 1) * sizeof(char));
@@ -125,9 +117,10 @@ bool np_simple_cache_add(np_state_t                    *context,
                              NP_FINGERPRINT_BYTES,
                              table->_seed);
   memcpy(&bucket_bigint, &bucket_hash[0], crypto_shorthash_BYTES);
-  uint16_t bucket = ((uint16_t)(bucket_bigint)&0xffff) % (table->_bucket_size);
+  uint16_t bucket =
+      ((uint16_t)(bucket_bigint) & 0xffff) % (table->_bucket_size);
 
-  // log_debug_msg(LOG_DEBUG, "cache::add() %d -> %s (%d)", bucket,
+  // log_debug(LOG_DEBUG, NULL, "cache::add() %d -> %s (%d)", bucket,
   // internal_key, sll_size(&table->_bucket[bucket]));
   np_spinlock_lock(&table->_bucket_guard[bucket]);
   {

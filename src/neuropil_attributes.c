@@ -110,6 +110,7 @@ enum np_data_return np_get_msg_attr_bin(struct np_message    *msg,
                                         char                  key[255],
                                         struct np_data_conf **out_data_config,
                                         unsigned char       **out_data) {
+    assert (*out_data != NULL);
   enum np_data_return ret;
 
   struct np_data_conf *conf = NULL;
@@ -171,7 +172,7 @@ enum np_data_return np_set_mxp_attr_policy_bin(np_context    *ac,
                            key,
                            value,
                            value_size);
-      ret = np_data_ok;
+      // ret = np_data_ok;
     }
     property = NULL;
     property = _np_msgproperty_run_get(context, OUTBOUND, subject_dhkey);

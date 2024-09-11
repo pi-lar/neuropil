@@ -133,19 +133,16 @@
                              _l_invoke_##LOOPNAME);                            \
     _LOCK_MODULE(np_event_##LOOPNAME##_t) { ev_run(EV_A_ EVRUN_NOWAIT); }      \
     log_info(LOG_THREADS,                                                      \
-             "thread %" PRIsizet " type %" PRIsizet " stopping ...",           \
+             NULL,                                                             \
+             "thread %" PRIsizet " type %" PRIu32 " stopping ...",             \
              thread->id,                                                       \
              thread->thread_type);                                             \
   }                                                                            \
   void _np_event_suspend_loop_##LOOPNAME(np_state_t *context) {                \
-    NP_PERFORMANCE_POINT_START(event_suspend_##LOOPNAME);                      \
     _np_threads_lock_module(context, np_event_##LOOPNAME##_t_lock, FUNC);      \
-    NP_PERFORMANCE_POINT_END(event_suspend_##LOOPNAME);                        \
   }                                                                            \
   void _np_event_resume_loop_##LOOPNAME(np_state_t *context) {                 \
-    NP_PERFORMANCE_POINT_START(event_resume_##LOOPNAME);                       \
     _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);          \
-    NP_PERFORMANCE_POINT_END(event_resume_##LOOPNAME);                         \
   }                                                                            \
   void _np_event_reconfigure_loop_##LOOPNAME(np_state_t *context) {            \
     ev_async_send(_np_event_get_loop_##LOOPNAME(context),                      \

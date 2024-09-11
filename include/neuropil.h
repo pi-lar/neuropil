@@ -94,12 +94,12 @@ extern "C" {
 // in c99 enum is an int -->
 // it is safe for use to disable this warning for the enum np_limits
 enum np_limits {
-  NP_SECRET_KEY_BYTES  = 64,
-  NP_SIGNATURE_BYTES   = 64,
-  NP_PUBLIC_KEY_BYTES  = 32,
-  NP_FINGERPRINT_BYTES = 32,
-  NP_UUID_BYTES        = 37,
-  NP_EXTENSION_BYTES   = 10240,
+  NP_SECRET_KEY_BYTES  = 64U,
+  NP_SIGNATURE_BYTES   = 64U,
+  NP_PUBLIC_KEY_BYTES  = 32U,
+  NP_FINGERPRINT_BYTES = 32U,
+  NP_UUID_BYTES        = 16U,
+  NP_EXTENSION_BYTES   = 10240U,
 } NP_CONST_ENUM;
 
 #pragma clang diagnostic pop

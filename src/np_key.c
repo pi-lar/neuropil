@@ -246,6 +246,10 @@ void __np_key_populate_states(np_key_t *key) {
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, IN_SETUP_NODE, IN_SETUP_NODE,
         __np_node_discard_message, __is_invalid_message);
+    // received a full message which needs to be chunked
+    NP_UTIL_STATEMACHINE_TRANSITION(
+        states, IN_SETUP_NODE, IN_SETUP_NODE,
+        __np_node_split_message, __is_np_message); 
     // received a full node token (join)
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, IN_SETUP_NODE, IN_SETUP_NODE,
@@ -355,14 +359,14 @@ void __np_key_populate_states(np_key_t *key) {
     NP_UTIL_STATEMACHINE_STATE(
         states, IN_USE_NODE, "IN_USE_NODE",
         __keystate_noop, __np_node_add_to_leafset, __np_node_destroy);
-    // received authn information (eventually through identity join)
-    NP_UTIL_STATEMACHINE_TRANSITION(
-        states, IN_USE_NODE, IN_USE_NODE,
-        __np_node_split_message, __is_np_message); 
-    // received authn information (eventually through identity join)
+    // received a single chunk (forward) message
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, IN_USE_NODE, IN_USE_NODE,
         __np_node_send_encrypted, __is_np_messagepart); 
+    // received a full message which needs to be chunked
+    NP_UTIL_STATEMACHINE_TRANSITION(
+        states, IN_USE_NODE, IN_USE_NODE,
+        __np_node_split_message, __is_np_message); 
     // user changed mx_properties
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, IN_USE_NODE,IN_USE_NODE,
@@ -492,25 +496,27 @@ void _np_key_destroy(np_key_t *to_destroy) {
 
   keyident = _np_key_as_str(to_destroy);
 
-  log_debug_msg(LOG_KEY,
-                "cleanup of key and associated data structures: %s",
-                keyident);
-  log_debug_msg(LOG_MEMORY,
-                "refcount of key %s at destroy: %" PRIu32,
-                keyident,
-                np_memory_get_refcount(to_destroy));
+  log_debug(LOG_KEY,
+            NULL,
+            "cleanup of key and associated data structures: %s",
+            keyident);
+  log_debug(LOG_MEMORY,
+            NULL,
+            "refcount of key %s at destroy: %" PRIu32,
+            keyident,
+            np_memory_get_refcount(to_destroy));
 
   _np_keycache_remove(context, to_destroy->dhkey);
 
-  log_debug_msg(LOG_KEY | LOG_DEBUG,
-                "cleanup of key and associated data structures done.");
+  log_debug(LOG_KEY | LOG_DEBUG,
+            NULL,
+            "cleanup of key and associated data structures done.");
 }
 
 void _np_key_t_new(np_state_t       *context,
                    NP_UNUSED uint8_t type,
                    NP_UNUSED size_t  size,
                    void             *key) {
-  log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_new(void* key){");
 
   np_key_t *new_key = (np_key_t *)key;
 
@@ -537,7 +543,6 @@ void _np_key_t_del(np_state_t       *context,
                    NP_UNUSED uint8_t type,
                    NP_UNUSED size_t  size,
                    void             *key) {
-  log_trace_msg(LOG_TRACE | LOG_KEY, "start: void _np_key_t_del(void* key){");
   np_key_t *old_key = (np_key_t *)key;
 
   // sll_free(void_ptr, old_key->entities);
@@ -558,6 +563,7 @@ void _np_key_handle_event(np_key_t *key, np_util_event_t event) {
     char *old_state = key->sm._state_table[key->sm._current_state]->_state_name;
     // push down all event from queue and execute this event
     log_debug(LOG_EVENT,
+              NULL,
               "key: %s/%p event: %" PRIu32 " attempt transition from %s",
               _np_key_as_str(key),
               key,
@@ -566,6 +572,7 @@ void _np_key_handle_event(np_key_t *key, np_util_event_t event) {
     if (!np_util_statemachine_invoke_auto_transition(&key->sm, event)) {
       if (event.type != evt_noop) {
         log_debug(LOG_WARNING,
+                  NULL,
                   "key: %s/%p event: %" PRIu32 " NO transition: %s ",
                   _np_key_as_str(key),
                   key,
@@ -574,6 +581,7 @@ void _np_key_handle_event(np_key_t *key, np_util_event_t event) {
       }
     } else {
       log_debug(LOG_EVENT | LOG_KEY,
+                NULL,
                 "key: %s/%p event: %" PRIu32 " state change: %s -> %s",
                 _np_key_as_str(key),
                 key,

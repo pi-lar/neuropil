@@ -80,6 +80,7 @@ static enum np_return __write_encrypted(np_context          *context,
       strftime(backup_file_name, 26, ".npid.%FT%T", &t);
       rename(filename, backup_file_name);
       log_msg(LOG_WARNING,
+              NULL,
               "found existing .npid file, created backup %s",
               backup_file_name);
     }
@@ -98,6 +99,7 @@ static enum np_return __write_encrypted(np_context          *context,
   } else {
     log_msg(
         LOG_ERROR,
+        NULL,
         "while writing encrypted identity/token: could not open filename: (%s) "
         "// (%d)",
         strerror(errno),
@@ -170,7 +172,7 @@ np_identity_load_secretkey(np_context         *context,
                                       _nonce,
                                       passphrase)) {
 
-    log_msg(LOG_ERROR, "decryption of secret key failed");
+    log_msg(LOG_ERROR, NULL, "decryption of secret key failed");
     return np_unknown_error;
   }
 
@@ -180,7 +182,7 @@ np_identity_load_secretkey(np_context         *context,
                                  identifier,
                                  (unsigned char **)&identity->secret_key,
                                  (unsigned char **)&identity->public_key)) {
-    log_msg(LOG_INFO, "loaded secret key into token, exiting");
+    log_msg(LOG_INFO, NULL, "loaded secret key into token, exiting");
   } else {
     fprintf(stdout,
             "load_identity: could not deserialize filename: %s (%d) ",
@@ -223,7 +225,7 @@ enum np_return np_identity_create_secretkey(np_context          *context,
                                  _crypted_buffer_length,
                                  _nonce,
                                  passphrase)) {
-    log_msg(LOG_ERROR, "encryption of secret key failed, exiting");
+    log_msg(LOG_ERROR, NULL, "encryption of secret key failed, exiting");
     return np_unknown_error;
   }
   _crypted_buffer_length += crypto_secretbox_MACBYTES;
@@ -240,7 +242,7 @@ enum np_return np_identity_create_secretkey(np_context          *context,
     chdir(cwd);
     return np_unknown_error;
   }
-  log_info(LOG_INFO, "stored new secret key (ed25519) in file, exiting");
+  log_info(LOG_INFO, NULL, "stored new secret key (ed25519) in file, exiting");
 
   chdir(cwd);
   return np_ok;
@@ -276,7 +278,7 @@ np_identity_save_secretkey(np_context            *context,
                                  _crypted_buffer_length,
                                  _nonce,
                                  passphrase)) {
-    log_msg(LOG_ERROR, "encryption of secret key failed, exiting");
+    log_msg(LOG_ERROR, NULL, "encryption of secret key failed, exiting");
     return np_unknown_error;
   }
   _crypted_buffer_length += crypto_secretbox_MACBYTES;
@@ -293,7 +295,7 @@ np_identity_save_secretkey(np_context            *context,
     chdir(cwd);
     return np_unknown_error;
   }
-  log_info(LOG_INFO, "stored new secret key (ed25519) in file, exiting");
+  log_info(LOG_INFO, NULL, "stored new secret key (ed25519) in file, exiting");
 
   chdir(cwd);
   return np_ok;
@@ -340,7 +342,7 @@ np_identity_load_token(np_context         *context,
                                       buffer_size,
                                       _nonce,
                                       passphrase)) {
-    log_msg(LOG_ERROR, "decryption of secret key failed");
+    log_msg(LOG_ERROR, NULL, "decryption of secret key failed");
     return np_unknown_error;
   }
 
@@ -363,7 +365,7 @@ np_identity_load_token(np_context         *context,
       ret = np_ok;
     }
   } else {
-    log_msg(LOG_ERROR, "token identity could not be loaded, exiting");
+    log_msg(LOG_ERROR, NULL, "token identity could not be loaded, exiting");
   }
 
   return ret;
@@ -405,7 +407,7 @@ np_identity_save_token(np_context         *context,
                                  crypted_buffer_size,
                                  nonce,
                                  passphrase)) {
-    log_msg(LOG_ERROR, "encryption of np_token failed, exiting");
+    log_msg(LOG_ERROR, NULL, "encryption of np_token failed, exiting");
     return np_unknown_error;
   }
   crypted_buffer_size += crypto_box_MACBYTES;
@@ -421,7 +423,9 @@ np_identity_save_token(np_context         *context,
     chdir(cwd);
     return np_unknown_error;
   }
-  log_info(LOG_INFO, "stored new secret token (ed25519) in file, exiting");
+  log_info(LOG_INFO,
+           NULL,
+           "stored new secret token (ed25519) in file, exiting");
 
   chdir(cwd);
   return np_ok;

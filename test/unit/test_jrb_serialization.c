@@ -16,6 +16,8 @@
 #include "neuropil_log.h"
 
 #include "../src/np_util.c"
+#include "core/np_comp_alias.h"
+#include "core/np_comp_node.h"
 #include "util/np_serialization.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
@@ -306,36 +308,42 @@ Test(test_serialization,
     char *mail_t = "signed.by.me@test.de";
 
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
     np_tree_insert_str(test_jrb_2, from, np_treeval_new_s(me));
     cr_expect(1 == test_jrb_2->size, "expect size of tree to be 1");
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
     np_tree_insert_str(test_jrb_2, to, np_treeval_new_s(you));
     cr_expect(2 == test_jrb_2->size, "expect size of tree to be 2");
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
     np_tree_insert_str(test_jrb_2, id, np_treeval_new_i(18000));
     cr_expect(3 == test_jrb_2->size, "expect size of tree to be 3");
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
     np_tree_insert_str(test_jrb_2, exp, np_treeval_new_d(5.0));
     cr_expect(4 == test_jrb_2->size, "expect size of tree to be 4");
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
     np_tree_insert_str(test_jrb_2, mail, np_treeval_new_s(mail_t));
     cr_expect(5 == test_jrb_2->size, "expect size of tree to be 5");
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
@@ -345,12 +353,14 @@ Test(test_serialization,
                        np_treeval_new_ull(4905283925042198132));
     cr_expect(6 == test_jrb_2->size, "expect size of tree to be 6");
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
 #else
     np_tree_insert_str(test_jrb_2, mail_t, np_treeval_new_s(mail_t));
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
@@ -359,6 +369,7 @@ Test(test_serialization,
     np_tree_insert_str(test_jrb_2, "tree_1", np_treeval_new_tree(test_jrb_1));
     cr_expect(7 == test_jrb_2->size, "expect size of tree to be 7");
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
@@ -368,14 +379,15 @@ Test(test_serialization,
               "expect size of tree to be 8 but is %" PRIu16,
               tmp16);
     log_msg(LOG_INFO,
+            NULL,
             "test jrb has size: %d %lu",
             test_jrb_2->size,
             test_jrb_2->byte_size);
 
-    // log_msg(LOG_INFO, "test jrb has size: %d %llu", test_jrb->size,
+    // log_msg(LOG_INFO, NULL, "test jrb has size: %d %llu", test_jrb->size,
     // test_jrb->byte_size);
-    log_msg(LOG_INFO, "----------------------");
-    log_msg(LOG_INFO, "serializing message:  ");
+    log_msg(LOG_INFO, NULL, "----------------------");
+    log_msg(LOG_INFO, NULL, "serializing message:  ");
 
     void *buffer = malloc(buffer_size);
     memset(buffer, 0, buffer_size);
@@ -422,6 +434,7 @@ Test(test_serialization,
               out_jrb,
               out_jrb->size);
     log_msg(LOG_INFO,
+            NULL,
             "deserialized tree is: %p (size %d)",
             out_jrb,
             out_jrb->size);
@@ -429,30 +442,43 @@ Test(test_serialization,
     cr_expect(18000 == np_tree_find_str(out_jrb, "id")->val.value.i,
               "id: %d",
               np_tree_find_str(out_jrb, "id")->val.value.i);
-    log_msg(LOG_INFO, "id: %d", np_tree_find_str(out_jrb, "id")->val.value.i);
+    log_msg(LOG_INFO,
+            NULL,
+            "id: %d",
+            np_tree_find_str(out_jrb, "id")->val.value.i);
 
     log_msg(LOG_INFO,
+            NULL,
             "from: %s",
             np_tree_find_str(out_jrb, "from")->val.value.s);
     log_msg(LOG_INFO,
+            NULL,
             "mail: %s",
             np_tree_find_str(out_jrb, "mail")->val.value.s);
-    log_msg(LOG_INFO, "to: %s", np_tree_find_str(out_jrb, "to")->val.value.s);
-    log_msg(LOG_INFO, "exp: %f", np_tree_find_str(out_jrb, "exp")->val.value.d);
+    log_msg(LOG_INFO,
+            NULL,
+            "to: %s",
+            np_tree_find_str(out_jrb, "to")->val.value.s);
+    log_msg(LOG_INFO,
+            NULL,
+            "exp: %f",
+            np_tree_find_str(out_jrb, "exp")->val.value.d);
 
 #ifdef x64
     log_msg(LOG_INFO,
+            NULL,
             "ul: %lu",
             np_tree_find_str(out_jrb, "ull")->val.value.ull);
 #endif
 
     np_tree_t *test_ex = np_tree_find_str(out_jrb, "tree_1")->val.value.tree;
-    log_msg(LOG_INFO, "tree_1: %p", test_ex);
+    log_msg(LOG_INFO, NULL, "tree_1: %p", test_ex);
     cr_expect(0 == strncmp(np_tree_find_str(test_ex, "halli")->val.value.s,
                            "galli",
                            5),
               "expect the key/value halli/galli to be in the map");
     log_msg(LOG_INFO,
+            NULL,
             "tree_1/halli: %s",
             np_tree_find_str(test_ex, "halli")->val.value.s);
     cr_expect(0 == strncmp(np_tree_find_str(test_ex, "hallo")->val.value.s,
@@ -460,20 +486,23 @@ Test(test_serialization,
                            5),
               "expect the key/value halli/gulli to be in the map");
     log_msg(LOG_INFO,
+            NULL,
             "tree_1/hallo: %s",
             np_tree_find_str(test_ex, "hallo")->val.value.s);
 
-    log_msg(LOG_INFO, "----------------------");
+    log_msg(LOG_INFO, NULL, "----------------------");
     log_msg(LOG_INFO,
+            NULL,
             "out jrb has size: %d %d",
             out_jrb->size,
             out_jrb->byte_size);
-    log_msg(LOG_INFO, "removing entries from jrb message:");
+    log_msg(LOG_INFO, NULL, "removing entries from jrb message:");
 
     np_tree_del_str(out_jrb, "from");
     np_tree_elem_t *test = np_tree_find_str(out_jrb, "from");
-    if (test == NULL) log_msg(LOG_INFO, "deleted node not found");
+    if (test == NULL) log_msg(LOG_INFO, NULL, "deleted node not found");
     log_msg(LOG_INFO,
+            NULL,
             "out jrb has size: %d %d",
             out_jrb->size,
             out_jrb->byte_size);

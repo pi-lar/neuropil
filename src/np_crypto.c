@@ -80,7 +80,7 @@ np_crypto_t *np_cryptofactory_new(np_context *context, np_crypto_t *buffer) {
   if (ret != NULL) {
     if (0 != crypto_sign_ed25519_keypair(ret->ed25519_public_key,
                                          ret->ed25519_secret_key)) {
-      log_msg(LOG_ERROR, "Could not create ed25519 keypair!");
+      log_msg(LOG_ERROR, NULL, "Could not create ed25519 keypair!");
       if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
       ret = NULL;
     } else {
@@ -88,10 +88,12 @@ np_crypto_t *np_cryptofactory_new(np_context *context, np_crypto_t *buffer) {
       ret->ed25519_secret_key_is_set = true;
     }
   }
+
   if (ret != NULL) {
     if (0 != crypto_sign_ed25519_sk_to_curve25519(ret->derived_kx_secret_key,
                                                   ret->ed25519_secret_key)) {
       log_msg(LOG_ERROR,
+              NULL,
               "Could not convert ed25519 secret key to session secret key!");
       if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
       ret = NULL;
@@ -103,6 +105,7 @@ np_crypto_t *np_cryptofactory_new(np_context *context, np_crypto_t *buffer) {
     if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key,
                                                   ret->ed25519_public_key)) {
       log_msg(LOG_ERROR,
+              NULL,
               "Could not convert ed25519 public key to session public key!");
       if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
       ret = NULL;
@@ -131,6 +134,7 @@ np_crypto_t *np_cryptofactory_by_secret(
     if (0 != crypto_sign_ed25519_sk_to_pk(ret->ed25519_public_key,
                                           ret->ed25519_secret_key)) {
       log_msg(LOG_ERROR,
+              NULL,
               "Cannot convert ed25519 public key from given secret key");
       if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
       ret = NULL;
@@ -142,6 +146,7 @@ np_crypto_t *np_cryptofactory_by_secret(
     if (0 != crypto_sign_ed25519_sk_to_curve25519(ret->derived_kx_secret_key,
                                                   ret->ed25519_secret_key)) {
       log_msg(LOG_ERROR,
+              NULL,
               "Could not convert ed25519 secret key to curve25519 secret key!");
       if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
       ret = NULL;
@@ -153,6 +158,7 @@ np_crypto_t *np_cryptofactory_by_secret(
     if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key,
                                                   ret->ed25519_public_key)) {
       log_msg(LOG_ERROR,
+              NULL,
               "Could not convert ed25519 public key to curve25519 public key!");
       if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
       ret = NULL;
@@ -182,9 +188,10 @@ np_crypto_t *np_cryptofactory_by_public(
     if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key,
                                                   ret->ed25519_public_key)) {
       log_msg(LOG_ERROR,
+              NULL,
               "Could not convert ed25519 public key to session public key!");
       if (buffer == NULL) np_unref_obj(np_crypto_t, ret, FUNC);
-      ret = NULL;
+      return NULL;
     } else {
       ret->derived_kx_public_key_is_set = true;
     }
@@ -213,19 +220,20 @@ int np_crypto_session_encrypt(np_state_t          *context,
   // ASSERT(crypto_aead_xchacha20poly1305_IETF_NPUBBYTES ==
   // crypto_box_NONCEBYTES, "nonce bytes length doesn't match");
   // crypto_aead_xchacha20poly1305_NPUBBYTES
-  log_debug_msg(LOG_ERROR,
-                "s %p, c %p (size %d), m %p (size %d), d %p (size %d), a %p "
-                "(size %d), n %p",
-                session,
-                ciphertext,
-                ciphertext_length,
-                mac,
-                mac_length,
-                data,
-                data_length,
-                ad_data,
-                ad_data_length,
-                nonce);
+  log_debug(LOG_MESSAGE,
+            NULL,
+            "s %p, c %p (size %d), m %p (size %d), d %p (size %d), a %p "
+            "(size %d), n %p",
+            session,
+            ciphertext,
+            ciphertext_length,
+            mac,
+            mac_length,
+            data,
+            data_length,
+            ad_data,
+            ad_data_length,
+            nonce);
   unsigned long long mac_l = 0;
   return crypto_aead_chacha20poly1305_ietf_encrypt_detached(
       ciphertext,
@@ -280,7 +288,6 @@ int np_crypto_session(np_state_t          *context,
   int ret = -2;
   if (my_container->derived_kx_public_key_is_set &&
       my_container->derived_kx_secret_key_is_set) {
-    ret = -3;
 
     if (remote_is_client) {
       ret = crypto_kx_server_session_keys(
@@ -385,17 +392,4 @@ void np_crypt_export(np_crypto_t *self, struct np_token *dest) {
   memcpy(dest->secret_key,
          self->ed25519_secret_key,
          sizeof(self->ed25519_secret_key));
-}
-
-uint32_t np_crypt_rand() {
-  uint32_t ret;
-  randombytes_buf(&ret, sizeof ret);
-  return ret;
-}
-
-uint32_t np_crypt_rand_mm(uint32_t min, uint32_t max) {
-  assert(max >= min);
-  uint32_t ret = randombytes_uniform(max - min);
-  if (ret < min) ret = min;
-  return ret;
 }

@@ -48,7 +48,7 @@ extern "C" {
                            FIELD_NAME,                                         \
                            _NP_MSG_HEADER_SUBJECT,                             \
                            &VAR_NAME)) {                                       \
-    log_error(ERROR_MSG);                                                      \
+    log_error(NULL, ERROR_MSG);                                                \
   } else
 
 /**
@@ -169,6 +169,8 @@ NP_API_EXPORT
 void np_tree_insert_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
 void np_tree_insert_dbl(np_tree_t *tree, double dkey, np_treeval_t val);
+NP_API_EXPORT
+void np_tree_insert_uuid(np_tree_t *tree, void *key, np_treeval_t val);
 
 /**
 .. c:function:: void np_tree_replace_str(np_tree_t *tree, const char *key,
@@ -200,6 +202,8 @@ NP_API_EXPORT
 void np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val);
 NP_API_EXPORT
 void np_tree_replace_dbl(np_tree_t *tree, double dkey, np_treeval_t val);
+NP_API_EXPORT
+void np_tree_replace_uuid(np_tree_t *tree, void *dkey, np_treeval_t val);
 
 /**
 .. c:function:: np_tree_elem_t* np_tree_find_str(np_tree_t *tree, const char
@@ -232,6 +236,8 @@ NP_API_EXPORT
 np_tree_elem_t *np_tree_find_ulong(np_tree_t *root, uint32_t ikey);
 NP_API_EXPORT
 np_tree_elem_t *np_tree_find_dbl(np_tree_t *root, double dkey);
+NP_API_EXPORT
+np_tree_elem_t *np_tree_find_uuid(np_tree_t *root, void *dkey);
 
 /**
 .. c:function:: np_tree_elem_t* np_tree_find_str(np_tree_t *tree, const char
@@ -270,6 +276,7 @@ np_tree_find_gte_ulong(np_tree_t *root, uint32_t ikey, uint8_t *found);
 NP_API_EXPORT
 np_tree_elem_t *
 np_tree_find_gte_dbl(np_tree_t *root, double dkey, uint8_t *found);
+NP_API_EXPORT
 
 // replace the entire tree with the new jval
 NP_API_INTERN
@@ -288,6 +295,8 @@ NP_API_EXPORT
 void np_tree_del_double(np_tree_t *tree, const double key);
 NP_API_EXPORT
 void np_tree_del_ulong(np_tree_t *tree, const uint32_t key);
+NP_API_EXPORT
+void np_tree_del_uuid(np_tree_t *tree, void *key);
 
 NP_API_INTERN
 size_t np_tree_get_byte_size(np_tree_t *tree);

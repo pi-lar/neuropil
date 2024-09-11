@@ -20,7 +20,6 @@ void _np_responsecontainer_t_new(NP_UNUSED np_state_t *context,
                                  void                 *obj) {
   np_responsecontainer_t *entry = (np_responsecontainer_t *)obj;
 
-  // memset(&entry->uuid[0], 0, NP_UUID_BYTES);
   _np_dhkey_assign(&entry->dest_dhkey, &dhkey_zero);
   _np_dhkey_assign(&entry->msg_dhkey, &dhkey_zero);
 

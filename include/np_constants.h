@@ -26,6 +26,7 @@ extern "C" {
 #define ref_key_network              "ref_key_network"
 #define ref_aaatoken_local_mx_tokens "ref_aaatoken_local_mx_tokens"
 #define ref_message_messagepart      "ref_message_messagepart"
+#define ref_messagepart_message      "ref_messagepart_message"
 #define ref_system_msgproperty       "ref_system_msgproperty"
 #define ref_route_routingtable_mykey "ref_route_routingtable_mykey"
 #define ref_route_inroute            "ref_route_inroute"

@@ -1003,7 +1003,7 @@ Test(np_bloom_t,
 //              "test-string-der-sehr-kurz-ist",
 //              random(),
 //              now);
-//     // log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
+//     // log_debug(LOG_DEBUG, NULL, "created input uuid: %s", input);
 //     crypto_generichash_blake2b(&data[i].t[0],
 //                                32,
 //                                (unsigned char *)input,

@@ -67,10 +67,11 @@ bool _np_default_authorizefunc(np_context *ac, struct np_token *token) {
   np_ctx_cast(ac);
   log_msg(
       LOG_WARNING,
+      NULL,
       "using default handler (authorize none) to reject authorization for: %s",
       token->subject);
-  // log_msg(LOG_WARNING, "do you really want the default authorize handler
-  // (allow all) ???");
+  // log_msg(LOG_WARNING, NULL, "do you really want the default authorize
+  // handler (allow all) ???");
 
   return (false);
 }
@@ -83,14 +84,10 @@ bool _np_default_authorizefunc(np_context *ac, struct np_token *token) {
 bool _np_aaa_authorizefunc(np_context *ac, struct np_token *token) {
   np_ctx_cast(ac);
 
-  //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
-  //	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
-  //	log_debug_msg(LOG_DEBUG, "subject           : %s", token->subject);
-  //	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
-  //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
-  log_debug_msg(LOG_DEBUG,
-                "realm authorization request for subject: %s",
-                token->subject);
+  log_debug(LOG_DEBUG,
+            token->uuid,
+            "realm authorization request for subject: %s",
+            token->subject);
 
   return (false);
 }
@@ -104,10 +101,11 @@ bool _np_aaa_authorizefunc(np_context *ac, struct np_token *token) {
 bool _np_default_authenticatefunc(np_context *ac, struct np_token *token) {
   np_ctx_cast(ac);
   log_msg(LOG_WARNING,
+          NULL,
           "using default handler (authn all) to authenticate %s",
           token->subject);
-  // log_msg(LOG_WARNING, "do you really want the default authenticate handler
-  // (trust all) ???");
+  // log_msg(LOG_WARNING, NULL, "do you really want the default authenticate
+  // handler (trust all) ???");
 
   return (true);
 }
@@ -121,14 +119,15 @@ bool _np_default_authenticatefunc(np_context *ac, struct np_token *token) {
 bool _np_aaa_authenticatefunc(np_context *ac, struct np_token *token) {
   np_ctx_cast(ac);
 
-  //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
-  //	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
-  //	log_debug_msg(LOG_DEBUG, "subject           : %s", token->subject);
-  //	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
-  //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
-  log_debug_msg(LOG_DEBUG,
-                "realm authentication request for subject: %s",
-                token->subject);
+  //	log_debug(LOG_DEBUG, NULL, "realm             : %s", token->realm);
+  //	log_debug(LOG_DEBUG, NULL, "issuer            : %s", token->issuer);
+  //	log_debug(LOG_DEBUG, NULL, "subject           : %s", token->subject);
+  //	log_debug(LOG_DEBUG, NULL, "audience          : %s", token->audience);
+  //	log_debug(LOG_DEBUG, NULL, "uuid              : %s", token->uuid);
+  log_debug(LOG_DEBUG,
+            token->uuid,
+            "realm authentication request for subject: %s",
+            token->subject);
 
   return (false);
 }
@@ -142,10 +141,11 @@ bool _np_aaa_authenticatefunc(np_context *ac, struct np_token *token) {
 bool _np_default_accountingfunc(np_context *ac, struct np_token *token) {
   np_ctx_cast(ac);
   log_msg(LOG_WARNING,
+          NULL,
           "using default handler to deny accounting for: %s",
           token->subject);
-  // log_msg(LOG_WARNING, "do you really want the default accounting handler
-  // (account nothing) ???");
+  // log_msg(LOG_WARNING, NULL, "do you really want the default accounting
+  // handler (account nothing) ???");
 
   return (false);
 }
@@ -159,14 +159,10 @@ bool _np_default_accountingfunc(np_context *ac, struct np_token *token) {
 bool _np_aaa_accountingfunc(np_context *ac, struct np_token *token) {
   np_ctx_cast(ac);
 
-  //	log_debug_msg(LOG_DEBUG, "realm             : %s", token->realm);
-  //	log_debug_msg(LOG_DEBUG, "issuer            : %s", token->issuer);
-  //	log_debug_msg(LOG_DEBUG, "subject           : %s", token->subject);
-  //	log_debug_msg(LOG_DEBUG, "audience          : %s", token->audience);
-  //	log_debug_msg(LOG_DEBUG, "uuid              : %s", token->uuid);
-  log_debug_msg(LOG_DEBUG,
-                "realm accounting request for subject: %s",
-                token->subject);
+  log_debug(LOG_DEBUG,
+            token->uuid,
+            "realm accounting request for subject: %s",
+            token->subject);
   return (false);
 }
 
@@ -177,8 +173,6 @@ bool _np_aaa_accountingfunc(np_context *ac, struct np_token *token) {
  */
 void np_set_realm_name(np_context *ac, const char *realm_name) {
   np_ctx_cast(ac);
-  log_trace_msg(LOG_TRACE,
-                "start: void np_set_realm_name(const char* realm_name){");
 
   memset(context->realm_id, 0, 256);
   strncat(context->realm_id, realm_name, 256);
@@ -218,7 +212,7 @@ void np_set_realm_name(np_context *ac, const char *realm_name) {
   // context->my_identity->aaa_token->type = np_aaatoken_type_identity;
   context->my_node_key = new_node_key;
 
-  log_msg(LOG_INFO, "neuropil realm successfully set, node hash now: %s",
+  log_msg(LOG_INFO, NULL, "neuropil realm successfully set, node hash now: %s",
   _np_key_as_str(context->my_node_key));
 
   np_unref_obj(np_key_t, new_node_key,"_np_keycache_find_or_create");
@@ -291,7 +285,6 @@ void np_enable_realm_server(np_context *ac) {
  */
 void np_waitforjoin(np_context *ac) {
   np_ctx_cast(ac);
-  log_trace_msg(LOG_TRACE, "start: void np_waitforjoin(){");
   while (false == _np_route_my_key_has_connection(context)) {
     np_time_sleep(0.0);
   }
@@ -318,6 +311,7 @@ void np_add_receive_listener(np_context               *ac,
         _np_msgproperty_run_get(context, INBOUND, subject);
     if (mx_run != NULL) {
       log_debug(LOG_MISC,
+                NULL,
                 "adding recv listener on subject %08" PRIx32 ":%08" PRIx32
                 " / property %p",
                 subject.t[0],
@@ -349,6 +343,7 @@ void np_add_send_listener(np_context               *ac,
       _np_msgproperty_run_get(context, OUTBOUND, subject);
   if (msg_prop != NULL /*&& msg_prop->is_internal == false*/) {
     log_debug(LOG_MISC,
+              NULL,
               "adding send listener on subject %08" PRIx32 ":%08" PRIx32
               " / property %p",
               subject.t[0],
@@ -400,16 +395,12 @@ void np_send_response_msg(np_context   *ac,
 
 char *np_get_connection_string(np_context *ac) {
   np_ctx_cast(ac);
-  log_trace_msg(LOG_TRACE, "start: char* np_get_connection_string(){");
 
   return np_get_connection_string_from(context->my_node_key, true);
 }
 
 char *np_get_connection_string_from(np_key_t *node_key, bool includeHash) {
   np_ctx_memory(node_key);
-  log_trace_msg(LOG_TRACE,
-                "start: char* np_get_connection_string_from(np_key_t* "
-                "node_key, bool includeHash){");
 
   // "can only extract connection string from node or wildcard. type is:
   // %"PRIu32,node_key->type
@@ -432,9 +423,6 @@ char *np_get_connection_string_from(np_key_t *node_key, bool includeHash) {
 
 char *np_build_connection_string(
     char *hash, char *protocol, char *dns_name, char *port, bool includeHash) {
-  log_trace_msg(LOG_TRACE,
-                "start: char* np_get_connection_string_from(np_key_t* "
-                "node_key, bool includeHash){");
   char *connection_str;
   if (true == includeHash) {
     asprintf(&connection_str, "%s:%s:%s:%s", hash, protocol, dns_name, port);
@@ -479,6 +467,7 @@ void np_send_join(np_context *ac, const char *node_string) {
 
   if (FLAG_CMP(new_node->protocol, PASSIVE)) {
     log_msg(LOG_WARNING,
+            NULL,
             "user requests to join passive node at %u:%s:%s!",
             new_node->protocol,
             new_node->dns_name,
@@ -487,6 +476,7 @@ void np_send_join(np_context *ac, const char *node_string) {
     return;
   } else {
     log_msg(LOG_INFO,
+            NULL,
             "user request to join %u:%s:%s",
             new_node->protocol,
             new_node->dns_name,

@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
   everybody is allowed to interact with your node
   */
 
-  log_msg(LOG_INFO, "Sending initial ping");
+  log_msg(LOG_INFO, NULL, "Sending initial ping");
   // send an initial ping
   char *out_text;
   asprintf(&out_text, "%s %" PRIu32, "ping", 0);

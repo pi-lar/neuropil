@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 
     __np_example_helper_loop(context); // for the fancy ncurse display
 
-    log_debug_msg(LOG_DEBUG, "starting job queue");
+    log_debug(LOG_DEBUG, NULL, "starting job queue");
 
     if (NULL != j_key) {
       np_example_print(context, stdout, "try to join %s\n", j_key);

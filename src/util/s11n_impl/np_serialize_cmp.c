@@ -26,7 +26,7 @@ bool __np_buffer_skipper(struct cmp_ctx_s *ctx, size_t limit) {
 size_t
 __np_buffer_writer(struct cmp_ctx_s *ctx, const void *data, size_t count) {
   // log_trace_msg(LOG_TRACE, "start: size_t _np_buffer_writer(struct cmp_ctx_s
-  // *ctx, const void *data, size_t count){"); log_debug_msg(LOG_DEBUG, "--
+  // *ctx, const void *data, size_t count){"); log_debug(LOG_DEBUG, NULL, "--
   // writing cmp->buf: %p size: %hd", ctx->buf, count); printf( "-- writing
   // cmp->buf: %p size: %hd\n", ctx->buf, count);
   memmove(ctx->buf, data, count);
@@ -115,7 +115,7 @@ void __np_tree_serialize_write_type(np_state_t  *context,
                 "start: void __np_tree_serialize_write_type(np_treeval_t val, "
                 "cmp_ctx_t* cmp){");
   // void* count_buf_start = cmp->buf;
-  // log_debug_msg(LOG_DEBUG, "writing jrb (%p) value: %s", jrb,
+  // log_debug(LOG_DEBUG, NULL, "writing jrb (%p) value: %s", jrb,
   // jrb->key.value.s);
   switch (val.type) {
     // signed numbers
@@ -135,7 +135,7 @@ void __np_tree_serialize_write_type(np_state_t  *context,
 #endif
     // characters
   case np_treeval_type_char_ptr:
-    // log_debug_msg(LOG_DEBUG, "string size %u/%lu -> %s", val.size,
+    // log_debug(LOG_DEBUG, NULL, "string size %u/%lu -> %s", val.size,
     // strlen(val.value.s), val.value.s);
     cmp_write_str32(cmp,
                     val.value.s,
@@ -182,12 +182,14 @@ void __np_tree_serialize_write_type(np_state_t  *context,
   case np_treeval_type_char_array_8:
   case np_treeval_type_unsigned_char_array_8:
     log_msg(LOG_WARNING,
+            NULL,
             "please implement serialization for type %" PRIu8,
             val.type);
     break;
 
   case np_treeval_type_void:
     log_msg(LOG_WARNING,
+            NULL,
             "please implement serialization for type %" PRIu8,
             val.type);
     break;
@@ -198,7 +200,7 @@ void __np_tree_serialize_write_type(np_state_t  *context,
     __np_tree_serialize_write_type_dhkey(val.value.dhkey, cmp);
     break;
   case np_treeval_type_hash:
-    // log_debug_msg(LOG_DEBUG, "adding hash value %s to serialization",
+    // log_debug(LOG_DEBUG, NULL, "adding hash value %s to serialization",
     // val.value.s);
     cmp_write_ext32(cmp, np_treeval_type_hash, val.size, val.value.bin);
     break;
@@ -212,12 +214,13 @@ void __np_tree_serialize_write_type(np_state_t  *context,
     size_t buf_size = val.value.tree->byte_size;
     // np_serializer_add_map_bytesize(val.value.tree, &buf_size);
     char buffer[buf_size];
-    log_debug_msg(LOG_SERIALIZATION | LOG_DEBUG,
-                  "write: buffer size for subtree %u (%hd %u) %u",
-                  val.size,
-                  val.value.tree->size,
-                  val.value.tree->byte_size,
-                  buf_size);
+    log_debug(LOG_SERIALIZATION | LOG_DEBUG,
+              NULL,
+              "write: buffer size for subtree %u (%hd %u) %u",
+              val.size,
+              val.value.tree->size,
+              val.value.tree->byte_size,
+              buf_size);
     np_serialize_buffer_t tree_serializer = {
         ._tree          = val.value.tree,
         ._target_buffer = buffer,
@@ -228,11 +231,14 @@ void __np_tree_serialize_write_type(np_state_t  *context,
     np_serializer_write_map(context, &tree_serializer, val.value.tree);
     // write the serialized tree to the upper level buffer
     if (!cmp_write_ext32(cmp, val.type, buf_size, buffer)) {
-      log_msg(LOG_WARNING, "couldn't write tree data -- ignoring for now");
+      log_msg(LOG_WARNING,
+              NULL,
+              "couldn't write tree data -- ignoring for now");
     }
   } break;
   default:
     log_msg(LOG_WARNING,
+            NULL,
             "please implement serialization for type %hhd",
             val.type);
     break;
@@ -253,6 +259,7 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
   case CMP_TYPE_MAP16:
   case CMP_TYPE_MAP32:
     log_msg(LOG_WARNING,
+            NULL,
             "error de-serializing message to normal form, found map type");
     cmp->error = 13; // INVALID_TYPE_ERROR
     break;
@@ -267,6 +274,7 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
   case CMP_TYPE_ARRAY16:
   case CMP_TYPE_ARRAY32:
     log_msg(LOG_WARNING,
+            NULL,
             "error de-serializing message to normal form, found array type");
     cmp->error = 13; // INVALID_TYPE_ERROR
     break;
@@ -319,12 +327,15 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
   }
 
   case CMP_TYPE_NIL:
-    log_msg(LOG_WARNING, "unknown de-serialization for given type (cmp NIL) ");
+    log_msg(LOG_WARNING,
+            NULL,
+            "unknown de-serialization for given type (cmp NIL) ");
     cmp->error = 13; // INVALID_TYPE_ERROR
     break;
 
   case CMP_TYPE_BOOLEAN:
     log_msg(LOG_WARNING,
+            NULL,
             "unknown de-serialization for given type (cmp boolean) ");
     cmp->error = 13; // INVALID_TYPE_ERROR
     break;
@@ -379,11 +390,12 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
       // TODO: check if the complete buffer was read (byte count match)
       value->value.tree = subtree;
       value->size       = subtree->byte_size;
-      log_debug_msg(LOG_SERIALIZATION | LOG_VERBOSE,
-                    "read:  buffer size for subtree %u (%hd %u)",
-                    value->size,
-                    value->value.tree->size,
-                    subtree->byte_size);
+      log_debug(LOG_SERIALIZATION | LOG_VERBOSE,
+                NULL,
+                "read:  buffer size for subtree %u (%hd %u)",
+                value->size,
+                value->value.tree->size,
+                subtree->byte_size);
     } else if (obj->as.ext.type == np_treeval_type_dhkey) {
       cmp->error = __np_tree_serialize_read_type_dhkey(cmp, value);
     } else if (obj->as.ext.type == np_treeval_type_hash) {
@@ -403,13 +415,14 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
         memcpy(value->value.bin, buffer, obj->as.ext.size);
       }
     } else {
-      log_debug_msg(LOG_TREE | LOG_SERIALIZATION | LOG_DEBUG,
-                    "Cannot deserialize ext type %" PRIi8 " (size: %" PRIu32
-                    ")",
-                    obj->as.ext.type,
-                    obj->as.ext.size);
+      log_debug(LOG_TREE | LOG_SERIALIZATION | LOG_DEBUG,
+                NULL,
+                "Cannot deserialize ext type %" PRIi8 " (size: %" PRIu32 ")",
+                obj->as.ext.type,
+                obj->as.ext.size);
 
       log_msg(LOG_TREE | LOG_SERIALIZATION | LOG_WARNING,
+              NULL,
               "Unknown de-serialization for given extension type %" PRIi8,
               obj->as.ext.type);
       cmp->buf = target_buffer;
@@ -483,7 +496,7 @@ void __np_tree_deserialize_read_type(np_state_t     *context,
 #endif
   default:
     value->type = np_treeval_type_undefined;
-    log_msg(LOG_WARNING, "unknown deserialization for given type");
+    log_msg(LOG_WARNING, NULL, "unknown deserialization for given type");
     break;
   }
 }
@@ -520,14 +533,14 @@ void np_serializer_write_map(np_state_t            *context,
           np_treeval_type_unsigned_long == tmp->key.type ||
           np_treeval_type_double == tmp->key.type ||
           np_treeval_type_char_ptr == tmp->key.type) {
-        // log_debug_msg(LOG_DEBUG, "for (%p; %p!=%p; %p=%p) ", tmp->flink, tmp,
-        // msg->header, node, node->flink);
+        // log_debug(LOG_DEBUG, NULL, "for (%p; %p!=%p; %p=%p) ",
+        // tmp->flink, tmp, msg->header, node, node->flink);
         __np_tree_serialize_write_type(context, tmp->key, &cmp_context);
         i++;
         __np_tree_serialize_write_type(context, tmp->val, &cmp_context);
         i++;
       } else {
-        log_msg(LOG_ERROR, "unknown key type for serialization");
+        log_msg(LOG_ERROR, NULL, "unknown key type for serialization");
       }
     }
   }
@@ -537,6 +550,7 @@ void np_serializer_write_map(np_state_t            *context,
 
   if (i != buffer->_tree->size * 2)
     log_msg(LOG_ERROR,
+            NULL,
             "serialized jrb size map size is %d, but should be %hd",
             buffer->_tree->size * 2,
             i);
@@ -586,6 +600,7 @@ void np_serializer_read_map(np_state_t              *context,
 
     if (cmp_context.error != 0 || np_treeval_type_undefined == tmp_key.type) {
       log_msg(LOG_INFO,
+              NULL,
               "deserialization error: %s",
               cmp_strerror(&cmp_context));
       buffer->_error = cmp_context.error;
@@ -622,6 +637,7 @@ void np_serializer_read_map(np_state_t              *context,
 
     if (cmp_context.error != 0 || np_treeval_type_undefined == tmp_val.type) {
       log_msg(LOG_INFO,
+              NULL,
               "deserialization error: %s",
               cmp_strerror(&cmp_context));
       buffer->_error = cmp_context.error;
@@ -659,12 +675,16 @@ void np_serializer_read_map(np_state_t              *context,
   }
 
   if (cmp_context.error != 0) {
-    log_msg(LOG_INFO, "deserialization error: %s", cmp_strerror(&cmp_context));
+    log_msg(LOG_INFO,
+            NULL,
+            "deserialization error: %s",
+            cmp_strerror(&cmp_context));
   }
 
   if (ret == false) {
-    log_debug_msg(LOG_SERIALIZATION | LOG_TREE | LOG_WARNING,
-                  "Deserialization error: unspecified error");
+    log_debug(LOG_SERIALIZATION | LOG_TREE | LOG_WARNING,
+              NULL,
+              "Deserialization error: unspecified error");
     cmp_context.error = 1;
   } else {
     if (buffer->_target_tree->attr.in_place == true) {

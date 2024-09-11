@@ -66,7 +66,7 @@ typedef struct _np_network_data_s {
   np_dhkey_t    owner_dhkey;
 } _np_network_data_t;
 
-typedef enum _np_network_runtime_status {
+enum _np_network_runtime_status {
   np_network_stopped = 0,
   np_network_server_started,
   np_network_client_started,
@@ -103,7 +103,8 @@ bool __np_network_module_periodic_capacity_reset(
   }
 
   if (last_msgs_per_sec_in > 0 || last_msgs_per_sec_out > 0)
-    log_info(LOG_INFO,
+    log_info(LOG_NETWORK,
+             NULL,
              "[network capacity] total in:%" PRIu32 " total out:%" PRIu32,
              last_msgs_per_sec_in,
              last_msgs_per_sec_out);
@@ -189,7 +190,7 @@ char *_np_network_get_protocol_string(np_state_t *context,
   if (FLAG_CMP(protocol, (UDP | IPv6))) return (URN_UDP_V6);
   // if (protocol == (RAW     | IPv4)) return (URN_IP_V4);
   // if (protocol == (RAW     | IPv6)) return (URN_IP_V6);
-  log_msg(LOG_WARNING, "Protocol %d is not availabe!", protocol);
+  log_msg(LOG_WARNING, NULL, "Protocol %d is not availabe!", protocol);
 #ifdef DEBUG
   // assert(false && "Protocol is not availabe!");
 #endif
@@ -198,10 +199,11 @@ char *_np_network_get_protocol_string(np_state_t *context,
 
 void __np_network_close(np_network_t *self) {
   np_ctx_memory(self);
-  log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                "Closing network %p -> %d",
-                self,
-                self->socket);
+  log_debug(LOG_NETWORK | LOG_DEBUG,
+            NULL,
+            "Closing network %p -> %d",
+            self,
+            self->socket);
   close(self->socket);
 }
 
@@ -236,19 +238,29 @@ bool _np_network_get_address(np_state_t       *context,
     hints.ai_protocol = IPPROTO_TCP;
   }
 
-  log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                "using getaddrinfo: %d:%s:%s",
-                type,
-                hostname,
-                service);
+  log_debug(LOG_NETWORK,
+            NULL,
+            "using getaddrinfo: %d:%s:%s",
+            type,
+            hostname,
+            service);
   if (0 != (err = getaddrinfo(hostname, service, &hints, ai_head))) {
     log_msg(LOG_ERROR,
+            NULL,
             "hostname: %s, servicename %s, protocol %d",
             hostname,
             service,
             type);
-    log_msg(LOG_ERROR, "error getaddrinfo: %s (%d)", gai_strerror(err), err);
-    log_msg(LOG_ERROR, "error errno: %s (%d)", gai_strerror(errno), errno);
+    log_msg(LOG_ERROR,
+            NULL,
+            "error getaddrinfo: %s (%d)",
+            gai_strerror(err),
+            err);
+    log_msg(LOG_ERROR,
+            NULL,
+            "error errno: %s (%d)",
+            gai_strerror(errno),
+            errno);
 
     return false;
   }
@@ -268,7 +280,7 @@ bool _np_network_send_data(np_state_t   *context,
   crypto_generichash(hash,
                      sizeof hash,
                      data_to_send,
-                     MSG_CHUNK_SIZE_1024,
+                     MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE,
                      NULL,
                      0);
   char hex[crypto_generichash_BYTES * 2 + 1] = {0};
@@ -278,6 +290,7 @@ bool _np_network_send_data(np_state_t   *context,
                  crypto_generichash_BYTES);
 
   log_debug(LOG_NETWORK | LOG_EXPERIMENT,
+            NULL,
             "OUT DATAPACKAGE %s:%s %s",
             network->ip,
             network->port,
@@ -294,9 +307,10 @@ bool _np_network_send_data(np_state_t   *context,
   }
 
   if (current_load_capacity > np_module(network)->max_msgs_per_sec) {
-    log_warn(LOG_WARNING,
+    log_warn(LOG_NETWORK,
+             NULL,
              "Re-scheduling data package due to msgs per sec constraint "
-             "(current: %" PRIu32 " / max: %" PRIsizet " | OUT)",
+             "(current: %" PRIu32 " / max: %" PRIu16 " | OUT)",
              current_load_capacity,
              np_module(network)->max_msgs_per_sec);
     return ret;
@@ -305,52 +319,47 @@ bool _np_network_send_data(np_state_t   *context,
   do {
     ssize_t bytes_written = 0;
     if (FLAG_CMP(network->socket_type, PASSIVE)) {
-      bytes_written = sendto(network->socket,
-                             (((unsigned char *)data_to_send)) + write_per_data,
-                             MSG_CHUNK_SIZE_1024 - write_per_data,
+      bytes_written =
+          sendto(network->socket,
+                 (((unsigned char *)data_to_send)) + write_per_data,
+                 MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE - write_per_data,
 #ifdef MSG_NOSIGNAL
-                             MSG_NOSIGNAL,
+                 MSG_NOSIGNAL,
 #else
-                             0,
+                 0,
 #endif
-                             network->remote_addr,
-                             network->remote_addr_len);
+                 network->remote_addr,
+                 network->remote_addr_len);
 
     } else {
-      bytes_written = send(network->socket,
-                           (((unsigned char *)data_to_send)) + write_per_data,
-                           MSG_CHUNK_SIZE_1024 - write_per_data,
+      bytes_written =
+          send(network->socket,
+               (((unsigned char *)data_to_send)) + write_per_data,
+               MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE - write_per_data,
 #ifdef MSG_NOSIGNAL
-                           MSG_NOSIGNAL
+               MSG_NOSIGNAL
 #else
-                           0
+               0
 #endif
-      );
+          );
     }
 
-    if (bytes_written > 0 && bytes_written <= MSG_CHUNK_SIZE_1024) {
+    if (bytes_written > 0 &&
+        bytes_written <= (MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE)) {
       write_per_data += bytes_written;
     } else {
       break;
     }
 
-  } while (write_per_data < MSG_CHUNK_SIZE_1024);
+  } while (write_per_data < (MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE));
 
-  _np_debug_log_bin(data_to_send,
-                    MSG_CHUNK_SIZE_1024,
-                    LOG_NETWORK,
-                    "Did send    data (%" PRIsizet
-                    " bytes / %p) via fd: %d: %s",
-                    write_per_data,
-                    data_to_send,
-                    network->socket);
-
-  if (write_per_data == MSG_CHUNK_SIZE_1024) {
+  if (write_per_data == (MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE)) {
     _np_statistics_add_send_bytes(write_per_data);
 
     network->last_send_date = np_time_now();
     ret                     = true;
     log_debug(LOG_NETWORK,
+              NULL,
               "Did send package %p via %p -> %d",
               data_to_send,
               network,
@@ -361,10 +370,11 @@ bool _np_network_send_data(np_state_t   *context,
         _np_counting_bloom_add(np_module(network)->__msgs_per_sec_out, target);
       }
   } else {
-    log_error("Could not send package %p (%zd/%d) over fd: %d msg: %s (%d)",
+    log_error(NULL,
+              "Could not send package %p (%zd/%d) over fd: %d msg: %s (%d)",
               data_to_send,
               write_per_data,
-              MSG_CHUNK_SIZE_1024,
+              MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE,
               network->socket,
               strerror(errno),
               errno);
@@ -376,7 +386,7 @@ void _np_network_write(struct ev_loop *loop, ev_io *event, int revents) {
   np_ctx_decl(ev_userdata(loop));
 
   if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_READ)) {
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid write event");
+    log_debug(LOG_NETWORK, NULL, "got invalid write event");
     return;
   }
 
@@ -385,7 +395,6 @@ void _np_network_write(struct ev_loop *loop, ev_io *event, int revents) {
   np_network_t *network = ((_np_network_data_t *)event->data)->network;
 
   _TRYLOCK_ACCESS(&network->access_lock) {
-    uint8_t send_items_counter = 0;
     // if a data packet is available, try to send it
     if (sll_size(network->out_events) > 0) {
       if (_np_network_send_data(
@@ -393,15 +402,15 @@ void _np_network_write(struct ev_loop *loop, ev_io *event, int revents) {
               network,
               ((_np_network_data_t *)event->data)->owner_dhkey,
               sll_first(network->out_events)->val)) {
-        send_items_counter++;
         void *data_to_send = sll_head(void_ptr, network->out_events);
-        np_unref_obj(BLOB_1024, data_to_send, ref_obj_creation);
+        np_unref_obj(BLOB_1024, data_to_send, ref_obj_usage);
       }
     }
 
 #ifdef DEBUG
     if (sll_size(network->out_events) > 0) {
       log_debug(LOG_NETWORK,
+                NULL,
                 "%" PRIu32 " packages still in delivery",
                 sll_size(network->out_events));
     }
@@ -412,8 +421,8 @@ void _np_network_write(struct ev_loop *loop, ev_io *event, int revents) {
       loop = _np_event_get_loop_out(context);
       ev_io_stop(EV_A_ & network->watcher_out);
       log_debug(LOG_NETWORK,
-                "network (%s) has been stopped for sending: %d:%s:%s",
                 np_memory_get_id(network),
+                "network has been stopped for sending: %d:%s:%s",
                 network->type,
                 network->ip,
                 network->port);
@@ -477,6 +486,7 @@ void __create_new_alias_key(np_state_t *context,
                                 node_evt,
                                 "event: externe node in")) {
     log_warn(LOG_NETWORK | LOG_JOBS,
+             NULL,
              "rejecting possible udp connection as jobqueue is rejecting it");
     np_unref_obj(np_node_t, new_node, FUNC);
   }
@@ -487,15 +497,14 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents) {
   np_ctx_decl(ev_userdata(loop));
 
   if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE)) {
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "got invalid tcp accept event");
+    log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "got invalid tcp accept event");
     return;
   }
 
   struct __np_network_data data_container = {0};
   socklen_t                fromlen        = sizeof(struct sockaddr_storage);
 
-  np_state_t   *state = context;
-  np_network_t *ng    = ((_np_network_data_t *)event->data)->network;
+  np_network_t *ng = ((_np_network_data_t *)event->data)->network;
 
   int client_fd =
       accept(ng->socket, (struct sockaddr *)&data_container.from, &fromlen);
@@ -503,6 +512,7 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents) {
   if (client_fd < 0) {
     if (errno != EWOULDBLOCK && errno != EAGAIN) {
       log_msg(LOG_ERROR,
+              NULL,
               "Could not accept socket connection on client fd %d. %s (%d)",
               ng->socket,
               strerror(errno),
@@ -511,12 +521,13 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents) {
   } else {
     __np_network_get_ip_and_port(&data_container);
 
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                  "accept socket from %d -> client fd: %d -> %s:%s",
-                  ng->socket,
-                  client_fd,
-                  data_container.ipstr,
-                  data_container.port);
+    log_debug(LOG_NETWORK | LOG_DEBUG,
+              NULL,
+              "accept socket from %d -> client fd: %d -> %s:%s",
+              ng->socket,
+              client_fd,
+              data_container.ipstr,
+              data_container.port);
 
     np_network_t *new_network = NULL;
     np_new_obj(np_network_t, new_network);
@@ -546,17 +557,18 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents) {
                           ((_np_network_data_t *)event->data)->owner_dhkey);
       // new_network->__tcp_alias_dhkey = search_key;
 
-      char buf[100] = {0};
-      log_debug_msg(LOG_NETWORK,
-                    "%p -> %d network is receiving. alias: %s",
-                    new_network,
-                    new_network->socket,
-                    _np_key_as_str(alias_key));
+      log_debug(LOG_NETWORK,
+                NULL,
+                "%p -> %d network is receiving. alias: %s",
+                new_network,
+                new_network->socket,
+                _np_key_as_str(alias_key));
 
       _np_network_enable(new_network);
-      log_debug_msg(LOG_NETWORK,
-                    "created network for key: %s and watching it.",
-                    _np_key_as_str(alias_key));
+      log_debug(LOG_NETWORK,
+                NULL,
+                "created network for key: %s and watching it.",
+                _np_key_as_str(alias_key));
       np_unref_obj(np_key_t, alias_key, "_np_keycache_find_or_create");
 
       __create_new_alias_key(context,
@@ -570,10 +582,6 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents) {
   }
 }
 
-void _np_network_read_msg_event_cleanup(void *context, np_util_event_t ev) {
-  np_unref_obj(BLOB_1024, ev.user_data, "_np_network_read");
-}
-
 /**
  ** _np_network_read:
  ** reads the network layer in listen mode.
@@ -582,11 +590,11 @@ void _np_network_read_msg_event_cleanup(void *context, np_util_event_t ev) {
 void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
   np_ctx_decl(ev_userdata(loop));
   if (FLAG_CMP(revents, EV_ERROR) || FLAG_CMP(revents, EV_WRITE)) {
-    log_debug_msg(LOG_NETWORK, "got invalid read event");
+    log_debug(LOG_NETWORK, NULL, "got invalid read event");
     return;
   }
 
-  log_debug_msg(LOG_NETWORK, "Receive started ...");
+  log_debug(LOG_NETWORK, NULL, "Receive started ...");
 
   // cast event data structure to np_state_t pointer
   socklen_t fromlen = sizeof(struct sockaddr_storage);
@@ -602,8 +610,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
 
   // catch multiple msgs waiting in this pipe
   // double timeout_start = np_time_now();
-  bool    check_for_data_nescessary = true;
-  bool    network_receive_timeout   = false;
+  bool    network_receive_timeout = false;
   int16_t in_msg_len;
   bool    stop = false;
 
@@ -611,20 +618,21 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
   np_new_obj(BLOB_1024, data_container.data);
 
   in_msg_len = 0;
+
   // catch a msg even if it was chunked into smaller byte parts by the
   // underlying network
-
   do {
     if (FLAG_CMP(ng->socket_type, TCP)) {
-      last_recv_result = recv(event->fd,
-                              ((char *)data_container.data) + in_msg_len,
-                              MSG_CHUNK_SIZE_1024 - in_msg_len,
-                              0);
+      last_recv_result =
+          recv(event->fd,
+               ((char *)data_container.data) + in_msg_len,
+               MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE - in_msg_len,
+               0);
     } else {
       last_recv_result =
           recvfrom(event->fd,
                    ((unsigned char *)data_container.data) + in_msg_len,
-                   MSG_CHUNK_SIZE_1024 - in_msg_len,
+                   MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE - in_msg_len,
                    0,
                    (struct sockaddr *)&data_container.from,
                    &fromlen);
@@ -632,7 +640,8 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
 
     if (last_recv_result < 0) {
       log_msg(LOG_NETWORK | LOG_WARNING,
-              "Receive stopped. Reason: %s (%" PRId32 "/" PRId32 ")",
+              NULL,
+              "Receive stopped. Reason: %s (%" PRId32 "/ %" PRId32 ")",
               strerror(errno),
               errno,
               last_recv_result);
@@ -646,7 +655,8 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
       // NETWORK_RECEIVING_TIMEOUT_SEC;
     }
   } while (last_recv_result > 0 &&
-           in_msg_len < MSG_CHUNK_SIZE_1024); //! network_receive_timeout);
+           in_msg_len < (MSG_CHUNK_SIZE_1024 +
+                         MSG_INSTRUCTIONS_SIZE)); //! network_receive_timeout);
 
   if (!stop) {
     if (FLAG_CMP(ng->socket_type, TCP)) {
@@ -667,6 +677,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
                    data_container.data,
                    in_msg_len);
     log_debug(LOG_NETWORK,
+              NULL,
               "Did receive data (%" PRIi16 " bytes / %p) via fd: %d hex: 0x%s",
               in_msg_len,
               data_container.data,
@@ -674,7 +685,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
               msg_hex);
 #endif
 
-    if (in_msg_len == MSG_CHUNK_SIZE_1024) {
+    if (in_msg_len == MSG_CHUNK_SIZE_1024 + MSG_INSTRUCTIONS_SIZE) {
 
       np_dhkey_t search_key =
           np_dhkey_create_from_hostport(&data_container.ipstr[0],
@@ -692,8 +703,9 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
       }
       if (current_load_capacity > np_module(network)->max_msgs_per_sec) {
         log_warn(LOG_WARNING,
+                 NULL,
                  "Dropping data package due to msgs per sec constraint "
-                 "(current: %" PRIu32 " / max: %" PRIsizet " | IN)",
+                 "(current: %" PRIu32 " / max: %" PRIu16 " | IN)",
                  current_load_capacity,
                  np_module(network)->max_msgs_per_sec);
         np_unref_obj(BLOB_1024, data_container.data, ref_obj_creation);
@@ -712,10 +724,11 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
 
       np_key_t *alias_key = _np_keycache_find(context, search_key);
 
-      np_util_event_t in_event = {.type      = evt_external | evt_message,
-                                  .user_data = data_container.data,
-                                  .cleanup = _np_network_read_msg_event_cleanup,
-                                  .target_dhkey = search_key};
+      np_util_event_t in_event = {
+          .type      = evt_external | evt_message,
+          .user_data = data_container.data,
+          // .cleanup = _np_network_read_msg_event_cleanup,
+          .target_dhkey = search_key};
 
       if (NULL == alias_key) // && FLAG_CMP(ng->socket_type, UDP))
       {
@@ -746,6 +759,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
                      crypto_generichash_BYTES);
 
       log_debug(LOG_NETWORK | LOG_EXPERIMENT,
+                NULL,
                 "IN DATAPACKAGE %s:%s %s",
                 data_container.ipstr,
                 data_container.port,
@@ -767,9 +781,9 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
 
       if (FLAG_CMP(ng->socket_type, PASSIVE) ||
           (_handshake_status < np_node_status_Initiated)) {
-        np_ref_obj(BLOB_1024, data_container.data, FUNC);
         char buf[100] = {0};
         log_debug(LOG_NETWORK,
+                  NULL,
                   "send data to owner %s",
                   np_id_str(buf, (np_id *)&owner_dhkey));
         if (!np_jobqueue_submit_event(context,
@@ -778,27 +792,28 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
                                       in_event,
                                       msg_identifier)) {
           log_error(
+              NULL,
+              "%s",
               "Dropping data package send to owner as jobqueue is rejecting "
               "it");
-          np_unref_obj(BLOB_1024, data_container.data, FUNC);
         }
       } else if (NULL != alias_key) {
-        np_ref_obj(BLOB_1024, data_container.data, FUNC);
-        log_debug(LOG_NETWORK, "send data to alias");
+        log_debug(LOG_NETWORK, NULL, "send data to alias");
         if (!np_jobqueue_submit_event(context,
                                       0.0,
                                       alias_key->dhkey,
                                       in_event,
                                       msg_identifier)) {
-          log_error(
-              "Dropping data package send to alias key as jobqueue is "
-              "rejecting it");
-          np_unref_obj(BLOB_1024, data_container.data, FUNC);
+          log_error(NULL,
+                    "%s",
+                    "Dropping data package send to alias key as jobqueue is "
+                    "rejecting it");
         }
       } else {
-        log_debug_msg(LOG_ERROR,
-                      "network in unknown state for key %s",
-                      _np_key_as_str(alias_key));
+        log_debug(LOG_ERROR,
+                  NULL,
+                  "network in unknown state for key %s",
+                  _np_key_as_str(alias_key));
       }
 
       if (NULL != alias_key) {
@@ -807,6 +822,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
     } else {
       if (network_receive_timeout) {
         log_info(LOG_NETWORK,
+                 NULL,
                  "Network receive iteration stopped due to timeout (Received "
                  "Data: %" PRIu16 ")",
                  in_msg_len);
@@ -814,12 +830,14 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
 
       if (in_msg_len == 0) {
         log_info(LOG_NETWORK,
+                 NULL,
                  "Stopping network due to zero size package (%" PRIu16 ")",
                  in_msg_len);
         _np_network_disable(ng);
-        stop = true;
+        // stop = true;
       } else {
         log_info(LOG_NETWORK,
+                 NULL,
                  "Dropping data package due to invalid package size (%" PRIu16
                  ")",
                  in_msg_len);
@@ -829,6 +847,7 @@ void _np_network_read(struct ev_loop *loop, ev_io *event, int revents) {
 
   np_unref_obj(BLOB_1024, data_container.data, ref_obj_creation);
   log_info(LOG_NETWORK | LOG_VERBOSE,
+           NULL,
            "Received %" PRIu16 " messages.",
            msgs_received);
 }
@@ -837,15 +856,15 @@ void _np_network_stop(np_network_t *network, bool force) {
   assert(NULL != network);
 
   np_ctx_memory(network);
-  log_trace_msg(LOG_TRACE, "start: void _np_network_stop(...){");
 
   _LOCK_ACCESS(&network->access_lock) {
     EV_P;
     if (FLAG_CMP(network->is_running, np_network_server_started)) {
       if (FLAG_CMP(network->type, np_network_type_server)) {
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                      "stopping server network %p",
-                      network);
+        log_debug(LOG_NETWORK | LOG_DEBUG,
+                  NULL,
+                  "stopping server network %p",
+                  network);
         loop = _np_event_get_loop_in(context);
         _np_event_suspend_loop_in(context);
         ev_io_stop(EV_A_ & network->watcher_in);
@@ -859,9 +878,10 @@ void _np_network_stop(np_network_t *network, bool force) {
 
     if (FLAG_CMP(network->is_running, np_network_client_started)) {
       if (FLAG_CMP(network->type, np_network_type_client)) {
-        log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                      "stopping client network %p",
-                      network);
+        log_debug(LOG_NETWORK | LOG_DEBUG,
+                  NULL,
+                  "stopping client network %p",
+                  network);
         loop = _np_event_get_loop_out(context);
         _np_event_suspend_loop_out(context);
         ev_io_stop(EV_A_ & network->watcher_out);
@@ -879,7 +899,6 @@ void _np_network_start(np_network_t *network, bool force) {
   assert(NULL != network);
 
   np_ctx_memory(network);
-  log_trace_msg(LOG_TRACE, "start: void _np_network_start(...){");
 
   TSP_GET(bool, network->can_be_enabled, can_be_enabled);
   if (can_be_enabled) {
@@ -887,9 +906,10 @@ void _np_network_start(np_network_t *network, bool force) {
       EV_P;
       if (!FLAG_CMP(network->is_running, np_network_server_started)) {
         if (FLAG_CMP(network->type, np_network_type_server)) {
-          log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                        "starting server network %p",
-                        network);
+          log_debug(LOG_NETWORK | LOG_DEBUG,
+                    NULL,
+                    "starting server network %p",
+                    network);
           loop = _np_event_get_loop_in(context);
           _np_event_suspend_loop_in(context);
           ev_io_start(EV_A_ & network->watcher_in);
@@ -903,9 +923,10 @@ void _np_network_start(np_network_t *network, bool force) {
 
       if (!FLAG_CMP(network->is_running, np_network_client_started)) {
         if (FLAG_CMP(network->type, np_network_type_client)) {
-          log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                        "starting client network %p",
-                        network);
+          log_debug(LOG_NETWORK | LOG_DEBUG,
+                    NULL,
+                    "starting client network %p",
+                    network);
           loop = _np_event_get_loop_out(context);
           _np_event_suspend_loop_out(context);
           ev_io_start(EV_A_ & network->watcher_out);
@@ -927,7 +948,6 @@ void _np_network_t_del(np_state_t       *context,
                        NP_UNUSED uint8_t type,
                        NP_UNUSED size_t  size,
                        void             *data) {
-  log_trace_msg(LOG_TRACE, "start: void _np_network_t_del(void* nw){");
   np_network_t *network = (np_network_t *)data;
 
   _LOCK_ACCESS(&network->access_lock) {
@@ -935,8 +955,9 @@ void _np_network_t_del(np_state_t       *context,
       while (0 != sll_size(network->out_events)) {
         void *drop_package = sll_head(void_ptr, network->out_events);
         log_info(LOG_NETWORK | LOG_ROUTING | LOG_EXPERIMENT,
+                 NULL,
                  "Dropping data package due to network cleanup");
-        np_unref_obj(BLOB_1024, drop_package, ref_obj_creation);
+        np_unref_obj(BLOB_1024, drop_package, ref_obj_usage);
       }
     }
     sll_free(void_ptr, network->out_events);
@@ -947,7 +968,10 @@ void _np_network_t_del(np_state_t       *context,
   free(network->remote_addr);
 
   if ((network->socket >= 0) && !network->is_multiuse_socket) {
-    log_info(LOG_NETWORK, "Closing network %p due to object deletion", network);
+    log_info(LOG_NETWORK,
+             NULL,
+             "Closing network %p due to object deletion",
+             network);
     __np_network_close(network);
   }
 
@@ -962,8 +986,6 @@ void _np_network_t_new(np_state_t       *context,
                        NP_UNUSED uint8_t type,
                        NP_UNUSED size_t  size,
                        void             *data) {
-  log_trace_msg(LOG_TRACE | LOG_NETWORK,
-                "start: void _np_network_t_new(void* nw){");
   np_network_t *ng            = (np_network_t *)data;
   ng->is_multiuse_socket      = false;
   ng->socket                  = -1;
@@ -1002,8 +1024,8 @@ void __set_v6_only_false(int socket) {
                        &v6_only,
                        sizeof(v6_only))) {
     // enable ipv4 mapping
-    // log_msg(LOG_NETWORK | LOG_WARNING, "setsockopt (IPV6_V6ONLY): %s: ",
-    // strerror(errno));
+    // log_msg(LOG_NETWORK | LOG_WARNING, NULL, "setsockopt (IPV6_V6ONLY): %s:
+    // ", strerror(errno));
   }
 }
 
@@ -1043,7 +1065,7 @@ bool _np_network_init(np_network_t *ng,
   np_ctx_memory(ng);
   int one = 1;
 
-  log_debug_msg(LOG_NETWORK | LOG_DEBUG, "try to get_network_address");
+  log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "try to get_network_address");
 
   bool res = _np_network_get_address(context,
                                      create_server,
@@ -1055,11 +1077,11 @@ bool _np_network_init(np_network_t *ng,
   ng->socket_type = type | passive_socket_type;
 
   if (!res || (NULL == ng->addr_in && !FLAG_CMP(type, PASSIVE))) {
-    log_msg(LOG_ERROR, "could not resolve requested network address");
+    log_msg(LOG_ERROR, NULL, "could not resolve requested network address");
     return false;
   }
 
-  log_debug_msg(LOG_NETWORK | LOG_DEBUG, "done get_network_address");
+  log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "done get_network_address");
 
   ng->max_messages_per_second = max_messages_per_second;
   // only need for client setup, but initialize to have zero size of list
@@ -1067,7 +1089,7 @@ bool _np_network_init(np_network_t *ng,
 
   // create an inbound socket - happens only once per target_node
   if (true == create_server) {
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating receiving network");
+    log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "creating receiving network");
 
     _LOCK_ACCESS(&ng->access_lock) {
       ng->type |= np_network_type_server;
@@ -1084,7 +1106,7 @@ bool _np_network_init(np_network_t *ng,
                           ng->addr_in->ai_socktype,
                           ng->addr_in->ai_protocol);
       if (0 > ng->socket) {
-        log_error("could not create socket: %s", strerror(errno));
+        log_error(NULL, "could not create socket: %s", strerror(errno));
         return false;
       }
       /* attach socket to #port#. */
@@ -1093,7 +1115,8 @@ bool _np_network_init(np_network_t *ng,
                            SO_REUSEADDR,
                            (void *)&one,
                            sizeof(one))) {
-        log_error("network: %p setsockopt (SO_REUSEADDR): %s: ",
+        log_error(NULL,
+                  "network: %p setsockopt (SO_REUSEADDR): %s: ",
                   ng,
                   strerror(errno));
         __np_network_close(ng);
@@ -1104,7 +1127,8 @@ bool _np_network_init(np_network_t *ng,
         // different target_node leads to unreliable delivery. The sending
         // socket changes too often to be useful for finding the correct
         // decryption shared secret. Especially true for ipv6 ...
-        log_error("network: %p bind failed for %s:%s: %s",
+        log_error(NULL,
+                  "network: %p bind failed for %s:%s: %s",
                   ng,
                   hostname,
                   service,
@@ -1114,7 +1138,8 @@ bool _np_network_init(np_network_t *ng,
         return false;
       }
       if (FLAG_CMP(type, TCP) && 0 > listen(ng->socket, 10)) {
-        log_error("network: %p listen on tcp port failed: %s:",
+        log_error(NULL,
+                  "network: %p listen on tcp port failed: %s:",
                   ng,
                   strerror(errno));
         __np_network_close(ng);
@@ -1131,29 +1156,32 @@ bool _np_network_init(np_network_t *ng,
     __set_non_blocking(ng->socket);
 
     if (FLAG_CMP(type, TCP) && prepared_socket_fd < 1) {
-      log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                    "%p -> %d network is receiving accepts",
-                    ng,
-                    ng->socket);
+      log_debug(LOG_NETWORK | LOG_DEBUG,
+                NULL,
+                "%p -> %d network is receiving accepts",
+                ng,
+                ng->socket);
       ev_io_init(&ng->watcher_in, _np_network_accept, ng->socket, EV_READ);
     } else if (FLAG_CMP(type, UDP) ||
                (FLAG_CMP(type, TCP) && prepared_socket_fd > 1)) {
-      log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                    "%p -> %d network is receiving",
-                    ng,
-                    ng->socket);
+      log_debug(LOG_NETWORK | LOG_DEBUG,
+                NULL,
+                "%p -> %d network is receiving",
+                ng,
+                ng->socket);
       ev_io_init(&ng->watcher_in, _np_network_read, ng->socket, EV_READ);
     } else {
-      log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                    "don't know how to setup server network of type %" PRIx8,
-                    type);
+      log_debug(LOG_NETWORK | LOG_DEBUG,
+                NULL,
+                "don't know how to setup server network of type %" PRIu16,
+                type);
     }
     ((_np_network_data_t *)ng->watcher_in.data)->network = ng;
 
     ng->initialized = true;
-    log_debug_msg(LOG_NETWORK, "created local listening socket");
+    log_debug(LOG_NETWORK, NULL, "created local listening socket");
   } else {
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "creating sending network");
+    log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "creating sending network");
 
     ng->type |= np_network_type_client;
 
@@ -1170,7 +1198,7 @@ bool _np_network_init(np_network_t *ng,
                           ng->addr_in->ai_socktype,
                           ng->addr_in->ai_protocol);
       if (0 > ng->socket) {
-        log_error("could not create socket: %s", strerror(errno));
+        log_error(NULL, "could not create socket: %s", strerror(errno));
         return false;
       }
       if (-1 == setsockopt(ng->socket,
@@ -1178,7 +1206,8 @@ bool _np_network_init(np_network_t *ng,
                            SO_REUSEADDR,
                            (void *)&one,
                            sizeof(one))) {
-        log_error("network: %p setsockopt (SO_REUSEADDR): %s: ",
+        log_error(NULL,
+                  "network: %p setsockopt (SO_REUSEADDR): %s: ",
                   ng,
                   strerror(errno));
         __np_network_close(ng);
@@ -1202,6 +1231,7 @@ bool _np_network_init(np_network_t *ng,
                                      (struct sockaddr *)&my_addr1,
                                      sizeof(struct sockaddr_in));
             log_info(LOG_NETWORK,
+                     NULL,
                      "statically connect %p to %s:%s:%s ret: %" PRId32,
                      ng,
                      _np_network_get_protocol_string(context, type),
@@ -1217,6 +1247,7 @@ bool _np_network_init(np_network_t *ng,
                                      (struct sockaddr *)&my_addr1,
                                      sizeof(struct sockaddr_in6));
             log_info(LOG_NETWORK,
+                     NULL,
                      "statically connect %p to %s:%s:%s ret: %" PRId32,
                      ng,
                      _np_network_get_protocol_string(context, type),
@@ -1228,11 +1259,13 @@ bool _np_network_init(np_network_t *ng,
       }
       if (connection_status != 0) {
         log_warn(LOG_NETWORK,
+                 NULL,
                  "could not statically connect to %s:%s:%s",
                  _np_network_get_protocol_string(context, type),
                  hostname,
                  service);
         log_warn(LOG_NETWORK,
+                 NULL,
                  "could not statically connect to %s:%s:%s ERROR: %s (%d)",
                  _np_network_get_protocol_string(context, type),
                  hostname,
@@ -1249,6 +1282,7 @@ bool _np_network_init(np_network_t *ng,
           // handshake packages) we need to check the connection status for a
           // moment
           log_debug(LOG_NETWORK | LOG_VERBOSE,
+                    NULL,
                     "trying connect: %" PRId32 " (%s)",
                     connection_status,
                     strerror(l_errno));
@@ -1259,7 +1293,8 @@ bool _np_network_init(np_network_t *ng,
     }
 
     if (0 != connection_status) {
-      log_error("network: %p could not connect to %s:%s:%s ERROR: %s (%d)",
+      log_error(NULL,
+                "network: %p could not connect to %s:%s:%s ERROR: %s (%d)",
                 ng,
                 _np_network_get_protocol_string(context, type),
                 hostname,
@@ -1278,11 +1313,12 @@ bool _np_network_init(np_network_t *ng,
     }
     __set_non_blocking(ng->socket);
 
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                  "network: %d %p %p :",
-                  ng->socket,
-                  &ng->watcher_out,
-                  &ng->watcher_out.data);
+    log_debug(LOG_NETWORK | LOG_DEBUG,
+              NULL,
+              "network: %d %p %p :",
+              ng->socket,
+              &ng->watcher_out,
+              &ng->watcher_out.data);
 
     // initialize to be on the safe side
     //        np_node_t* my_node = _np_key_get_node(context->my_node_key);
@@ -1293,7 +1329,7 @@ bool _np_network_init(np_network_t *ng,
                 ev_io_init(
                     &ng->watcher_out, _np_network_bidirektional,
                     ng->socket, EV_WRITE | EV_READ);
-                log_debug_msg(LOG_NETWORK | LOG_DEBUG, "%p -> %d network is
+                log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "%p -> %d network is
        bidirektional", ng, ng->socket);
             }
             else
@@ -1301,20 +1337,21 @@ bool _np_network_init(np_network_t *ng,
             {
     */
     ev_io_init(&ng->watcher_out, _np_network_write, ng->socket, EV_WRITE);
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG,
-                  "%p -> %d network is sender",
-                  ng,
-                  ng->socket);
+    log_debug(LOG_NETWORK | LOG_DEBUG,
+              NULL,
+              "%p -> %d network is sender",
+              ng,
+              ng->socket);
     /*      }
           else
           {
-              log_debug_msg(LOG_NETWORK | LOG_DEBUG, "don't know how to setup
+              log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "don't know how to setup
        client network of type %"PRIu8, type);
           }*/
     ((_np_network_data_t *)ng->watcher_out.data)->network = ng;
 
     ng->initialized = true;
-    log_debug_msg(LOG_NETWORK | LOG_DEBUG, "created local sending socket");
+    log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "created local sending socket");
   }
 
   if (ng->addr_in != NULL) {
@@ -1327,6 +1364,7 @@ bool _np_network_init(np_network_t *ng,
   }
 
   log_info(LOG_NETWORK,
+           NULL,
            "Init %s network %s %s on %s:%s (fd: %d%s)",
            create_server ? "server" : "client",
            FLAG_CMP(type, TCP)   ? "TCP"
@@ -1342,7 +1380,6 @@ bool _np_network_init(np_network_t *ng,
 
 void _np_network_disable(np_network_t *self) {
   if (self != NULL) {
-    np_ctx_memory(self);
     TSP_SET(self->can_be_enabled, false);
     _np_network_stop(self, true);
   }
@@ -1350,7 +1387,6 @@ void _np_network_disable(np_network_t *self) {
 
 void _np_network_enable(np_network_t *self) {
   if (self != NULL) {
-    np_ctx_memory(self);
     TSP_SET(self->can_be_enabled, true);
     _np_network_start(self, true);
   }

@@ -164,9 +164,6 @@ static uint8_t         __indent_level = 0;
 
 static JSON_Value *__np_generate_error_json(const char *error,
                                             const char *details) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: JSON_Value* _np_generate_error_json(const char* "
-                "error,const char* details) {");
   JSON_Value *ret = json_value_init_object();
 
   json_object_set_string(json_object(ret), "error", error);
@@ -188,7 +185,7 @@ void __load_file(struct np_file_info *info) {
 
   int fd = open(info->ci.name, O_RDONLY);
   if (-1 == fd) {
-    log_msg(LOG_WARNING, "unable to open file (%s)\n", strerror(errno));
+    log_msg(LOG_WARNING, NULL, "unable to open file (%s)\n", strerror(errno));
     close(fd);
     return;
   } else {
@@ -198,7 +195,7 @@ void __load_file(struct np_file_info *info) {
   void *_content =
       mmap(NULL, info->file_size, PROT_READ, MAP_SHARED, info->fd, 0);
   if (_content == MAP_FAILED) {
-    log_msg(LOG_WARNING, "unable to mmap file (%s)\n", strerror(errno));
+    log_msg(LOG_WARNING, NULL, "unable to mmap file (%s)\n", strerror(errno));
     close(fd);
     return;
   }
@@ -334,7 +331,6 @@ int __np_file_handle_http_get_file(ht_request_t  *ht_request,
                          np_treeval_new_s(mime_type_str[_info->mime_type]));
 
       __create_file_info(_info, file_tree, include_content);
-      http_status = HTTP_CODE_OK;
 
       JSON_Value *file_in_json = np_tree2json(context, file_tree);
       ht_response->ht_body     = np_json2char(file_in_json, true);
@@ -359,11 +355,11 @@ int __np_file_handle_http_get_file(ht_request_t  *ht_request,
 
   // by now there should be a response
   if (http_status == HTTP_CODE_INTERNAL_SERVER_ERROR) {
-    log_msg(LOG_ERROR, "HTTP return is not defined for this code path");
+    log_msg(LOG_ERROR, NULL, "HTTP return is not defined for this code path");
   }
 
   if (json_obj != NULL) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
+    log_debug(LOG_MISC, NULL, "serialise json response");
 
     np_tree_insert_str(ht_response->ht_header,
                        "Content-Type",
@@ -378,7 +374,7 @@ int __np_file_handle_http_get_file(ht_request_t  *ht_request,
 
   // by now there should be a response
   if (http_status == HTTP_CODE_INTERNAL_SERVER_ERROR) {
-    log_msg(LOG_ERROR, "HTTP return is not defined for this code path");
+    log_msg(LOG_ERROR, NULL, "HTTP return is not defined for this code path");
   }
 
   return http_status;
@@ -394,13 +390,14 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
 
   if (NULL != ht_request->ht_query_args) {
     log_msg(LOG_INFO,
-            "have %d query argument(s)",
+            NULL,
+            "have %" PRIsizet " query argument(s)",
             ht_request->ht_query_args->size);
     np_tree_elem_t *new_file_or_dir =
         np_tree_find_str(ht_request->ht_query_args, SHARE_FILES);
     if (new_file_or_dir != NULL) {
       char *file_or_dir = urlDecode(new_file_or_dir->val.value.s);
-      log_msg(LOG_INFO, "user requested to share file: %s", file_or_dir);
+      log_msg(LOG_INFO, NULL, "user requested to share file: %s", file_or_dir);
       np_id _zero = {0};
       np_files_open(context, _zero, file_or_dir, false);
       free(file_or_dir);
@@ -414,6 +411,7 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
     if (NULL != elem) {
       struct np_dir_info *_info = (struct np_dir_info *)elem->val.value.v;
       log_msg(LOG_INFO,
+              NULL,
               "http request for: %s (%d directories / %d files)\n",
               _info->ci.name,
               _info->dir_entries_counter,
@@ -430,7 +428,7 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
       np_tree_free(dir_tree);
       json_value_free(dir_in_json);
     } else {
-      log_msg(LOG_DEBUG, "not in tree");
+      log_msg(LOG_DEBUG, NULL, "not in tree");
 
       json_obj =
           __np_generate_error_json("request invalid",
@@ -443,7 +441,7 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
 __json_return__:
 
   if (json_obj != NULL) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
+    log_debug(LOG_MISC, NULL, "serialise json response");
 
     np_tree_insert_str(ht_response->ht_header,
                        "Content-Type",
@@ -458,7 +456,7 @@ __json_return__:
 
   // by now there should be a response
   if (http_status == HTTP_CODE_INTERNAL_SERVER_ERROR) {
-    log_msg(LOG_ERROR, "HTTP return is not defined for this code path");
+    log_msg(LOG_ERROR, NULL, "HTTP return is not defined for this code path");
   }
 
   return http_status;
@@ -538,7 +536,6 @@ bool __file_open(np_state_t *context,
 
   char       subject[76] = {0};
   np_subject subject_id  = {0};
-  // memset(subject_id, 0, NP_FINGERPRINT_BYTES);
 
   __construct_id(filename, &subject_id, &subject);
   // fprintf(stdout, "derived file id %s for file %s\n", subject, filename);
@@ -555,9 +552,9 @@ bool __file_open(np_state_t *context,
 #if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
     _info->ci.last_modified = _f_info.st_mtimespec;
 #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
-    _info->ci.last_modified    = _f_info.st_mtime;
+    _info->ci.last_modified = _f_info.st_mtime;
 #else
-    _info->ci.last_modified    = _f_info.st_mtim;
+    _info->ci.last_modified = _f_info.st_mtim;
 #endif
 
     getcwd(_info->ci.cwd, sizeof(_info->ci.cwd));
@@ -842,6 +839,7 @@ void np_files_open(np_context *ac,
     np_spinlock_init(&__files._lock, PTHREAD_PROCESS_PRIVATE);
     memcpy(__files.seed, identifier_seed, NP_FINGERPRINT_BYTES);
     log_msg(LOG_INFO,
+            NULL,
             "initialized file server, seed is %s\n",
             np_id_str(id_seed_str, identifier_seed));
 
@@ -913,6 +911,7 @@ void np_files_open(np_context *ac,
     }
   } else {
     log_msg(LOG_WARNING,
+            NULL,
             "np_file: could not stat given filename # %s # (%d) : %s \n",
             dir_or_filename,
             errno,
@@ -942,14 +941,15 @@ bool np_files_store_cb(np_context *context, struct np_message *msg) {
                 S_IRUSR | S_IWUSR);
   if (fd == -1) {
     log_msg(LOG_WARNING,
+            NULL,
             "error: %s for filename %s",
             strerror(errno),
             _np_id->val.value.s);
     return true;
   }
   // and write the file contents
-  uint32_t bytes_written =
-      write(fd, _content->val.value.bin, _content->val.size);
+  // uint32_t bytes_written =
+  write(fd, _content->val.value.bin, _content->val.size);
 
   // TODO: hardlink the real filename to the hashed one
   // link(_np_id->val.value.s, _name->val.value.s);
@@ -960,6 +960,7 @@ bool np_files_store_cb(np_context *context, struct np_message *msg) {
   // attribute
 
   log_msg(LOG_INFO,
+          NULL,
           "received file %s -> %s",
           _name->val.value.s,
           _np_id->val.value.s);

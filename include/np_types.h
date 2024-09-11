@@ -42,8 +42,8 @@ typedef struct np_key_s    np_key_t;
 typedef struct np_key_ro_s np_key_ro_t;
 typedef np_key_t          *np_key_ptr;
 
-typedef struct np_message_s np_message_t;
-typedef np_message_t       *np_message_ptr;
+typedef struct np_e2e_message_s np_message_t;
+typedef np_message_t           *np_message_ptr;
 
 typedef struct np_msgproperty_conf_s np_msgproperty_conf_t;
 typedef np_msgproperty_conf_t       *np_msgproperty_conf_ptr;

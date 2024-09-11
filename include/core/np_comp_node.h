@@ -20,6 +20,7 @@
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_memory.h"
+#include "np_message.h"
 #include "np_network.h"
 #include "np_node.h"
 
@@ -157,6 +158,9 @@ void __np_node_send_shutdown_event(np_util_statemachine_t *statemachine,
 NP_API_INTERN
 void __np_node_handle_response(np_util_statemachine_t *statemachine,
                                const np_util_event_t   event);
+
+NP_API_INTERN
+void _np_node_build_network_packet(struct np_n2n_messagepart_s *part);
 
 #ifdef __cplusplus
 }

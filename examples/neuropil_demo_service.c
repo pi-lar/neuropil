@@ -31,7 +31,9 @@
 #include "np_log.h"
 
 bool receive_echo_message(np_context *context, struct np_message *message) {
-  np_example_print(context, stdout, "Echoing msg %s", message->uuid);
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
+  np_example_print(context, stdout, "Echoing msg %s", uuid_hex);
   np_send_to(context,
              "echo",
              message->data,

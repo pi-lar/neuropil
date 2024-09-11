@@ -10,6 +10,7 @@
 #include "neuropil_log.h"
 
 #include "util/np_bloom.h"
+#include "util/np_pcg_rng.h"
 
 #include "np_constants.h"
 #include "np_dhkey.h"
@@ -32,6 +33,8 @@ typedef struct np_pheromone_entry_s {
 np_module_struct(pheromones) {
   np_state_t           *context;
   np_pheromone_entry_t *pheromones[257];
+
+  struct np_local_pcg_state_32 _rng;
 
   struct np_bloom_optable_s _op;
 };
@@ -58,9 +61,10 @@ bool __np_pheromones_periodic_log(np_state_t               *context,
             _free_items_total += 64; // SCALE3D_FREE_ITEMS;
 
             log_info(LOG_EXPERIMENT,
-                     "[pheromone bloom %" PRId32 "/%" PRId32
+                     NULL,
+                     "[pheromone bloom %" PRIi32 "/%" PRIi32
                      " capacity] count:%" PRIu16 " _free_items:%" PRIu16
-                     " _free_items_total:%" PRIu64 " fill: %f",
+                     " _free_items_total:%" PRIi32 " fill: %f",
                      i,
                      p,
                      e->_count,
@@ -74,6 +78,7 @@ bool __np_pheromones_periodic_log(np_state_t               *context,
   }
   if (_free_items_total > 0) {
     log_info(LOG_EXPERIMENT,
+             NULL,
              "[pheromone capacity] total count:%" PRIu64 " _free_items:%" PRIu64
              " _free_items_total:%" PRIu64 " fill: %f",
              _count,
@@ -99,6 +104,8 @@ void __init_pheromones(np_state_t *context) {
                                    .intersect_cb =
                                        _np_neuropil_bloom_intersect};
   np_module(pheromones)->_op    = _op;
+  np_rng_init(&np_module(pheromones)->_rng);
+
   np_jobqueue_submit_event_periodic(context,
                                     NP_PRIORITY_LOWEST,
                                     0,
@@ -256,7 +263,6 @@ bool _np_pheromone_inhale(np_state_t *context, np_pheromone_t pheromone) {
   if (np_module_not_initiated(pheromones)) {
     __init_pheromones(context);
   }
-  // _np_pheromone_exhale(context);
 
   bool ret = false;
 
@@ -295,9 +301,10 @@ bool _np_pheromone_inhale(np_state_t *context, np_pheromone_t pheromone) {
       _new->_count                        = 1;
       _new->_pheromone[0]._subj_bloom     = _np_neuropil_bloom_create();
       _new->_pheromone[0]._subj_bloom->op = np_module(pheromones)->_op;
-      log_debug_msg(LOG_PHEROMONE,
-                    "added new pheromone_entry_t at index %3d:",
-                    index);
+      log_debug(LOG_PHEROMONE,
+                NULL,
+                "added new pheromone_entry_t at index %3d:",
+                index);
 
       np_module(pheromones)->pheromones[index] = _entry = _new;
     }
@@ -336,21 +343,22 @@ bool _np_pheromone_inhale(np_state_t *context, np_pheromone_t pheromone) {
                                      &tmp);
             _np_neuropil_bloom_count_decrement(
                 _entry->_pheromone[i]._subj_bloom);
-            log_debug_msg(LOG_PHEROMONE, "removed tail from _send_list");
+            log_debug(LOG_PHEROMONE, NULL, "removed tail from _send_list");
           }
           np_module(pheromones)
               ->_op.union_cb(_entry->_pheromone[i]._subj_bloom,
                              pheromone._subj_bloom);
 
-          log_debug_msg(LOG_PHEROMONE,
-                        "added send pheromone entry at index %3d:%2d --> %u "
-                        "(%.3f/%.3f) -- > %d",
-                        pheromone._pos,
-                        index,
-                        i,
-                        old_age,
-                        new_age,
-                        sll_size(_entry->_pheromone[i]._send_list));
+          log_debug(LOG_PHEROMONE,
+                    NULL,
+                    "added send pheromone entry at index %3d:%2d --> %u "
+                    "(%.3f/%.3f) -- > %d",
+                    pheromone._pos,
+                    index,
+                    i,
+                    old_age,
+                    new_age,
+                    sll_size(_entry->_pheromone[i]._send_list));
         }
 
         if (pheromone._pos > 0 &&
@@ -372,30 +380,31 @@ bool _np_pheromone_inhale(np_state_t *context, np_pheromone_t pheromone) {
                                      &tmp);
             _np_neuropil_bloom_count_decrement(
                 _entry->_pheromone[i]._subj_bloom);
-            log_debug_msg(LOG_PHEROMONE, "removed tail from _recv_list");
+            log_debug(LOG_PHEROMONE, NULL, "removed tail from _recv_list");
           }
           np_module(pheromones)
               ->_op.union_cb(_entry->_pheromone[i]._subj_bloom,
                              pheromone._subj_bloom);
 
-          log_debug_msg(LOG_PHEROMONE,
-                        "added recv pheromone entry at index %3d:%2d --> %u "
-                        "(%.3f/%.3f) --> %d",
-                        pheromone._pos,
-                        index,
-                        i,
-                        old_age,
-                        new_age,
-                        sll_size(_entry->_pheromone[i]._recv_list));
+          log_debug(LOG_PHEROMONE,
+                    NULL,
+                    "added recv pheromone entry at index %3d:%2d --> %u "
+                    "(%.3f/%.3f) --> %d",
+                    pheromone._pos,
+                    index,
+                    i,
+                    old_age,
+                    new_age,
+                    sll_size(_entry->_pheromone[i]._recv_list));
         }
       } else {
-        log_debug_msg(
-            LOG_PHEROMONE,
-            "intersect failed for pheromone at index %3d:%2d / %d --> %u",
-            index,
-            i,
-            _entry->_pheromone[i]._subj_bloom->_free_items,
-            _entry->_pheromone[0]._subj_bloom->_free_items);
+        log_debug(LOG_PHEROMONE,
+                  NULL,
+                  "intersect failed for pheromone at index %3d:%2d / %d --> %u",
+                  index,
+                  i,
+                  _entry->_pheromone[i]._subj_bloom->_free_items,
+                  _entry->_pheromone[0]._subj_bloom->_free_items);
       }
 
       // Assert ERROR: C 5 + 57 = 62
@@ -419,12 +428,13 @@ bool _np_pheromone_inhale(np_state_t *context, np_pheromone_t pheromone) {
       // top level bloom filter. We do not need it here! Even if double
       // entries occur, the filter should still be intact because we have some
       // buffer probability left
-      log_debug_msg(LOG_PHEROMONE,
-                    "update 0-pheromone at index %3d:%2d / %d --> %u",
-                    index,
-                    i,
-                    _entry->_pheromone[i]._subj_bloom->_free_items,
-                    _entry->_pheromone[0]._subj_bloom->_free_items);
+      log_debug(LOG_PHEROMONE,
+                NULL,
+                "update 0-pheromone at index %3d:%2d / %d --> %u",
+                index,
+                i,
+                _entry->_pheromone[i]._subj_bloom->_free_items,
+                _entry->_pheromone[0]._subj_bloom->_free_items);
 
       i++;
     }
@@ -435,7 +445,7 @@ bool _np_pheromone_inhale(np_state_t *context, np_pheromone_t pheromone) {
     ASSERT(i > 0 && i < 32, "insertion index out of range. i: %" PRIu16, i);
 #else
     if (!(i > 0 && i < 32)) {
-      log_info(LOG_PHEROMONE, "insertion index out of range.");
+      log_info(LOG_PHEROMONE, NULL, "insertion index out of range.");
       return false;
     }
 #endif
@@ -453,23 +463,25 @@ bool _np_pheromone_inhale(np_state_t *context, np_pheromone_t pheromone) {
       if (pheromone._pos > 0) {
         struct np_pheromone_details_s tmp = {.peer_id = pheromone._receiver};
         __np_insert_dhkey(context, _entry->_pheromone[i]._recv_list, &tmp);
-        log_debug_msg(LOG_PHEROMONE,
-                      "added recv pheromone at index %3d:%2d / %d %p/%d",
-                      index,
-                      i,
-                      pheromone._subj_bloom->_free_items,
-                      pheromone._receiver,
-                      sll_size(_entry->_pheromone[i]._recv_list));
+        log_debug(LOG_PHEROMONE,
+                  NULL,
+                  "added recv pheromone at index %3d:%2d / %d %p/%d",
+                  index,
+                  i,
+                  pheromone._subj_bloom->_free_items,
+                  &pheromone._receiver,
+                  sll_size(_entry->_pheromone[i]._recv_list));
       } else if (pheromone._pos < 0) {
         struct np_pheromone_details_s tmp = {.peer_id = pheromone._sender};
         __np_insert_dhkey(context, _entry->_pheromone[i]._send_list, &tmp);
-        log_debug_msg(LOG_PHEROMONE,
-                      "added send pheromone at index %3d:%2d / %d %p/%d",
-                      index,
-                      i,
-                      pheromone._subj_bloom->_free_items,
-                      pheromone._sender,
-                      sll_size(_entry->_pheromone[i]._send_list));
+        log_debug(LOG_PHEROMONE,
+                  NULL,
+                  "added send pheromone at index %3d:%2d / %d %p/%d",
+                  index,
+                  i,
+                  pheromone._subj_bloom->_free_items,
+                  &pheromone._sender,
+                  sll_size(_entry->_pheromone[i]._send_list));
 
       } else {
         ASSERT(pheromone._pos != 0, "_pos should never be 0.")
@@ -513,21 +525,21 @@ void _np_pheromone_snuffle(np_state_t *context,
     if (_entry != NULL &&
         np_module(pheromones)
             ->_op.check_cb(_entry->_pheromone[0]._subj_bloom, to_check)) {
-      log_debug_msg(LOG_PHEROMONE,
-                    "found potential pheromone at index %3" PRIu16 ":",
-                    index);
-      float new_probability =
+      log_debug(LOG_PHEROMONE,
+                NULL,
+                "found potential pheromone at index %3" PRIu16 ":",
+                index);
+      float current_probability =
           _np_neuropil_bloom_get_heuristic(_entry->_pheromone[0]._subj_bloom,
                                            to_check);
 
-      if (*target_probability <= new_probability) {
+      if (*target_probability <= current_probability) {
 
-        if (*target_probability < new_probability) {
-          *target_probability = new_probability;
-          log_debug_msg(LOG_PHEROMONE,
-                        "target probability of pheromone set to: %f",
-                        new_probability);
-        }
+        *target_probability = current_probability;
+        log_debug(LOG_PHEROMONE,
+                  NULL,
+                  "target probability of pheromone set to: %f",
+                  current_probability);
 
         for (uint8_t i = 1; i < _entry->_count; i++) {
           if (np_module(pheromones)
@@ -544,34 +556,37 @@ void _np_pheromone_snuffle(np_state_t *context,
               sll_append(np_dhkey_t, result_list, tmp->peer_id);
               sll_next(iter);
             }
-            log_debug_msg(LOG_PHEROMONE,
-                          "added %" PRIsizet
-                          " %s%s pheromones from index (%3" PRIu16 ":%2" PRIu8
-                          ") to result list %p",
-                          sll_size(result_list),
-                          find_sender ? "send" : "",
-                          find_receiver ? "recv" : "",
-                          index,
-                          i,
-                          result_list);
+            log_debug(LOG_PHEROMONE,
+                      NULL,
+                      "added %" PRIu32 " %s%s pheromones from index (%3" PRIu16
+                      ":%2" PRIu8 ") to result list %p",
+                      sll_size(result_list),
+                      find_sender ? "send" : "",
+                      find_receiver ? "recv" : "",
+                      index,
+                      i,
+                      result_list);
           } else {
-            log_debug_msg(LOG_PHEROMONE,
-                          "checking next pheromone in set at index %3" PRIu16,
-                          index);
+            log_debug(LOG_PHEROMONE,
+                      NULL,
+                      "checking next pheromone in set at index %3" PRIu16,
+                      index);
           }
         }
       } else {
-        log_debug_msg(LOG_PHEROMONE,
-                      "target probability (%f) of pheromone not met, have: %f",
-                      *target_probability,
-                      new_probability);
+        log_debug(LOG_PHEROMONE,
+                  NULL,
+                  "target probability (%f) of pheromone not met, have: %f",
+                  *target_probability,
+                  current_probability);
+        *target_probability = current_probability;
       }
     } else {
-      log_debug_msg(
-          LOG_PHEROMONE,
-          "target probability of pheromone set to: 0.0, index %3" PRIu16
-          ": is empty",
-          index);
+      log_debug(LOG_PHEROMONE,
+                NULL,
+                "target probability of pheromone set to: 0.0, index %3" PRIu16
+                ": is empty",
+                index);
       *target_probability = 0.0;
     }
   }
@@ -606,20 +621,12 @@ void _np_pheromone_exhale(np_state_t *context) {
     __init_pheromones(context);
   }
 
-  uint32_t _random_number = 0;
-  // shameless stolen from bind9 random() implementation
-#if RAND_MAX >= 0xfffff
-  /* We have at least 20 bits.  Use lower 16 excluding lower most 4 */
-  _random_number = ((rand() >> 4) & 0xffff) | ((rand() << 12) & 0xffff0000);
-#elif RAND_MAX >= 0x7fff
-  /* We have at least 15 bits.  Use lower 10/11 excluding lower most 4 */
-  _random_number = ((rand() >> 4) & 0x000007ff) | ((rand() << 7) & 0x003ff800) |
-                   ((rand() << 18) & 0xffc00000);
-#endif
+  uint32_t _random_number =
+      np_rng_next_bounded(&np_module(pheromones)->_rng, 257);
 
   _LOCK_MODULE(np_pheromones_t) {
     np_pheromone_entry_t *_entry =
-        np_module(pheromones)->pheromones[_random_number % 257];
+        np_module(pheromones)->pheromones[_random_number];
     if (_entry != NULL) {
       // np_module(pheromones)->_op.clear_cb(_entry->_pheromone[0]._subj_bloom);
       _np_neuropil_bloom_age_decrement(_entry->_pheromone[0]._subj_bloom);
@@ -631,19 +638,20 @@ void _np_pheromone_exhale(np_state_t *context) {
         float _age =
             _np_neuropil_bloom_intersect_age(_entry->_pheromone[0]._subj_bloom,
                                              _entry->_pheromone[i]._subj_bloom);
-        log_debug_msg(LOG_PHEROMONE,
-                      "decreased pheromone strength (index %3d:%2d) age now %f",
-                      _random_number % 257,
-                      i,
-                      _age);
+        log_debug(LOG_PHEROMONE,
+                  NULL,
+                  "decreased pheromone strength (index %3d:%2d) age now %f",
+                  _random_number % 257,
+                  i,
+                  _age);
 
         if (_age == 0.0) {
-          log_debug_msg(
-              LOG_ERROR,
-              "decreased pheromone strength (index %3d:%2d) age now %f",
-              _random_number % 257,
-              i,
-              _age);
+          log_debug(LOG_ERROR,
+                    NULL,
+                    "decreased pheromone strength (index %3d:%2d) age now %f",
+                    _random_number % 257,
+                    i,
+                    _age);
 
           while (sll_size(_entry->_pheromone[i]._recv_list) != 0) {
             __np_remove_oldest_dhkey(context,
@@ -672,10 +680,11 @@ void _np_pheromone_exhale(np_state_t *context) {
           }
           _entry->_count--;
 
-          log_debug_msg(LOG_PHEROMONE,
-                        "removed pheromone at index %3d:%2d)",
-                        _random_number % 257,
-                        i);
+          log_debug(LOG_PHEROMONE,
+                    NULL,
+                    "removed pheromone at index %3d:%2d)",
+                    _random_number % 257,
+                    i);
         } else {
           if (sll_size(_entry->_pheromone[i]._recv_list) > 1) {
             __np_remove_oldest_dhkey(context,
@@ -692,13 +701,14 @@ void _np_pheromone_exhale(np_state_t *context) {
                 _entry->_pheromone[i]._subj_bloom);
           }
 
-          log_debug_msg(LOG_PHEROMONE,
-                        "decreased pheromone strength (index %3d:%2d) age "
-                        "now %f --> %u",
-                        _random_number % 257,
-                        i,
-                        _age,
-                        _entry->_pheromone[i]._subj_bloom->_free_items);
+          log_debug(LOG_PHEROMONE,
+                    NULL,
+                    "decreased pheromone strength (index %3d:%2d) age "
+                    "now %f --> %u",
+                    _random_number % 257,
+                    i,
+                    _age,
+                    _entry->_pheromone[i]._subj_bloom->_free_items);
 
           i++;
         }

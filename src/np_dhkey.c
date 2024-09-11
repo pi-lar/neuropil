@@ -75,9 +75,6 @@ enum np_return np_hkey_generate_hash(const unsigned char *data,
 }
 
 np_dhkey_t np_dhkey_create_from_hash(const char *strOrig) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: np_dhkey_t np_dhkey_create_from_hash(const char* strOrig){");
   np_dhkey_t kResult = {0};
 
   // check for correct format of dhkey string
@@ -121,10 +118,7 @@ np_dhkey_t np_dhkey_create_from_hostport(const char *strOrig,
 void _np_dhkey_encode(NP_UNUSED np_state_t *context,
                       np_tree_t            *jrb,
                       np_dhkey_t           *key) {
-  log_trace_msg(LOG_TRACE,
-                "start: void _np_dhkey_encode( context, np_tree_t* jrb, "
-                "np_dhkey_t* key){");
-  // log_msg(LOG_KEY | LOG_WARNING, "encoding key %0lu %0lu %0lu %0lu",
+  // log_msg(LOG_KEY | LOG_WARNING, NULL, "encoding key %0lu %0lu %0lu %0lu",
   // key->t[0], key->t[1], key->t[2], key->t[3]);
 
   np_tree_insert_str(jrb, "_np.key.0", np_treeval_new_ul(key->t[0]));
@@ -138,9 +132,6 @@ void _np_dhkey_encode(NP_UNUSED np_state_t *context,
 }
 
 void _np_dhkey_decode(np_tree_t *jrb, np_dhkey_t *key) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: void _np_dhkey_decode(np_tree_t* jrb, np_dhkey_t* key){");
   key->t[0] = np_tree_find_str(jrb, "_np.key.0")->val.value.ul;
   key->t[1] = np_tree_find_str(jrb, "_np.key.1")->val.value.ul;
   key->t[2] = np_tree_find_str(jrb, "_np.key.2")->val.value.ul;
@@ -253,15 +244,16 @@ bool _np_dhkey_init(NP_UNUSED np_state_t *context) {
     __dhkey_max.t[i]  = UINT32_MAX;
     __dhkey_half.t[i] = half;
     __dhkey_min.t[i]  = 0;
-    log_debug_msg(LOG_KEY | LOG_DEBUG,
-                  "dhkey_max[%d] %" PRIu32 " / dhkey_half[%d] %" PRIu32
-                  " / dhkey_half[%d] %" PRIu32,
-                  i,
-                  __dhkey_max.t[i],
-                  i,
-                  __dhkey_half.t[i],
-                  i,
-                  __dhkey_min.t[i]);
+    log_debug(LOG_KEY | LOG_DEBUG,
+              NULL,
+              "dhkey_max[%d] %" PRIu32 " / dhkey_half[%d] %" PRIu32
+              " / dhkey_half[%d] %" PRIu32,
+              i,
+              __dhkey_max.t[i],
+              i,
+              __dhkey_half.t[i],
+              i,
+              __dhkey_min.t[i]);
   }
 
   return true;
@@ -271,18 +263,11 @@ void _np_dhkey_destroy(np_state_t *context) {
   // nothing to implement for now
 }
 
-np_dhkey_t np_dhkey_min(NP_UNUSED np_state_t *context) {
-  log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmin()  {");
-  return __dhkey_min;
-};
+np_dhkey_t np_dhkey_min(NP_UNUSED np_state_t *context) { return __dhkey_min; };
 np_dhkey_t np_dhkey_half(NP_UNUSED np_state_t *context) {
-  log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_half() {");
   return __dhkey_half;
 };
-np_dhkey_t np_dhkey_max(NP_UNUSED np_state_t *context) {
-  log_trace_msg(LOG_TRACE, "start: np_dhkey_t np_dhkey_fmax()  {");
-  return __dhkey_max;
-};
+np_dhkey_t np_dhkey_max(NP_UNUSED np_state_t *context) { return __dhkey_max; };
 
 // TODO: the distance of two hash keys could be implemented much better
 void _np_dhkey_distance(np_dhkey_t             *diff,
@@ -373,7 +358,6 @@ bool _np_dhkey_between(const np_dhkey_t *const test,
                        const np_dhkey_t *const right,
                        const bool              includeBounds) {
   bool ret = false;
-  log_trace_msg(LOG_TRACE | LOG_KEY, ".start._dhkey_between");
 
   int8_t comp_lt = _np_dhkey_cmp(left, test);
   int8_t comp_tr = _np_dhkey_cmp(test, right);
@@ -397,17 +381,14 @@ bool _np_dhkey_between(const np_dhkey_t *const test,
     // 0);
   }
 
-  log_trace_msg(LOG_TRACE | LOG_KEY, ".end  ._dhkey_between");
   return (ret);
 }
 
 void _np_dhkey_midpoint(np_dhkey_t *mid, const np_dhkey_t *key) {
-  log_trace_msg(LOG_TRACE | LOG_KEY, ".start._dhkey_midpoint");
   if (_np_dhkey_cmp(key, &__dhkey_half) < 0)
     _np_dhkey_add(mid, key, &__dhkey_half);
   else _np_dhkey_sub(mid, key, &__dhkey_half);
   // mid->valid = false;
-  log_trace_msg(LOG_TRACE | LOG_KEY, ".end  ._dhkey_midpoint");
 }
 
 /**
@@ -450,7 +431,6 @@ uint16_t _np_dhkey_index(const np_dhkey_t *a, const np_dhkey_t *b) {
 uint8_t _np_dhkey_hexalpha_at(np_state_t       *context,
                               const np_dhkey_t *key,
                               const int8_t      index_of_key) {
-  log_trace_msg(LOG_TRACE | LOG_KEY, ".start._dhkey_hexalpha_at");
   uint8_t answer = 0;
   // const uint8_t tuple_size = 32;			// tuple is defined in
   // np_dhkey_s const uint8_t size_of_element = 4;		// element is 4
@@ -462,31 +442,33 @@ uint8_t _np_dhkey_hexalpha_at(np_state_t       *context,
 
   char element[4];
   memcpy(&element[0], &key->t[tuple], sizeof(uint32_t));
-  log_debug_msg(LOG_KEY | LOG_DEBUG,
-                "lookup_pos: %" PRIi8 "-> key[%" PRIu8 "]: %08x ( %" PRIu32
-                " / %" PRIu32 " ) mod %" PRIu8,
-                index_of_key,
-                tuple,
-                key->t[tuple],
-                key->t[tuple],
-                element,
-                tuple_rest / 2);
+  log_debug(LOG_KEY | LOG_DEBUG,
+            NULL,
+            "lookup_pos: %" PRIi8 "-> key[%" PRIu8 "]: %08x ( %" PRIu32
+            " / %" PRIu32 " ) mod %" PRIu8,
+            index_of_key,
+            tuple,
+            key->t[tuple],
+            key->t[tuple],
+            element,
+            tuple_rest / 2);
   // shift the bitmask in a way only the desired element is preserved
   memcpy(&answer, element + (tuple_rest / 2), sizeof(uint8_t));
-  log_debug_msg(LOG_KEY | LOG_DEBUG,
-                "bitmask & key->[%" PRIu8 "]: %" PRIx8 " (%" PRIu8,
-                tuple,
-                answer,
-                tuple_rest);
+  log_debug(LOG_KEY,
+            NULL,
+            "bitmask & key->[%" PRIu8 "]: %" PRIx8 " (%" PRIu8,
+            tuple,
+            answer,
+            tuple_rest);
   // filter with bitmask
   if (tuple_rest % 2 == 0) answer = answer >> 4;
   answer &= 0x0f;
-  log_debug_msg(LOG_KEY | LOG_DEBUG,
-                "final answer: %" PRIu8 " (%0" PRIx8 ")",
-                answer,
-                answer);
+  log_debug(LOG_KEY,
+            NULL,
+            "final answer: %" PRIu8 " (%0" PRIx8 ")",
+            answer,
+            answer);
 
-  log_trace_msg(LOG_TRACE | LOG_KEY, ".end  ._dhkey_hexalpha_at");
   return (uint8_t)answer;
 }
 

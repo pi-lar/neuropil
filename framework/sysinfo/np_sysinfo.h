@@ -34,7 +34,7 @@ data in the cache
 
 */
 NP_API_INTERN
-bool _np_in_sysinfo(np_state_t *context, struct np_message *msg);
+bool _np_in_sysinfo(void *context, struct np_message *msg);
 
 /**
 .. c:function:: void np_sysinfo_get_info(const char* const dhkey_of_node_target)

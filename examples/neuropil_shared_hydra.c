@@ -184,12 +184,12 @@ int main(int argc, char **argv) {
             exit(EXIT_FAILURE);
           }
 
-          log_debug_msg(LOG_DEBUG, "starting job queue");
+          log_debug(LOG_DEBUG, NULL, "starting job queue");
           if (np_ok != np_run(context, 0)) {
             printf("ERROR: Node could not start");
             exit(EXIT_FAILURE);
           } // send join message
-          log_debug_msg(LOG_DEBUG, "creating welcome message");
+          log_debug(LOG_DEBUG, NULL, "creating welcome message");
 
           np_join(context, data);
 

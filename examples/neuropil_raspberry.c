@@ -143,38 +143,38 @@ uint8_t value_red   = 1;
 bool   led_switch    = false;
 double led_switch_at = 0;
 void   checkGPIO(np_context *context) {
-    if (is_gpio_enabled) {
+  if (is_gpio_enabled) {
 
-      uint8_t nvalue_data = bcm2835_gpio_lev(BUTTON_GPIO_BLUE_IN);
-      if (nvalue_data != value_data) {
-        value_data = nvalue_data;
-        invoke_btn_blue(context, value_data);
+    uint8_t nvalue_data = bcm2835_gpio_lev(BUTTON_GPIO_BLUE_IN);
+    if (nvalue_data != value_data) {
+      value_data = nvalue_data;
+      invoke_btn_blue(context, value_data);
     }
-      uint8_t nvalue_green = bcm2835_gpio_lev(BUTTON_GPIO_GREEN_IN);
-      if (nvalue_green != value_green) {
-        value_green = nvalue_green;
-        invoke_btn_green(context, value_green);
+    uint8_t nvalue_green = bcm2835_gpio_lev(BUTTON_GPIO_GREEN_IN);
+    if (nvalue_green != value_green) {
+      value_green = nvalue_green;
+      invoke_btn_green(context, value_green);
     }
-      uint8_t nvalue_red = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
-      if (nvalue_red != value_red) {
-        value_red = nvalue_red;
-        invoke_btn_red(context, nvalue_red);
+    uint8_t nvalue_red = bcm2835_gpio_lev(BUTTON_GPIO_RED_IN);
+    if (nvalue_red != value_red) {
+      value_red = nvalue_red;
+      invoke_btn_red(context, nvalue_red);
     }
 
-      if (is_blue_pressed) {
-        double now = np_time_now();
-        if (led_switch_at + 1. < now) {
-          led_switch    = !led_switch;
-          led_switch_at = now;
-          if (led_switch) {
-            bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
+    if (is_blue_pressed) {
+      double now = np_time_now();
+      if (led_switch_at + 1. < now) {
+        led_switch    = !led_switch;
+        led_switch_at = now;
+        if (led_switch) {
+          bcm2835_gpio_write(LED_GPIO_BUTTON, HIGH);
         } else {
-            bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+          bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
         }
       }
     } else {
-        led_switch = false;
-        bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
+      led_switch = false;
+      bcm2835_gpio_write(LED_GPIO_BUTTON, LOW);
     }
   }
 }
@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  log_debug_msg(LOG_DEBUG, "starting job queue");
+  log_msg(LOG_DEBUG, NULL, "starting job queue");
   if (np_ok != np_run(context, 0)) {
     np_example_print(context, stderr, "ERROR: Node could not start");
     exit(EXIT_FAILURE);
@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
       np_example_print(context,
                        stderr,
                        "Node could not start HTTP interface\n");
-      log_msg(LOG_WARNING, "Node could not start HTTP interface");
+      log_msg(LOG_WARNING, NULL, "Node could not start HTTP interface");
       np_sysinfo_enable_client(context);
     } else {
       np_sysinfo_enable_server(context);
@@ -343,7 +343,7 @@ int main(int argc, char **argv) {
   np_statistics_add_watch(context, "pong");
 
   fprintf(stdout, "Sending initial ping.\n");
-  log_msg(LOG_INFO, "Sending initial ping");
+  log_msg(LOG_INFO, NULL, "Sending initial ping");
   // send an initial ping
   np_send(context, "ping", (uint8_t *)"ping", 5);
 
@@ -366,6 +366,7 @@ int main(int argc, char **argv) {
                          "Invoking ping (last one was before %f sec)\n",
                          now - last_response_or_invokation);
         log_msg(LOG_INFO,
+                NULL,
                 "Invoking ping (last one was before %f sec)",
                 now - last_response_or_invokation);
         np_send(context, "ping", (uint8_t *)"ping", 5);

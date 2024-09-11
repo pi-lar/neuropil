@@ -136,26 +136,27 @@ int main(int argc, char **argv) {
    ** else
    ** 	add garbage
    **/
-  _np_message_calculate_chunking(msg_out);
   _np_message_serialize_chunked(msg_out);
-  np_tree_elem_t *footer_node =
-      np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
-  log_msg(LOG_DEBUG,
-          "properties %s, body %s, garbage size %" PRIu32,
-          np_treeval_to_str(properties_node->val, NULL),
-          np_treeval_to_str(body_node->val, NULL),
-          np_tree_element_get_byte_size(footer_node));
 
-  _np_message_deserialize_chunked(msg_out);
+  // np_tree_elem_t *footer_node =
+  //     np_tree_find_str(msg_out->footer, NP_MSG_FOOTER_GARBAGE);
+  // log_msg(LOG_DEBUG,NULL,
+  //         "properties %s, body %s, garbage size %" PRIu32,
+  //         np_treeval_to_str(properties_node->val, NULL),
+  //         np_treeval_to_str(body_node->val, NULL),
+  //         np_tree_element_get_byte_size(footer_node));
 
-  np_tree_elem_t *properties_node_2 = np_tree_find_int(msg_out->properties, 1);
-  np_tree_elem_t *body_node_2       = np_tree_find_int(msg_out->body, 20);
+  _np_message_deserialize_chunks(msg_out);
+
+  // np_tree_elem_t *properties_node_2 = np_tree_find_int(msg_out->properties,
+  // 1);
+  np_tree_elem_t *body_node_2 = np_tree_find_int(msg_out->body, 20);
   // np_tree_elem_t* footer_node_2 = np_tree_find_str(msg_out->footer,
   // NP_MSG_FOOTER_GARBAGE);
-  log_msg(LOG_DEBUG,
-          "properties %s, body %s",
-          np_treeval_to_str(properties_node_2->val, NULL),
-          np_treeval_to_str(body_node_2->val, NULL));
+  // log_msg(LOG_DEBUG,NULL,
+  //         "properties %s, body %s",
+  //         np_treeval_to_str(properties_node_2->val, NULL),
+  //         np_treeval_to_str(body_node_2->val, NULL));
 
   EV_P = ev_default_loop(EVFLAG_AUTO | EVFLAG_FORKCHECK);
   ev_run(EV_A_ EVRUN_NOWAIT);

@@ -39,6 +39,7 @@ messages.
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #define np_ctx_by_memory(c) np_memory_get_context((void *)c)
 #define np_ctx_decl(b)      np_state_t *context = (b)
 #define np_ctx_memory(a)    np_ctx_decl(np_ctx_by_memory(a));
@@ -110,8 +111,6 @@ struct np_state_s {
 
   np_tree_t  *msg_part_cache;
   np_bloom_t *msg_part_filter;
-
-  TSP(np_bloom_t *, msg_forward_filter);
 
   int  thread_count;
   char hostname[255];
@@ -339,10 +338,6 @@ double _np_time_now(np_state_t *context);
 
 NP_API_PROTEC
 double np_time_sleep(double sleeptime);
-
-NP_API_INTERN
-np_message_t *_np_send_simple_invoke_request_msg(np_key_t   *target,
-                                                 const char *type);
 
 NP_API_EXPORT
 void np_send_response_msg(np_context   *ac,

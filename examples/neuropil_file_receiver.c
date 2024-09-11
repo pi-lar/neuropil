@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
             "INFO : node is listening on %s\n",
             np_get_connection_string(context));
 
-    log_debug_msg(LOG_DEBUG, "starting job queue");
+    log_msg(LOG_DEBUG, NULL, "starting job queue");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);

@@ -10,12 +10,11 @@
 #include <stdlib.h>
 
 #include "../test_macros.c"
-#include "msgpack/cmp.h"
 #include "pthread.h"
 
 #include "neuropil_log.h"
 
-#include "../src/np_jobqueue.c"
+#include "core/np_comp_node.h"
 #include "util/np_list.h"
 #include "util/np_tree.h"
 
@@ -38,10 +37,10 @@ Test(np_message_t,
          "test the serialization of a message object with dhkey in body") {
   CTX() {
 
-    struct np_mx_properties props =
-        np_get_mx_properties(context, "serialize_np_message_t");
+    np_subject subject_id = {0};
+    np_generate_subject(&subject_id, "serialize_np_message_t", 22);
+    struct np_mx_properties props = np_get_mx_properties(context, subject_id);
 
-    log_trace_msg(LOG_TRACE, "start test.serialize_np_message_t_with_dhkey");
     // Build source message and necessary data
     np_dhkey_t write_dhkey_from;
     write_dhkey_from.t[0] = 1;
@@ -63,13 +62,6 @@ Test(np_message_t,
     write_dhkey_to.t[6] = 11;
     write_dhkey_to.t[7] = 12;
 
-    np_key_t *write_from = NULL;
-    np_new_obj(np_key_t, write_from);
-    write_from->dhkey  = write_dhkey_from;
-    np_key_t *write_to = NULL;
-    np_new_obj(np_key_t, write_to);
-    write_to->dhkey = write_dhkey_to;
-
     np_tree_t *write_tree = np_tree_create();
     np_tree_insert_str(write_tree,
                        "TESTKEY_FROM",
@@ -78,39 +70,46 @@ Test(np_message_t,
                        "TESTKEY_TO",
                        np_treeval_new_dhkey(write_dhkey_to));
 
-    np_dhkey_t test_subject_dhkey = {0};
-    np_generate_subject(&test_subject_dhkey, "serialize_np_message_t", 22);
+    np_dhkey_t test_subject_dhkey = {};
+    memcpy(&test_subject_dhkey, &subject_id, NP_FINGERPRINT_BYTES);
 
-    np_message_t *write_msg = NULL;
+    struct np_e2e_message_s *write_msg = NULL;
     np_new_obj(np_message_t, write_msg);
     _np_message_create(write_msg,
-                       write_to->dhkey,
-                       write_from->dhkey,
+                       write_dhkey_to,
+                       write_dhkey_from,
                        test_subject_dhkey,
                        write_tree);
-    np_tree_insert_str(write_msg->instructions,
-                       _NP_MSG_INST_PARTS,
-                       np_treeval_new_iarray(0, 0));
 
     // Do the serialsation
-    _np_message_calculate_chunking(write_msg);
     bool write_ret = _np_message_serialize_chunked(context, write_msg);
     cr_assert(true == write_ret, "Expected positive result in serialisation");
 
-    cr_expect(pll_size(write_msg->msg_chunks) == 1,
-              "Expected 1 chunk for message");
+    // np_build_network_paket(write_msg->msg_chunks[0]);
+
+    cr_expect(1 == *write_msg->parts, "expect a single chunk message");
 
     // Do the deserialisation
-    np_message_t *read_msg = NULL;
+    struct np_e2e_message_s *read_msg = NULL;
     np_new_obj(np_message_t, read_msg);
-    read_msg->msg_chunks = write_msg->msg_chunks;
 
-    bool read_ret = _np_message_deserialize_chunked(read_msg);
-    cr_assert(true == read_ret, "Expected positive result in de-serialisation");
+    uint16_t count_of_chunks = 0;
+    _np_message_add_chunk(read_msg, write_msg->msg_chunks[0], &count_of_chunks);
+
+    cr_expect(1 == count_of_chunks, "expect a single chunk message");
+
+    bool read_ret = _np_message_deserialize_chunks(read_msg);
+    cr_assert(true == read_ret,
+              "Expected positive result in de-serialisation of chunks");
+
+    read_ret = _np_message_readbody(read_msg);
+    cr_assert(
+        true == read_ret,
+        "Expected positive result in de-serialisation of data structures");
 
     // Compare deserialized content with expected
     np_tree_elem_t *testkey_read_from =
-        np_tree_find_str(read_msg->body, "TESTKEY_FROM");
+        np_tree_find_str(read_msg->msg_body, "TESTKEY_FROM");
     cr_assert(NULL != testkey_read_from,
               "Expected to find TESTKEY_FROM key value");
 
@@ -141,7 +140,7 @@ Test(np_message_t,
               testkey_read_from->val.value.dhkey.t[3]);
 
     np_tree_elem_t *testkey_read_to =
-        np_tree_find_str(read_msg->body, "TESTKEY_TO");
+        np_tree_find_str(read_msg->msg_body, "TESTKEY_TO");
     cr_assert(NULL != testkey_read_to, "Expected to find TESTKEY_TO key value");
 
     cr_assert(testkey_read_to->val.type == np_treeval_type_dhkey,
@@ -168,8 +167,6 @@ Test(np_message_t,
               "Expected read testkey_read_to value 3 to be the same as "
               "predefined, But is: %" PRIu32,
               testkey_read_to->val.value.dhkey.t[3]);
-
-    log_trace_msg(LOG_TRACE, "end test.serialize_np_message_t_with_dhkey");
   }
 }
 
@@ -178,12 +175,10 @@ Test(np_message_t,
      .description =
          "test the serialization of a message object with dhkey in body") {
   CTX() {
-    log_trace_msg(
-        LOG_TRACE,
-        "start test.serialize_np_message_t_with_dhkey_unchunked_instructions");
 
-    struct np_mx_properties props =
-        np_get_mx_properties(context, "serialize_np_message_t");
+    np_subject subject_id = {0};
+    np_generate_subject(&subject_id, "serialize_np_message_t", 22);
+    struct np_mx_properties props = np_get_mx_properties(context, subject_id);
 
     // Build source message and necessary data
     np_dhkey_t write_dhkey_from;
@@ -206,14 +201,7 @@ Test(np_message_t,
     write_dhkey_to.t[6] = 0;
     write_dhkey_to.t[7] = 0;
 
-    np_key_t *write_from = NULL;
-    np_new_obj(np_key_t, write_from);
-    write_from->dhkey  = write_dhkey_from;
-    np_key_t *write_to = NULL;
-    np_new_obj(np_key_t, write_to);
-    write_to->dhkey = write_dhkey_to;
-
-    np_message_t *write_msg = NULL;
+    struct np_e2e_message_s *write_msg = NULL;
     np_new_obj(np_message_t, write_msg);
 
     np_tree_t *write_tree = np_tree_create();
@@ -224,50 +212,54 @@ Test(np_message_t,
                        "TESTKEY_TO",
                        np_treeval_new_dhkey(write_dhkey_to));
 
-    np_tree_insert_str(write_msg->instructions,
-                       "TESTKEY_FROM",
-                       np_treeval_new_dhkey(write_dhkey_from));
-    np_tree_insert_str(write_msg->instructions,
-                       "TESTKEY_TO",
-                       np_treeval_new_dhkey(write_dhkey_to));
-
-    np_dhkey_t test_subject_dhkey = {0};
-    np_generate_subject(&test_subject_dhkey, "serialize_np_message_t", 22);
+    np_dhkey_t test_subject_dhkey = {};
+    memcpy(&test_subject_dhkey, &subject_id, NP_FINGERPRINT_BYTES);
 
     _np_message_create(write_msg,
-                       write_to->dhkey,
-                       write_from->dhkey,
+                       write_dhkey_to,
+                       write_dhkey_from,
                        test_subject_dhkey,
                        write_tree);
-    np_tree_insert_str(write_msg->instructions,
-                       _NP_MSG_INST_PARTS,
-                       np_treeval_new_iarray(0, 0));
 
-    // Do the serialsation
-    _np_message_calculate_chunking(write_msg);
+    // Do the serialization
     bool write_ret = _np_message_serialize_chunked(context, write_msg);
     cr_assert(true == write_ret,
               "Expected positive result in chunk serialisation");
+    cr_expect(*write_msg->parts == 1, "Expected 1 chunk for message");
+    cr_expect(write_msg->state == msgstate_chunked,
+              "Expected chunked message state");
 
-    write_ret =
-        _np_message_serialize_header_and_instructions(context, write_msg);
-    cr_assert(true == write_ret, "Expected positive result in serialisation");
-
-    cr_expect(pll_size(write_msg->msg_chunks) == 1,
-              "Expected 1 chunk for message");
-
-    // Do the deserialisation
-    np_message_t *read_msg = NULL;
+    // Do the deserialization
+    struct np_e2e_message_s *read_msg = NULL;
     np_new_obj(np_message_t, read_msg);
+    uint16_t number_of_chunks = 0;
 
-    bool read_ret = _np_message_deserialize_header_and_instructions(
-        read_msg,
-        pll_first(write_msg->msg_chunks)->val->msg_part);
-    cr_assert(true == read_ret, "Expected positive result in deserialisation");
+    enum np_return test_add_chunk = np_ok;
+    for (uint16_t i = 0; i < *write_msg->parts; i++) {
+      test_add_chunk = _np_message_add_chunk(read_msg,
+                                             write_msg->msg_chunks[i],
+                                             &number_of_chunks);
+      cr_expect(number_of_chunks == i + 1,
+                "expect the number of chunks to increase");
+      cr_expect(test_add_chunk == np_ok, "expect the chunk to be added");
+      test_add_chunk = _np_message_add_chunk(read_msg,
+                                             write_msg->msg_chunks[i],
+                                             &number_of_chunks);
+      cr_expect(number_of_chunks == i + 1,
+                "expect the number of chunks to not increase");
+      cr_expect(test_add_chunk == np_operation_failed,
+                "expect the chunk not to be added");
+    }
+    bool read_ret = _np_message_deserialize_chunks(read_msg);
+    cr_expect(true == read_ret, "Expected positive result in de-serialization");
+
+    read_ret = _np_message_readbody(read_msg);
+    cr_expect(true == read_ret,
+              "Expected positive result for reading in the body");
 
     // Compare deserialized content with expected
     np_tree_elem_t *testkey_read_from =
-        np_tree_find_str(read_msg->instructions, "TESTKEY_FROM");
+        np_tree_find_str(read_msg->msg_body, "TESTKEY_FROM");
     cr_assert(NULL != testkey_read_from,
               "Expected to find TESTKEY_FROM key value");
 
@@ -298,7 +290,7 @@ Test(np_message_t,
               testkey_read_from->val.value.dhkey.t[3]);
 
     np_tree_elem_t *testkey_read_to =
-        np_tree_find_str(read_msg->instructions, "TESTKEY_TO");
+        np_tree_find_str(read_msg->msg_body, "TESTKEY_TO");
     cr_assert(NULL != testkey_read_to, "Expected to find TESTKEY_TO key value");
 
     cr_assert(testkey_read_to->val.type == np_treeval_type_dhkey,
@@ -325,10 +317,6 @@ Test(np_message_t,
               "Expected read testkey_read_to value 3 to be the same as "
               "predefined, But is: %" PRIu32,
               testkey_read_to->val.value.dhkey.t[3]);
-
-    log_trace_msg(
-        LOG_TRACE,
-        "end test.serialize_np_message_t_with_dhkey_unchunked_instructions");
   }
 }
 
@@ -338,100 +326,88 @@ Test(np_message_t,
      _message_chunk_and_serialize,
      .description = "test the chunking of messages") {
   CTX() {
-    log_trace_msg(LOG_TRACE, "start test._message_chunk_and_serialize");
-    np_message_t *msg_out = NULL;
+    struct np_e2e_message_s *msg_out = NULL;
     np_new_obj(np_message_t, msg_out);
     char *msg_subject = "this.is.a.test";
 
-    np_dhkey_t my_dhkey = np_dhkey_create_from_hostport("me", "two");
-
-    np_key_t *my_key = NULL;
-    np_new_obj(np_key_t, my_key);
-    my_key->dhkey = my_dhkey;
-
-    uint16_t   parts              = 0;
+    np_dhkey_t my_dhkey           = np_dhkey_create_from_hostport("me", "two");
     np_dhkey_t test_subject_dhkey = {0};
     np_generate_subject(&test_subject_dhkey,
                         msg_subject,
                         strnlen(msg_subject, 256));
-    np_tree_insert_str(msg_out->header,
-                       _NP_MSG_HEADER_SUBJECT,
-                       np_treeval_new_dhkey(test_subject_dhkey));
-    np_tree_insert_str(msg_out->header,
-                       _NP_MSG_HEADER_TO,
-                       np_treeval_new_dhkey(my_key->dhkey));
-    np_tree_insert_str(msg_out->header,
-                       _NP_MSG_HEADER_FROM,
-                       np_treeval_new_dhkey(my_key->dhkey));
 
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_ACK,
-                       np_treeval_new_ush(0));
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_ACK_TO,
-                       np_treeval_new_s((char *)_np_key_as_str(my_key)));
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_SEQ,
-                       np_treeval_new_ul(0));
+    _np_message_create(msg_out, my_dhkey, my_dhkey, test_subject_dhkey, NULL);
 
-    char *new_uuid = np_uuid_create(msg_subject, 1, NULL);
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_UUID,
-                       np_treeval_new_s(new_uuid));
-    free(new_uuid);
+    cr_expect(*msg_out->parts == 1,
+              "expect the number of chunks to be one for empty message body");
 
-    double now = np_time_now();
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_TSTAMP,
-                       np_treeval_new_d(now));
-    now += 20;
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_TTL,
-                       np_treeval_new_d(now));
+    np_tree_t *body_tree = np_tree_create();
 
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_SEND_COUNTER,
-                       np_treeval_new_ush(0));
-
-    // TODO: message part split-up informations
-    np_tree_insert_str(msg_out->instructions,
-                       _NP_MSG_INST_PARTS,
-                       np_treeval_new_iarray(parts, parts));
-
-    char body_payload[51]; //  = (char*) malloc(50 * sizeof(char));
+    char body_payload[51];
     memset(body_payload, 'b', 50);
     body_payload[50] = '\0';
 
     for (int16_t i = 0; i < 60; i++) {
-      np_tree_insert_int(msg_out->body, i, np_treeval_new_s(body_payload));
+      np_tree_insert_int(body_tree, i, np_treeval_new_s(body_payload));
     }
 
-    np_tree_elem_t *body_node = np_tree_find_int(msg_out->body, 20);
+    _np_message_setbody(msg_out, body_tree);
 
-    _np_message_calculate_chunking(msg_out);
+    cr_expect(
+        *msg_out->parts == 4,
+        "expect the number of chunks to be 4 after setting 3k message body");
+    cr_expect(msg_out->state == msgstate_binary,
+              "expect the message to be in binary format");
+
     _np_message_serialize_chunked(context, msg_out);
-    _np_message_deserialize_chunked(msg_out);
 
-    np_tree_elem_t *body_node_2 = np_tree_find_int(msg_out->body, 20);
+    char *packet[*msg_out->parts];
+    for (uint16_t i = 0; i < *msg_out->parts; i++) {
+      _np_node_build_network_packet(msg_out->msg_chunks[i]);
+      packet[i] = msg_out->msg_chunks[i]->msg_chunk;
+    }
 
-    cr_assert(NULL != body_node_2, "Expected to find data in body");
+    struct np_e2e_message_s *msg_in = NULL;
+    np_new_obj(np_message_t, msg_in);
 
-    log_msg(LOG_DEBUG, " body %s", np_treeval_to_str(body_node_2->val, NULL));
+    for (uint16_t i = 0; i < *msg_out->parts; i++) {
+      // Do the deserialisation
+      struct np_n2n_messagepart_s *msgpart_in = NULL;
+      np_new_obj(np_message_t, msgpart_in);
 
-    log_trace_msg(LOG_TRACE, "end test._message_chunk_and_serialize");
+      bool read_ret =
+          _np_message_deserialize_header_and_instructions(packet[i],
+                                                          msgpart_in);
+      cr_assert(true == read_ret,
+                "Expected positive result in deserialisation");
+
+      uint16_t       number_of_chunks = 0;
+      enum np_return add_chunk_result =
+          _np_message_add_chunk(msg_in, msgpart_in, &number_of_chunks);
+      cr_expect(add_chunk_result == np_ok,
+                "expect that the new chunk (%d) could be added",
+                i + 1);
+      cr_expect(number_of_chunks == i + 1,
+                "expect the number of chunks to be %d",
+                i + 1);
+    }
+
+    _np_message_deserialize_chunks(msg_out);
+
+    _np_message_readbody(msg_out);
+
+    for (int16_t i = 0; i < 60; i++) {
+      np_tree_elem_t *body_node_2 = np_tree_find_int(msg_out->msg_body, i);
+      cr_expect(NULL != body_node_2, "Expected to find data in body %d", i);
+    }
   }
-}
-
-static int8_t _np_token_cmp_uuid(np_aaatoken_ptr first,
-                                 np_aaatoken_ptr second) {
-  return memcmp(first->uuid, second->uuid, NP_UUID_BYTES);
 }
 
 Test(np_message_t,
      encrypt_decrypt_message,
      .description = "test the encryption/decryption for a message") {
   CTX() {
-    np_message_t *msg_out = NULL;
+    struct np_e2e_message_s *msg_out = NULL;
     np_new_obj(np_message_t, msg_out);
     np_dhkey_t _test_dhkey = {.t[0] = 1,
                               .t[1] = 1,
@@ -469,39 +445,42 @@ Test(np_message_t,
     _np_message_encrypt_payload(msg_out, &session);
 
     // Do the serialsation
-    _np_message_calculate_chunking(msg_out);
-
     bool write_ret = _np_message_serialize_chunked(context, msg_out);
-    cr_assert(true == write_ret,
+
+    cr_expect(true == write_ret,
               "Expected positive result in chunk serialisation");
+    cr_expect(*msg_out->parts == 1, "Expected 1 chunk for message");
 
-    //    write_ret = _np_message_serialize_header_and_instructions(context,
-    //    msg_out); ASSERT(true == write_ret, "Expected positive result in
-    //    serialisation");
-    cr_assert(pll_size(msg_out->msg_chunks) == 1,
-              "Expected 1 chunk for message");
-
-    char *packet;
-    np_new_obj(BLOB_1024, packet, ref_obj_creation);
-    memcpy(packet,
-           pll_first(msg_out->msg_chunks)->val->msg_part,
-           MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40);
+    _np_node_build_network_packet(msg_out->msg_chunks[0]);
+    char *packet = msg_out->msg_chunks[0]->msg_chunk;
 
     // Do the deserialisation
-    np_message_t *msg_in = NULL;
-    np_new_obj(np_message_t, msg_in);
+    struct np_n2n_messagepart_s *msgpart_in = NULL;
+    np_new_obj(np_message_t, msgpart_in);
 
     bool read_ret =
-        _np_message_deserialize_header_and_instructions(msg_in, packet);
+        _np_message_deserialize_header_and_instructions(packet, msgpart_in);
     cr_assert(true == read_ret, "Expected positive result in deserialisation");
 
-    bool ret = _np_message_deserialize_chunked(msg_in);
+    struct np_e2e_message_s *msg_in = NULL;
+    np_new_obj(np_message_t, msg_in);
+    uint16_t number_of_chunks = 0;
+    _np_message_add_chunk(msg_in, msgpart_in, &number_of_chunks);
+
+    cr_expect(number_of_chunks == 1, "expect the number of chunks to be 1");
+
+    bool ret = _np_message_deserialize_chunks(msg_in);
     cr_assert(true == ret, "Expected positive result in de-serialisation");
+    cr_expect(msg_in->state == msgstate_binary,
+              "expect the message to be in binary format");
 
     _np_message_decrypt_payload(msg_in, &session);
 
-    np_tree_elem_t *elem = np_tree_find_str(msg_in->body, "test");
+    _np_message_readbody(msg_in);
+    cr_expect(msg_in->state == msgstate_raw,
+              "expect the message to be in raw format");
+
+    np_tree_elem_t *elem = np_tree_find_str(msg_in->msg_body, "test");
     cr_assert(elem != NULL, "expected tree element to be present");
-    // sll_free(np_aaatoken_ptr, token_list);
   }
 }

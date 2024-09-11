@@ -95,8 +95,8 @@ is_fully_acked = _np_responsecontainer_is_fully_acked(responsecontainer);
                 if (is_fully_acked || now > responsecontainer->expires_at) {
                     if (!is_fully_acked) {
                         _np_responsecontainer_set_timeout(responsecontainer);
-                        log_msg(LOG_WARNING, "ACK_HANDLING timeout (table size:
-%3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
+                        log_msg(LOG_WARNING, NULL, "ACK_HANDLING timeout (table
+size: %3d) message (%s / %s) not acknowledged (IN TIME %f/%f)",
                             my_network->waiting->size,
                             jrb_ack_node->key.value.s,
 responsecontainer->msg->msg_property->msg_subject, now,
@@ -108,7 +108,7 @@ responsecontainer->expires_at
             }
             else
             {
-                log_debug_msg(LOG_ROUTING, "ACK_HANDLING (table size: %3d)
+                log_debug(LOG_ROUTING, NULL, "ACK_HANDLING (table size: %3d)
 message (%s) not found", my_network->waiting->size, jrb_ack_node->key.value.s);
             }
             c++;
@@ -118,8 +118,8 @@ message (%s) not found", my_network->waiting->size, jrb_ack_node->key.value.s);
     if (sll_size(to_remove) > 0)
     {
         sll_iterator(char_ptr) iter_to_rm = sll_first(to_remove);
-        log_debug_msg(LOG_WARNING, "ACK_HANDLING removing %"PRIu32" (of %d) from
-ack table", sll_size(to_remove), c); while (iter_to_rm != NULL)
+        log_debug(LOG_WARNING, NULL, "ACK_HANDLING removing %"PRIu32" (of %d)
+from ack table", sll_size(to_remove), c); while (iter_to_rm != NULL)
         {
             np_responsecontainer_t *responsecontainer =
 _np_responsecontainers_get_by_uuid(context, iter_to_rm->val);

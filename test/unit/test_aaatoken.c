@@ -57,7 +57,7 @@ Test(np_aaatoken_t,
     cr_assert(NULL != test_token_1, "expect the token to be not NULL");
 
     // re-set the validity of this token for this test only
-    test_token_1->expires_at = test_token_1->not_before + 1.;
+    test_token_1->expires_at = test_token_1->not_before + 3.;
     _np_aaatoken_set_signature(test_token_1, NULL); // self signed
     cr_expect(true == _np_aaatoken_is_valid(context,
                                             test_token_1,
@@ -115,17 +115,17 @@ Test(np_aaatoken_t,
     cr_assert(true == _np_aaatoken_is_valid(context,
                                             test_token_1,
                                             np_aaatoken_type_node),
-              "expect that the 1.token is valid");
+              "expect that the 1st token is valid");
     cr_assert(true == _np_aaatoken_is_valid(context,
                                             test_token_2,
                                             np_aaatoken_type_node),
-              "expect that the 2.token is valid");
+              "expect that the 2nd token is valid");
     cr_assert(true == _np_aaatoken_is_valid(context,
                                             test_token_3,
                                             np_aaatoken_type_node),
-              "expect that the 3.token is valid");
+              "expect that the 3rd token is valid");
 
-    ev_sleep(1.);
+    ev_sleep(3.);
 
     cr_assert(false == _np_aaatoken_is_valid(context,
                                              test_token_1,

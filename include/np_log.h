@@ -53,51 +53,53 @@ void np_log_message(np_state_t   *context,
                     const char   *srcFile,
                     const char   *funcName,
                     uint16_t      lineno,
+                    void         *uuid,
                     const char   *msg,
-                    ...) __attribute__((__format__(__printf__, 6, 7)));
+                    ...) __attribute__((__format__(__printf__, 7, 8)));
 
 #ifndef log_msg
-#define log_msg(level, msg, ...)                                               \
-  np_log_message(context, level, __FILE__, FUNC, __LINE__, msg, ##__VA_ARGS__)
+#define log_msg(level, uuid, msg, ...)                                         \
+  np_log_message(context,                                                      \
+                 level,                                                        \
+                 __FILE__,                                                     \
+                 FUNC,                                                         \
+                 __LINE__,                                                     \
+                 uuid,                                                         \
+                 msg,                                                          \
+                 ##__VA_ARGS__)
 #endif
 
 #ifndef log_info
-#define log_info(level, msg, ...) log_msg(level | LOG_INFO, msg, ##__VA_ARGS__)
+#define log_info(level, uuid, msg, ...)                                        \
+  log_msg(level | LOG_INFO, uuid, msg, ##__VA_ARGS__)
 #endif
-#ifndef LOG_WARNING
-#define log_warn(level, msg, ...)                                              \
-  log_msg(level | LOG_WARNING, msg, ##__VA_ARGS__)
+
+#ifndef log_warn
+#define log_warn(level, uuid, msg, ...)                                        \
+  log_msg(level | LOG_WARNING, uuid, msg, ##__VA_ARGS__)
 #endif
+
 #ifndef log_error
-#define log_error(msg, ...) log_msg(LOG_ERROR, msg, ##__VA_ARGS__)
+#define log_error(uuid, msg, ...) log_msg(LOG_ERROR, uuid, msg, ##__VA_ARGS__)
 #endif
 
 #ifdef DEBUG
-#ifndef log_debug_msg
-#define log_debug_msg(level, msg, ...)                                         \
-  log_msg(level | LOG_DEBUG, msg, ##__VA_ARGS__)
-#endif
 #ifndef log_debug
-#define log_debug(level, msg, ...)                                             \
-  log_msg(level | LOG_DEBUG, msg, ##__VA_ARGS__)
+#define log_debug(level, uuid, msg, ...)                                       \
+  log_msg(level | LOG_DEBUG, uuid, msg, ##__VA_ARGS__)
 #endif
 #else
-#define log_debug_msg(level, msg, ...)
-#define log_debug(level, msg, ...)
+#define log_debug(level, uuid, msg, ...)
 #endif
 
 #ifdef TRACE
-#ifndef log_trace_msg
-#define log_trace_msg(level, msg, ...)                                         \
-  log_msg(level | LOG_TRACE, msg, ##__VA_ARGS__)
-#endif
-#ifndef log_trace_msg
-#define log_trace(level, msg, ...)                                             \
-  log_msg(level | LOG_TRACE, msg, ##__VA_ARGS__)
+#ifndef log_trace
+#define log_trace(level, uuid, msg, ...)                                       \
+  log_msg(level | LOG_TRACE, uuid, msg, ##__VA_ARGS__)
 #endif
 #else
-#define log_trace_msg(level, msg, ...)
-#define log_trace(level, msg, ...)
+#define log_trace_msg(level, uuid, msg, ...)
+#define log_trace(level, uuid, msg, ...)
 #endif
 
 #endif /* _NP_LOG_INNER_H_ */

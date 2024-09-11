@@ -267,22 +267,15 @@ Test(
       }
 
       add++;
-      if (random % 2) {
-        MEASURE_TIME(new_time,
-                     i,
-                     memory_blobs[random] =
-                         np_memory_new(context, np_memory_types_BLOB_1024));
-      } else {
-        MEASURE_TIME(
-            new_time,
-            i,
-            memory_blobs[random] =
-                np_memory_new(context, np_memory_types_BLOB_984_RANDOMIZED));
-      }
+      MEASURE_TIME(new_time,
+                   i,
+                   memory_blobs[random] =
+                       np_memory_new(context, np_memory_types_BLOB_1024));
 
       if (0 == (i % 99)) {
-        log_debug_msg(LOG_DEBUG | LOG_MEMORY,
-                      "Cleanup of memory block requested");
+        log_debug(LOG_DEBUG | LOG_MEMORY,
+                  NULL,
+                  "Cleanup of memory block requested");
         np_util_event_t null_evt = {0};
         MEASURE_TIME(clean_time,
                      clean_index,

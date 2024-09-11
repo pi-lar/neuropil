@@ -138,9 +138,6 @@ typedef struct _np_http_callback_s {
 } _np_http_callback_t;
 
 int _np_http_on_msg_begin(htparser *parser) {
-  log_trace_msg(
-      LOG_TRACE | LOG_HTTP,
-      "start: int _np_http_on_msg_begin(NP_UNUSED htparser* parser) {");
   // pthread_mutex_lock(__http_mutex);
   np_http_client_t *client = (np_http_client_t *)parser->userdata;
   client->status           = REQUEST;
@@ -149,9 +146,6 @@ int _np_http_on_msg_begin(htparser *parser) {
 }
 
 int _np_http_query_args(htparser *parser, const char *data, size_t in_len) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: int _np_http_query_args(NP_UNUSED htparser * parser, "
-                "const char * data,		size_t in_len) {");
   char *key = NULL;
   char *val = NULL;
 
@@ -185,9 +179,6 @@ int _np_http_query_args(htparser *parser, const char *data, size_t in_len) {
 }
 
 int _np_http_on_hdrs_begin(htparser *parser) {
-  log_trace_msg(
-      LOG_TRACE | LOG_HTTP,
-      "start: int _np_http_on_hdrs_begin(NP_UNUSED htparser* parser) {");
   np_http_client_t *client = (np_http_client_t *)parser->userdata;
 
   if (NULL != client->ht_request.ht_header)
@@ -198,9 +189,6 @@ int _np_http_on_hdrs_begin(htparser *parser) {
 }
 
 int _np_http_hdr_key(htparser *parser, const char *data, size_t in_len) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: int _np_http_hdr_key(NP_UNUSED htparser * parser, "
-                "const char * data,		size_t in_len) {");
   np_http_client_t *client = (np_http_client_t *)parser->userdata;
 
   if (NULL != client->ht_request.current_key)
@@ -212,9 +200,6 @@ int _np_http_hdr_key(htparser *parser, const char *data, size_t in_len) {
 int _np_http_hdr_value(htparser        *parser,
                        const char      *data,
                        NP_UNUSED size_t in_len) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: int _np_http_hdr_value(NP_UNUSED htparser * parser, "
-                "const char * data,NP_UNUSED size_t in_len) {");
   np_http_client_t *client = (np_http_client_t *)parser->userdata;
 
   np_tree_insert_str(client->ht_request.ht_header,
@@ -228,9 +213,6 @@ int _np_http_hdr_value(htparser        *parser,
 }
 
 int _np_http_path(htparser *parser, const char *data, size_t in_len) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: int _np_http_path(NP_UNUSED htparser * parser, const "
-                "char * data, size_t in_len) {");
   np_http_client_t *client = (np_http_client_t *)parser->userdata;
   if (NULL != client->ht_request.ht_path) free(client->ht_request.ht_path);
 
@@ -240,9 +222,6 @@ int _np_http_path(htparser *parser, const char *data, size_t in_len) {
 }
 
 int _np_http_body(htparser *parser, const char *data, size_t in_len) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: int _np_http_body(NP_UNUSED htparser * parser, const "
-                "char * data, size_t in_len) {");
   np_http_client_t *client = (np_http_client_t *)parser->userdata;
 
   if (NULL != client->ht_request.ht_body) free(client->ht_request.ht_body);
@@ -263,7 +242,6 @@ int _np_http_on_msg_complete(htparser *parser) {
 }
 
 void _np_http_dispatch(np_state_t *context, np_http_client_t *client) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP, "start: void _np_http_dispatch(...) {");
 
   assert(PROCESSING == client->status);
 
@@ -274,7 +252,7 @@ void _np_http_dispatch(np_state_t *context, np_http_client_t *client) {
            client->ht_request.ht_method,
            client->ht_request.ht_path + 1);
 
-  log_msg(LOG_DEBUG, "lookup   of http callback for key %s", key);
+  log_msg(LOG_DEBUG, NULL, "lookup   of http callback for key %s", key);
 
   client->ht_response.ht_header = np_tree_create();
   np_tree_insert_str(client->ht_response.ht_header,
@@ -315,7 +293,7 @@ void _np_http_dispatch(np_state_t *context, np_http_client_t *client) {
                         iter_tree->key.value.s);
       }
 
-      len += snprintf(buffer + len, buf_max - len, "]}");
+      snprintf(buffer + len, buf_max - len, "]}");
 
       client->ht_response.ht_body   = strndup(buffer, buf_max);
       client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
@@ -349,7 +327,7 @@ void _np_http_write_callback(struct ev_loop  *loop,
 
   if ((FLAG_CMP(event_type, EV_WRITE) && !FLAG_CMP(event_type, EV_ERROR)) &&
       RESPONSE == client->status) {
-    log_debug_msg(LOG_HTTP | LOG_DEBUG, "start writing response");
+    log_debug(LOG_HTTP, NULL, "start writing response");
     // create http reply
     char data[2048];
 
@@ -405,7 +383,7 @@ void _np_http_write_callback(struct ev_loop  *loop,
 #endif
     np_tree_free(client->ht_response.ht_header);
 
-    log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http header success");
+    log_debug(LOG_HTTP, NULL, "send http header success");
 
     // HTTP body
     // memset(data, 0, 2048);
@@ -415,10 +393,10 @@ void _np_http_write_callback(struct ev_loop  *loop,
     int      retry      = 0;
     while (bytes_send < s_contentlength) {
       if ((np_time_now() - t1) >= 30) {
-        log_debug_msg(LOG_HTTP | LOG_DEBUG, "http timeout");
+        log_debug(LOG_HTTP, NULL, "http timeout");
         break;
       } else if (retry > 3) {
-        log_debug_msg(LOG_HTTP | LOG_DEBUG, "http too many errors");
+        log_debug(LOG_HTTP, NULL, "http too many errors");
         break;
       }
 
@@ -436,11 +414,12 @@ void _np_http_write_callback(struct ev_loop  *loop,
 
       if (send_return >= 0) {
         bytes_send += send_return;
-        log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http body part success");
+        log_debug(LOG_HTTP, NULL, "send http body part success");
       } else {
         // we may need to wait for the output buffer to be free
         if (EAGAIN != errno) {
           log_msg(LOG_HTTP | LOG_WARNING,
+                  NULL,
                   "Sending http data error. %s",
                   strerror(errno));
           retry++;
@@ -449,12 +428,13 @@ void _np_http_write_callback(struct ev_loop  *loop,
     }
 
     if (bytes_send == s_contentlength) {
-      log_debug_msg(LOG_HTTP | LOG_DEBUG, "send http body success");
+      log_debug(LOG_HTTP, NULL, "send http body success");
     } else {
-      log_msg(LOG_HTTP | LOG_WARNING,
-              "send http body NO success (%" PRIu32 "/%" PRIu32 ")",
-              bytes_send,
-              s_contentlength);
+      log_warn(LOG_HTTP,
+               NULL,
+               "send http body NO success (%" PRIu32 "/%" PRIu32 ")",
+               bytes_send,
+               s_contentlength);
     }
 
     if (client->ht_response.cleanup_body) {
@@ -479,7 +459,7 @@ void _np_http_read_callback(struct ev_loop  *loop,
 
     if (0 == in_msg_len) {
       // tcp disconnect
-      log_debug_msg(LOG_HTTP | LOG_DEBUG, "received disconnect");
+      log_debug(LOG_HTTP, NULL, "received disconnect");
       close(client->client_fd);
       ev_io_stop(EV_A_ & client->client_watcher_in);
       ev_io_stop(EV_A_ & client->client_watcher_out);
@@ -487,15 +467,14 @@ void _np_http_read_callback(struct ev_loop  *loop,
     }
 
     if (0 > in_msg_len) {
-      log_msg(LOG_ERROR, "http receive failed: %s", strerror(errno));
-      log_trace_msg(LOG_TRACE | LOG_HTTP, ".end  .np_network_read");
+      log_msg(LOG_ERROR, NULL, "http receive failed: %s", strerror(errno));
       return;
     }
 
-    log_debug_msg(LOG_HTTP | LOG_DEBUG, "parsing http request");
+    log_debug(LOG_HTTP, NULL, "parsing http request");
     htparser_run(client->parser, np_module(http)->hooks, data, in_msg_len);
     if (htparser_get_error(client->parser) != htparse_error_none) {
-      log_msg(LOG_ERROR, "error parsing http request");
+      log_msg(LOG_ERROR, NULL, "error parsing http request");
       client->ht_response.ht_status = HTTP_CODE_BAD_REQUEST;
       client->status                = RESPONSE;
       client->ht_response.ht_header = np_tree_create();
@@ -508,7 +487,7 @@ void _np_http_read_callback(struct ev_loop  *loop,
     }
 
   } else {
-    // log_debug_msg(LOG_MISC, "local http status now %d, but should be %d or
+    // log_debug(LOG_MISC, NULL, "local http status now %d, but should be %d or
     // %d", np_module(http)->status, CONNECTED, REQUEST);
   }
 }
@@ -553,9 +532,10 @@ void _np_http_accept(struct ev_loop  *loop,
     if (new_client->client_fd < 0) {
       free(new_client);
 
-      log_msg(LOG_HTTP | LOG_WARNING,
-              "Could not accept http connection. %s",
-              strerror(errno));
+      log_warn(LOG_HTTP,
+               NULL,
+               "Could not accept http connection. %s",
+               strerror(errno));
     } else {
       sll_append(np_http_client_ptr, np_module(http)->clients, new_client);
 
@@ -574,11 +554,12 @@ void _np_http_accept(struct ev_loop  *loop,
         getnameinfo((struct sockaddr *)s, sizeof s, ipstr, 255, port, 6, 0);
       }
 
-      log_debug_msg(LOG_HTTP | LOG_DEBUG,
-                    "received http request from %s:%s (client fd: %" PRIi32 ")",
-                    ipstr,
-                    port,
-                    new_client->client_fd);
+      log_debug(LOG_HTTP,
+                NULL,
+                "received http request from %s:%s (client fd: %" PRIi32 ")",
+                ipstr,
+                port,
+                new_client->client_fd);
 
       new_client->status = CONNECTED;
 
@@ -612,7 +593,7 @@ void _np_http_accept(struct ev_loop  *loop,
     }
 
   } else {
-    log_debug_msg(LOG_HTTP | LOG_DEBUG, "http connection attempt not accepted");
+    log_debug(LOG_HTTP, NULL, "http connection attempt not accepted");
   }
 }
 
@@ -762,16 +743,12 @@ void _np_add_http_callback(np_state_t              *context,
                            htp_method               method,
                            void                    *user_args,
                            _np_http_callback_func_t func) {
-  log_trace_msg(
-      LOG_TRACE | LOG_HTTP,
-      "start: void _np_add_http_callback(const char* path, htp_method method, "
-      "void* user_args,		_np_http_callback_func_t func) {");
   if (!np_module_initiated(http)) {
     _np_http_module_init(context);
   }
   char key[128];
   snprintf(key, 128, "%d:%s", method, path);
-  log_msg(LOG_DEBUG, "register of http callback for key %s", key);
+  log_msg(LOG_DEBUG, NULL, "register of http callback for key %s", key);
 
   _np_http_callback_t *callback_data = malloc(sizeof(_np_http_callback_t));
   CHECK_MALLOC(callback_data);

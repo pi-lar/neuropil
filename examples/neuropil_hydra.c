@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         }
 
-        log_debug_msg(LOG_DEBUG, "starting job queue");
+        log_debug(LOG_DEBUG, NULL, "starting job queue");
         /**
            \endcode
         */

@@ -4,36 +4,77 @@
 //
 #include <criterion/criterion.h>
 
-#include "np_evloop.h"
-#include "util/np_event.h"
-#include "np_util.h"
 #include "neuropil_log.h"
+
+#include "util/np_event.h"
+
+#include "np_evloop.h"
 #include "np_log.h"
+#include "np_util.h"
 
-TestSuite(np_uuid_t );
+TestSuite(np_uuid_t);
 
-Test(np_uuid_t, _uuid_create, .description="test the creation of unique uuid's")
-{
-	char* uuid[999];
-	char subject[] = "this.is.a.test";
+Test(np_uuid_t,
+     _uuid_create,
+     .description = "test the creation of unique uuid's") {
+  char *uuid[999];
+  char  subject[] = "this.is.a.test";
 
-	for (int i = 0; i < 999; i++)
-	{
-		uuid[i] = np_uuid_create(subject, i, NULL);
+  for (int i = 0; i < 999; i++) {
+    uuid[i] = np_uuid_create(subject, i, NULL);
 
-		cr_expect(36 == strlen(uuid[i]), "expect the size of the uuid to be 32");
+    for (int j = 0; j < i; j++) {
+      cr_expect(0 != memcmp(uuid[i], uuid[j], NP_UUID_BYTES),
+                "expect the uuid to be unique");
+    }
+  }
+}
 
-		cr_expect('5' == uuid[i][14], "expect to have the value '5' at position 14");
-		cr_expect('9' == uuid[i][19], "expect to have the value '9' at position 19");
+Test(np_uuid_t,
+     _uuid_np_tree,
+     .description = "test the storage of unique uuid's in a np_tree") {
 
-		cr_expect('-' == uuid[i][8],  "expect to have the value '-' at position 8");
-		cr_expect('-' == uuid[i][13], "expect to have the value '-' at position 13");
-		cr_expect('-' == uuid[i][18], "expect to have the value '-' at position 18");
-		cr_expect('-' == uuid[i][23], "expect to have the value '-' at position 23");
+  uint32_t uuid_values[1000];
+  char    *uuid[1000];
+  char     subject[] = "this.is.a.test";
 
-		for (int j = 0; j < i; j++)
-		{
-			cr_expect(0 != strncmp(uuid[i], uuid[j], 255), "expect the uuid to be unique");
-		}
-	}
+  np_tree_t *uuid_tree = np_tree_create();
+
+  // test insert of elements
+  for (int i = 0; i < 1000; i++) {
+    uuid[i]        = np_uuid_create(subject, i, NULL);
+    uuid_values[i] = rand();
+    np_tree_insert_uuid(uuid_tree, uuid[i], np_treeval_new_ul(uuid_values[i]));
+  }
+  cr_expect(uuid_tree->size == 1000, "expect the tree to have 999 elements");
+
+  // test finding of elements
+  for (int i = 0; i < 1000; i++) {
+    np_tree_elem_t *elem = np_tree_find_uuid(uuid_tree, uuid[i]);
+    cr_expect(elem != NULL, "expect the element to be part of the np_tree");
+    cr_expect(elem->val.value.ul == uuid_values[i],
+              "expect the value to be the ones stored");
+  }
+  cr_expect(uuid_tree->size == 1000, "expect the tree to have 999 elements");
+
+  // test replace of elements
+  for (int i = 0; i < 1000; i++) {
+    uint32_t old   = uuid_values[i];
+    uuid_values[i] = rand();
+    np_tree_replace_uuid(uuid_tree, uuid[i], np_treeval_new_ul(uuid_values[i]));
+    np_tree_elem_t *elem = np_tree_find_uuid(uuid_tree, uuid[i]);
+    cr_expect(elem != NULL, "expect the element to be part of the np_tree");
+    cr_expect(elem->val.value.ul == uuid_values[i],
+              "expect the value to be the ones stored");
+    cr_expect(elem->val.value.ul != old, "expect the value to be different ");
+  }
+  cr_expect(uuid_tree->size == 1000, "expect the tree to have 999 elements");
+
+  // test delete of elements
+  for (int i = 999; i >= 0; i--) {
+    np_tree_del_uuid(uuid_tree, uuid[i]);
+    np_tree_elem_t *elem = np_tree_find_uuid(uuid_tree, uuid[i]);
+    cr_expect(elem == NULL, "expect the element to be removed");
+  }
+  cr_expect(uuid_tree->size == 0, "expect the tree to have no elements");
 }

@@ -37,25 +37,31 @@ bool receive_set_owner(np_context *context, struct np_message *msg) {
     if (_data_conf.data_size != NP_FINGERPRINT_BYTES) return false;
 
     memcpy(owner, _owner_fingerprint, NP_FINGERPRINT_BYTES);
+    char uuid_hex[2 * NP_UUID_BYTES + 1];
+    sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
     fprintf(stdout,
-            "ownership request granted  in message [%s] from node: %32s \n",
-            msg->uuid,
+            "ownership request granted in message [%s] from node: %32s \n",
+            uuid_hex,
             msg->from);
     return true;
   }
 
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
   fprintf(stdout,
-          "ownership request rejected in message [%s] from node: %32s \n",
-          msg->uuid,
+          "ownership request rejected in message [%8s] from node: %32s \n",
+          uuid_hex,
           msg->from);
   return true;
 }
 
 bool receive_rem_owner(np_context *context, struct np_message *msg) {
   memset(owner, 0, NP_FINGERPRINT_BYTES);
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
   fprintf(stdout,
-          "ownership removed with message [%s] from node: %32s \n",
-          msg->uuid,
+          "ownership removed with message [%8s] from node: %32s \n",
+          uuid_hex,
           msg->from);
 }
 
@@ -81,22 +87,24 @@ bool receive_command(np_context *context, struct np_message *msg) {
     digitalWrite(0, 1);
     digitalWrite(2, 1);
   } else {
+    char uuid_hex[2 * NP_UUID_BYTES + 1];
+    sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
     fprintf(stdout,
-            "owner     send unknown command [%s] with message [%s]\n",
+            "owner     send unknown command [%8s] with message [%s]\n",
             msg->data,
-            msg->uuid);
+            uuid_hex);
   }
-  // fprintf(stdout, "owner     moved car [%s] with message [%s]\n", msg->data,
-  // msg->uuid);
   return true;
 }
 
 bool receive_shutdown(np_context *context, struct np_message *msg) {
   memset(owner, 0, NP_FINGERPRINT_BYTES);
   np_destroy(context, true);
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
   fprintf(stdout,
           "owner     send shutdown command with message [%s] \n",
-          msg->uuid);
+          uuid_hex);
 }
 
 bool receive_and_send_heartbeat(np_context *context, struct np_message *msg) {
@@ -107,9 +115,11 @@ bool receive_and_send_heartbeat(np_context *context, struct np_message *msg) {
 
   np_send(context, HEARTBEAT, msg->data, msg->data_length);
 
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
   fprintf(stdout,
           "owner     send heartbeat command with message [%s] \n",
-          msg->uuid);
+          uuid_hex);
 }
 
 bool authorize_cb(np_context *context, struct np_token *token) {

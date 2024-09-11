@@ -269,7 +269,7 @@ bool __np_keystore_save(NP_UNUSED np_state_t     *context,
                                  data_size,
                                  _nonce,
                                  subkey)) {
-    log_msg(LOG_ERROR, "encryption of np_keystore failed, exiting");
+    log_msg(LOG_ERROR, NULL, "encryption of np_keystore failed, exiting");
     goto __np_catch;
   }
 
@@ -278,7 +278,9 @@ bool __np_keystore_save(NP_UNUSED np_state_t     *context,
                                      _nonce,
                                      __keystore._mmap_region + cbor_size,
                                      data_size + crypto_secretbox_MACBYTES)) {
-    log_msg(LOG_ERROR, "writing of encrypted np_keystore failed, exiting");
+    log_msg(LOG_ERROR,
+            NULL,
+            "writing of encrypted np_keystore failed, exiting");
     goto __np_catch;
   }
 
@@ -434,7 +436,7 @@ enum np_return np_keystore_load_identity(np_context      *context,
                                             _nonce,
                                             __keystore._mmap_region + cbor_size,
                                             &data_size)) {
-    log_warn(LOG_WARNING, "could not read/decrypt keystore file");
+    log_msg(LOG_WARNING, NULL, "could not read/decrypt keystore file");
     goto __np_catch;
   }
 
@@ -454,7 +456,7 @@ enum np_return np_keystore_load_identity(np_context      *context,
                                       data_size,
                                       _nonce,
                                       subkey)) {
-    log_msg(LOG_ERROR, "decryption of np_keystore failed, exiting");
+    log_msg(LOG_ERROR, NULL, "decryption of np_keystore failed, exiting");
     goto __np_catch;
   }
 
@@ -524,7 +526,7 @@ enum np_return np_keystore_load_identities(np_context *context,
                                             _nonce,
                                             __keystore._mmap_region + cbor_size,
                                             &data_size)) {
-    log_warn(LOG_WARNING, "could not read/decrypt keystore file");
+    log_msg(LOG_WARNING, NULL, "could not read/decrypt keystore file");
     goto __np_catch;
   }
 
@@ -544,7 +546,7 @@ enum np_return np_keystore_load_identities(np_context *context,
                                       data_size,
                                       _nonce,
                                       subkey)) {
-    log_msg(LOG_ERROR, "decryption of np_keystore failed, exiting");
+    log_msg(LOG_ERROR, NULL, "decryption of np_keystore failed, exiting");
     goto __np_catch;
   }
 
@@ -649,9 +651,10 @@ enum np_return np_keystore_store_identity(np_context      *context,
                                         subkey,
                                         &tmp_token)) {
       // could not store token in file
-      log_warn(LOG_WARNING,
-               "identity token already present while storing token in "
-               "keystore, abort");
+      log_msg(LOG_WARNING,
+              NULL,
+              "identity token already present while storing token in "
+              "keystore, abort");
       ret = np_invalid_operation;
       goto __np_catch;
     }
@@ -663,9 +666,10 @@ enum np_return np_keystore_store_identity(np_context      *context,
                          &tmp_token_fingerprint);
     if (0 != memcmp(tmp_token_fingerprint, identity_fp, NP_FINGERPRINT_BYTES)) {
       // could not store token in file
-      log_warn(LOG_WARNING,
-               "identity token already present while storing token in "
-               "keystore, abort");
+      log_msg(LOG_WARNING,
+              NULL,
+              "identity token already present while storing token in "
+              "keystore, abort");
       ret = np_invalid_operation;
       goto __np_catch;
     }
@@ -691,7 +695,7 @@ enum np_return np_keystore_store_identity(np_context      *context,
   }
 
 __np_catch:
-  log_warn(LOG_WARNING, "error while storing token in keystore");
+  log_msg(LOG_WARNING, NULL, "error while storing token in keystore");
 
 __np_finally: // noop line, syntactic sugar
   np_spinlock_unlock(&__keystore.lock);

@@ -48,7 +48,7 @@ bool receive_mysubject(np_context *context, struct np_message *msg) {
 
   \code
   */
-  log_msg(LOG_INFO, "RECEIVED: %.*s", msg->data_length, msg->data);
+  log_msg(LOG_INFO, msg->uuid, "RECEIVED: %.*s", msg->data_length, msg->data);
   /**
   \endcode
   */

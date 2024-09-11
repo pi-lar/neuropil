@@ -80,7 +80,7 @@ void _np_log_to_str(char         *buffer,
                                 _buffer_size);
   if (FLAG_CMP(to_convert, LOG_WARNING))
     _buffer_size_new += strnlen(strncpy(buffer + _buffer_size_new,
-                                        "WARNING ",
+                                        "WARN ",
                                         _buffer_size - _buffer_size_new),
                                 _buffer_size);
   if (FLAG_CMP(to_convert, LOG_INFO))
@@ -99,6 +99,7 @@ void _np_log_to_str(char         *buffer,
                                         _buffer_size - _buffer_size_new),
                                 _buffer_size);
 
+  /*
   if (FLAG_CMP(to_convert, LOG_KEY))
     _buffer_size_new += strnlen(strncpy(buffer + _buffer_size_new,
                                         "KEY ",
@@ -210,6 +211,7 @@ void _np_log_to_str(char         *buffer,
                                         "VERBOSE ",
                                         _buffer_size - _buffer_size_new),
                                 _buffer_size);
+  */
 }
 
 void _np_log_evflush(struct ev_loop  *loop,
@@ -326,6 +328,7 @@ void np_log_message(np_state_t   *context,
                     const char   *srcFile,
                     const char   *funcName,
                     uint16_t      lineno,
+                    void         *uuid,
                     const char   *msg,
                     ...) {
   if (!np_module_initiated(log) || np_module(log)->__logger == NULL) {
@@ -350,13 +353,15 @@ void np_log_message(np_state_t   *context,
             LOG_GLOBAL ||
         (level & LOG_MODUL_MASK) == LOG_NONE)) ||
       FLAG_CMP(level, LOG_ERROR) || FLAG_CMP(level, LOG_WARNING)) {
+
     np_log_entry_ptr new_log_entry = malloc(sizeof(struct np_log_entry));
     _np_log_to_str(new_log_entry->level, 20, level & LOG_LEVEL_MASK);
     new_log_entry->timestamp = _np_time_force_now_nsec();
 
+    char   *format_string = NULL;
     va_list ap;
     va_start(ap, msg);
-    new_log_entry->string_length = vasprintf(&new_log_entry->string, msg, ap);
+    new_log_entry->string_length = vasprintf(&format_string, msg, ap);
     va_end(ap);
     assert(new_log_entry->string_length > 0);
 
@@ -369,28 +374,31 @@ void np_log_message(np_state_t   *context,
       int32_t millis = tval.tv_usec;
       localtime_r(&tval.tv_sec, &local_time);
 
-      char prefix[500] = {0};
-      strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
+      char prefix[256] = {0};
+      size_t new_log_entry_length = strftime(prefix, 80, "%Y-%m-%d %H:%M:%S", &local_time);
 
-      int new_log_entry_length = strlen(prefix);
-      sprintf(prefix + new_log_entry_length,
+      char uuid_buf[33] = {0};
+      if (uuid != NULL) sodium_bin2hex(uuid_buf, 33, uuid, 16);
+
+      new_log_entry_length += snprintf(prefix + new_log_entry_length, 256 - new_log_entry_length,
               ".%06d "  /*millisec*/
               "%-15lu " /*thread id*/
               //"%15.15s:%-5hd %-25.25s " /* file desc*/
-              "%8s " /*Level*/,
+              "%-20.20s:%-5hd "              /* file desc */
+              "%32s "                        /* uuid */
+              "%8s ",                        /*Level*/
               millis,                        // millisec
               (unsigned long)pthread_self(), // thread id
               // srcFile, lineno, funcName, // file desc
+              funcName, // file desc
+              lineno,
+              uuid_buf,
               new_log_entry->level);
-
-      _np_log_to_str(prefix + strlen(prefix),
-                     500 - strlen(prefix),
-                     level & LOG_MODUL_MASK);
 
       char *buf;
       new_log_entry->string_length =
-          asprintf(&buf, "%s %s\n", prefix, new_log_entry->string);
-      free(new_log_entry->string);
+          asprintf(&buf, "%s %s\n", prefix, format_string);
+      free(format_string);
       new_log_entry->string = buf;
 #ifndef CONSOLE_LOG
     }
@@ -413,6 +421,7 @@ void np_log_message(np_state_t   *context,
     if ((level & LOG_ERROR) == LOG_ERROR) {
       _np_log_fflush(context, true);
     }
+
 #ifdef DEBUG
     else {
       _np_log_fflush(context, true);
@@ -510,7 +519,6 @@ void _np_log_fflush(np_state_t *context, bool force) {
 }
 
 void np_log_setlevel(np_state_t *context, uint32_t level) {
-  log_trace_msg(LOG_TRACE, "start: void np_log_setlevel(uint32_t level){");
   np_module(log)->__logger->level = level;
 }
 
@@ -549,11 +557,12 @@ bool _np_log_init(np_state_t *context, const char *filename, uint32_t level) {
     sll_init(np_log_entry_ptr, logger->logentries_l);
 
     _np_log_rotation(context);
-    log_debug_msg(LOG_MISC,
-                  "initialized log system %p: %s / %x",
-                  logger,
-                  logger->filename,
-                  logger->level);
+    log_debug(LOG_MISC,
+              NULL,
+              "initialized log system %p: %s / %x",
+              logger,
+              logger->filename,
+              logger->level);
     np_module(log)->__init = true;
   }
   return true;

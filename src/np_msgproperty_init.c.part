@@ -119,7 +119,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t* context) {
     __join_req->mep_type = REQ_REP;
     __join_req->priority = 0;
     __join_req->ack_mode = ACK_NONE;
-    __join_req->retry = 5;
+    __join_req->retry = 0; // will be retried by state table
     __join_req->unique_uuids_check = true;
     __join_req->msg_ttl = 5.0;
     __join_req->cache_size = 8;
@@ -142,7 +142,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t* context) {
     __leave_properties->mep_type = ONE_WAY;
     __leave_properties->priority = 0;
     __leave_properties->ack_mode = ACK_NONE;
-    __leave_properties->retry = 5;
+    __leave_properties->retry = 0;
     __leave_properties->unique_uuids_check = true;
     __leave_properties->msg_ttl = 5.0;
     __leave_properties->cache_size = 8;

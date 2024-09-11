@@ -95,6 +95,7 @@ bool _np_threads_init(np_state_t *context) {
     for (int module_id = 0; module_id < PREDEFINED_DUMMY_START; module_id++) {
 #ifdef NP_THREADS_CHECK_THREADING
       log_info(LOG_MUTEX,
+               NULL,
                "inits mutex %s(%p)",
                _module->__mutexes[module_id].desc,
                np_module_lock_str[module_id]);
@@ -146,6 +147,7 @@ void _np_threads_destroy(np_state_t *context) {
     for (int module_id = 0; module_id < PREDEFINED_DUMMY_START; module_id++) {
 #ifdef NP_THREADS_CHECK_THREADING
       log_info(LOG_MUTEX,
+               NULL,
                "destroys mutex %s(%p)",
                _module->__mutexes[module_id].desc,
                np_module_lock_str[module_id]);
@@ -173,10 +175,6 @@ void _np_threads_destroy(np_state_t *context) {
 int _np_threads_lock_module(np_state_t         *context,
                             np_module_lock_type module_id,
                             const char         *where) {
-  log_debug_msg(LOG_MUTEX | LOG_DEBUG,
-                "Locking module mutex %d/%s.",
-                module_id,
-                np_module_lock_str[module_id]);
 
   int ret = 1;
 
@@ -207,12 +205,16 @@ int _np_threads_lock_module(np_state_t         *context,
     diff = np_time_now() - start;
     if (diff > MUTEX_WAIT_MAX_SEC) {
       log_msg(LOG_ERROR,
+              NULL,
               "Thread %" PRIsizet
               " waits too long for module mutex %s (%f sec)",
               self_thread->id,
               np_module_lock_str[module_id],
               diff);
-      log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false, true));
+      log_msg(LOG_ERROR,
+              NULL,
+              "%s",
+              np_threads_print_locks(context, false, true));
       ABORT("Thread %" PRIsizet " waits too long for module mutex %s (%f sec)",
             self_thread->id,
             np_module_lock_str[module_id],
@@ -226,6 +228,7 @@ int _np_threads_lock_module(np_state_t         *context,
       // continue;
     } else if (ret != 0) {
       log_msg(LOG_ERROR,
+              NULL,
               "error at acquiring mutex for module %s. Error: %s (%d)",
               np_module_lock_str[module_id],
               strerror(ret),
@@ -242,11 +245,12 @@ int _np_threads_lock_module(np_state_t         *context,
       _sll_char_remove(self_thread->want_lock, tmp, strlen(tmp));
     }
   }
-  log_debug_msg(LOG_MUTEX | LOG_DEBUG,
-                "Locked module mutex %d/%s. (%f sec)",
-                module_id,
-                np_module_lock_str[module_id],
-                diff);
+  log_debug(LOG_MUTEX | LOG_DEBUG,
+            NULL,
+            "Locked module mutex %d/%s. (%f sec)",
+            module_id,
+            np_module_lock_str[module_id],
+            diff);
 #endif
 
   return ret;
@@ -255,10 +259,6 @@ int _np_threads_lock_module(np_state_t         *context,
 int _np_threads_trylock_module(np_state_t         *context,
                                np_module_lock_type module_id,
                                const char         *where) {
-  log_debug_msg(LOG_MUTEX | LOG_DEBUG,
-                "Locking module mutex %d/%s.",
-                module_id,
-                np_module_lock_str[module_id]);
 
   int ret = 1;
 
@@ -288,12 +288,16 @@ int _np_threads_trylock_module(np_state_t         *context,
     diff = np_time_now() - start;
     if (diff > MUTEX_WAIT_MAX_SEC) {
       log_msg(LOG_ERROR,
+              NULL,
               "Thread %" PRIsizet
               " waits too long for module mutex %s (%f sec)",
               self_thread->id,
               np_module_lock_str[module_id],
               diff);
-      log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false, true));
+      log_msg(LOG_ERROR,
+              NULL,
+              "%s",
+              np_threads_print_locks(context, false, true));
       ABORT("Thread %" PRIsizet " waits too long for module mutex %s (%f sec)",
             self_thread->id,
             np_module_lock_str[module_id],
@@ -307,6 +311,7 @@ int _np_threads_trylock_module(np_state_t         *context,
       // continue;
     } else if (ret != 0) {
       log_msg(LOG_ERROR,
+              NULL,
               "error at acquiring mutex for module %s. Error: %s (%d)",
               np_module_lock_str[module_id],
               strerror(ret),
@@ -323,11 +328,12 @@ int _np_threads_trylock_module(np_state_t         *context,
       _sll_char_remove(self_thread->want_lock, tmp, strlen(tmp));
     }
   }
-  log_debug_msg(LOG_MUTEX | LOG_DEBUG,
-                "Locked module mutex %d/%s. (%f sec)",
-                module_id,
-                np_module_lock_str[module_id],
-                diff);
+  log_debug(LOG_MUTEX | LOG_DEBUG,
+            NULL,
+            "Locked module mutex %d/%s. (%f sec)",
+            module_id,
+            np_module_lock_str[module_id],
+            diff);
 #endif
 
   return ret;
@@ -368,13 +374,12 @@ int _np_threads_mutex_timedlock(NP_UNUSED np_state_t *context,
 
 int _np_threads_unlock_module(np_state_t         *context,
                               np_module_lock_type module_id) {
-  // log_trace_msg(LOG_TRACE | LOG_MUTEX, "start: int
-  // _np_threads_unlock_module(np_module_lock_type module_id) {");
 
 #ifdef NP_THREADS_CHECK_THREADING
-  log_debug_msg(LOG_MUTEX | LOG_DEBUG,
-                "Unlocking module mutex %s.",
-                np_module_lock_str[module_id]);
+  log_debug(LOG_MUTEX | LOG_DEBUG,
+            NULL,
+            "Unlocking module mutex %s.",
+            np_module_lock_str[module_id]);
 #endif
 
   int ret =
@@ -409,7 +414,7 @@ int _np_threads_mutex_init(np_state_t *context,
 
   ret = pthread_mutex_init(&mutex->lock, &mutex->lock_attr);
   if (ret != 0) {
-    log_msg(LOG_ERROR, "pthread_mutex_init: %s (%d)", strerror(ret), ret);
+    log_msg(LOG_ERROR, NULL, "pthread_mutex_init: %s (%d)", strerror(ret), ret);
   }
 
 #ifdef NP_THREADS_CHECK_THREADING
@@ -418,6 +423,7 @@ int _np_threads_mutex_init(np_state_t *context,
   np_thread_t *me = _np_threads_get_self(context);
   if (me != NULL) {
     log_info(LOG_MUTEX,
+             NULL,
              "Thread %" PRIsizet " inits mutex %s(%p)",
              _np_threads_get_self(context)->id,
              mutex->desc,
@@ -436,8 +442,6 @@ int _np_threads_mutex_init(np_state_t *context,
 int _np_threads_mutex_lock(np_state_t *context,
                            np_mutex_t *mutex,
                            const char *where) {
-  log_trace_msg(LOG_TRACE | LOG_MUTEX,
-                "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
   int ret = 1;
 
 #ifdef NP_THREADS_CHECK_THREADING
@@ -458,12 +462,14 @@ int _np_threads_mutex_lock(np_state_t *context,
     pthread_mutex_unlock(&self_thread->locklists_lock.lock);
 
     log_info(LOG_MUTEX,
+             NULL,
              "Thread %" PRIsizet " locks mutex %s(%p)",
              self_thread->id,
              mutex->desc,
              mutex);
   } else {
     log_info(LOG_MUTEX,
+             NULL,
              "Thread <in thread init> locks mutex %s(%p)",
              mutex->desc,
              mutex);
@@ -481,12 +487,16 @@ int _np_threads_mutex_lock(np_state_t *context,
     diff = np_time_now() - start;
     if (diff > MUTEX_WAIT_MAX_SEC) {
       log_msg(LOG_ERROR,
+              NULL,
               "Thread %" PRIsizet " waits too long for mutex %s(%p) (%f sec)",
               _np_threads_get_self(context)->id,
               mutex->desc,
               mutex,
               diff);
-      log_msg(LOG_ERROR, "%s", np_threads_print_locks(context, false, true));
+      log_msg(LOG_ERROR,
+              NULL,
+              "%s",
+              np_threads_print_locks(context, false, true));
       ABORT("Thread %" PRIsizet " waits too long for mutex %s(%p) (%f sec)",
             _np_threads_get_self(context)->id,
             mutex->desc,
@@ -518,8 +528,6 @@ int _np_threads_mutex_lock(np_state_t *context,
 int _np_threads_mutex_trylock(NP_UNUSED np_state_t *context,
                               np_mutex_t           *mutex,
                               const char           *where) {
-  log_trace_msg(LOG_TRACE | LOG_MUTEX,
-                "start: int _np_threads_mutex_lock(np_mutex_t* mutex){");
 
   int ret = pthread_mutex_trylock(&mutex->lock);
 
@@ -540,8 +548,6 @@ int _np_threads_mutex_trylock(NP_UNUSED np_state_t *context,
 }
 
 int _np_threads_mutex_unlock(np_state_t *context, np_mutex_t *mutex) {
-  log_trace_msg(LOG_TRACE | LOG_MUTEX,
-                "start: int _np_threads_mutex_unlock(np_mutex_t* mutex){");
 
 #ifdef NP_THREADS_CHECK_THREADING
   np_thread_t *self_thread = _np_threads_get_self(context);
@@ -566,12 +572,14 @@ int _np_threads_mutex_unlock(np_state_t *context, np_mutex_t *mutex) {
   np_thread_t *me = _np_threads_get_self(context);
   if (me != NULL)
     log_info(LOG_MUTEX,
+             NULL,
              "Thread %" PRIsizet " unlocks mutex %s(%p)",
              _np_threads_get_self(context)->id,
              mutex->desc,
              mutex);
   else
     log_info(LOG_MUTEX,
+             NULL,
              "Thread <in thread init> unlocks mutex %s(%p)",
              mutex->desc,
              mutex);
@@ -579,28 +587,29 @@ int _np_threads_mutex_unlock(np_state_t *context, np_mutex_t *mutex) {
 }
 
 void _np_threads_mutex_destroy(np_state_t *context, np_mutex_t *mutex) {
-  log_trace_msg(LOG_TRACE | LOG_MUTEX,
-                "start: void _np_threads_mutex_destroy(np_mutex_t* mutex){");
   if (mutex != NULL) {
 #ifdef NP_THREADS_CHECK_THREADING
     np_thread_t *me = _np_threads_get_self(context);
     if (me != NULL)
       log_info(LOG_MUTEX,
+               NULL,
                "Thread %" PRIsizet " destroys mutex %s(%p)",
                _np_threads_get_self(context)->id,
                mutex->desc,
                mutex);
     else
       log_info(LOG_MUTEX,
+               NULL,
                "Thread <in thread init> destroys mutex %s(%p)",
                mutex->desc,
                mutex);
 #endif
     _np_threads_condition_destroy(context, &mutex->condition);
-    int result = pthread_mutex_destroy(&mutex->lock);
+    pthread_mutex_destroy(&mutex->lock);
 #ifdef NP_THREADS_CHECK_THREADING
     if (result != 0) {
       log_msg(LOG_ERROR,
+              NULL,
               "Could not destroy mutex %s (%p) result: %" PRId32,
               mutex->desc,
               mutex,
@@ -614,9 +623,6 @@ void _np_threads_mutex_destroy(np_state_t *context, np_mutex_t *mutex) {
 
 int _np_threads_module_condition_wait(np_state_t         *context,
                                       np_module_lock_type module_id) {
-  log_debug_msg(LOG_DEBUG | LOG_MUTEX,
-                "waiting %p",
-                &np_module(threads)->__mutexes[module_id].condition.cond);
 
   return pthread_cond_wait(
       &np_module(threads)->__mutexes[module_id].condition.cond,
@@ -654,9 +660,6 @@ int _np_threads_module_condition_signal(np_state_t         *context,
                                         np_module_lock_type module_id) {
   if (!np_module_initiated(threads)) return 0;
 
-  log_debug_msg(LOG_DEBUG | LOG_MUTEX,
-                "signaling %p",
-                &np_module(threads)->__mutexes[module_id].condition.cond);
   return pthread_cond_signal(
       &np_module(threads)->__mutexes[module_id].condition.cond);
 }
@@ -690,9 +693,6 @@ void _np_threads_condition_init(NP_UNUSED np_state_t *context,
 
 void _np_threads_condition_init_shared(NP_UNUSED np_state_t *context,
                                        np_cond_t            *condition) {
-  log_trace_msg(
-      LOG_TRACE | LOG_MUTEX,
-      "start: void _np_threads_condition_init_shared(np_cond_t* condition){");
   int result;
 
   result = pthread_condattr_init(&condition->cond_attr);
@@ -708,9 +708,6 @@ void _np_threads_condition_init_shared(NP_UNUSED np_state_t *context,
 
 void _np_threads_condition_destroy(NP_UNUSED np_state_t *context,
                                    np_cond_t            *condition) {
-  log_trace_msg(
-      LOG_TRACE | LOG_MUTEX,
-      "start: void _np_threads_condition_destroy(np_cond_t* condition){");
   int result;
   result = pthread_condattr_destroy(&condition->cond_attr);
   ASSERT(result == 0, "cannot destroy condattr");
@@ -738,13 +735,17 @@ int _np_threads_condition_signal(NP_UNUSED np_state_t *context,
 void _np_threads_set_self(np_thread_t *myThread) {
   np_ctx_memory(myThread);
   int ret = pthread_setspecific(__pthread_thread_ptr_key, myThread);
-  log_debug_msg(LOG_DEBUG | LOG_THREADS,
-                "Setting thread data to %p. Result:: %" PRIi32,
-                myThread,
-                ret);
+  log_debug(LOG_DEBUG | LOG_THREADS,
+            NULL,
+            "Setting thread data to %p. Result:: %" PRIi32,
+            myThread,
+            ret);
 
   if (ret != 0) {
-    log_msg(LOG_ERROR, "Cannot set thread specific data! Error: %" PRIi32, ret);
+    log_msg(LOG_ERROR,
+            NULL,
+            "Cannot set thread specific data! Error: %" PRIi32,
+            ret);
   }
 }
 
@@ -791,11 +792,10 @@ void _np_thread_t_del(NP_UNUSED np_state_t *context,
                       NP_UNUSED uint8_t     type,
                       NP_UNUSED size_t      size,
                       void                 *data) {
-  log_trace_msg(LOG_TRACE | LOG_THREADS,
-                "start: void _np_thread_t_del( ... ){");
   np_thread_t *thread = (np_thread_t *)data;
 
   log_debug(LOG_THREADS | LOG_MEMORY,
+            NULL,
             "Destroy thread %" PRIsizet " / %p type: %" PRIu8 " job_lock: %p",
             thread->id,
             thread,
@@ -833,8 +833,6 @@ void _np_thread_t_new(NP_UNUSED np_state_t *context,
                       NP_UNUSED uint8_t     type,
                       NP_UNUSED size_t      size,
                       void                 *data) {
-  log_trace_msg(LOG_TRACE | LOG_MESSAGE,
-                "start: void _np_messagepart_t_new(void* nw){");
   np_thread_t *thread = (np_thread_t *)data;
 
 #ifdef NP_STATISTICS_THREADS
@@ -892,13 +890,14 @@ char *__np_threads_print_locks(np_state_t *context, char *ret, char *new_line) {
     }
     sll_next(iter_threads);
   }
-  //#else
+  // #else
   //		while (iter_threads != NULL)
   //		{
   //			ret = np_str_concatAndFree(ret, "Thread %"PRIsizet" %s",
-  // iter_threads->val->id, new_line); 			sll_next(iter_threads);
+  //  iter_threads->val->id, new_line);
+  //  sll_next(iter_threads);
   //		}
-  //#endif
+  // #endif
   ret = np_str_concatAndFree(ret, "--- Threadpool END   ---%s", new_line);
 
   return ret;
@@ -931,10 +930,11 @@ void *__np_thread_status_wrapper(void *self) {
 
   np_thread_t *thread = self;
   thread->id          = (size_t)pthread_self();
-  log_debug_msg(LOG_THREADS,
-                "thread %" PRIsizet " type %d starting",
-                thread->id,
-                thread->thread_type);
+  log_debug(LOG_THREADS,
+            NULL,
+            "thread %" PRIsizet " type %d starting",
+            thread->id,
+            thread->thread_type);
 
   _np_threads_set_self(self);
   enum np_status tmp_status = np_get_status(context);
@@ -949,10 +949,11 @@ void *__np_thread_status_wrapper(void *self) {
         np_threads_busyness(context, thread, false);
       }
     } else {
-      log_debug_msg(LOG_THREADS,
-                    "thread %" PRIsizet " type %d sleeping ...",
-                    thread->id,
-                    thread->thread_type);
+      log_debug(LOG_THREADS,
+                NULL,
+                "thread %" PRIsizet " type %d sleeping ...",
+                thread->id,
+                thread->thread_type);
       np_time_sleep(0.0);
     }
     tmp_status = np_get_status(context);
@@ -960,7 +961,8 @@ void *__np_thread_status_wrapper(void *self) {
   }
 
   log_info(LOG_THREADS,
-           "thread %" PRIsizet " type %" PRIsizet " stopping ...",
+           NULL,
+           "thread %" PRIsizet " type %" PRIu32 " stopping ...",
            thread->id,
            thread->thread_type);
 
@@ -1021,6 +1023,7 @@ void np_threads_shutdown_workers(np_state_t *context) {
   while (iter_threads != NULL) {
     np_thread_t *thread = iter_threads->val;
     log_debug(LOG_THREADS,
+              NULL,
               "thread %" PRIsizet " type %d request to stop ...",
               thread->id,
               thread->thread_type);
@@ -1043,6 +1046,7 @@ void np_threads_shutdown_workers(np_state_t *context) {
     // and wait for all threads to join the main thread again
     if (thread->thread_type != np_thread_type_main) {
       log_debug(LOG_THREADS,
+                NULL,
                 "wait for thread %" PRIsizet " type %d to stop",
                 thread->id,
                 thread->thread_type);
@@ -1052,6 +1056,7 @@ void np_threads_shutdown_workers(np_state_t *context) {
       ASSERT(join_res == 0, "Cannot join other threads %" PRId32, join_res);
 
       log_debug(LOG_THREADS,
+                NULL,
                 "thread %" PRIsizet " type %d stopped",
                 thread->id,
                 thread->thread_type);
@@ -1059,41 +1064,40 @@ void np_threads_shutdown_workers(np_state_t *context) {
     sll_next(iter_threads);
   }
   log_info(LOG_THREADS,
-           "all %" PRIsizet " threads stopped",
+           NULL,
+           "all %" PRIu32 " threads stopped",
            sll_size(np_module(threads)->threads) -
                1 /*do not count main thread*/);
 }
 
 void np_threads_start_workers(NP_UNUSED np_state_t *context,
                               uint8_t               pool_size) {
-  log_trace_msg(LOG_TRACE,
-                "start: void np_threads_start_workers(uint8_t pool_size){");
-  log_debug_msg(LOG_THREADS | LOG_DEBUG,
-                "starting neuropil with %" PRIu8 " threads",
-                pool_size);
 
   if (pthread_attr_init(&np_module(threads)->__attributes) != 0) {
-    log_msg(LOG_ERROR, "pthread_attr_init: %s", strerror(errno));
+    log_msg(LOG_ERROR, NULL, "pthread_attr_init: %s", strerror(errno));
     return;
   }
 
   if (pthread_attr_setscope(&np_module(threads)->__attributes,
                             PTHREAD_SCOPE_SYSTEM) != 0) {
-    log_msg(LOG_ERROR, "pthread_attr_setscope: %s", strerror(errno));
+    log_msg(LOG_ERROR, NULL, "pthread_attr_setscope: %s", strerror(errno));
     return;
   }
 
   if (pthread_attr_setdetachstate(&np_module(threads)->__attributes,
                                   PTHREAD_CREATE_JOINABLE) != 0) {
-    log_msg(LOG_ERROR, "pthread_attr_setdetachstate: %s", strerror(errno));
+    log_msg(LOG_ERROR,
+            NULL,
+            "pthread_attr_setdetachstate: %s",
+            strerror(errno));
     return;
   }
   /*
   if (pthread_attr_setstacksize(&np_module(threads)->__attributes,
   PTHREAD_STACK_MIN*4) != 0)
   {
-      log_msg(LOG_ERROR, "pthread_attr_setstacksize: %s", strerror(errno));
-      return;
+      log_msg(LOG_ERROR, NULL, "pthread_attr_setstacksize: %s",
+  strerror(errno)); return;
   }
   */
 
@@ -1179,14 +1183,15 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
     _np_jobqueue_add_worker_thread(special_thread);
   }
 
-  log_debug_msg(LOG_THREADS,
-                "jobqueue threads started: pool %" PRIu8,
-                pool_size);
+  log_debug(LOG_THREADS,
+            NULL,
+            "jobqueue threads started: pool %" PRIu8,
+            pool_size);
   _np_jobqueue_print_jobs(context);
 
-  log_msg(LOG_INFO, "%s", NEUROPIL_RELEASE);
-  log_msg(LOG_INFO, "%s", NEUROPIL_COPYRIGHT);
-  log_msg(LOG_INFO, "%s", NEUROPIL_TRADEMARK);
+  log_msg(LOG_INFO, NULL, "%s", NEUROPIL_RELEASE);
+  log_msg(LOG_INFO, NULL, "%s", NEUROPIL_COPYRIGHT);
+  log_msg(LOG_INFO, NULL, "%s", NEUROPIL_TRADEMARK);
 }
 
 char *np_threads_print(np_state_t *context, bool asOneLine) {

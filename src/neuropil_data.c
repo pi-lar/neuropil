@@ -150,8 +150,7 @@ enum np_data_return np_set_data(np_datablock_t     *block,
       assert(old_container.buffer_start != NULL);
       assert(old_container.buffer_end != NULL);
       // overwrite data (as in: delete old object und add anew)
-      ret =
-          np_serializer_calculate_object_size(old_container, &old_object_size);
+      np_serializer_calculate_object_size(old_container, &old_object_size);
     }
 
     np_kv_buffer_t new_container = {

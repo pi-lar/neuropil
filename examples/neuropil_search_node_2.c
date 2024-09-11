@@ -335,24 +335,24 @@ int main(int argc, char **argv) {
             "INFO : node is listening on %s\n",
             np_get_connection_string(context));
 
-    log_debug_msg(LOG_DEBUG, "starting http module");
+    log_debug(LOG_DEBUG, NULL, "starting http module");
     _np_http_init(context, "localhost", "31415");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
-    log_debug_msg(LOG_DEBUG, "starting file server");
+    log_debug(LOG_DEBUG, NULL, "starting file server");
     // np_files_open(context, file_seed, "", false);
     np_sysinfo_enable_server(context);
 
-    log_debug_msg(LOG_DEBUG, "starting search module");
+    log_debug(LOG_DEBUG, NULL, "starting search module");
     np_search_settings_t *search_settings = np_default_searchsettings();
     search_settings->enable_remote_peers  = false;
     search_settings->analytic_mode        = SEARCH_ANALYTICS_ON;
     np_searchnode_init(context, search_settings);
     fprintf(stdout, "initialized searchnode ...\n");
 
-    log_debug_msg(LOG_DEBUG, "starting job queue");
+    log_debug(LOG_DEBUG, NULL, "starting job queue");
     if (np_ok != np_run(context, 0.001)) {
       np_example_print(context, stderr, "ERROR: Node could not run");
       exit(1);
@@ -374,14 +374,14 @@ int main(int argc, char **argv) {
     // FILE* file = fopen("./pubmed-dataset/test.txt", "r");
     FILE *file = fopen("./pubmed-dataset/train.txt", "r");
     if (file == NULL) {
-      log_msg(LOG_ERROR, "--------- could not read pubmed dataset");
+      log_msg(LOG_ERROR, NULL, "--------- could not read pubmed dataset");
       abort();
     }
     size_t         bufSize = 10240;
     unsigned char  fileData[bufSize];
     enum np_return np_ret = np_ok;
     size_t         rd     = 0;
-    log_msg(LOG_ERROR, "--------- started indexing of pubmed dataset");
+    log_msg(LOG_ERROR, NULL, "--------- started indexing of pubmed dataset");
     while (0 < (rd = fread((void *)fileData, 1, bufSize - 1, file))) {
       fileData[bufSize] = '\0';
       // fprintf(stdout, "read %u bytes\n", rd);
@@ -394,7 +394,7 @@ int main(int argc, char **argv) {
       // __np_example_helper_loop(context);
       np_run(context, 0.0);
     }
-    log_msg(LOG_ERROR, "--------- stopped indexing of pubmed dataset");
+    log_msg(LOG_ERROR, NULL, "--------- stopped indexing of pubmed dataset");
 
     // {
     if (ferror(file)) {

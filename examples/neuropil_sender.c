@@ -125,7 +125,7 @@ int main(void) {
   enum np_return status;
   uint64_t       _i = 0;
   do {
-    status = np_run(ac, 0);
+    status = np_run(ac, 1.0);
     char message[100];
     // printf("Enter message (max 100 chars): ");
     // fgets(message, 200, stdin);

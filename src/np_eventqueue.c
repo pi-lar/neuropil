@@ -42,9 +42,10 @@
 #include "np_types.h"
 #include "np_util.h"
 
-const char _np_ref_event_runtime[] = "_np_event_runtime";
+static const char _np_ref_event_runtime[] = "_np_event_runtime";
 
-#define np_event_runtime_max_size 1000
+enum { np_event_runtime_max_size = 254 };
+
 struct np_event_runtime_s {
   np_util_event_t  __chained_events[np_event_runtime_max_size];
   volatile uint8_t __chained_events_size;
@@ -75,68 +76,72 @@ void __np_event_runtime_add_event(np_state_t         *context,
     // IS ERROR
     for (uint8_t _idx = 0; _idx < runtime->__chained_events_size; _idx++) {
       np_util_event_t next_event = runtime->__chained_events[_idx];
-      np_key_t       *__source_key =
-          _np_keycache_find_or_create(context, next_event.__source_dhkey);
 
-      log_error(
-          "event@%" PRIu8 " event_type: %" PRIu32 " key: %s key_type: %" PRIu32
-          " userdata_type: %" PRIu32 " id: %s",
-          _idx,
-          next_event.type,
-          _np_key_as_str(__source_key),
-          __source_key->type,
-          np_memory_get_type(next_event.user_data),
-          next_event.user_data != NULL &&
-                  _np_memory_rtti_check(next_event.user_data,
-                                        np_memory_types_np_message_t)
-              ? ((np_message_t *)next_event.user_data)->uuid
-              : (next_event.user_data != NULL &&
-                         _np_memory_rtti_check(next_event.user_data,
-                                               np_memory_types_np_messagepart_t)
-                     ? ((np_messagepart_t *)next_event.user_data)->uuid
-                     : "no id"));
+      np_key_t *__source_key =
+          _np_keycache_find_or_create(context, next_event.__source_dhkey);
+      char uuid_out[NP_UUID_BYTES] = {0};
+      if (next_event.user_data != NULL &&
+          _np_memory_rtti_check(next_event.user_data,
+                                np_memory_types_np_message_t))
+        memcpy(uuid_out,
+               ((struct np_e2e_message_s *)next_event.user_data)->uuid,
+               NP_UUID_BYTES);
+      if (next_event.user_data != NULL &&
+          _np_memory_rtti_check(next_event.user_data,
+                                np_memory_types_np_messagepart_t))
+        memcpy(uuid_out,
+               ((struct np_n2n_messagepart_s *)next_event.user_data)
+                   ->e2e_msg_part.uuid,
+               NP_UUID_BYTES);
+      log_error(uuid_out,
+                "event@%" PRIu8 " event_type: %" PRIu32
+                " key: %s key_type: %" PRIu32 " userdata_type: %" PRIu32,
+                _idx,
+                next_event.type,
+                _np_key_as_str(__source_key),
+                __source_key->type,
+                np_memory_get_type(next_event.user_data));
+      np_unref_obj(np_key_t, __source_key, "_np_keycache_find_or_create");
     }
   }
   ASSERT((runtime->__chained_events_size) < np_event_runtime_max_size,
          "Maximum event chaining reached %" PRIu8 "/%" PRIu8,
          runtime->__chained_events_size,
          np_event_runtime_max_size);
-  np_key_t *__source_key = _np_keycache_find(context, dhkey);
 
+  np_key_t *__source_key = _np_keycache_find(context, dhkey);
   if (__source_key != NULL) {
-    log_debug(
-        LOG_EVENT,
-        "ADDING event@%" PRIu8 " event_type: %" PRIu32
-        " key: %s key_type: %" PRIu8 " userdata_type: %" PRIu32 " id: %s",
-        runtime->__chained_events_size,
-        event.type,
-        _np_key_as_str(__source_key),
-        __source_key->type,
-        np_memory_get_type(event.user_data),
-        (event.user_data != NULL &&
-                 _np_memory_rtti_check(event.user_data,
-                                       np_memory_types_np_message_t)
-             ? ((np_message_t *)event.user_data)->uuid
-             : (event.user_data != NULL &&
-                        _np_memory_rtti_check(event.user_data,
-                                              np_memory_types_np_messagepart_t)
-                    ? ((np_messagepart_t *)event.user_data)->uuid
-                    : (event.user_data != NULL &&
-                               _np_memory_rtti_check(
-                                   event.user_data,
-                                   np_memory_types_np_aaatoken_t)
-                           ? ((np_aaatoken_t *)event.user_data)->uuid
-                           : "no id"))));
+    char uuid_out[NP_UUID_BYTES] = {0};
+    if (event.user_data != NULL &&
+        _np_memory_rtti_check(event.user_data, np_memory_types_np_message_t))
+      memcpy(uuid_out,
+             ((struct np_e2e_message_s *)event.user_data)->uuid,
+             NP_UUID_BYTES);
+    if (event.user_data != NULL &&
+        _np_memory_rtti_check(event.user_data,
+                              np_memory_types_np_messagepart_t))
+      memcpy(
+          uuid_out,
+          ((struct np_n2n_messagepart_s *)event.user_data)->e2e_msg_part.uuid,
+          NP_UUID_BYTES);
+    log_debug(LOG_EVENT,
+              uuid_out,
+              "ADDING event@%" PRIu8 " event_type: %" PRIu32
+              " key: %s key_type: %" PRIu8 " userdata_type: %" PRIu32,
+              runtime->__chained_events_size,
+              event.type,
+              _np_key_as_str(__source_key),
+              __source_key->type,
+              np_memory_get_type(event.user_data));
     np_unref_obj(np_key_t, __source_key, "_np_keycache_find");
   }
   // ASSERT(!(runtime->__chained_events_size > 100 && event.type == 17 &&
   // _np_memory_rtti_check(event.user_data,np_memory_types_np_messagepart_t)),"TEST");
 
-  event.__source_dhkey = dhkey;
-  event.current_run    = runtime;
+  _np_dhkey_assign(&event.__source_dhkey, &dhkey);
+  event.current_run = runtime;
   if (event.user_data != NULL) {
-    // increase the generic object reference counter (should not be nessecary
-    // but just in case)
+    // increase the generic object reference counter
     np_ref_obj(np_unknown_t, event.user_data, _np_ref_event_runtime);
   }
   runtime->__chained_events[runtime->__chained_events_size] = event;
@@ -155,15 +160,16 @@ void __np_event_runtime_start_with_event(np_state_t     *context,
                                          char           *source) {
   np_event_runtime_t _run = {0};
 
-  char  run_id[NP_UUID_BYTES];
-  char *run_id2 = run_id;
-  np_uuid_create("ASDASDDSAAD", 5455, &run_id2);
+  unsigned char  run_id[NP_UUID_BYTES];
+  unsigned char *run_id2 = &run_id[0];
+  // unsigned char *run_id2 = &run_id;
+  np_uuid_create("urn:np:runtime:create_event_id", 5455, &run_id2);
 
   // add event to own chain
   __np_event_runtime_add_event(context, &_run, dhkey, event, source);
   log_info(LOG_EVENT,
-           "start event chain %s for event_type: %" PRIu32 " user_data:%p",
            run_id,
+           "start event chain for event_type: %" PRIu32 " user_data:%p",
            event.type,
            event.user_data);
 
@@ -171,11 +177,11 @@ void __np_event_runtime_start_with_event(np_state_t     *context,
   uint8_t chained_events_idx = 0;
   while (chained_events_idx < _run.__chained_events_size) {
     np_util_event_t next_event = _run.__chained_events[chained_events_idx];
-    next_event.cleanup         = NULL;
-    // next_event.__user_data = next_event.user_data;
+    // next_event.cleanup         = NULL;
+    // next_event.user_data = next_event.user_data;
     log_info(LOG_EVENT,
-             "run event chain %s / %" PRIu8 " %s",
              run_id,
+             "run event chain %" PRIu8 " %s",
              chained_events_idx,
 #ifdef DEBUG
              next_event.__fn_source
@@ -185,25 +191,22 @@ void __np_event_runtime_start_with_event(np_state_t     *context,
     );
     _np_keycache_execute_event(context, next_event.__source_dhkey, next_event);
     log_debug(LOG_EVENT,
-              "completed event chain %s / %" PRIu8 " %s",
               run_id,
+              "completed event chain / %" PRIu8 " %s",
               chained_events_idx,
               next_event.__fn_source);
     chained_events_idx++;
   }
-  log_info(LOG_EVENT, "begin with event cleanup %s", &run_id);
+  log_info(LOG_EVENT, run_id, "begin with event chain cleanup");
   // release all associated data and run cleanup functions
   chained_events_idx = 0;
   while (chained_events_idx < _run.__chained_events_size) {
     np_util_event_t next_event = _run.__chained_events[chained_events_idx];
     log_info(LOG_EVENT,
-             "cleanup event chain %s %" PRIu8,
              run_id,
+             "cleanup event chain %" PRIu8,
              chained_events_idx);
 
-    if (next_event.cleanup != NULL) {
-      next_event.cleanup(context, next_event);
-    }
     if (next_event.user_data != NULL) {
       np_unref_obj(np_unknown_t, next_event.user_data, _np_ref_event_runtime);
     }
@@ -211,6 +214,7 @@ void __np_event_runtime_start_with_event(np_state_t     *context,
   }
 
   log_debug(LOG_EVENT | LOG_VERBOSE,
+            run_id,
             "Event chain depth at %" PRIu8 " (%5.1f%%)",
             chained_events_idx,
             (chained_events_idx / (np_event_runtime_max_size + .0)) * 100);

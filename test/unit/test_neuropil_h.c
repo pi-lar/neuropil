@@ -35,7 +35,7 @@ Test(neuropil_h,
 
     np_id_str(fp_str, fp);
     np_id_str(old_fp_str, old_fp);
-    log_msg(LOG_INFO, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
+    log_msg(LOG_INFO, NULL, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
 
     strncpy(token.subject, "urn:np:subject:test_subject", 255);
     np_token_fingerprint(context, token, true, &fp);
@@ -45,7 +45,7 @@ Test(neuropil_h,
 
     np_id_str(fp_str, fp);
     np_id_str(old_fp_str, old_fp);
-    log_msg(LOG_INFO, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
+    log_msg(LOG_INFO, NULL, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
 
     memcpy(token.issuer, old_fp, NP_FINGERPRINT_BYTES);
     np_token_fingerprint(context, token, true, &fp);
@@ -55,6 +55,6 @@ Test(neuropil_h,
 
     np_id_str(fp_str, fp);
     np_id_str(old_fp_str, old_fp);
-    log_msg(LOG_INFO, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
+    log_msg(LOG_INFO, NULL, "new fp: %s ### %s: old fp", fp_str, old_fp_str);
   }
 }

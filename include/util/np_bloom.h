@@ -12,6 +12,8 @@
 
 #include "neuropil.h"
 
+#include "util/np_pcg_rng.h"
+
 #include "np_util.h"
 
 #ifdef __cplusplus
@@ -72,6 +74,8 @@ struct np_bloom_s {
   uint8_t
       _p; // prone rate (number of items to decrement) for stable bloom filter
   // or decaying rate/shift for attenuated bloom filter
+
+  struct np_local_pcg_state_32 _rng;
 
   // runtime variables
   uint64_t          **_bitset_64_array;

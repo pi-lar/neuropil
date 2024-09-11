@@ -23,21 +23,21 @@ extern "C" {
 
 #ifndef _np_debug_log_bin
 #ifdef DEBUG
-#define _np_debug_log_bin0(bin, bin_size, log_category, log_msg)               \
+#define _np_debug_log_bin0(bin, bin_size, log_category, uuid, log_msg)               \
   {                                                                            \
     char hex[bin_size * 2 + 1];                                                \
     sodium_bin2hex(hex, bin_size * 2 + 1, bin, bin_size);                      \
-    log_debug_msg(log_category, log_msg, hex);                                 \
+    log_debug(log_category, uuid, log_msg, hex);                               \
   }
-#define _np_debug_log_bin(bin, bin_size, log_category, log_msg, ...)           \
+#define _np_debug_log_bin(bin, bin_size, log_category, uuid, log_msg, ...)           \
   {                                                                            \
     char hex[bin_size * 2 + 1];                                                \
     sodium_bin2hex(hex, bin_size * 2 + 1, bin, bin_size);                      \
-    log_debug_msg(log_category, log_msg, __VA_ARGS__, hex);                    \
+    log_debug(log_category, uuid, log_msg, __VA_ARGS__, hex);                  \
   }
 #else
-#define _np_debug_log_bin0(bin, bin_size, log_category, log_msg)
-#define _np_debug_log_bin(bin, bin_size, log_category, log_msg, ...)
+#define _np_debug_log_bin0(bin, bin_size, log_category, uuid, log_msg)
+#define _np_debug_log_bin(bin, bin_size, log_category, uuid, log_msg, ...)
 #endif
 #endif
 
@@ -1790,9 +1790,10 @@ extern "C" {
       #e33, #e34, #e35, #e36, #e37, #e38, #e39, #e40, #e41, #e42, #e43, #e44,  \
       #e45, #e46, #e47, #e48, #e49, __GENERATE_ENUM_STR_END(NAME)
 
-// create a sha156 uuid string, take the current date into account
+// create a sha256 uuid string, take the current date into account
 NP_API_EXPORT
-char *np_uuid_create(const char *str, const uint16_t num, char **buffer);
+char *
+np_uuid_create(const char *str, const uint32_t num, unsigned char **buffer);
 
 NP_API_INTERN
 void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys));

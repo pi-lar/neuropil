@@ -50,8 +50,6 @@ void _np_aaatoken_t_new(np_state_t       *context,
                         NP_UNUSED uint8_t type,
                         NP_UNUSED size_t  size,
                         void             *token) {
-  log_trace_msg(LOG_TRACE | LOG_AAATOKEN,
-                "start: void _np_aaatoken_t_new(void* token){");
   np_aaatoken_t *aaa_token = (np_aaatoken_t *)token;
 
   // TODO: derive from version string
@@ -85,16 +83,17 @@ void _np_aaatoken_t_new(np_state_t       *context,
   aaa_token->is_signature_verified = false;
 
   char *uuid = aaa_token->uuid;
-  np_uuid_create("generic_aaatoken", 0, &uuid);
+  np_uuid_create("urn:np:token:create_generic_token", 0, &uuid);
 
   aaa_token->issued_at  = np_time_now();
   aaa_token->not_before = aaa_token->issued_at;
   int expire_sec        = ((int)randombytes_uniform(20) + 10);
 
   aaa_token->expires_at = aaa_token->not_before + expire_sec;
-  log_debug_msg(LOG_DEBUG | LOG_AAATOKEN,
-                "aaatoken expires in %d sec",
-                expire_sec);
+  log_debug(LOG_DEBUG | LOG_AAATOKEN,
+            aaa_token->uuid,
+            "aaatoken expires in %d sec",
+            expire_sec);
 
   np_init_datablock(aaa_token->attributes, sizeof(aaa_token->attributes));
   aaa_token->state = AAA_UNKNOWN;
@@ -112,8 +111,10 @@ void _np_aaatoken_t_del(NP_UNUSED np_state_t *context,
 }
 
 void _np_aaatoken_encode(np_tree_t *data, np_aaatoken_t *token, bool trace) {
-  log_trace_msg(
+
+  log_trace(
       LOG_TRACE | LOG_AAATOKEN,
+      token->uuid,
       "start: void np_aaatoken_encode(np_tree_t* data, np_aaatoken_t* token){");
 
   // np_state_t* context = np_ctx_by_memory(token);
@@ -121,7 +122,9 @@ void _np_aaatoken_encode(np_tree_t *data, np_aaatoken_t *token, bool trace) {
   // included into np_token_handshake
 
   np_tree_replace_str(data, "np.t.type", np_treeval_new_ush(token->type));
-  np_tree_replace_str(data, "np.t.u", np_treeval_new_s(token->uuid));
+  np_tree_replace_str(data,
+                      "np.t.u",
+                      np_treeval_new_bin(token->uuid, NP_UUID_BYTES));
   np_tree_replace_str(data, "np.t.r", np_treeval_new_s(token->realm));
   np_tree_replace_str(data, "np.t.i", np_treeval_new_s(token->issuer));
   np_tree_replace_str(data, "np.t.s", np_treeval_new_s(token->subject));
@@ -152,13 +155,6 @@ void _np_aaatoken_encode(np_tree_t *data, np_aaatoken_t *token, bool trace) {
                       "np.t.sie",
                       np_treeval_new_bin(token->attributes_signature,
                                          sizeof(token->attributes_signature)));
-
-  // #ifdef DEBUG
-  //	char pubkey[65];
-  //	sodium_bin2hex(pubkey, 65, token->crypto.ed25519_public_key,
-  //  crypto_sign_PUBLICKEYBYTES); 	pubkey[64] = '\0'; 	fprintf(stdout,
-  //  "L: uuid: %s
-  // ## subj: %s ## pk: %s\n", token->uuid, token->subject, pubkey); #endif
 }
 
 void np_aaatoken_encode(np_tree_t *data, np_aaatoken_t *token) {
@@ -181,7 +177,7 @@ bool np_aaatoken_decode(np_tree_t *data, np_aaatoken_t *token) {
   token->type  = np_aaatoken_type_undefined;
 
   if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.u"))) {
-    strncpy(token->uuid, np_treeval_to_str(tmp->val, NULL), NP_UUID_BYTES);
+    memcpy(token->uuid, tmp->val.value.bin, NP_UUID_BYTES);
   } else {
     ret = false; /*Mandatory field*/
   }
@@ -212,7 +208,7 @@ bool np_aaatoken_decode(np_tree_t *data, np_aaatoken_t *token) {
     if (NULL == np_cryptofactory_by_public(context,
                                            &token->crypto,
                                            tmp->val.value.bin)) {
-      log_msg(LOG_ERROR, "Could not decode crypto details from token");
+      log_msg(LOG_ERROR, NULL, "Could not decode crypto details from token");
       ret = false; /*Mandatory field*/
     }
   } else {
@@ -311,30 +307,27 @@ np_dhkey_t np_aaatoken_get_fingerprint(np_aaatoken_t *self,
 bool _np_aaatoken_is_valid(np_state_t           *context,
                            np_aaatoken_t        *token,
                            enum np_aaatoken_type expected_type) {
-  log_trace_msg(
-      LOG_TRACE | LOG_AAATOKEN,
-      "start: bool _np_aaatoken_is_valid(context, np_aaatoken_t* token){");
 
   if (NULL == token) return false;
 
   log_debug(LOG_AAATOKEN,
-            "checking token (%s) validity for token of type %" PRIu32
-            " and scope %" PRIu32,
             token->uuid,
+            "checking token validity for token of type %" PRIu32
+            " and scope %" PRIu32,
             token->type,
             token->scope);
 
   if (FLAG_CMP(token->type, expected_type) == false) {
     log_warn(LOG_AAATOKEN,
-             "token (%s) for subject \"%s\": is not from correct type (%" PRIu32
-             " != (expected:=)%" PRIu32 "). verification failed",
              token->uuid,
+             "token for subject \"%s\": is not from correct type (%" PRIu32
+             " != (expected:=)%" PRIu32 "). verification failed",
              token->subject,
              token->type,
              expected_type);
 #ifdef DEBUG
     ASSERT(false,
-           "token (%s) for subject \"%s\": is not from correct type (%" PRIu32
+           "token (%8s) for subject \"%s\": is not from correct type (%" PRIu32
            " != (expected:=)%" PRIu32 "). verification failed",
            token->uuid,
            token->subject,
@@ -343,28 +336,26 @@ bool _np_aaatoken_is_valid(np_state_t           *context,
 #endif // DEBUG
 
     token->state &= AAA_INVALID;
-    log_trace_msg(LOG_AAATOKEN, ".end  .token_is_valid");
     return (false);
   } else {
-    log_debug(LOG_AAATOKEN, "token has expected type");
+    log_debug(LOG_AAATOKEN, token->uuid, "token has expected type");
   }
 
   // check timestamp
   double now = np_time_now();
   if (now > (token->expires_at)) {
-    log_info(LOG_AAATOKEN | LOG_ROUTING,
-             "token (%s) for subject \"%s\": expired (%f = %f - %f). "
-             "verification failed",
+    log_info(LOG_AAATOKEN,
              token->uuid,
+             "token for subject \"%s\": expired (%f = %f - %f). "
+             "verification failed",
              token->subject,
              token->expires_at - now,
              now,
              token->expires_at);
     token->state &= AAA_INVALID;
-    log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
     return (false);
   } else {
-    log_debug_msg(LOG_AAATOKEN, "token has not expired");
+    log_debug(LOG_AAATOKEN, token->uuid, "token has not expired");
   }
 
   if (token->scope > np_aaatoken_scope_private_available) {
@@ -374,7 +365,7 @@ bool _np_aaatoken_is_valid(np_state_t           *context,
       // verify inserted signature first
       unsigned char *signature = token->signature;
 
-      log_debug_msg(LOG_AAATOKEN, "try to check signature checksum");
+      log_debug(LOG_AAATOKEN, token->uuid, "try to check signature checksum");
       int ret = crypto_sign_verify_detached((unsigned char *)signature,
                                             hash,
                                             crypto_generichash_BYTES,
@@ -398,47 +389,45 @@ bool _np_aaatoken_is_valid(np_state_t           *context,
                      token->crypto.derived_kx_public_key,
                      crypto_sign_PUBLICKEYBYTES);
 
-      log_debug_msg(
-          LOG_AAATOKEN | LOG_DEBUG,
-          "(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %" PRId32,
-          token->uuid,
-          ret != 0 ? " not" : "",
-          pk_hex,
-          signature_hex,
-          ret);
+      log_debug(LOG_AAATOKEN,
+                token->uuid,
+                "signature is%s valid: (pk: 0x%s) sig: 0x%s = %" PRId32,
+                ret != 0 ? " not" : "",
+                pk_hex,
+                signature_hex,
+                ret);
 #endif
       free(hash);
 
       if (ret < 0) {
-        log_msg(LOG_WARNING,
-                "token (%s) for subject \"%s\": checksum verification failed",
-                token->uuid,
-                token->subject);
-        log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+        log_warn(LOG_AAATOKEN,
+                 token->uuid,
+                 "token for subject \"%s\": checksum verification failed",
+                 token->subject);
         token->state &= AAA_INVALID;
         return (false);
       }
-      log_debug_msg(
-          LOG_AAATOKEN | LOG_DEBUG,
-          "token (%s) for subject \"%s\": checksum verification success",
-          token->uuid,
-          token->subject);
+      log_debug(LOG_AAATOKEN,
+                token->uuid,
+                "token for subject \"%s\": checksum verification success",
+                token->subject);
       token->is_signature_verified = true;
     }
 
     if (token->is_signature_attributes_verified == false) {
       // verify inserted signature first
-      log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                    "try to check attribute signature checksum");
+      log_debug(LOG_AAATOKEN,
+                token->uuid,
+                "try to check attribute signature checksum");
       size_t attr_data_size = 0;
       bool   ret =
           np_get_data_size(token->attributes, &attr_data_size) == np_data_ok;
       if (!ret) {
-        log_msg(LOG_WARNING,
-                "token (%s) for subject \"%s\": attributes do have no valid "
-                "structure (total_size)",
-                token->uuid,
-                token->subject);
+        log_warn(LOG_AAATOKEN,
+                 token->uuid,
+                 "token for subject \"%s\": attributes do have no valid "
+                 "structure (total_size)",
+                 token->subject);
       } else {
         unsigned char *hash = __np_aaatoken_get_attributes_hash(token);
         ret &=
@@ -450,80 +439,78 @@ bool _np_aaatoken_is_valid(np_state_t           *context,
       }
 
       if (!ret) {
-        _np_debug_log_bin(token->attributes_signature,
-                          sizeof(token->attributes_signature),
-                          LOG_AAATOKEN,
-                          "token (%s) attribute signature: %s",
-                          token->uuid);
-        log_msg(LOG_WARNING,
-                "token (%s) for subject \"%s\": attribute signature "
-                "checksum verification failed",
-                token->uuid,
-                token->subject);
-        log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+        _np_debug_log_bin0(token->attributes_signature,
+                           sizeof(token->attributes_signature),
+                           LOG_AAATOKEN,
+                           token->uuid,
+                           "token attribute signature: %s");
+        log_warn(LOG_AAATOKEN,
+                 token->uuid,
+                 "token for subject \"%s\": attribute signature "
+                 "checksum verification failed",
+                 token->subject);
+        log_trace(LOG_AAATOKEN, token->uuid, ".end  .token_is_valid");
         token->state &= AAA_INVALID;
         return ret;
       }
-      log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                    "token (%s) for subject \"%s\": attribute signature "
-                    "checksum verification success",
-                    token->uuid,
-                    token->subject);
+      log_debug(LOG_AAATOKEN,
+                token->uuid,
+                "token for subject \"%s\": attribute signature "
+                "checksum verification success",
+                token->subject);
       token->is_signature_attributes_verified = true;
     }
   }
 
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "token checksum verification completed");
+  log_debug(LOG_AAATOKEN | LOG_DEBUG,
+            token->uuid,
+            "token checksum verification completed");
 
   if (FLAG_CMP(token->type, np_aaatoken_type_message_intent)) {
-    log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "try to find max/msg threshold ");
+    log_debug(LOG_AAATOKEN, token->uuid, "try to find max/msg threshold ");
 
     np_data_value max_threshold, msg_threshold;
     if (np_get_data(token->attributes, "max_threshold", NULL, &max_threshold) ==
             np_ok &&
         np_get_data(token->attributes, "msg_threshold", NULL, &msg_threshold) ==
             np_ok) {
-      log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "found max/msg threshold");
       uint32_t token_max_threshold = max_threshold.unsigned_integer;
       uint32_t token_msg_threshold = msg_threshold.unsigned_integer;
 
       if (0 <= token_msg_threshold &&
           token_msg_threshold <= token_max_threshold) {
-        log_debug_msg(
-            LOG_AAATOKEN | LOG_DEBUG,
-            "token (%s) for subject \"%s\": %s can be used for %" PRIu32
-            " msgs",
-            token->uuid,
-            token->subject,
-            token->issuer,
-            token_max_threshold - token_msg_threshold);
+        log_debug(LOG_AAATOKEN,
+                  token->uuid,
+                  "token for subject \"%s\": %s can be used for %" PRIu32
+                  " msgs",
+                  token->subject,
+                  token->issuer,
+                  token_max_threshold - token_msg_threshold);
       } else {
-        log_msg(LOG_WARNING,
-                "verification failed. token (%s) for subject \"%s\": %s was "
-                "already used, 0<=%" PRIu32 "<%" PRIu32,
-                token->uuid,
-                token->subject,
-                token->issuer,
-                token_msg_threshold,
-                token_max_threshold);
-        log_trace_msg(LOG_AAATOKEN | LOG_TRACE, ".end  .token_is_valid");
+        log_warn(LOG_AAATOKEN,
+                 token->uuid,
+                 "verification failed. token for subject \"%s\": %s was "
+                 "already used, 0<=%" PRIu32 "<%" PRIu32,
+                 token->subject,
+                 token->issuer,
+                 token_msg_threshold,
+                 token_max_threshold);
         token->state &= AAA_INVALID;
         return (false);
       }
     } else {
       log_warn(LOG_AAATOKEN,
-               "found NO max_/msg_ threshold in token %s / %s",
                token->uuid,
+               "found NO max_/msg_ threshold in token %s",
                token->subject);
       token->state &= AAA_INVALID;
       return (false);
     }
   }
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "token (%s) validity for subject \"%s\": verification valid",
-                token->uuid,
-                token->subject);
+  log_debug(LOG_AAATOKEN,
+            token->uuid,
+            "token  validity for subject \"%s\": verification valid",
+            token->subject);
   token->state |= AAA_VALID;
   return (true);
 }
@@ -542,90 +529,46 @@ unsigned char *_np_aaatoken_get_hash(np_aaatoken_t *self) {
   crypto_generichash_init(&gh_state, NULL, 0, crypto_generichash_BYTES);
 
   // crypto_generichash_update(&gh_state, (unsigned char*)&self->type,
-  // sizeof(uint8_t)); log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting
+  // sizeof(uint8_t)); log_debug(LOG_AAATOKEN | LOG_DEBUG, NULL, "fingerprinting
   // type      : %d", self->type);
 
   ASSERT(self->uuid != NULL, "cannot get token hash of uuid NULL");
   crypto_generichash_update(&gh_state,
                             (unsigned char *)self->uuid,
-                            strnlen(self->uuid, NP_UUID_BYTES));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting uuid      : %s",
-                self->uuid);
-
+                            NP_UUID_BYTES);
   crypto_generichash_update(&gh_state,
                             (unsigned char *)self->realm,
                             strnlen(self->realm, 255));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting realm     : %s",
-                self->realm);
-
   crypto_generichash_update(&gh_state,
                             (unsigned char *)self->issuer,
                             strnlen(self->issuer, 65));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting issuer    : %s",
-                self->issuer);
-
   crypto_generichash_update(&gh_state,
                             (unsigned char *)self->subject,
                             strnlen(self->subject, 255));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting subject   : %s",
-                self->subject);
-
   crypto_generichash_update(&gh_state,
                             (unsigned char *)self->audience,
                             strnlen(self->audience, 255));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting audience  : %s",
-                self->audience);
-
   crypto_generichash_update(&gh_state,
                             (unsigned char *)self->crypto.ed25519_public_key,
                             crypto_sign_PUBLICKEYBYTES);
-
-#ifdef DEBUG
-  char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1];
-  sodium_bin2hex(pk_hex,
-                 crypto_sign_PUBLICKEYBYTES * 2 + 1,
-                 self->crypto.ed25519_public_key,
-                 crypto_sign_PUBLICKEYBYTES);
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting public_key: %s",
-                pk_hex);
-#else
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG, "fingerprinting public_key: <...>");
-#endif
-
   // if(FLAG_CMP(self->type, np_aaatoken_type_handshake) == false) {
   // TODO: expires_at in handshake?
   crypto_generichash_update(&gh_state,
                             (unsigned char *)&(self->expires_at),
                             sizeof(double));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting expiration: %f",
-                self->expires_at);
   crypto_generichash_update(&gh_state,
                             (unsigned char *)&(self->issued_at),
                             sizeof(double));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting issued_at : %f",
-                self->issued_at);
   crypto_generichash_update(&gh_state,
                             (unsigned char *)&(self->not_before),
                             sizeof(double));
-  log_debug_msg(LOG_AAATOKEN | LOG_DEBUG,
-                "fingerprinting not_before: %f",
-                self->not_before);
-  // }
   crypto_generichash_final(&gh_state, ret, crypto_generichash_BYTES);
 
-  _np_debug_log_bin(ret,
-                    crypto_generichash_BYTES,
-                    LOG_AAATOKEN,
-                    "token hash for %s is %s",
-                    self->uuid);
+  _np_debug_log_bin0(ret,
+                     crypto_generichash_BYTES,
+                     LOG_AAATOKEN,
+                     self->uuid,
+                     "token hash is %s");
 
   ASSERT(ret != NULL, "generated hash cannot be NULL");
   return ret;
@@ -636,22 +579,11 @@ int __np_aaatoken_generate_signature(np_state_t    *context,
                                      unsigned char *private_key,
                                      unsigned char *save_to) {
 
-  // unsigned long long signature_len = 0;
-
-  _np_debug_log_bin0(hash,
-                     crypto_generichash_BYTES,
-                     LOG_AAATOKEN,
-                     "token hash key fingerprint: %s");
-  _np_debug_log_bin0(private_key,
-                     crypto_sign_SECRETKEYBYTES,
-                     LOG_AAATOKEN,
-                     "token signature private key: %s")
-
-      int ret = crypto_sign_detached(save_to,
-                                     NULL,
-                                     (const unsigned char *)hash,
-                                     crypto_generichash_BYTES,
-                                     private_key);
+  int ret = crypto_sign_detached(save_to,
+                                 NULL,
+                                 (const unsigned char *)hash,
+                                 crypto_generichash_BYTES,
+                                 private_key);
 
   ASSERT(ret == 0, "checksum creation for token failed, using unsigned token");
   return ret;
@@ -672,8 +604,8 @@ void np_aaatoken_set_partner_fp(np_aaatoken_t *self, np_dhkey_t partner_fp) {
                   (np_data_value){.bin = &partner_fp});
   assert(r == np_ok);
   log_debug(LOG_AAATOKEN,
-            "token (%s) setting \"_np.partner_fp\" result %" PRIu32 " to %s",
             self->uuid,
+            "setting '_np.partner_fp' to token result %" PRIu32 " to %s",
             r,
             id);
 
@@ -692,13 +624,13 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t *self) {
       np_get_data(self->attributes, "_np.partner_fp", &conf, &val);
 
   ASSERT(r == np_ok || r == np_key_not_found,
-         "token (%s): \"_np.partner_fp\" extraction error %" PRIu32,
+         "token (%8s): \"_np.partner_fp\" extraction error %" PRIu32,
          self->uuid,
          r);
 
   if (np_ok == r) {
     ASSERT(conf.data_size == sizeof(np_dhkey_t),
-           "token (%s): \"_np.partner_fp\" extraction size: %" PRIu32 " \n",
+           "token (%8s): \"_np.partner_fp\" extraction size: %" PRIsizet " \n",
            self->uuid,
            conf.data_size);
 
@@ -706,6 +638,7 @@ np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t *self) {
     memcpy(&ret, val.bin, sizeof(np_dhkey_t));
   } else {
     log_debug(LOG_AAATOKEN,
+              self->uuid,
               "np_aaatoken_get_partner_fp issuer: %s",
               self->issuer);
 
@@ -796,10 +729,10 @@ void _np_aaatoken_set_signature(np_aaatoken_t *self, np_aaatoken_t *signee) {
                  crypto_sign_BYTES * 2 + 1,
                  self->signature,
                  crypto_sign_BYTES);
-  log_debug_msg(LOG_DEBUG | LOG_AAATOKEN,
-                "signature hash for %s is %s",
-                self->uuid,
-                sign_hex);
+  log_debug(LOG_DEBUG | LOG_AAATOKEN,
+            self->uuid,
+            "signature hash is %s",
+            sign_hex);
 #endif
 
   ASSERT(ret == 0, "Error in token signature creation");
@@ -824,11 +757,11 @@ void _np_aaatoken_update_attributes_signature(np_aaatoken_t *self) {
 
   ASSERT(ret == 0, "Error in extended token signature creation");
 
-  _np_debug_log_bin(self->attributes_signature,
-                    crypto_sign_BYTES,
-                    LOG_AAATOKEN,
-                    "attribute signature hash for %s is %s",
-                    self->uuid);
+  _np_debug_log_bin0(self->attributes_signature,
+                     crypto_sign_BYTES,
+                     LOG_AAATOKEN,
+                     self->uuid,
+                     "attribute signature hash is %s");
 
   free(hash);
 }
@@ -924,7 +857,7 @@ void _np_aaatoken_trace_info(char *desc, np_aaatoken_t *self) {
   np_tree_free(data);
   info_str = np_str_concatAndFree(info_str, "): %s", self->uuid);
 
-  log_debug(LOG_AAATOKEN, "AAATokenTrace_%s", info_str);
+  log_debug(LOG_AAATOKEN, self->uuid, "AAATokenTrace_%s", info_str);
   free(info_str);
 }
 #endif
@@ -941,7 +874,7 @@ struct np_token *np_aaatoken4user(struct np_token *dest, np_aaatoken_t *src) {
   dest->issued_at  = src->issued_at;
   dest->not_before = src->not_before;
 
-  strncpy(dest->uuid, src->uuid, NP_UUID_BYTES);
+  memcpy(dest->uuid, src->uuid, NP_UUID_BYTES);
 
   np_dhkey_t realm_dhkey = np_dhkey_create_from_hash(src->realm);
   memcpy(dest->realm, &realm_dhkey, NP_FINGERPRINT_BYTES);
@@ -989,7 +922,7 @@ np_aaatoken_t *np_user4aaatoken(np_aaatoken_t *dest, struct np_token *src) {
   dest->issued_at  = src->issued_at;
   dest->not_before = src->not_before;
 
-  strncpy(dest->uuid, src->uuid, NP_UUID_BYTES);
+  memcpy(dest->uuid, src->uuid, NP_UUID_BYTES);
 
   if (memcmp(&src->issuer, &dhkey_zero, sizeof(np_dhkey_t)) == 0) {
     memset(dest->issuer, 0, NP_FINGERPRINT_BYTES);

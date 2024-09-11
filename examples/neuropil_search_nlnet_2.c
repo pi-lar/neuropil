@@ -330,13 +330,13 @@ int main(int argc, char **argv) {
             "INFO : node is listening on %s\n",
             np_get_connection_string(context));
 
-    log_debug_msg(LOG_DEBUG, "starting http module");
+    log_debug(LOG_DEBUG, NULL, "starting http module");
     _np_http_init(context, "localhost", "31415");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
-    log_debug_msg(LOG_DEBUG, "starting file server");
+    log_debug(LOG_DEBUG, NULL, "starting file server");
     // np_files_open(context, file_seed, "", false);
     np_sysinfo_enable_local(context);
 
@@ -350,11 +350,11 @@ int main(int argc, char **argv) {
     // search_settings->shingle_mode = SEARCH_1_IN_2_SHINGLE;
     // search_settings->shingle_mode = SEARCH_1_KMER;
 
-    log_debug_msg(LOG_DEBUG, "starting search module");
+    log_debug(LOG_DEBUG, NULL, "starting search module");
     np_searchnode_init(context, search_settings);
     fprintf(stdout, "initialized searchnode ...\n");
 
-    log_debug_msg(LOG_DEBUG, "starting job queue");
+    log_debug(LOG_DEBUG, NULL, "starting job queue");
     if (np_ok != np_run(context, 0.001)) {
       np_example_print(context, stderr, "ERROR: Node could not run");
       exit(1);

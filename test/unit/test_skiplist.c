@@ -206,7 +206,7 @@ Test(np_skiplist,
 //              "test-string-der-sehr-kurz-ist",
 //              i,
 //              now);
-//     // log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
+//     // log_debug(LOG_DEBUG, NULL, "created input uuid: %s", input);
 //     crypto_generichash_blake2b(data[i]._as_uc,
 //                                32,
 //                                (unsigned char *)input_1,

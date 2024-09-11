@@ -64,8 +64,8 @@ bool np_util_statemachine_invoke_auto_transition(
       break; // exit while early after first successful transition
 
     } else {
-      // log_debug(LOG_DEBUG, "cs: %d.%25s -> transition: %d -> not met\n",
-      // machine->_current_state, current_state->_state_name, i);
+      // log_debug(LOG_DEBUG, NULL, "cs: %d.%25s -> transition: %d -> not
+      // met\n", machine->_current_state, current_state->_state_name, i);
     }
     i++;
   }
@@ -75,7 +75,7 @@ bool np_util_statemachine_invoke_auto_transition(
 
 bool np_util_statemachine_invoke_auto_transitions(
     np_util_statemachine_t *machine) {
-  bool            result     = false;
+
   np_util_event_t noop_event = {.type = evt_noop, .user_data = NULL};
   bool ret = np_util_statemachine_invoke_auto_transition(machine, noop_event);
 

@@ -60,12 +60,12 @@ typedef struct np_statistics_element_s np_statistics_element_t;
 
 bool _np_statistics_receive_msg_on_watched(np_state_t     *context,
                                            np_util_event_t event) {
-  NP_CAST(event.user_data, np_message_t, msg);
+  NP_CAST(event.user_data, struct np_e2e_message_s, msg);
 
   np_statistics_element_t *value = NULL;
   if (np_simple_cache_get(context,
                           &np_module(statistics)->__cache,
-                          _np_message_get_subject(msg),
+                          msg->subject,
                           &value)) {
     value->total_received += 1;
   }
@@ -95,12 +95,12 @@ size_t kgV(size_t a, size_t b) { return a * b / ggT(a, b); }
 
 bool _np_statistics_send_msg_on_watched(np_state_t     *context,
                                         np_util_event_t event) {
-  NP_CAST(event.user_data, np_message_t, msg);
+  NP_CAST(event.user_data, struct np_e2e_message_s, msg);
 
   np_statistics_element_t *value = NULL;
   if (np_simple_cache_get(context,
                           &np_module(statistics)->__cache,
-                          _np_message_get_subject(msg),
+                          msg->subject,
                           &value)) {
     value->total_send += 1;
   }

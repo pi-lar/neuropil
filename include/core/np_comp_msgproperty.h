@@ -16,7 +16,9 @@
 #include "util/np_statemachine.h"
 
 #include "np_dhkey.h"
+#include "np_legacy.h"
 #include "np_memory.h"
+#include "np_message.h"
 #include "np_types.h"
 #include "np_util.h"
 
@@ -277,10 +279,10 @@ with acknowledges
 
 */
 typedef enum np_msg_ack_enum {
-  ACK_NONE        = 0x00, // 0000 0000  - don't ack at all
-  ACK_DESTINATION = 0x01, // 0000 0010 - message destination ack to message
+  ACK_NONE        = 0x01, // 0000 0000  - don't ack at all
+  ACK_DESTINATION = 0x02, // 0000 0010 - message destination ack to message
                           // sender across multiple nodes
-  ACK_CLIENT = 0x02,      // 0000 0100 - message to sender ack after/during
+  ACK_CLIENT = 0x04,      // 0000 0100 - message to sender ack after/during
                           // processing the message on receiver side
 } NP_API_EXPORT np_msg_ack_type;
 
@@ -469,15 +471,17 @@ np_msgproperty_run_t *_np_msgproperty_run_get(np_state_t      *context,
 // NP_API_INTERN
 // void _np_msgproperty_job_msg_uniquety(np_msgproperty_run_t* self);
 NP_API_INTERN
-void _np_msgproperty_remove_msg_from_uniquety_list(np_msgproperty_run_t *self,
-                                                   np_message_t *msg_to_remove);
+void _np_msgproperty_remove_msg_from_uniquety_list(
+    np_msgproperty_run_t *self, struct np_e2e_message_s *msg_to_remove);
+
 NP_API_INTERN
 void _np_msgproperty_job_msg_uniquety(np_msgproperty_conf_t *self_conf,
                                       np_msgproperty_run_t  *self_run);
+
 NP_API_INTERN
-bool _np_msgproperty_check_msg_uniquety(np_msgproperty_conf_t *self_conf,
-                                        np_msgproperty_run_t  *self_run,
-                                        np_message_t          *msg_to_check);
+bool _np_msgproperty_check_msg_uniquety(np_msgproperty_conf_t   *self_conf,
+                                        np_msgproperty_run_t    *self_run,
+                                        struct np_e2e_message_s *msg_to_check);
 
 // void _np_msgproperty_job_msg_uniquety(np_msgproperty_conf_t* self_conf,
 // np_msgproperty_run_t* self_run); bool
@@ -559,11 +563,11 @@ NP_API_INTERN
 bool __is_msgproperty(np_util_statemachine_t *statemachine,
                       const np_util_event_t   event);
 NP_API_INTERN
-bool __is_external_message(np_util_statemachine_t *statemachine,
-                           const np_util_event_t   event);
+bool __is_external_message_event(np_util_statemachine_t *statemachine,
+                                 const np_util_event_t   event);
 NP_API_INTERN
-bool __is_internal_message(np_util_statemachine_t *statemachine,
-                           const np_util_event_t   event);
+bool __is_internal_message_event(np_util_statemachine_t *statemachine,
+                                 const np_util_event_t   event);
 NP_API_INTERN
 bool __is_no_token_available(np_util_statemachine_t *statemachine,
                              const np_util_event_t   event);

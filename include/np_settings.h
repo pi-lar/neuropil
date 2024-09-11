@@ -113,13 +113,17 @@ extern "C" {
 #endif
 
 /*
- * msgproperty default vaue definitions
+ * msgproperty default value definitions
  */
 #ifndef MSGPROPERTY_DEFAULT_MAX_TTL_SEC
 #define MSGPROPERTY_DEFAULT_MAX_TTL_SEC (NP_PI_INT * 60)
 #endif
 #ifndef MSGPROPERTY_DEFAULT_MIN_TTL_SEC
 #define MSGPROPERTY_DEFAULT_MIN_TTL_SEC (NP_PI_INT)
+#endif
+
+#ifndef MSGPROPERTY_DEFAULT_MSG_TTL
+#define MSGPROPERTY_DEFAULT_MSG_TTL (2 * NP_PI * NP_PI)
 #endif
 
 /*
@@ -162,10 +166,11 @@ extern "C" {
 #define NODE_RENEW_BEFORE_EOL_SEC (5)
 #endif
 
-#define MSG_ARRAY_SIZE      (1)
-#define MSG_PAYLOADBIN_SIZE (15)
-
-#define MSG_CHUNK_SIZE_1024 (1024)
+#define MSG_INSTRUCTIONS_SIZE 22U
+#define MSG_MAC_SIZE          crypto_aead_chacha20poly1305_IETF_ABYTES
+#define MSG_NONCE_SIZE        crypto_aead_chacha20poly1305_IETF_NPUBBYTES
+#define MSG_HEADER_SIZE       96U
+#define MSG_CHUNK_SIZE_1024   (1024U)
 #define MSG_ENCRYPTION_BYTES_40                                                \
   (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
@@ -174,10 +179,10 @@ extern "C" {
 #define MISC_LOG_FLUSH_INTERVAL_SEC (NP_PI / 30)
 #endif
 #ifndef MISC_LOG_FLUSH_AFTER_X_ITEMS
-#define MISC_LOG_FLUSH_AFTER_X_ITEMS (31)
+#define MISC_LOG_FLUSH_AFTER_X_ITEMS (31U)
 #endif
 #ifndef LOG_ROTATE_COUNT
-#define LOG_ROTATE_COUNT (3)
+#define LOG_ROTATE_COUNT (3U)
 #endif
 #ifndef LOG_ROTATE_AFTER_BYTES
 #define LOG_ROTATE_AFTER_BYTES (10000000 /* 10 MB */)
@@ -331,7 +336,10 @@ extern "C" {
 // intermediate hops, i.e. in the routing table
 #ifndef NP_PHEROMONES_MAX_NEXTHOP_KEYS
 #define NP_PHEROMONES_MAX_NEXTHOP_KEYS (__MAX_COL + __MAX_ENTRY)
+#endif
 
+#ifndef PHEROMONE_UPDATE_INTERVAL
+#define PHEROMONE_UPDATE_INTERVAL NP_PI * 10
 #endif
 
 #ifndef NP_MSG_PART_FILTER_SIZE

@@ -55,10 +55,12 @@ bool check_authorize_token(np_context *context, struct np_token *token) {
     pthread_mutex_unlock(&_aaa_mutex);
     return (true);
   }
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
 
   fprintf(stdout, "----------------------------------------------\n");
   fprintf(stdout, "authorization request for : \n");
-  fprintf(stdout, "\tuuid              : %s\n", token->uuid);
+  fprintf(stdout, "\tuuid              : %s\n", uuid_hex);
   fprintf(stdout, "\trealm             : %s\n", token->realm);
   fprintf(stdout, "\tissuer            : %s\n", token->issuer);
   fprintf(stdout, "\tsubject           : %s\n", token->subject);

@@ -17,7 +17,7 @@
 double dtime() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
-  // log_msg(LOG_DEBUG, "time now: %d:%d (%f)", tv.tv_sec, tv.tv_usec,
+  // log_msg(LOG_DEBUG, NULL, "time now: %d:%d (%f)", tv.tv_sec, tv.tv_usec,
   // tvtod(tv));
   double retVal = (double)tv.tv_sec;
   retVal += ((double)tv.tv_usec / 1000000.0);

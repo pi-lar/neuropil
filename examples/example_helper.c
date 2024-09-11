@@ -530,7 +530,6 @@ void np_print_startup(np_context *context) {
     ud->_printed_startup = true;
     char *ret            = np_get_startup_str(context);
     np_example_print(context, stdout, ret);
-    // log_msg(LOG_INFO, ret);
     free(ret);
   }
 }
@@ -538,8 +537,8 @@ void np_print_startup(np_context *context) {
 bool __np_example_helper_authorize_everyone(np_context      *ac,
                                             struct np_token *token) {
   np_ctx_cast(ac);
-  char buffer[65] = {0};
   log_error(
+      NULL,
       "using DANGEROUS handler (authorize all) to allow authorization for: %s",
       token->subject);
 
@@ -576,7 +575,8 @@ bool __np_example_helper_authenticate_everyone(np_context      *ac,
 bool __np_example_helper_acc_everyone(np_context *ac, struct np_token *token) {
   np_ctx_cast(ac);
   char buffer[65] = {0};
-  log_error("using DANGEROUS handler (account all) to allow accounting for: %s",
+  log_error(NULL,
+            "using DANGEROUS handler (account all) to allow accounting for: %s",
             token->subject);
   np_example_print(context,
                    stdout,
@@ -613,7 +613,7 @@ bool np_example_save_identity(np_context *context,
                            crypto_pwhash_OPSLIMIT_INTERACTIVE,
                            crypto_pwhash_MEMLIMIT_INTERACTIVE,
                            crypto_pwhash_ALG_ARGON2ID13)) != 0) {
-    log_debug_msg(LOG_DEBUG, "Error creating key! (%" PRIi32 ")", tmp);
+    log_debug(LOG_DEBUG, NULL, "Error creating key! (%" PRIi32 ")", tmp);
   } else {
     ud->key_is_gen = true;
   }
@@ -627,7 +627,7 @@ bool np_example_save_identity(np_context *context,
                                    token_size,
                                    ud->nonce,
                                    ud->key)) {
-      log_debug_msg(LOG_DEBUG, "Error encrypting file!");
+      log_msg(LOG_DEBUG, NULL, "Error encrypting file!");
     } else {
       FILE *f = fopen(filename, "wb");
       if (f != NULL) {
@@ -637,10 +637,15 @@ bool np_example_save_identity(np_context *context,
       }
       fclose(f);
 
+      char uuid_hex[2 * NP_UUID_BYTES + 1];
+      sodium_bin2hex(uuid_hex,
+                     2 * NP_UUID_BYTES + 1,
+                     new_token.uuid,
+                     NP_UUID_BYTES);
       np_example_print(context,
                        stdout,
                        "Saved ident %s into file %s\n",
-                       new_token.uuid,
+                       uuid_hex,
                        filename);
     }
   }
@@ -664,7 +669,7 @@ enum np_example_load_identity_status np_example_load_identity(
                                          crypto_pwhash_OPSLIMIT_INTERACTIVE,
                                          crypto_pwhash_MEMLIMIT_INTERACTIVE,
                                          crypto_pwhash_ALG_ARGON2ID13) != 0) {
-      log_debug_msg(LOG_DEBUG, "Error creating key!");
+      log_msg(LOG_DEBUG, NULL, "Error creating key!");
     } else {
       ud->key_is_gen = true;
     }
@@ -1371,7 +1376,7 @@ void __np_example_helper_loop(np_state_t *context) {
       }
       if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
         memory_str = np_mem_printpool(context, true, true);
-        if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+        if (memory_str != NULL) log_msg(LOG_INFO, NULL, "%s", memory_str);
         free(memory_str);
       }
     }
@@ -1401,7 +1406,7 @@ void __np_example_helper_loop(np_state_t *context) {
 
       if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
         NP_PERFORMANCE_GET_POINTS_STR(memory);
-        if (memory != NULL) log_msg(LOG_INFO, "%s", memory);
+        if (memory != NULL) log_msg(LOG_INFO, NULL, "%s", memory);
         free(memory);
       }
     }
@@ -1428,7 +1433,7 @@ void __np_example_helper_loop(np_state_t *context) {
 
       if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
         memory_str = np_jobqueue_print(context, true);
-        if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+        if (memory_str != NULL) log_msg(LOG_INFO, NULL, "%s", memory_str);
         free(memory_str);
       }
     }
@@ -1454,7 +1459,7 @@ void __np_example_helper_loop(np_state_t *context) {
 
       if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
         memory_str = np_threads_print(context, true);
-        if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+        if (memory_str != NULL) log_msg(LOG_INFO, NULL, "%s", memory_str);
         free(memory_str);
       }
     }
@@ -1483,7 +1488,7 @@ void __np_example_helper_loop(np_state_t *context) {
 
       if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
         memory_str = np_messagepart_printcache(context, true);
-        if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+        if (memory_str != NULL) log_msg(LOG_INFO, NULL, "%s", memory_str);
         free(memory_str);
       }
     }
@@ -1505,7 +1510,7 @@ void __np_example_helper_loop(np_state_t *context) {
       }
       if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
         memory_str = np_threads_print_locks(context, true, false);
-        if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+        if (memory_str != NULL) log_msg(LOG_INFO, NULL, "%s", memory_str);
         free(memory_str);
       }
     }
@@ -1559,7 +1564,7 @@ void __np_example_helper_loop(np_state_t *context) {
       }
       if (FLAG_CMP(ud->user_interface, np_user_interface_log)) {
         memory_str = np_statistics_print(context, true);
-        if (memory_str != NULL) log_msg(LOG_INFO, "%s", memory_str);
+        if (memory_str != NULL) log_msg(LOG_INFO, NULL, "%s", memory_str);
         free(memory_str);
       }
     }
@@ -1736,12 +1741,13 @@ bool example_http_server_init(np_context *context) {
     }
     ret = _np_http_init(context, "localhost", ud->opt_http_port);
     if (ret == false) {
-      log_msg(LOG_WARNING, "Node could not start HTTP interface");
+      log_msg(LOG_WARNING, NULL, "Node could not start HTTP interface");
       np_example_print(context,
                        stdout,
                        "Node could not start HTTP interface\n");
     } else {
       log_msg(LOG_INFO,
+              NULL,
               "HTTP interface set to http://%s:%s",
               ud->opt_http_domain,
               ud->opt_http_port);

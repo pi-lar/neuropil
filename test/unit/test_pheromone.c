@@ -125,14 +125,17 @@ Test(
                                  &target_probability);
     cr_expect(0 == sll_size(result_list),
               "expect the list result set to have no entry");
+    cr_expect(0.8 < target_probability,
+              "expect the probability to be higher than 0.8");
+
     _np_pheromone_snuffle_receiver(context,
                                    result_list,
                                    test3,
                                    &target_probability);
     cr_expect(1 == sll_size(result_list),
               "expect the list result set to have  1 entry");
-    cr_expect(0.5 > target_probability,
-              "expect the probability to be less than 0.5");
+    cr_expect(0.8 < target_probability,
+              "expect the probability to be higher than 0.8");
     cr_expect(target_probability > 0.0,
               "expect the probability to be more than 0.0");
     sll_clear(np_dhkey_t, result_list);
@@ -181,8 +184,8 @@ Test(
                                    &target_probability);
     cr_expect(1 == sll_size(result_list),
               "expect the list result set to have  1 entry");
-    cr_expect(0.8 > target_probability,
-              "expect the probability to be less than 0.8");
+    cr_expect(0.8 < target_probability,
+              "expect the probability to be higher than 0.8");
     cr_expect(target_probability > 0.0,
               "expect the probability to be more than 0.0");
     sll_clear(np_dhkey_t, result_list);
@@ -236,7 +239,7 @@ Test(np_pheromone_t,
         .intersect_cb = _np_neuropil_bloom_intersect,
     };
 
-    log_debug(LOG_INFO, "--- pheromone exhale test part 1 ---");
+    log_debug(LOG_INFO, NULL, "--- pheromone exhale test part 1 ---");
     for (uint16_t i = 0; i < 512; i++) {
       char *random_bytes[32];
       randombytes_buf(random_bytes, 32);
@@ -265,11 +268,11 @@ Test(np_pheromone_t,
         _np_pheromone_exhale(context);
     }
 
-    log_debug(LOG_INFO, "--- pheromone exhale test part 2 ---");
+    log_debug(LOG_INFO, NULL, "--- pheromone exhale test part 2 ---");
     for (uint16_t j = 0; j < 32768; j++)
       _np_pheromone_exhale(context);
 
-    log_debug(LOG_INFO, "--- pheromone exhale test part 3 ---");
+    log_debug(LOG_INFO, NULL, "--- pheromone exhale test part 3 ---");
     for (uint16_t i = 0; i < 32768; i++) {
       char *random_bytes[32];
       randombytes_buf(random_bytes, 32);
@@ -290,6 +293,7 @@ Test(np_pheromone_t,
       // new item could be inserted into the pheromone table");
       if (false == _np_pheromone_inhale(context, t2))
         log_debug(LOG_INFO,
+                  NULL,
                   "expected that the new item could be inserted into the "
                   "pheromone table");
 

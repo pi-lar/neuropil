@@ -22,6 +22,7 @@
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
 #include "util/np_event.h"
+#include "util/np_pcg_rng.h"
 #include "util/np_serialization.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
@@ -134,7 +135,7 @@ enum np_return np_generate_subject(np_subject(*subject_id),
                                    const char *subject,
                                    size_t      length) {
   np_dhkey_t dhkey = _np_dhkey_generate_hash(subject, length);
-  _np_dhkey_add((np_dhkey_t *)subject_id, &dhkey, (np_dhkey_t *)subject_id);
+  _np_dhkey_xor((np_dhkey_t *)subject_id, &dhkey, (np_dhkey_t *)subject_id);
 
   return np_ok;
 }
@@ -165,22 +166,20 @@ struct np_settings *np_default_settings(struct np_settings *settings) {
                     | LOG_ROUTING
                     // | LOG_HTTP
                     // | LOG_KEY
-                    // | LOG_NETWORK
+                    | LOG_NETWORK
                     //| LOG_HANDSHAKE
-                    //| LOG_AAATOKEN
-                    //| LOG_MSGPROPERTY
+                    | LOG_AAATOKEN |
+                    LOG_MSGPROPERTY
                     //| LOG_SYSINFO
                     | LOG_MESSAGE
                     // | LOG_SERIALIZATION
                     // | LOG_MEMORY
-                    | LOG_EXPERIMENT
-      //| LOG_PHEROMONE
-      // | LOG_MISC
-      // | LOG_EVENT
-      // | LOG_THREADS
-      // | LOG_JOBS
-      // | LOG_GLOBAL
-      ;
+                    | LOG_PHEROMONE |
+                    LOG_MISC
+                    // | LOG_EVENT
+                    // | LOG_THREADS
+                    // | LOG_JOBS
+                    | LOG_GLOBAL;
 #endif
 
   return ret;
@@ -203,39 +202,43 @@ np_context *np_new_context(struct np_settings *settings_in) {
 
   MAP(np_module_init_null, NP_CTX_MODULES);
 
+  np_global_rng_init();
+
   if (sodium_init() == -1) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init crypto library");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not init crypto library");
     status = np_startup;
   } else if (_np_threads_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init threading mutexes");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not init threading mutexes");
     status = np_startup;
   } else if (_np_statistics_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init statistics");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not init statistics");
     status = np_startup;
   } else if (_np_event_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init event system");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not init event system");
     status = np_startup;
   } else if (_np_log_init(context, settings->log_file, settings->log_level) ==
              false) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init logging");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not init logging");
     status = np_startup;
   } else if (_np_memory_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init memory");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not init memory");
     status = np_startup;
   } else if (_np_time_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init time cache");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not init time cache");
     status = np_startup;
   } else if (_np_dhkey_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: could not init distributed hash table");
+    log_msg(LOG_ERROR,
+            NULL,
+            "neuropil_init: could not init distributed hash table");
     status = np_startup;
   } else if (_np_keycache_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: _np_keycache_init failed");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: _np_keycache_init failed");
     status = np_startup;
   } else if (_np_msgproperty_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: _np_msgproperty_init failed");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: _np_msgproperty_init failed");
     status = np_startup;
   } else if (_np_attributes_init(context) == false) {
-    log_msg(LOG_ERROR, "neuropil_init: _np_attributes_init failed");
+    log_msg(LOG_ERROR, NULL, "neuropil_init: _np_attributes_init failed");
     status = np_startup;
   } else {
     np_thread_t *new_thread =
@@ -262,19 +265,6 @@ np_context *np_new_context(struct np_settings *settings_in) {
     context->msg_part_filter =
         _np_decaying_bloom_create(NP_MSG_PART_FILTER_SIZE, 16, 1);
     context->msg_part_filter->op = decaying_op;
-
-    TSP_INIT(context->msg_forward_filter);
-    TSP_SCOPE(context->msg_forward_filter) {
-      struct np_bloom_optable_s stable_op = {
-          .add_cb   = _np_stable_bloom_add,
-          .check_cb = _np_stable_bloom_check,
-          .clear_cb = _np_standard_bloom_clear,
-      };
-
-      context->msg_forward_filter =
-          _np_stable_bloom_create(NP_MSG_FORWARD_FILTER_SIZE, 16, 1);
-      context->msg_forward_filter->op = stable_op;
-    }
   }
 
   TSP_INITD(context->status, np_uninitialized);
@@ -301,10 +291,13 @@ enum np_return _np_listen_safe(np_context *ac,
   TSP_GET(enum np_status, context->status, context_status);
 
   if (__np_is_already_listening(context)) {
-    log_msg(LOG_ERROR, "node listens already and cannot get a second listener");
+    log_msg(LOG_ERROR,
+            NULL,
+            "node listens already and cannot get a second listener");
     ret = np_invalid_operation;
   } else if (context_status != np_stopped) {
     log_msg(LOG_ERROR,
+            NULL,
             "node is not in stopped state and cannot start propertly");
     ret = np_invalid_operation;
   } else {
@@ -318,26 +311,28 @@ enum np_return _np_listen_safe(np_context *ac,
       if (np_proto == UNKNOWN_PROTO) {
         ret = np_invalid_argument;
       } else {
-        log_debug_msg(LOG_NETWORK,
-                      "now initializing networking for %s:%s",
-                      protocol,
-                      np_service);
+        log_debug(LOG_NETWORK,
+                  NULL,
+                  "now initializing networking for %s:%s",
+                  protocol,
+                  np_service);
       }
     } else {
-      log_debug_msg(LOG_NETWORK,
-                    "now initializing networking for udp6://%s",
-                    np_service);
+      log_debug(LOG_NETWORK,
+                NULL,
+                "now initializing networking for udp6://%s",
+                np_service);
     }
 
     if (ret == np_ok) {
-      log_debug_msg(LOG_NETWORK, "building network base structure");
+      log_debug(LOG_NETWORK, NULL, "building network base structure");
       // np_network_t* my_network = NULL;
       // np_new_obj(np_network_t, my_network);
       // get public / local network interface id
       char np_host[255];
       bool has_host = true;
       if (NULL == host && port != 0) {
-        log_debug(LOG_NETWORK, "neuropil_init: resolve hostname");
+        log_debug(LOG_NETWORK, NULL, "neuropil_init: resolve hostname");
         // if (np_get_local_ip(context, np_host, 255) == false) {
         if (0 != gethostname(np_host, 255)) {
           strncpy(np_host, "localhost", 255);
@@ -366,20 +361,23 @@ enum np_return _np_listen_safe(np_context *ac,
       // initialize routing table
       if (_np_route_init(context, context->my_node_key) == false) {
         log_msg(LOG_ERROR,
+                NULL,
                 "neuropil_init: route_init failed: %s",
                 strerror(errno));
         ret = np_startup;
       } else if (_np_jobqueue_init(context) == false) {
         log_msg(LOG_ERROR,
+                NULL,
                 "neuropil_init: _np_jobqueue_init failed: %s",
                 strerror(errno));
         ret = np_startup;
       } else if (!_np_network_module_init(context)) {
         log_msg(LOG_ERROR,
+                NULL,
                 "neuropil_init: could not enable general networking");
         ret = np_startup;
       } else if (!_np_statistics_enable(context)) {
-        log_msg(LOG_ERROR, "neuropil_init: could not enable statistics");
+        log_msg(LOG_ERROR, NULL, "neuropil_init: could not enable statistics");
         ret = np_startup;
       } else {
         _np_shutdown_init(context);
@@ -387,12 +385,15 @@ enum np_return _np_listen_safe(np_context *ac,
         TSP_SET(context->status, np_stopped);
 
         log_info(LOG_MISC,
+                 NULL,
                  "neuropil successfully initialized: id:   %s",
                  _np_key_as_str(context->my_identity));
         log_info(LOG_MISC,
+                 NULL,
                  "neuropil successfully initialized: node: %s",
                  _np_key_as_str(context->my_node_key));
         log_info(LOG_EXPERIMENT,
+                 NULL,
                  "node: %s / id: %s",
                  _np_key_as_str(context->my_node_key),
                  _np_key_as_str(context->my_identity));
@@ -438,10 +439,10 @@ np_new_identity(np_context *ac,
   char       tmp[65] = {0};
   np_dhkey_t d       = np_aaatoken_get_fingerprint(new_token, false);
   np_id_str(tmp, *(np_id *)&d);
-  log_debug_msg(LOG_AAATOKEN,
-                "created new ident token %s (fp:%s)",
-                ret.uuid,
-                tmp);
+  log_debug(LOG_AAATOKEN,
+            new_token->uuid,
+            "created new ident token (fp:%s)",
+            tmp);
 #endif
 
   np_unref_obj(np_aaatoken_t, new_token, "np_token_factory_new_identity_token");
@@ -530,7 +531,7 @@ enum np_return np_use_token(np_context *ac, struct np_token token) {
   // TSP_GET(enum np_status, context->status, state);
   // if (state != np_running) return np_invalid_operation;
 
-  log_debug_msg(LOG_AAATOKEN, "importing ident token %s", token.uuid);
+  log_debug(LOG_AAATOKEN, token.uuid, "importing ident token");
   np_aaatoken_t *imported_token = NULL;
   np_new_obj(np_aaatoken_t, imported_token, FUNC);
 
@@ -563,9 +564,9 @@ enum np_return np_use_token(np_context *ac, struct np_token token) {
   _np_event_runtime_start_with_event(context, search_key, ev);
 
   log_msg(LOG_INFO,
-          "neuropil successfully inported token of type %d with id %s",
-          imported_token->type,
-          my_identity_key);
+          imported_token->uuid,
+          "neuropil successfully inported token of type %d",
+          imported_token->type);
   return np_ok;
 }
 
@@ -575,7 +576,7 @@ enum np_return np_use_identity(np_context *ac, struct np_token identity) {
   TSP_GET(enum np_status, context->status, state);
   if (state == np_running) return np_invalid_operation;
 
-  log_debug_msg(LOG_AAATOKEN, "importing ident token %s", identity.uuid);
+  log_debug(LOG_AAATOKEN, identity.uuid, "importing ident token");
 
   np_ident_private_token_t *imported_token =
       np_token_factory_new_identity_token(ac,
@@ -588,6 +589,7 @@ enum np_return np_use_identity(np_context *ac, struct np_token identity) {
   _np_set_identity(context, imported_token);
   _np_aaatoken_update_attributes_signature(imported_token);
   log_msg(LOG_INFO,
+          NULL,
           "neuropil successfully initialized: id:   %s",
           _np_key_as_str(context->my_identity));
   return np_ok;
@@ -636,13 +638,16 @@ bool np_has_receiver_for(np_context *ac, np_subject subject) {
   char buff[100] = {0};
   np_regenerate_subject(context, buff, 100, &out_dhkey);
 
-  log_info(LOG_MISC, "user requests info for availibility of subject %s", buff);
+  log_info(LOG_MISC,
+           NULL,
+           "user requests info for availibility of subject %s",
+           buff);
 
   np_dhkey_t prop_dhkey =
       _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
   np_key_t *prop_key = _np_keycache_find(context, prop_dhkey);
 
-  // log_debug_msg(LOG_MISC, "receiver key %p for %08"PRIx32":%08"PRIx32 "!",
+  // log_debug(LOG_MISC, NULL, "receiver key %p for %08"PRIx32":%08"PRIx32 "!",
   // prop_key, subject_dhkey.t[0], subject_dhkey.t[1]);
 
   if (prop_key == NULL) return false;
@@ -698,7 +703,7 @@ enum np_return np_send(np_context          *ac,
 
 enum np_return np_send_to(np_context          *ac,
                           np_subject           subject_id,
-                          const unsigned char *message,
+                          const unsigned char *message_body,
                           size_t               length,
                           np_id(*target)) {
   enum np_return ret = np_ok;
@@ -712,7 +717,6 @@ enum np_return np_send_to(np_context          *ac,
   // the side effect
   np_msgproperty_conf_t *property_conf =
       _np_msgproperty_get_or_create(ac, OUTBOUND, subject_dhkey);
-
   if (property_conf->audience_type == NP_MX_AUD_VIRTUAL)
     return np_invalid_operation;
 
@@ -724,10 +728,16 @@ enum np_return np_send_to(np_context          *ac,
   np_tree_t *body = np_tree_create();
   np_tree_insert_str(body,
                      NP_SERIALISATION_USERDATA,
-                     np_treeval_new_bin((void *)message, length));
+                     np_treeval_new_bin((void *)message_body, length));
 
   np_attributes_t tmp_msg_attr;
   if (np_ok == np_init_datablock(tmp_msg_attr, sizeof(tmp_msg_attr))) {
+    struct np_data_conf from_config = {.type      = NP_DATA_TYPE_BIN,
+                                       .data_size = NP_FINGERPRINT_BYTES};
+    strncpy(from_config.key, _NP_MSG_HEADER_FROM, 255);
+    np_data_value from_value = {.bin = &context->my_identity->dhkey};
+    np_set_data(tmp_msg_attr, from_config, from_value);
+
     np_merge_data(tmp_msg_attr,
                   _np_get_attributes_cache(context, NP_ATTR_USER_MSG));
     np_merge_data(
@@ -736,6 +746,7 @@ enum np_return np_send_to(np_context          *ac,
     np_merge_data(
         tmp_msg_attr,
         _np_get_attributes_cache(context, NP_ATTR_INTENT_AND_USER_MSG));
+
     size_t attributes_size;
     if (np_ok == np_get_data_size(tmp_msg_attr, &attributes_size) &&
         attributes_size > 0) {
@@ -755,8 +766,9 @@ enum np_return np_send_to(np_context          *ac,
   }
   np_dhkey_t out_dhkey = _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
 
-  np_message_t *msg_out = NULL;
-  np_new_obj(np_message_t, msg_out, FUNC);
+  struct np_e2e_message_s *msg_out = NULL;
+  np_new_obj(np_message_t, msg_out);
+
   _np_message_create(msg_out,
                      target_dhkey,
                      context->my_identity->dhkey,
@@ -764,53 +776,43 @@ enum np_return np_send_to(np_context          *ac,
                      body);
 
   log_info(LOG_MESSAGE | LOG_EXPERIMENT | LOG_ROUTING,
-           "user sending message (size: %" PRIu16 " msg: %s)",
-           length,
-           msg_out->uuid);
-  _np_message_trace_info("MSG_USER_SEND", msg_out);
+           msg_out->uuid,
+           "user sending message (size: %" PRIsizet ")",
+           length);
 
   np_util_event_t send_event = {.type         = (evt_internal | evt_message),
                                 .user_data    = msg_out,
                                 .target_dhkey = target_dhkey};
-  // _np_event_runtime_start_with_event(context, subject_dhkey, send_event);
 
   if (!np_jobqueue_submit_event(context,
                                 0.0,
                                 out_dhkey,
                                 send_event,
                                 "event: userspace message delivery request")) {
-    log_msg(
-        LOG_WARNING,
-        "rejecting sending of message (%s), please check jobqueue settings!",
-        msg_out->uuid);
+    log_msg(LOG_WARNING,
+            msg_out->uuid,
+            "rejecting sending of message, please check jobqueue settings!");
   }
-  np_unref_obj(np_message_t, msg_out, FUNC);
+  np_tree_free(body);
+  np_unref_obj(np_message_t, msg_out, ref_obj_creation);
 
   return ret;
 }
 
-bool __np_receive_callback_converter(np_context               *ac,
-                                     const np_message_t *const msg,
-                                     np_tree_t                *body,
-                                     void                     *localdata) {
+bool __np_receive_callback_converter(void                                *ac,
+                                     const struct np_e2e_message_s *const msg,
+                                     np_tree_t                           *body,
+                                     void *localdata) {
   np_ctx_cast(ac);
   bool                ret      = true;
   np_receive_callback callback = localdata;
   np_tree_elem_t *userdata = np_tree_find_str(body, NP_SERIALISATION_USERDATA);
+  // NP_CAST(msg, struct np_e2e_message_s, e2e_message);
 
   if (userdata != NULL) {
     struct np_message message = {0};
-    strncpy(message.uuid, msg->uuid, NP_UUID_BYTES - 1);
-    memcpy(&message.subject,
-           _np_message_get_subject(msg),
-           NP_FINGERPRINT_BYTES);
-    // np_get_id(&message.subject, _np_message_get_subject(msg),
-    // strlen(_np_message_get_subject(msg)));
-
-    np_tree_elem_t *from = np_tree_find_str(msg->header, _NP_MSG_HEADER_FROM);
-    ASSERT(from != NULL,
-           "The decryption token should never be empty in this stage");
-    memcpy(&message.from, &from->val.value.dhkey, NP_FINGERPRINT_BYTES);
+    memcpy(message.uuid, msg->uuid, NP_UUID_BYTES);
+    memcpy(&message.subject, msg->subject, NP_FINGERPRINT_BYTES);
 
     message.received_at = np_time_now(); // todo get from network
     // message.send_at = msg.             // todo get from msg
@@ -819,6 +821,7 @@ bool __np_receive_callback_converter(np_context               *ac,
 
     np_tree_elem_t *msg_attributes =
         np_tree_find_str(body, NP_SERIALISATION_ATTRIBUTES);
+
     if (msg_attributes == NULL) {
       np_init_datablock(message.attributes, sizeof(message.attributes));
     } else {
@@ -828,19 +831,27 @@ bool __np_receive_callback_converter(np_context               *ac,
         memcpy(message.attributes, dt, msg_attributes->val.size);
       }
     }
-    log_debug(LOG_MESSAGE | LOG_VERBOSE,
-              "(msg: %s) Calling user function.",
-              msg->uuid);
+    struct np_data_conf from_config = {0};
+    strncpy(from_config.key, _NP_MSG_HEADER_FROM, 255);
+    np_data_value from_value = {0};
+    if (np_data_ok == np_get_data(message.attributes,
+                                  _NP_MSG_HEADER_FROM,
+                                  &from_config,
+                                  &from_value)) {
+      assert(from_config.data_size == NP_FINGERPRINT_BYTES);
+      memcpy(message.from, from_value.bin, NP_FINGERPRINT_BYTES);
+      log_debug(LOG_MESSAGE, msg->uuid, "extracted from value from attributes");
+    } else {
+      // TODO: pull in sender id from intent token
+    }
+
+    log_debug(LOG_MESSAGE, msg->uuid, "calling user function.");
     callback(context, &message);
-    log_debug(LOG_MESSAGE | LOG_VERBOSE,
-              "(msg: %s) Called  user function.",
-              msg->uuid);
+
   } else {
-    log_info(LOG_MESSAGE | LOG_ROUTING,
-             "(msg: %s) contains no userdata",
-             msg->uuid);
+    log_info(LOG_MESSAGE | LOG_ROUTING, msg->uuid, "contained no user data");
   }
-  log_info(LOG_MESSAGE | LOG_EXPERIMENT, "(msg: %s) send to user", msg->uuid);
+  log_info(LOG_MESSAGE | LOG_EXPERIMENT, msg->uuid, "message send to user");
   return ret;
 }
 
@@ -919,12 +930,14 @@ enum np_return np_set_mx_authorize_cb(np_context      *ac,
     property->authorize_func = callback;
     ret                      = np_ok;
     log_debug(LOG_INFO,
+              NULL,
               "set authorization callback on inbound subject (%08" PRIx32
               ":%08" PRIx32 ") level",
               subject_dhkey.t[0],
               subject_dhkey.t[1]);
   } else {
     log_debug(LOG_WARNING,
+              NULL,
               "cannot set authorization callback on inbound subject (%08" PRIx32
               ":%08" PRIx32
               ") level, as it is already set or it doesn't exists",
@@ -937,6 +950,7 @@ enum np_return np_set_mx_authorize_cb(np_context      *ac,
     property->authorize_func = callback;
     ret                      = np_ok;
     log_debug(LOG_INFO,
+              NULL,
               "set authorization callback on outbound subject (%08" PRIx32
               ":%08" PRIx32 ") level",
               subject_dhkey.t[0],
@@ -944,6 +958,7 @@ enum np_return np_set_mx_authorize_cb(np_context      *ac,
   } else {
     log_debug(
         LOG_WARNING,
+        NULL,
         "cannot set authorization callback on outbound subject (%08" PRIx32
         ":%08" PRIx32 ") level, as it is already set or it doesn't exists",
         subject_dhkey.t[0],
@@ -977,7 +992,7 @@ enum np_return np_set_mx_properties(np_context             *ac,
   np_msgproperty_from_user(context, property, &safe_user_property);
   property->unique_uuids_check = true;
   np_msgproperty_register(property);
-  log_msg(LOG_INFO, "msgproperty setup complete");
+  log_msg(LOG_INFO, NULL, "msgproperty setup complete");
   return ret;
 }
 
@@ -1122,7 +1137,7 @@ void np_destroy(np_context *ac, bool gracefully) {
   np_ctx_cast(ac);
 
   // Do not allow to call np_destroy more than one time one one context
-  bool cancel;
+  bool cancel = false;
   TSP_SCOPE(context->_shutdown_started) {
     cancel                     = context->_shutdown_started;
     context->_shutdown_started = true;

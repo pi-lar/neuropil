@@ -74,6 +74,7 @@ enum np_treeval_type_t {
   np_treeval_type_bin,
   np_treeval_type_jrb_tree, // 20
   np_treeval_type_dhkey,
+  np_treeval_type_uuid,
   np_treeval_type_hash,
   np_treeval_type_npobj,
   np_treeval_type_npval_count,
@@ -86,10 +87,11 @@ enum np_treeval_type_t {
 /* The Jval -- a type that can hold any type */
 typedef union val_type { // put void pointer first to enforce zero
                          // initialization of union
-  void      *v;
-  void      *bin;
-  np_tree_t *tree;
-  np_dhkey_t dhkey;
+  void         *v;
+  void         *bin;
+  np_tree_t    *tree;
+  np_dhkey_t    dhkey;
+  unsigned char uuid[NP_UUID_BYTES];
 
   int8_t  sh;
   int16_t i;

@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
       }
 
       fprintf(stdout, "%f - SENDING:  \"%s\"\n", np_time_now(), s_out);
-      log_msg(LOG_INFO, "SENDING:  \"%s\"", s_out);
+      log_msg(LOG_INFO, NULL, "SENDING:  \"%s\"", s_out);
 
       // Send our message
       np_send(context, "echo", s_out, strlen(s_out));

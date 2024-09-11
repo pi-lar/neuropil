@@ -53,7 +53,10 @@ bool receive_this_is_a_test(np_context *context, struct np_message *msg) {
   \endcode
   */
   char *ctx = (char *)np_get_userdata(context);
-  fprintf(stdout, "REC  (%s): %s / %s\n", ctx, msg->uuid, text);
+
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, msg->uuid, NP_UUID_BYTES);
+  fprintf(stdout, "REC  (%s): %s / %s\n", ctx, uuid_hex, text);
   fflush(stdout);
 
   /**
@@ -100,7 +103,7 @@ bool authorize(np_context *ac, struct np_token *id) {
   char sender[65];
   sender[64] = '\0';
   char *ctx  = (char *)np_get_userdata(ac);
-  sodium_bin2hex(sender, 65, id->issuer, 32U);
+  sodium_bin2hex(sender, 65U, id->issuer, 32U);
   // fprintf(stdout, "AUTHZ(%s): subj: %s ## pk: %s\n", ctx, id->subject,
   // sender); fflush (stdout);
   /**

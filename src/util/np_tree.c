@@ -55,9 +55,6 @@ np_tree_t *np_tree_create() {
 }
 
 int16_t _np_tree_elem_cmp(const np_tree_elem_t *j1, const np_tree_elem_t *j2) {
-  log_trace_msg(LOG_TRACE,
-                "start: int16_t _np_tree_elem_cmp(const np_tree_elem_t* j1, "
-                "const np_tree_elem_t* j2){");
   assert(NULL != j1);
   assert(NULL != j2);
 
@@ -68,7 +65,7 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t *j1, const np_tree_elem_t *j2) {
     if (jv1.type == np_treeval_type_char_ptr) {
       return strncmp(jv1.value.s, jv2.value.s, strlen(jv1.value.s) + 1);
     } else if (jv1.type == np_treeval_type_double) {
-      // log_debug_msg(LOG_DEBUG, "comparing %f - %f = %d",
+      // log_debug(LOG_DEBUG, NULL, "comparing %f - %f = %d",
       // 		jv1.value.d, jv2.value.d, (int16_t)
       // (jv1.value.d-jv2.value.d) );
       double res = jv1.value.d - jv2.value.d;
@@ -81,6 +78,8 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t *j1, const np_tree_elem_t *j2) {
       return (int16_t)(jv1.value.i - jv2.value.i);
     } else if (jv1.type == np_treeval_type_dhkey) {
       return (int16_t)_np_dhkey_cmp(&jv1.value.dhkey, &jv2.value.dhkey);
+    } else if (jv1.type == np_treeval_type_uuid) {
+      return (int16_t)memcmp(jv1.value.uuid, jv2.value.uuid, NP_UUID_BYTES);
     }
   }
   return (((int)jv1.type - (int)jv2.type) > 0);
@@ -104,6 +103,17 @@ np_tree_find_gte_str(np_tree_t *n, const char *key, uint8_t *fnd) {
     *fnd = 0;
   }
   return (result);
+}
+
+np_tree_elem_t *np_tree_find_uuid(np_tree_t *n, void *key) {
+  assert(NULL != n);
+  assert(NULL != key);
+
+  np_treeval_t search_key = {.type = np_treeval_type_uuid};
+  memcpy(search_key.value.uuid, key, NP_UUID_BYTES);
+  np_tree_elem_t search_elem = {.key = search_key};
+
+  return RB_FIND(np_tree_s, n, &search_elem);
 }
 
 np_tree_elem_t *np_tree_find_str(np_tree_t *n, const char *key) {
@@ -206,7 +216,10 @@ void _np_tree_cleanup_treeval(np_tree_t *tree, np_treeval_t toclean) {
     if (toclean.type == np_treeval_type_char_ptr) free(toclean.value.s);
     if (toclean.type == np_treeval_type_bin) free(toclean.value.bin);
   }
-  if (toclean.type == np_treeval_type_jrb_tree) {
+  if (toclean.type == np_treeval_type_jrb_tree ||
+      toclean.type == np_treeval_type_cwt ||
+      toclean.type == np_treeval_type_cose_signed ||
+      toclean.type == np_treeval_type_cose_encrypted) {
     np_tree_free(toclean.value.tree);
   }
 }
@@ -245,6 +258,11 @@ void np_tree_del_dhkey(np_tree_t *tree, const np_dhkey_t key) {
   np_tree_del_element(tree, np_tree_find_dhkey(tree, key));
 }
 
+void np_tree_del_uuid(np_tree_t *tree, void *key) {
+  __np_tree_immutable_check(tree);
+  np_tree_del_element(tree, np_tree_find_uuid(tree, key));
+}
+
 void np_tree_del_double(np_tree_t *tree, const double dkey) {
   __np_tree_immutable_check(tree);
   np_tree_del_element(tree, np_tree_find_dbl(tree, dkey));
@@ -277,9 +295,6 @@ void np_tree_free(np_tree_t *n) {
 void _np_tree_replace_all_with_str(np_tree_t   *n,
                                    const char  *key,
                                    np_treeval_t val) {
-  log_trace_msg(LOG_TRACE,
-                "start: void _np_tree_replace_all_with_str(np_tree_t* n, const "
-                "char* key, np_treeval_t val){");
   np_tree_clear(n);
   np_tree_insert_str(n, key, val);
 }
@@ -292,9 +307,6 @@ size_t np_tree_get_byte_size(np_tree_t *tree) {
 }
 
 size_t np_tree_element_get_byte_size(np_tree_elem_t *node) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: uint32_t np_tree_element_get_byte_size(np_tree_elem_t* node){");
   assert(node != NULL);
 
   size_t byte_size =
@@ -364,6 +376,24 @@ void np_tree_insert_dhkey(np_tree_t *tree, np_dhkey_t key, np_treeval_t val) {
     found->key.value.dhkey = key;
     found->key.type        = np_treeval_type_dhkey;
     found->key.size        = sizeof(np_dhkey_t);
+    np_tree_set_treeval(tree, found, val);
+    np_tree_insert_element(tree, found);
+  }
+}
+
+void np_tree_insert_uuid(np_tree_t *tree, void *key, np_treeval_t val) {
+  assert(tree != NULL);
+
+  np_tree_elem_t *found = np_tree_find_uuid(tree, key);
+
+  if (found == NULL) {
+    // insert new value
+    found = (np_tree_elem_t *)malloc(sizeof(np_tree_elem_t));
+    CHECK_MALLOC(found);
+
+    memcpy(found->key.value.uuid, key, NP_UUID_BYTES);
+    found->key.type = np_treeval_type_uuid;
+    found->key.size = NP_UUID_BYTES;
     np_tree_set_treeval(tree, found, val);
     np_tree_insert_element(tree, found);
   }
@@ -472,6 +502,18 @@ void np_tree_replace_dhkey(np_tree_t *tree, np_dhkey_t key, np_treeval_t val) {
   }
 }
 
+void np_tree_replace_uuid(np_tree_t *tree, void *key, np_treeval_t val) {
+  assert(tree != NULL);
+
+  np_tree_elem_t *found = np_tree_find_uuid(tree, key);
+
+  if (found == NULL) { // insert new value
+    np_tree_insert_uuid(tree, key, val);
+  } else {
+    np_tree_replace_treeval(tree, found, val);
+  }
+}
+
 void np_tree_replace_ulong(np_tree_t *tree, uint32_t ulkey, np_treeval_t val) {
   assert(tree != NULL);
 
@@ -514,6 +556,8 @@ void np_tree_copy(np_tree_t *source, np_tree_t *target) {
       np_tree_insert_ulong(target, tmp->key.value.ul, tmp->val);
     else if (tmp->key.type == np_treeval_type_dhkey)
       np_tree_insert_dhkey(target, tmp->key.value.dhkey, tmp->val);
+    else if (tmp->key.type == np_treeval_type_uuid)
+      np_tree_insert_uuid(target, tmp->key.value.uuid, tmp->val);
   }
 }
 
@@ -534,12 +578,12 @@ void np_tree_copy_inplace(np_tree_t *source, np_tree_t *target) {
       np_tree_replace_ulong(target, tmp->key.value.ul, tmp->val);
     else if (tmp->key.type == np_treeval_type_dhkey)
       np_tree_replace_dhkey(target, tmp->key.value.dhkey, tmp->val);
+    else if (tmp->key.type == np_treeval_type_uuid)
+      np_tree_replace_uuid(target, tmp->key.value.uuid, tmp->val);
   }
 }
 
 np_tree_t *np_tree_clone(np_tree_t *source) {
-  log_trace_msg(LOG_TRACE,
-                "start: np_tree_t* np_tree_clone(np_tree_t* source) {");
 
   np_tree_t *ret = np_tree_create();
   memcpy(&ret->attr, &source->attr, sizeof(np_tree_conf_t));
@@ -605,11 +649,12 @@ bool np_tree_check_field(np_state_t      *context,
     ret = false;
     if (NULL != (tmp = np_tree_find_str(tree, _NP_MSG_HEADER_SUBJECT))) {
       log_msg(LOG_WARNING,
+              NULL,
               "Missing field \"%s\" in message for \"%s\"",
               field_name,
               np_treeval_to_str(tmp->val, NULL));
     } else {
-      log_msg(LOG_WARNING, "Missing field \"%s\" in tree", field_name);
+      log_msg(LOG_WARNING, NULL, "Missing field \"%s\" in tree", field_name);
     }
   }
   if (buffer != NULL) *buffer = tmp;

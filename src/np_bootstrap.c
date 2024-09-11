@@ -36,7 +36,7 @@ np_module_struct(bootstrap) {
 
 void __np_bootstrap_on_timeout(const np_responsecontainer_t *const entry) {
   // np_ctx_memory(entry);
-  // log_msg(LOG_WARNING | LOG_ROUTING, "Bootstrap Node (%s) not reachable
+  // log_msg(LOG_WARNING | LOG_ROUTING, NULL, "Bootstrap Node (%s) not reachable
   // anymore. Try to reconnect", _np_key_as_str(entry->dest_dhkey)); char*
   // reconnect = np_get_connection_string_from(entry->dest_key, true);
   // np_send_join(context, reconnect);
@@ -56,13 +56,14 @@ bool __np_bootstrap_reconnect(np_state_t               *context,
     while (iter != NULL) {
       if (iter->val.value.v != NULL) {
         np_key_t *bootstrap_key = (np_key_t *)iter->val.value.v;
-        log_debug_msg(LOG_DEBUG | LOG_ROUTING,
-                      "Sending Ping to check bootstrap node is reachable (%s)",
-                      _np_key_as_str(bootstrap_key));
+        log_debug(LOG_DEBUG | LOG_ROUTING,
+                  NULL,
+                  "Sending Ping to check bootstrap node is reachable (%s)",
+                  _np_key_as_str(bootstrap_key));
 
         // issue ping messages
-        np_message_t *msg_out = NULL;
-        np_new_obj(np_message_t, msg_out, FUNC);
+        struct np_e2e_message_s *msg_out = NULL;
+        np_new_obj(np_message_t, msg_out);
 
         np_dhkey_t ping_dhkey = {0};
         np_generate_subject(&ping_dhkey, _NP_MSG_PING_REQUEST, 16);
@@ -81,12 +82,12 @@ bool __np_bootstrap_reconnect(np_state_t               *context,
                                     args.current_run,
                                     ping_out_dhkey,
                                     ping_event);
-        np_unref_obj(np_message_t, msg_out, FUNC);
-
-        log_debug_msg(LOG_ROUTING,
-                      "submitted ping to bootstrap target key %s / %p",
-                      _np_key_as_str(bootstrap_key),
-                      bootstrap_key);
+        log_debug(LOG_ROUTING,
+                  msg_out->uuid,
+                  "submitted ping to bootstrap target key %s / %p",
+                  _np_key_as_str(bootstrap_key),
+                  bootstrap_key);
+        np_unref_obj(np_message_t, msg_out, ref_obj_creation);
       }
       iter = RB_NEXT(np_tree_s, np_module(bootstrap)->bootstrap_points, iter);
     }

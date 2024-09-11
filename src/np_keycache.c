@@ -81,11 +81,7 @@ void _np_keycache_destroy(np_state_t *context) {
 
 np_key_t *_np_keycache_find_or_create(np_state_t *context,
                                       np_dhkey_t  search_dhkey) {
-  log_trace_msg(LOG_TRACE,
-                "start: np_key_t* _np_keycache_find_or_create(...){");
 
-  // log_trace_msg(LOG_TRACE | LOG_VERBOSE, "logpoint
-  // _np_keycache_find_or_create start");
   np_key_t *key        = NULL;
   np_key_t  search_key = {.dhkey = search_dhkey};
 
@@ -130,9 +126,6 @@ bool _np_keycache_exists(np_state_t  *context,
 }
 
 np_key_t *_np_keycache_create(np_state_t *context, np_dhkey_t search_dhkey) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: np_key_t* _np_keycache_create(np_dhkey_t search_dhkey){");
   np_key_t *key = NULL;
 
   np_new_obj(np_key_t, key, FUNC);
@@ -148,9 +141,6 @@ np_key_t *_np_keycache_create(np_state_t *context, np_dhkey_t search_dhkey) {
 
 np_key_t *_np_keycache_find(np_state_t      *context,
                             const np_dhkey_t search_dhkey) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: np_key_t* _np_keycache_find(const np_dhkey_t search_dhkey){");
   np_key_t *return_key = NULL;
   np_key_t  search_key = {.dhkey = search_dhkey};
 
@@ -173,13 +163,6 @@ _np_keycache_find_by_details(np_state_t         *context,
                              bool                require_dns,
                              bool                require_port,
                              bool                require_hash) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: np_key_t* _np_keycache_find_by_details(		char* "
-      "details_container,		bool search_myself,		"
-      "handshake_status_e is_handshake_send,		bool "
-      "require_handshake_status,		bool require_dns,	"
-      "	bool require_port,		bool require_hash	){");
   np_key_t *ret  = NULL;
   np_key_t *iter = NULL;
 
@@ -235,7 +218,10 @@ bool _np_keycache_exists_state(np_state_t *context, np_util_event_t args) {
                            &np_module(keycache)->_check_state_iterator) ||
            true == process_state_check) &&
           i < _NP_KEYCACHE_ITERATION_STEPS) {
-        log_debug(LOG_KEYCACHE, "iteration on key %s", _np_key_as_str(iter));
+        log_debug(LOG_KEYCACHE,
+                  NULL,
+                  "iteration on key %s",
+                  _np_key_as_str(iter));
         process_state_check = true;
         // log_trace_msg(LOG_TRACE, "start: void _np_keycache_exists_state(...)
         // { %p", iter);
@@ -251,6 +237,7 @@ bool _np_keycache_exists_state(np_state_t *context, np_util_event_t args) {
       // iteration steps interval reached, store dhkey for next iteration
       if (i >= _NP_KEYCACHE_ITERATION_STEPS) {
         log_debug(LOG_KEYCACHE,
+                  NULL,
                   "stopping iteration at key %s",
                   _np_key_as_str(iter));
         _np_dhkey_assign(&np_module(keycache)->_check_state_iterator,
@@ -289,7 +276,6 @@ bool _np_keycache_exists_state(np_state_t *context, np_util_event_t args) {
 }
 
 np_key_t *_np_keycache_find_deprecated(np_state_t *context) {
-  log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_find_deprecated(){");
 
   np_key_t *return_key = NULL;
   np_key_t *iter       = NULL;
@@ -327,9 +313,6 @@ sll_return(np_key_ptr) _np_keycache_get_all(np_state_t *context) {
 }
 
 np_key_t *_np_keycache_remove(np_state_t *context, np_dhkey_t search_dhkey) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: np_key_t* _np_keycache_remove(np_dhkey_t search_dhkey){");
   np_key_t *rem_key    = NULL;
   np_key_t  search_key = {.dhkey = search_dhkey};
 
@@ -351,7 +334,6 @@ np_key_t *_np_keycache_add(np_state_t *context, np_key_t *subject_key) {
   assert(subject_key != NULL);
   assert(_np_memory_rtti_check(subject_key, np_memory_types_np_key_t));
 
-  log_trace_msg(LOG_TRACE, "start: np_key_t* _np_keycache_add(np_key_t* key){");
   _LOCK_MODULE(np_keycache_t) {
     RB_INSERT(st_keycache_s, np_module(keycache)->__key_cache, subject_key);
     subject_key->is_in_keycache = true;
@@ -371,12 +353,12 @@ np_key_t *_np_keycache_add(np_state_t *context, np_key_t *subject_key) {
 void _np_keycache_execute_event(np_state_t     *context,
                                 np_dhkey_t      dhkey,
                                 np_util_event_t event) {
-  log_trace_msg(LOG_TRACE, "start: void _np_keycache_execute_event(...){");
 
   np_key_t *key = _np_keycache_find(context, dhkey);
   if (key != NULL) {
     if (event.type != evt_noop) {
       log_info(LOG_KEYCACHE | LOG_EVENT,
+               NULL,
                "key to handle event_type: %" PRIu8 " key_type: %" PRIu32,
                event.type,
                key->type);
@@ -387,8 +369,9 @@ void _np_keycache_execute_event(np_state_t     *context,
     if (NULL != event.user_data) {
       char buf[65] = {0};
       _np_dhkey_str(&dhkey, buf);
-      log_debug_msg(
+      log_debug(
           LOG_ERROR,
+          NULL,
           "event not handled (eventtype: %" PRIu8 ", datatype: %" PRId16
           " keytype: %" PRId16 " key: %s)",
           event.type,
@@ -397,6 +380,7 @@ void _np_keycache_execute_event(np_state_t     *context,
           buf);
       log_info(
           LOG_EXPERIMENT,
+          NULL,
           "event not handled (eventtype: %" PRIu8 ", datatype: %" PRId16
           " keytype: %" PRId16 ")",
           event.type,
@@ -404,6 +388,7 @@ void _np_keycache_execute_event(np_state_t     *context,
           (int16_t)(key ? key->type : -1));
     }
     log_info(LOG_KEYCACHE | LOG_EVENT,
+             NULL,
              "no key to handle event %" PRIu8,
              event.type);
   }
@@ -421,6 +406,7 @@ np_key_t *_np_keycache_find_closest_key_to(np_state_t *context,
 
   if (sll_size(list_of_keys) == 0) {
     log_msg(LOG_KEY | LOG_WARNING,
+            NULL,
             "minimum size for closest key calculation not met !");
     return (min_key);
   }

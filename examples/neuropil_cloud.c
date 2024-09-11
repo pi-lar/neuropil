@@ -128,9 +128,9 @@ int main(int argc, char **argv) {
                                          user_context->node_description);
       char port_tmp[8] = {0};
       if (user_context_template->opt_http_port != NULL) {
-        sprintf(port_tmp, "%d", 31415);
+        snprintf(port_tmp, 6, "%d", 31415);
       } else {
-        sprintf(port_tmp, "%d", 31415);
+        snprintf(port_tmp, 6, "%d", 31415);
       }
       example_user_context *ud =
           ((example_user_context *)np_get_userdata(nodes[i]));

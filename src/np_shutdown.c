@@ -65,7 +65,7 @@ static void __np_shutdown_signal_handler(int sig) {
       for (iter = sll_first(context_list); iter != NULL; sll_next(iter)) {
         np_thread_t *self = _np_threads_get_self((np_state_t *)iter->val);
         np_ctx_memory(self);
-        log_debug(LOG_MISC, "Received shutdown signal");
+        log_debug(LOG_MISC, NULL, "Received shutdown signal");
         np_module(shutdown)->invoke = true;
       }
     }
@@ -99,7 +99,7 @@ void _np_shutdown_init(np_state_t *context) {
     sigemptyset(&_module->sigact.sa_mask);
     _module->sigact.sa_flags = 0;
     int res = sigaction(__NP_SHUTDOWN_SIGNAL, &_module->sigact, NULL);
-    log_debug(LOG_MISC, "Init signal %d", res);
+    log_debug(LOG_MISC, NULL, "Init signal %d", res);
     */
 #ifdef CATCH_SEGFAULT
     memset(&_module->segfault_act, 0, sizeof(_module->segfault_act));
@@ -107,7 +107,7 @@ void _np_shutdown_init(np_state_t *context) {
     sigemptyset(&_module->segfault_act.sa_mask);
     _module->segfault_act.sa_flags = 0;
     int res = sigaction(SIGSEGV, &_module->segfault_act, NULL);
-    log_debug(LOG_MISC, "Init signal %d", res);
+    log_debug(LOG_MISC, NULL, "Init signal %d", res);
 #endif
   }
 }

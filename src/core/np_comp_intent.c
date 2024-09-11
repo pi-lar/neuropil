@@ -41,7 +41,7 @@ static int8_t _np_intent_cmp(np_aaatoken_ptr first, np_aaatoken_ptr second) {
 
   if (first == NULL || second == NULL) return (-1);
 
-  ret_check = strncmp(first->uuid, second->uuid, NP_UUID_BYTES);
+  ret_check = memcmp(first->uuid, second->uuid, NP_UUID_BYTES);
   if (0 == ret_check) {
     return (ret_check);
   }
@@ -79,7 +79,7 @@ static int8_t _np_intent_cmp_exact(np_aaatoken_ptr first,
     return (ret_check);
   }
 
-  ret_check = strncmp(first->uuid, second->uuid, NP_UUID_BYTES);
+  ret_check = memcmp(first->uuid, second->uuid, NP_UUID_BYTES);
   if (0 != ret_check) {
     return (ret_check);
   }
@@ -99,10 +99,11 @@ np_aaatoken_t *_np_intent_add_sender(np_key_t      *subject_key,
 
   np_aaatoken_t *ret = NULL;
 
-  log_debug_msg(LOG_AAATOKEN,
-                "update on global sender msg token structures ... %p (size %d)",
-                property,
-                pll_size(ledger->send_tokens));
+  log_debug(LOG_AAATOKEN,
+            token->uuid,
+            "update on global sender msg token structures ... %p (size %d)",
+            property,
+            pll_size(ledger->send_tokens));
 
   // insert new token
   // update #2 subject specific data
@@ -114,39 +115,40 @@ np_aaatoken_t *_np_intent_add_sender(np_key_t      *subject_key,
            np_get_data(token->attributes, "mep_type", &conf, &mep_type)) !=
       np_ok) {
     mep_type.unsigned_integer = DEFAULT_TYPE;
-    log_debug_msg(LOG_ERROR | LOG_AAATOKEN,
-                  "token %s is missing key \"mep_type\" code: %" PRIu32,
-                  token->uuid,
-                  get_data_ret);
+    log_warn(LOG_AAATOKEN,
+             token->uuid,
+             "token is missing attribute \"mep_type\" code: %" PRIu32,
+             get_data_ret);
   }
   if ((get_data_ret =
            np_get_data(token->attributes, "ack_mode", &conf, &ack_mode)) !=
       np_ok) {
     ack_mode.unsigned_integer = ACK_NONE;
-    log_debug_msg(LOG_ERROR | LOG_AAATOKEN,
-                  "token %s is missing key \"ack_mode\" code: %" PRIu32,
-                  token->uuid,
-                  get_data_ret);
+    log_warn(LOG_AAATOKEN,
+             token->uuid,
+             "token is missing attribute \"ack_mode\" code: %" PRIu32,
+             get_data_ret);
   }
   if ((get_data_ret = np_get_data(token->attributes,
                                   "max_threshold",
                                   &conf,
                                   &max_threshold)) != np_ok) {
     max_threshold.unsigned_integer = 0;
-    log_debug_msg(LOG_ERROR | LOG_AAATOKEN,
-                  "token %s is missing key \"max_threshold\" code: %" PRIu32,
-                  token->uuid,
-                  get_data_ret);
+    log_warn(LOG_AAATOKEN,
+             token->uuid,
+             "token is missing attribute \"max_threshold\" code: %" PRIu32,
+             get_data_ret);
   }
 
   property->mep_type |= (mep_type.unsigned_integer & SENDER_MASK);
   property->ack_mode = ack_mode.unsigned_integer;
 
   if (max_threshold.unsigned_integer > 0) {
-    log_debug_msg(LOG_AAATOKEN,
-                  "adding sender token %p threshold %" PRIu32,
-                  token,
-                  max_threshold.unsigned_integer);
+    log_debug(LOG_AAATOKEN,
+              token->uuid,
+              "adding sender token %p threshold %" PRIu32,
+              token,
+              max_threshold.unsigned_integer);
     np_msg_mep_type sender_mep_type = property->mep_type & SENDER_MASK;
 
     np_aaatoken_ptr_pll_cmp_func_t cmp_aaatoken_add     = _np_intent_cmp;
@@ -180,10 +182,10 @@ np_aaatoken_t *_np_intent_add_sender(np_key_t      *subject_key,
     if (IS_AUTHORIZED(token->state)) {
       _np_intent_update_sender_session(subject_key, token, crud_mode);
     }
-    log_debug_msg(LOG_AAATOKEN,
-                  "added new single sender token %s subject: %s",
-                  token->uuid,
-                  _np_key_as_str(subject_key));
+    log_debug(LOG_AAATOKEN,
+              token->uuid,
+              "added new single sender token subject: %s",
+              _np_key_as_str(subject_key));
   }
 
   return ret;
@@ -192,9 +194,6 @@ np_aaatoken_t *_np_intent_add_sender(np_key_t      *subject_key,
 np_aaatoken_t *_np_intent_get_sender_token(np_key_t        *subject_key,
                                            const np_dhkey_t sender_dhkey) {
   np_ctx_memory(subject_key);
-  log_debug_msg(LOG_AAATOKEN,
-                "lookup in global sender msg token structures (%p)...",
-                subject_key);
 
   // static np_dhkey_t empty_dhkey = {0};
   NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
@@ -209,19 +208,21 @@ np_aaatoken_t *_np_intent_get_sender_token(np_key_t        *subject_key,
   _np_dhkey_str(&sender_dhkey, sender_dhkey_as_str);
 #endif
 
-  log_debug_msg(LOG_AAATOKEN,
-                ".step1._np_intent_get_sender_token %d / %s",
-                pll_size(ledger->send_tokens),
-                property->msg_subject);
+  log_debug(LOG_AAATOKEN,
+            NULL,
+            ".step1._np_intent_get_sender_token %d / %s",
+            pll_size(ledger->send_tokens),
+            property->msg_subject);
   pll_iterator(np_aaatoken_ptr) iter = pll_first(ledger->send_tokens);
   while (NULL != iter) {
     return_token = iter->val;
     if (false == _np_aaatoken_is_valid(context,
                                        return_token,
                                        np_aaatoken_type_message_intent)) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "ignoring invalid sender token for issuer %s",
-                    return_token->issuer);
+      log_debug(LOG_AAATOKEN,
+                return_token->uuid,
+                "ignoring invalid sender token for issuer %s",
+                return_token->issuer);
       return_token = NULL;
       pll_next(iter);
       continue;
@@ -236,12 +237,13 @@ np_aaatoken_t *_np_intent_get_sender_token(np_key_t        *subject_key,
       char partner_token_dhkey_str[65];
       partner_token_dhkey_str[64] = '\0';
       _np_dhkey_str(&partner_token_dhkey, partner_token_dhkey_str);
-      log_debug_msg(LOG_AAATOKEN,
-                    "ignoring sender token for issuer %s (partner node: %s) / "
-                    "send_hk: %s (sender dhkey doesn't match)",
-                    return_token->issuer,
-                    partner_token_dhkey_str,
-                    sender_dhkey_as_str);
+      log_debug(LOG_AAATOKEN,
+                return_token->uuid,
+                "ignoring sender token for issuer %s (partner node: %s) / "
+                "send_hk: %s (sender dhkey doesn't match)",
+                return_token->issuer,
+                partner_token_dhkey_str,
+                sender_dhkey_as_str);
 #endif // DEBUG
       return_token = NULL;
       pll_next(iter);
@@ -252,18 +254,20 @@ np_aaatoken_t *_np_intent_get_sender_token(np_key_t        *subject_key,
     if (IS_AUTHORIZED(
             return_token
                 ->state) /* && IS_AUTHENTICATED(return_token->state)*/) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "found valid sender token (%s)",
-                    return_token->issuer);
+      log_debug(LOG_AAATOKEN,
+                return_token->uuid,
+                "found valid sender token (%s)",
+                return_token->issuer);
       np_ref_obj(np_aaatoken_t, return_token);
       break;
     }
     pll_next(iter);
     return_token = NULL;
   }
-  log_debug_msg(LOG_AAATOKEN,
-                ".step2._np_aaatoken_get_sender_token %d",
-                pll_size(ledger->send_tokens));
+  log_debug(LOG_AAATOKEN,
+            NULL,
+            ".step2._np_aaatoken_get_sender_token %d",
+            pll_size(ledger->send_tokens));
 
   return (return_token);
 }
@@ -279,18 +283,18 @@ np_aaatoken_t *_np_intent_add_receiver(np_key_t      *subject_key,
 
   np_aaatoken_t *ret = NULL;
 
-  log_debug_msg(
-      LOG_AAATOKEN,
-      "update on global receiving msg token (%s)  structures ... %p (size %d)",
-      token->uuid,
-      property,
-      pll_size(ledger->recv_tokens));
+  log_debug(LOG_AAATOKEN,
+            token->uuid,
+            "update on global receiving msg token structures ... %p (size %d)",
+            property,
+            pll_size(ledger->recv_tokens));
 
   // insert new token
-  log_debug_msg(LOG_AAATOKEN,
-                ".step1._np_aaatoken_add_receiver %d / %s",
-                pll_size(ledger->recv_tokens),
-                token->subject);
+  log_debug(LOG_AAATOKEN,
+            token->uuid,
+            ".step1._np_aaatoken_add_receiver %d / %s",
+            pll_size(ledger->recv_tokens),
+            token->subject);
 
   // update #2 subject specific data
   struct np_data_conf conf;
@@ -302,29 +306,30 @@ np_aaatoken_t *_np_intent_add_receiver(np_key_t      *subject_key,
                                   &conf,
                                   &max_threshold) != np_ok)) {
     max_threshold.unsigned_integer = 0;
-    log_debug_msg(LOG_ERROR | LOG_AAATOKEN,
-                  "token %s is missing key \"max_threshold\" code: %" PRIu32,
-                  token->uuid,
-                  get_data_ret);
+    log_warn(LOG_AAATOKEN,
+             token->uuid,
+             "token is missing attribute \"max_threshold\" code: %" PRIu32,
+             get_data_ret);
   }
   if ((get_data_ret =
            np_get_data(token->attributes, "mep_type", &conf, &mep_type) !=
            np_ok)) {
     mep_type.unsigned_integer = DEFAULT_TYPE;
-    log_debug_msg(LOG_ERROR | LOG_AAATOKEN,
-                  "token %s is missing key \"mep_type\" code: %" PRIu32,
-                  token->uuid,
-                  get_data_ret);
+    log_warn(LOG_AAATOKEN,
+             token->uuid,
+             "token is missing attribute \"mep_type\" code: %" PRIu32,
+             get_data_ret);
   }
 
   property->mep_type |= (mep_type.unsigned_integer & RECEIVER_MASK);
 
   if (max_threshold.unsigned_integer > 0) {
     // only add if there are messages to receive
-    log_debug_msg(LOG_AAATOKEN,
-                  "adding receiver token %p threshold %" PRIu8,
-                  token,
-                  max_threshold);
+    log_debug(LOG_AAATOKEN,
+              token->uuid,
+              "adding receiver token %p threshold %" PRIu32,
+              token,
+              max_threshold.unsigned_integer);
 
     np_msg_mep_type receiver_mep_type = (property->mep_type & RECEIVER_MASK);
 
@@ -367,8 +372,6 @@ np_aaatoken_t *_np_intent_add_receiver(np_key_t      *subject_key,
 np_aaatoken_t *_np_intent_get_receiver(np_key_t        *subject_key,
                                        const np_dhkey_t target) {
   np_ctx_memory(subject_key);
-  log_trace_msg(LOG_TRACE | LOG_AAATOKEN,
-                "start: np_aaatoken_t* _np_intent_get_receiver(...){");
 
   static np_dhkey_t empty_dhkey = {0};
 
@@ -379,18 +382,20 @@ np_aaatoken_t *_np_intent_get_receiver(np_key_t        *subject_key,
 
   pll_iterator(np_aaatoken_ptr) iter = pll_first(ledger->recv_tokens);
   while (NULL != iter && false == found_return_token) {
-    log_debug_msg(LOG_AAATOKEN,
-                  "checking receiver msg tokens %p/%p",
-                  iter,
-                  iter->val);
     return_token = iter->val;
+    log_debug(LOG_AAATOKEN,
+              return_token->uuid,
+              "checking receiver msg tokens %p/%p",
+              iter,
+              iter->val);
 
     if (false == _np_aaatoken_is_valid(context,
                                        return_token,
                                        np_aaatoken_type_message_intent)) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "ignoring invalid receiver msg tokens %p",
-                    return_token);
+      log_debug(LOG_AAATOKEN,
+                return_token->uuid,
+                "ignoring invalid receiver msg tokens %p",
+                return_token);
       pll_next(iter);
       return_token = NULL;
       continue;
@@ -405,9 +410,10 @@ np_aaatoken_t *_np_intent_get_receiver(np_key_t        *subject_key,
             &context->my_node_key
                  ->dhkey)) { // only use the token if it is not from ourself (in
                              // case of IN/OUTBOUND on same subject)
-      log_debug_msg(LOG_AAATOKEN,
-                    "ignoring token to send messages to myself %p",
-                    return_token);
+      log_debug(LOG_AAATOKEN,
+                return_token->uuid,
+                "ignoring token to send messages to myself %p",
+                return_token);
       pll_next(iter);
       return_token = NULL;
       continue;
@@ -417,14 +423,16 @@ np_aaatoken_t *_np_intent_get_receiver(np_key_t        *subject_key,
 #ifdef DEBUG
       char targetnode_str[65];
       _np_dhkey_str(&target, targetnode_str);
-      log_debug_msg(LOG_AAATOKEN,
-                    "searching token for target %s ",
-                    targetnode_str);
+      log_debug(LOG_AAATOKEN,
+                return_token->uuid,
+                "searching token for target %s ",
+                targetnode_str);
 #endif
       if (!_np_dhkey_equal(&recvtoken_issuer_key, &target)) {
-        log_debug_msg(LOG_AAATOKEN,
-                      "ignoring %s receiver token for others nodes",
-                      return_token->issuer);
+        log_debug(LOG_AAATOKEN,
+                  return_token->uuid,
+                  "ignoring %s receiver token for others nodes",
+                  return_token->issuer);
         pll_next(iter);
         return_token = NULL;
         continue;
@@ -435,9 +443,10 @@ np_aaatoken_t *_np_intent_get_receiver(np_key_t        *subject_key,
     if (IS_AUTHORIZED(
             return_token
                 ->state) /* && IS_AUTHENTICATED(return_token->state)*/) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "found valid receiver token (issuer: %s)",
-                    return_token->issuer);
+      log_debug(LOG_AAATOKEN,
+                return_token->uuid,
+                "found valid receiver token (issuer: %s)",
+                return_token->issuer);
       // found_return_token = true;
       np_ref_obj(np_aaatoken_t, return_token);
       break;
@@ -449,7 +458,7 @@ np_aaatoken_t *_np_intent_get_receiver(np_key_t        *subject_key,
   }
 
   if (NULL == return_token) {
-    log_debug_msg(LOG_AAATOKEN, "found no valid receiver token");
+    log_info(LOG_AAATOKEN, NULL, "found no valid receiver token");
   }
 
   return (return_token);
@@ -469,12 +478,13 @@ void _np_intent_get_all_receiver(np_key_t  *subject_key,
     if (false == _np_aaatoken_is_valid(context,
                                        tmp->val,
                                        np_aaatoken_type_message_intent)) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "ignoring receiver msg token as it is invalid");
+      log_debug(LOG_AAATOKEN,
+                tmp->val->uuid,
+                "ignoring receiver msg token as it is (now) invalid");
     } else if (IS_NOT_AUTHORIZED(tmp->val->state)) {
-      log_debug_msg(LOG_AAATOKEN,
-                    "ignoring receiver msg token %s as it is not authorized",
-                    tmp->val->uuid);
+      log_debug(LOG_AAATOKEN,
+                tmp->val->uuid,
+                "ignoring receiver msg token as it is not authorized");
     } else {
       np_dhkey_t issuer         = np_dhkey_create_from_hash(tmp->val->issuer);
       np_dhkey_t token_audience = np_dhkey_create_from_hash(tmp->val->audience);
@@ -485,10 +495,10 @@ void _np_intent_get_all_receiver(np_key_t  *subject_key,
                       _np_dhkey_equal(&audience, &run_prop->current_fp);
 
       if (include_token == true) {
-        log_debug_msg(LOG_ROUTING,
-                      "found valid receiver token (issuer: %s uuid: %s)",
-                      tmp->val->issuer,
-                      tmp->val->uuid);
+        log_debug(LOG_ROUTING,
+                  tmp->val->uuid,
+                  "found valid receiver token (issuer: %s))",
+                  tmp->val->issuer);
         np_ref_obj(np_aaatoken_t, tmp->val, FUNC);
         // only pick key from a list if the subject msg_treshold is bigger than
         // zero and the sending threshold is bigger than zero as well and we
@@ -496,26 +506,22 @@ void _np_intent_get_all_receiver(np_key_t  *subject_key,
         sll_append(np_aaatoken_ptr, result_list, tmp->val);
       } else {
         char buf[65] = {0};
-        log_debug_msg(LOG_AAATOKEN,
-                      "ignoring receiver token for issuer %s as it is not in "
-                      "audience \"%s\"",
-                      tmp->val->issuer,
-                      np_id_str(buf, *(np_id *)&audience));
+        log_debug(LOG_AAATOKEN,
+                  tmp->val->uuid,
+                  "ignoring receiver token for issuer %s as it is not in "
+                  "audience \"%s\"",
+                  tmp->val->issuer,
+                  np_id_str(buf, *(np_id *)&audience));
       }
     }
 
     pll_next(tmp);
   }
-  log_trace_msg(LOG_TRACE,
-                ".step2._np_aaatoken_get_all_receiver %u -> selected %u",
-                pll_size(ledger->recv_tokens),
-                sll_size(result_list));
 }
 
 bool __is_intent_authz(np_util_statemachine_t *statemachine,
                        const np_util_event_t   event) {
   np_ctx_memory(statemachine->_user_data);
-  log_trace_msg(LOG_TRACE, "start: void __is_intent_authz(...){");
 
   bool ret = false;
   NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
@@ -548,11 +554,12 @@ void __np_intent_check(np_util_statemachine_t *statemachine,
   NP_CAST(intent_key->entity_array[0], np_msgproperty_conf_t, property);
   NP_CAST_RAW(intent_key->entity_array[2], struct __np_token_ledger, ledger);
 
-  log_debug_msg(LOG_AAATOKEN,
-                "%s has intent token (recv: %u / send: %u)",
-                property->msg_subject,
-                sll_size(ledger->recv_tokens),
-                sll_size(ledger->send_tokens));
+  log_debug(LOG_AAATOKEN,
+            NULL,
+            "%s has intent token (recv: %u / send: %u)",
+            property->msg_subject,
+            sll_size(ledger->recv_tokens),
+            sll_size(ledger->send_tokens));
 
   if (ledger == NULL) return;
   pll_iterator(np_aaatoken_ptr) iter = NULL;
@@ -567,9 +574,9 @@ void __np_intent_check(np_util_statemachine_t *statemachine,
         false == _np_aaatoken_is_valid(statemachine->_context,
                                        tmp_token,
                                        np_aaatoken_type_message_intent)) {
-      log_debug_msg(LOG_DEBUG,
-                    "deleting old / invalid sender msg tokens %p",
-                    tmp_token);
+      log_debug(LOG_AAATOKEN,
+                tmp_token->uuid,
+                "deleting old / invalid sender msg token");
       _np_intent_update_sender_session(intent_key, tmp_token, crud_delete);
       pll_remove(np_aaatoken_ptr,
                  ledger->send_tokens,
@@ -590,9 +597,9 @@ void __np_intent_check(np_util_statemachine_t *statemachine,
         false == _np_aaatoken_is_valid(statemachine->_context,
                                        tmp_token,
                                        np_aaatoken_type_message_intent)) {
-      log_debug_msg(LOG_DEBUG,
-                    "deleting old / invalid receiver msg token %p",
-                    tmp_token);
+      log_debug(LOG_AAATOKEN,
+                tmp_token->uuid,
+                "deleting old / invalid receiver msg token");
       _np_intent_update_receiver_session(intent_key, tmp_token, crud_delete);
       pll_remove(np_aaatoken_ptr,
                  ledger->recv_tokens,
@@ -633,11 +640,12 @@ bool _np_intent_has_crypto_session(np_key_t  *subject_key,
   __np_get_create_crypto_tree(subject_key, &crypto_tree);
 
   char buf[65];
-  log_debug_msg(LOG_WARNING,
-                "crypto_session for %s / %s available? --> %p ",
-                _np_key_as_str(subject_key),
-                np_id_str(buf, &session_dhkey),
-                np_tree_find_dhkey(crypto_tree, session_dhkey));
+  log_debug(LOG_WARNING,
+            NULL,
+            "crypto_session for %s / %s available? --> %p ",
+            _np_key_as_str(subject_key),
+            np_id_str(buf, &session_dhkey),
+            np_tree_find_dhkey(crypto_tree, session_dhkey));
 
   ret = np_tree_find_dhkey(crypto_tree, session_dhkey) != NULL;
 
@@ -657,6 +665,7 @@ bool _np_intent_get_ack_session(np_key_t   *subject_key,
   np_ctx_memory(subject_key);
   char buf[65];
   log_msg(LOG_INFO,
+          NULL,
           "e2e session ack %s for message not found",
           np_id_str(buf, &session_dhkey));
   return false;
@@ -691,14 +700,16 @@ bool _np_intent_get_crypto_session(np_key_t            *subject_key,
         stored_crypto_session->session_key_to_write_is_set;
     crypto_session->session_type = stored_crypto_session->session_type;
     ret                          = true;
-    log_debug_msg(LOG_WARNING,
-                  "crypto_session for %s  (%p) available: %p %p",
-                  _np_key_as_str(subject_key),
-                  subject_key,
-                  crypto_session->session_key_to_read,
-                  crypto_session->session_key_to_write);
+    log_debug(LOG_WARNING,
+              NULL,
+              "crypto_session for %s  (%p) available: %p %p",
+              _np_key_as_str(subject_key),
+              subject_key,
+              crypto_session->session_key_to_read,
+              crypto_session->session_key_to_write);
   } else {
     log_debug(LOG_WARNING,
+              NULL,
               "no crypto_session for %s (%p) available",
               _np_key_as_str(subject_key),
               subject_key);
@@ -753,9 +764,10 @@ void _np_intent_update_sender_session(np_key_t      *subject_key,
             : np_tree_find_dhkey(crypto_tree, initial_session_fp)->val.value.v;
     np_tree_del_dhkey(crypto_tree, initial_session_fp);
     np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
-    log_debug_msg(LOG_INFO,
-                  "crypto_session with %s removed",
-                  sender_token->issuer);
+    log_info(LOG_AAATOKEN,
+             sender_token->uuid,
+             "crypto_session with %s removed",
+             sender_token->issuer);
 
     np_tree_del_dhkey(ack_tree, sender_token_fp);
     np_tree_del_dhkey(ack_tree, initial_session_fp);
@@ -785,11 +797,12 @@ void _np_intent_update_sender_session(np_key_t      *subject_key,
     }
 
     if (i != 0 || j != 0) {
-      log_debug_msg(LOG_DEBUG,
-                    "crypto_session with %s could not be established (%d / %d)",
-                    sender_token->issuer,
-                    i,
-                    j);
+      log_debug(LOG_AAATOKEN,
+                sender_token->uuid,
+                "crypto_session with %s could not be established (%d / %d)",
+                sender_token->issuer,
+                i,
+                j);
       np_unref_obj(np_crypto_session_t,
                    private_crypto_session,
                    ref_obj_creation);
@@ -833,11 +846,12 @@ void _np_intent_update_sender_session(np_key_t      *subject_key,
                            np_treeval_new_dhkey(sender_node_fp));
 
     } else {
-      log_debug_msg(LOG_DEBUG,
-                    "crypto_session with %s already established for %s (%p)",
-                    sender_token->issuer,
-                    _np_key_as_str(subject_key),
-                    subject_key);
+      log_debug(LOG_AAATOKEN,
+                sender_token->uuid,
+                "crypto_session with %s already established for %s (%p)",
+                sender_token->issuer,
+                _np_key_as_str(subject_key),
+                subject_key);
       np_unref_obj(np_crypto_session_t,
                    private_crypto_session,
                    ref_obj_creation);
@@ -939,7 +953,8 @@ void _np_intent_update_receiver_session(np_key_t      *subject_key,
             : np_tree_find_dhkey(crypto_tree, initial_session_fp)->val.value.v;
     np_tree_del_dhkey(crypto_tree, initial_session_fp);
     np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
-    log_info(LOG_INFO,
+    log_info(LOG_AAATOKEN | LOG_GLOBAL,
+             receiver_token->uuid,
              "crypto_session with %s removed",
              receiver_token->issuer);
 
@@ -967,11 +982,12 @@ void _np_intent_update_receiver_session(np_key_t      *subject_key,
     }
 
     if (i != 0 || j != 0) {
-      log_debug_msg(LOG_DEBUG,
-                    "crypto_session with %s could not be established (%d / %d)",
-                    receiver_token->issuer,
-                    i,
-                    j);
+      log_debug(LOG_AAATOKEN | LOG_GLOBAL,
+                receiver_token->uuid,
+                "crypto_session with %s could not be established (%d / %d)",
+                receiver_token->issuer,
+                i,
+                j);
       np_unref_obj(np_crypto_session_t,
                    private_crypto_session,
                    ref_obj_creation);
@@ -980,11 +996,12 @@ void _np_intent_update_receiver_session(np_key_t      *subject_key,
                    ref_obj_creation);
       send_update = false;
     } else if (send_update) {
-      log_debug_msg(LOG_DEBUG,
-                    "crypto_session with %s established for %s (%p)",
-                    receiver_token->issuer,
-                    _np_key_as_str(subject_key),
-                    subject_key);
+      log_debug(LOG_AAATOKEN | LOG_GLOBAL,
+                receiver_token->uuid,
+                "crypto_session with %s established for %s (%p)",
+                receiver_token->issuer,
+                _np_key_as_str(subject_key),
+                subject_key);
 
       // register private session (standard dhkey exchange)
       _crypto_session =
@@ -1010,11 +1027,12 @@ void _np_intent_update_receiver_session(np_key_t      *subject_key,
       if (NULL != _crypto_session)
         np_unref_obj(np_crypto_session_t, _crypto_session, ref_obj_creation);
     } else {
-      log_debug_msg(LOG_DEBUG,
-                    "crypto_session with %s already established for %s (%p)",
-                    receiver_token->issuer,
-                    _np_key_as_str(subject_key),
-                    subject_key);
+      log_debug(LOG_AAATOKEN,
+                receiver_token->uuid,
+                "crypto_session with %s already established for %s (%p)",
+                receiver_token->issuer,
+                _np_key_as_str(subject_key),
+                subject_key);
       np_unref_obj(np_crypto_session_t,
                    private_crypto_session,
                    ref_obj_creation);
@@ -1032,7 +1050,7 @@ void _np_intent_update_receiver_session(np_key_t      *subject_key,
 
   if (_crypto_session && true == send_update) {
     // send message with encrypted symmetric key over the pubsub channel
-    np_message_t *update_msg = NULL;
+    struct np_e2e_message_s *update_msg = NULL;
     np_new_obj(np_message_t, update_msg);
 
     np_tree_t *update_msg_body = np_tree_create();
@@ -1051,17 +1069,17 @@ void _np_intent_update_receiver_session(np_key_t      *subject_key,
 
     NP_CAST(subject_key->entity_array[0], np_msgproperty_conf_t, property);
 
-    np_ref_obj(np_message_t, update_msg, ref_message_msg_property);
     _np_message_create(update_msg,
                        initial_session_fp,
                        context->my_identity->dhkey,
                        property->subject_dhkey,
-                       np_tree_clone(update_msg_body));
+                       update_msg_body);
 
-    log_debug_msg(LOG_DEBUG,
-                  "sending crypto_session established on subject %s (%p)",
-                  _np_key_as_str(subject_key),
-                  subject_key);
+    log_debug(LOG_GLOBAL,
+              NULL,
+              "sending crypto_session established on subject %s (%p)",
+              _np_key_as_str(subject_key),
+              subject_key);
 
     np_util_event_t rekey_msg_event = {
         .target_dhkey = my_sender_token_fp,
@@ -1075,8 +1093,8 @@ void _np_intent_update_receiver_session(np_key_t      *subject_key,
                              "urn:np:intent:update");
     // _np_keycache_execute_event(context, subject_key->dhkey, rekey_msg_event);
 
-    np_unref_obj(np_message_t, update_msg, ref_obj_creation);
     np_tree_free(update_msg_body);
+    np_unref_obj(np_message_t, update_msg, ref_obj_creation);
   }
 }
 
@@ -1105,7 +1123,9 @@ void _np_intent_update_session(np_key_t              *subject_key,
             : np_tree_find_dhkey(crypto_tree, my_token_fp)->val.value.v;
 
     if (my_crypto_session == NULL) {
-      log_msg(LOG_WARNING, "attempt to update/delete non-existing session");
+      log_warn(LOG_GLOBAL,
+               NULL,
+               "attempt to update/delete non-existing session");
       np_tree_free(update_msg_body);
       return;
     }
@@ -1127,10 +1147,11 @@ void _np_intent_update_session(np_key_t              *subject_key,
     np_tree_insert_dhkey(crypto_tree,
                          my_token_fp,
                          np_treeval_new_v(my_crypto_session));
-    log_debug_msg(LOG_DEBUG,
-                  "own crypto_session established on subject %s (%p)",
-                  _np_key_as_str(subject_key),
-                  subject_key);
+    log_debug(LOG_GLOBAL,
+              NULL,
+              "own crypto_session established on subject %s (%p)",
+              _np_key_as_str(subject_key),
+              subject_key);
   }
 
   if (crud == crud_delete) {
@@ -1176,20 +1197,20 @@ void _np_intent_update_session(np_key_t              *subject_key,
 
     if (peer_crypto_session->session_type == crypto_session_initial) {
 
-      np_message_t *update_msg = NULL;
+      struct np_e2e_message_s *update_msg = NULL;
       np_new_obj(np_message_t, update_msg);
 
-      np_ref_obj(np_message_t, update_msg, ref_message_msg_property);
       _np_message_create(update_msg,
                          msg_target_dhkey,
                          context->my_identity->dhkey,
                          property->subject_dhkey,
-                         np_tree_clone(update_msg_body));
+                         update_msg_body);
 
-      log_debug_msg(LOG_DEBUG,
-                    "sending crypto_session established on subject %s (%p)",
-                    _np_key_as_str(subject_key),
-                    subject_key);
+      log_debug(LOG_GLOBAL,
+                NULL,
+                "sending crypto_session established on subject %s (%p)",
+                _np_key_as_str(subject_key),
+                subject_key);
 
       np_util_event_t rekey_msg_event = {
           .target_dhkey = my_token_fp,

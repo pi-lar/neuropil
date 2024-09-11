@@ -16,6 +16,7 @@
 
 #include "http/np_http.h"
 #include "util/np_event.h"
+#include "util/np_pcg_rng.h"
 #include "util/np_serialization.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
@@ -87,9 +88,10 @@ bool _np_sysinfo_client_send_cb(np_state_t               *context,
                        _NP_SYSINFO_SOURCE,
                        np_treeval_new_s(_np_key_as_str(context->my_node_key)));
     // send msg
-    log_msg(LOG_INFO,
-            "sending sysinfo proactive (size: %" PRIu16 ")",
-            payload->size);
+    log_info(LOG_SYSINFO,
+             NULL,
+             "sending sysinfo proactive (size: %" PRIsizet ")",
+             payload->size);
 
     size_t data_length = np_tree_get_byte_size(payload);
     // np_serializer_add_map_bytesize(payload, &data_length);
@@ -100,15 +102,12 @@ bool _np_sysinfo_client_send_cb(np_state_t               *context,
 
     np_tree_free(payload);
   } else {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "no receiver token for %s",
-                  _NP_SYSINFO_DATA);
+    log_debug(LOG_SYSINFO, NULL, "no receiver token for %s", _NP_SYSINFO_DATA);
   }
   return true;
 }
 
 void np_sysinfo_enable_client(np_state_t *context) {
-  log_trace_msg(LOG_TRACE, "start: void np_sysinfo_enable_client() {");
 
   struct np_mx_properties sysinfo_properties = {
       .role                = NP_MX_PROVIDER,
@@ -130,15 +129,18 @@ void np_sysinfo_enable_client(np_state_t *context) {
 
   np_set_mx_properties(context, sysinfo_subject, sysinfo_properties);
 
-  np_jobqueue_submit_event_periodic(
-      context,
-      PRIORITY_MOD_USER_DEFAULT,
-      np_crypt_rand_mm(0, SYSINFO_PROACTIVE_SEND_IN_SEC * 1000) / 1000.,
-      // sysinfo_response_props->msg_ttl /
-      // sysinfo_response_props->max_threshold,
-      SYSINFO_PROACTIVE_SEND_IN_SEC + .0,
-      _np_sysinfo_client_send_cb,
-      "sysinfo_client_send_cb");
+  double first_delay =
+      np_global_rng_next_bounded(SYSINFO_PROACTIVE_SEND_IN_SEC) / 1.;
+  log_msg(LOG_INFO, NULL, "initial delay for sysinfo: %f", first_delay);
+
+  np_jobqueue_submit_event_periodic(context,
+                                    PRIORITY_MOD_USER_DEFAULT,
+                                    first_delay / 1.,
+                                    // sysinfo_response_props->msg_ttl /
+                                    // sysinfo_response_props->max_threshold,
+                                    SYSINFO_PROACTIVE_SEND_IN_SEC + .0,
+                                    _np_sysinfo_client_send_cb,
+                                    "sysinfo_client_send_cb");
 }
 
 int _np_http_handle_sysinfo_hash(ht_request_t  *request,
@@ -215,27 +217,32 @@ void np_sysinfo_enable_server(np_state_t *context) {
   }
 }
 
-bool _np_in_sysinfo(np_state_t *context, struct np_message *msg) {
-  log_msg(LOG_INFO | LOG_SYSINFO, "received sysinfo (uuid: %s )", msg->uuid);
+bool _np_in_sysinfo(void *ac, struct np_message *msg) {
+
+  np_state_t *context = ac;
+
+  log_msg(LOG_INFO | LOG_SYSINFO, msg->uuid, "received sysinfo");
 
   np_tree_t payload = {0}; // np_tree_create();
   np_buffer2tree(context, msg->data, msg->data_length, &payload);
 
   np_tree_elem_t *source = np_tree_find_str(&payload, _NP_SYSINFO_SOURCE);
   if (NULL == source) {
-    log_msg(LOG_WARNING | LOG_SYSINFO,
-            "received sysinfo request w/o source key information.");
+    log_warn(LOG_SYSINFO,
+             NULL,
+             "received sysinfo request w/o source key information.");
     return false;
   }
   bool  source_str_free = false;
   char *source_val      = np_treeval_to_str(source->val, &source_str_free);
 
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                "caching content for key %s (size: %" PRIu16
-                ", byte_size: %" PRIu32 ")",
-                source_val,
-                payload.size,
-                payload.byte_size);
+  log_debug(LOG_SYSINFO,
+            NULL,
+            "caching content for key %s (size: %" PRIsizet
+            ", byte_size: %" PRIsizet ")",
+            source_val,
+            payload.size,
+            payload.byte_size);
 
   // insert / replace cache item
   _LOCK_MODULE(np_sysinfo_t) {
@@ -250,21 +257,19 @@ bool _np_in_sysinfo(np_state_t *context, struct np_message *msg) {
 
       if (NULL != new_check && NULL != old_check &&
           new_check->val.value.d > old_check->val.value.d) {
-        log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                      "removing old sysinfo for newer data (uuid:%s)",
-                      msg->uuid);
+        log_debug(LOG_SYSINFO,
+                  msg->uuid,
+                  "removing old sysinfo for newer data");
         np_tree_replace_str(np_module(sysinfo)->_cache,
                             source_val,
                             np_treeval_new_tree(&payload));
       } else {
-        log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                      "ignoring sysinfo (uuid: %s ) due to newer data in cache",
-                      msg->uuid);
+        log_debug(LOG_SYSINFO,
+                  msg->uuid,
+                  "ignoring sysinfo due to newer data in cache");
       }
     } else {
-      log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                    "got sysinfo (uuid: %s) for a new node",
-                    msg->uuid);
+      log_debug(LOG_SYSINFO, msg->uuid, "got sysinfo for a new node");
       np_tree_replace_str(np_module(sysinfo)->_cache,
                           source_val,
                           np_treeval_new_tree(&payload));
@@ -288,31 +293,28 @@ bool _np_in_sysinfo(np_state_t *context, struct np_message *msg) {
 // HTTP callback functions
 np_tree_t *np_sysinfo_get_info(np_state_t       *context,
                                const char *const hash_of_target) {
-  log_trace_msg(LOG_TRACE,
-                "start: np_tree_t* np_sysinfo_get_info(const char* const "
-                "hash_of_target) {");
 
   char *my_key = _np_key_as_str(context->my_node_key);
 
   np_tree_t *ret = NULL;
   if (strncmp(hash_of_target, my_key, 64) == 0) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo for myself");
+    log_debug(LOG_SYSINFO, NULL, "Requesting sysinfo for myself");
     // If i request myself i can answer instantly
     ret = np_sysinfo_get_my_info(context);
 
     // I may anticipate the one requesting my information wants to request
     // others as well
   } else {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "Requesting sysinfo for node %s",
-                  hash_of_target);
+    log_debug(LOG_SYSINFO,
+              NULL,
+              "Requesting sysinfo for node %s",
+              hash_of_target);
     ret = _np_sysinfo_get_from_cache(context, hash_of_target, -1);
   }
   return ret;
 }
 
 np_tree_t *np_sysinfo_get_my_info(np_state_t *context) {
-  log_trace_msg(LOG_TRACE, "start: np_tree_t* np_sysinfo_get_my_info() {");
   np_tree_t *ret = np_tree_create();
 
   np_tree_insert_str(ret,
@@ -327,7 +329,7 @@ np_tree_t *np_sysinfo_get_my_info(np_state_t *context) {
   _np_node_encode_to_jrb(local_node, context->my_node_key, true);
 
   np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, np_treeval_new_tree(local_node));
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "my sysinfo object has a node");
+  log_debug(LOG_SYSINFO, NULL, "my sysinfo object has a node");
   np_tree_free(local_node);
 
   // build neighbours list
@@ -336,9 +338,10 @@ np_tree_t *np_sysinfo_get_my_info(np_state_t *context) {
   if (NULL != neighbour_table && 0 < sll_size(neighbour_table)) {
     _np_node_encode_multiple_to_jrb(neighbours, neighbour_table, true);
   }
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                "my sysinfo object has %" PRIu32 " neighbours",
-                sll_size(neighbour_table));
+  log_debug(LOG_SYSINFO,
+            NULL,
+            "my sysinfo object has %" PRIu32 " neighbours",
+            sll_size(neighbour_table));
 
   np_tree_insert_str(ret,
                      _NP_SYSINFO_MY_NEIGHBOURS "_count",
@@ -359,9 +362,10 @@ np_tree_t *np_sysinfo_get_my_info(np_state_t *context) {
   if (NULL != routing_table && 0 < sll_size(routing_table)) {
     _np_node_encode_multiple_to_jrb(routes, routing_table, true);
   }
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                "my sysinfo object has %" PRIu32 " routing table entries",
-                sll_size(routing_table));
+  log_debug(LOG_SYSINFO,
+            NULL,
+            "my sysinfo object has %" PRIu32 " routing table entries",
+            sll_size(routing_table));
 
   np_tree_insert_str(ret,
                      _NP_SYSINFO_MY_ROUTES "_count",
@@ -378,9 +382,6 @@ np_tree_t *np_sysinfo_get_my_info(np_state_t *context) {
 np_tree_t *_np_sysinfo_get_from_cache(np_state_t       *context,
                                       const char *const hash_of_target,
                                       uint16_t          max_cache_ttl) {
-  log_trace_msg(LOG_TRACE,
-                "start: np_tree_t* _np_sysinfo_get_from_cache(const char* "
-                "const hash_of_target, uint16_t max_cache_ttl) {");
   _np_sysinfo_init_cache(context);
 
   np_tree_t *ret = NULL;
@@ -401,13 +402,14 @@ np_tree_t *_np_sysinfo_get_from_cache(np_state_t       *context,
   }
 
   if (NULL == ret) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "sysinfo reply data received: no");
+    log_debug(LOG_SYSINFO, NULL, "sysinfo reply data received: no");
   } else {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "sysinfo reply data received: yes (size: %" PRIu16
-                  ", byte_size: %" PRIu32 ")",
-                  ret->size,
-                  ret->byte_size);
+    log_debug(LOG_SYSINFO,
+              NULL,
+              "sysinfo reply data received: yes (size: %" PRIsizet
+              ", byte_size: %" PRIsizet ")",
+              ret->size,
+              ret->byte_size);
   }
 
   return ret;
@@ -437,7 +439,6 @@ void _np_sysinfo_cache_interval(np_state_t *context) {
 }
 
 np_tree_t *np_sysinfo_get_all(np_state_t *context) {
-  log_trace_msg(LOG_TRACE, "start: void _np_sysinfo_request_others() {");
 
   np_tree_t *ret   = np_tree_create();
   int16_t    count = 0;
@@ -465,9 +466,6 @@ np_tree_t *np_sysinfo_get_all(np_state_t *context) {
 }
 
 JSON_Value *_np_generate_error_json(const char *error, const char *details) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: JSON_Value* _np_generate_error_json(const char* "
-                "error,const char* details) {");
   JSON_Value *ret = json_value_init_object();
 
   json_object_set_string(json_object(ret), "error", error);
@@ -479,7 +477,6 @@ JSON_Value *_np_generate_error_json(const char *error, const char *details) {
 int _np_http_handle_sysinfo_hash(ht_request_t  *request,
                                  ht_response_t *ret,
                                  void          *context) {
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
 
   char        target_hash[65];
   int         http_status = HTTP_CODE_BAD_REQUEST; // HTTP_CODE_OK
@@ -487,12 +484,10 @@ int _np_http_handle_sysinfo_hash(ht_request_t  *request,
   JSON_Value *json_obj;
   np_key_t   *key = NULL;
 
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                "parse arguments of %s",
-                request->ht_path);
+  log_debug(LOG_SYSINFO, NULL, "parse arguments of %s", request->ht_path);
 
   if (NULL != request->ht_path) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "request has arguments");
+    log_debug(LOG_SYSINFO, NULL, "request has arguments");
 
     char *to_parse = NULL, *ht_path_dup = NULL;
     ht_path_dup = to_parse = strndup(request->ht_path, 9 + 64 + 1);
@@ -500,10 +495,11 @@ int _np_http_handle_sysinfo_hash(ht_request_t  *request,
     path                   = strsep(&to_parse, "/"); // sysinfo
     char *tmp_target_hash  = strsep(&to_parse, "/"); // target_hash
 
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "parse path arguments of %s / %s",
-                  path,
-                  tmp_target_hash);
+    log_debug(LOG_SYSINFO,
+              NULL,
+              "parse path arguments of %s / %s",
+              path,
+              tmp_target_hash);
 
     if (NULL != tmp_target_hash) {
       if (strlen(tmp_target_hash) == 64) {
@@ -517,7 +513,7 @@ int _np_http_handle_sysinfo_hash(ht_request_t  *request,
     }
     free(ht_path_dup);
   } else {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "no arguments provided");
+    log_debug(LOG_SYSINFO, NULL, "no arguments provided");
     json_obj = _np_generate_error_json("no path arguments found",
                                        "expected length is 64 characters");
     goto __json_return__;
@@ -527,41 +523,45 @@ int _np_http_handle_sysinfo_hash(ht_request_t  *request,
 
   np_tree_t *sysinfo = np_sysinfo_get_info(context, target_hash);
   if (NULL == sysinfo) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "Could not find system informations");
+    log_debug(LOG_SYSINFO, NULL, "Could not find system informations");
     http_status = HTTP_CODE_ACCEPTED;
     json_obj    = _np_generate_error_json("key not found.",
                                        "update request is send. please wait.");
   } else {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "sysinfo response tree (byte_size: %" PRIu32,
-                  sysinfo->byte_size);
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "sysinfo response tree (size: %" PRIu16,
-                  sysinfo->size);
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
+    log_debug(LOG_SYSINFO,
+              NULL,
+              "sysinfo response tree (byte_size: %" PRIsizet,
+              sysinfo->byte_size);
+    log_debug(LOG_SYSINFO,
+              NULL,
+              "sysinfo response tree (size: %" PRIsizet,
+              sysinfo->size);
+    log_debug(LOG_SYSINFO, NULL, "Convert sysinfo to json");
     http_status = HTTP_CODE_OK;
     json_obj    = np_tree2json(context, sysinfo);
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");
+    log_debug(LOG_SYSINFO, NULL, "cleanup");
   }
   np_tree_free(sysinfo);
 
 __json_return__:
 
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
+  log_debug(LOG_SYSINFO, NULL, "serialise json response");
 
   if (NULL == json_obj) {
-    log_msg(LOG_ERROR, "HTTP return is not defined for this code path");
+    log_warn(LOG_SYSINFO,
+             NULL,
+             "HTTP return is not defined for this code path");
     http_status = HTTP_CODE_INTERNAL_SERVER_ERROR;
     json_obj = _np_generate_error_json("Unknown Error", "no response defined");
   }
   response = np_json2char(json_obj, false);
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                "sysinfo response should be (strlen: %lu):",
-                strlen(response));
+  log_debug(LOG_SYSINFO,
+            NULL,
+            "sysinfo response should be (strlen: %lu):",
+            strlen(response));
   json_value_free(json_obj);
 
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "write to body");
+  log_debug(LOG_SYSINFO, NULL, "write to body");
 
   ret->ht_status = http_status;
   ret->ht_body   = response;
@@ -572,7 +572,7 @@ __json_return__:
 int _np_http_handle_sysinfo_all(ht_request_t  *request,
                                 ht_response_t *ret,
                                 void          *context) {
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Requesting sysinfo");
+  log_debug(LOG_SYSINFO, NULL, "Requesting sysinfo");
 
   char target_hash[65];
 
@@ -584,17 +584,18 @@ int _np_http_handle_sysinfo_all(ht_request_t  *request,
   /**
    * Default behavior if no argument is given: display own node informations
    */
-  log_msg(LOG_INFO, "parse path arguments of %s", request->ht_path);
+  log_msg(LOG_INFO, NULL, "parse path arguments of %s", request->ht_path);
 
   if (NULL != request->ht_query_args) {
     log_msg(LOG_INFO,
-            "have %d query argument(s)",
+            NULL,
+            "have %" PRIsizet " query argument(s)",
             request->ht_query_args->size);
     np_tree_elem_t *new_join =
         np_tree_find_str(request->ht_query_args, _NP_SYSINFO_CONNECT);
     if (new_join != NULL) {
       char *url = urlDecode(new_join->val.value.s);
-      log_msg(LOG_INFO, "user requested to join: %s", url);
+      log_msg(LOG_INFO, NULL, "user requested to join: %s", url);
       np_join(context, url);
       free(url);
     }
@@ -612,23 +613,24 @@ int _np_http_handle_sysinfo_all(ht_request_t  *request,
   }
 
   if (NULL == sysinfo) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "Could not find system informations");
+    log_debug(LOG_SYSINFO, NULL, "Could not find system informations");
     http_status = HTTP_CODE_ACCEPTED;
     json_obj =
         _np_generate_error_json("path not found",
                                 "only \"/sysinfo\" accepted at this point");
   } else {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "sysinfo response tree (byte_size: %" PRIu32,
-                  sysinfo->byte_size);
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                  "sysinfo response tree (size: %" PRIu16,
-                  sysinfo->size);
+    log_debug(LOG_SYSINFO,
+              NULL,
+              "sysinfo response tree (byte_size: %" PRIsizet,
+              sysinfo->byte_size);
+    log_debug(LOG_SYSINFO,
+              NULL,
+              "sysinfo response tree (size: %" PRIsizet,
+              sysinfo->size);
 
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "Convert sysinfo to json");
+    log_debug(LOG_SYSINFO, NULL, "Convert sysinfo to json");
     json_obj = np_tree2json(context, sysinfo);
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "cleanup");
+    log_debug(LOG_SYSINFO, NULL, "cleanup");
 
     http_status = HTTP_CODE_OK;
   }
@@ -636,20 +638,21 @@ int _np_http_handle_sysinfo_all(ht_request_t  *request,
 
 __json_return__:
 
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
+  log_debug(LOG_SYSINFO, NULL, "serialise json response");
   if (NULL == json_obj) {
-    log_msg(LOG_ERROR, "HTTP return is not defined for this code path");
+    log_msg(LOG_ERROR, NULL, "HTTP return is not defined for this code path");
     http_status = HTTP_CODE_INTERNAL_SERVER_ERROR;
     json_obj = _np_generate_error_json("Unknown Error", "no response defined");
   }
 
   response = np_json2char(json_obj, false);
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO,
-                "sysinfo response should be (strlen: %lu):",
-                strlen(response));
+  log_debug(LOG_SYSINFO,
+            NULL,
+            "sysinfo response should be (strlen: %lu):",
+            strlen(response));
   json_value_free(json_obj);
 
-  log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "write to body");
+  log_debug(LOG_SYSINFO, NULL, "write to body");
   ret->ht_status = http_status;
   ret->ht_body   = response;
 

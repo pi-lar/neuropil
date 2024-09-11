@@ -101,17 +101,17 @@ int main(int argc, char **argv) {
             "INFO : node is listening on %s\n",
             np_get_connection_string(context));
 
-    log_debug_msg(LOG_DEBUG, "starting http module");
+    log_debug(LOG_DEBUG, NULL, "starting http module");
     _np_http_init(context, "localhost", "31415");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
-    log_debug_msg(LOG_DEBUG, "starting file server");
+    log_debug(LOG_DEBUG, NULL, "starting file server");
     np_files_open(context, file_seed, "examples", false);
     np_sysinfo_enable_server(context);
 
-    log_debug_msg(LOG_DEBUG, "starting job queue");
+    log_debug(LOG_DEBUG, NULL, "starting job queue");
     if (np_ok != np_run(context, 0.001)) {
       np_example_print(context, stderr, "ERROR: Node could not run");
     } else {

@@ -23,9 +23,7 @@
 #include "np_util.h"
 
 np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {");
+
   np_treeval_t to;
   switch (from.type) {
   // length is always 1 (to identify the type) + the length of the type
@@ -63,9 +61,9 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     break;
   case np_treeval_type_char_ptr:
     to.type    = np_treeval_type_char_ptr;
-    to.value.s = strndup(from.value.s, strlen(from.value.s));
-    to.size    = strlen(from.value.s);
-    // log_debug_msg(LOG_DEBUG, "copy str %s %hd", to.value.s, to.size);
+    to.value.s = strndup(from.value.s, from.size);
+    to.size    = from.size; 
+    // log_debug(LOG_DEBUG, NULL, "copy str %s %hd", to.value.s, to.size);
     break;
   case np_treeval_type_special_char_ptr:
     to.type      = np_treeval_type_special_char_ptr;
@@ -135,6 +133,11 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     memcpy(&to.value.dhkey, &from.value.dhkey, sizeof(np_dhkey_t));
     to.size = sizeof(np_dhkey_t);
     break;
+  case np_treeval_type_uuid:
+    to.type = np_treeval_type_uuid;
+    memcpy(to.value.uuid, from.value.uuid, NP_UUID_BYTES);
+    to.size = NP_UUID_BYTES;
+    break;
   case np_treeval_type_hash:
     to.type      = np_treeval_type_hash;
     to.value.bin = malloc(from.size);
@@ -150,7 +153,8 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     break;
   default:
     to.type = np_treeval_type_undefined;
-    // log_msg(LOG_WARNING,"unsupported copy operation for np_treeval type
+    // log_msg(LOG_WARNING, NULL, "unsupported copy operation for np_treeval
+    // type
     // %"PRIu8,from.type);
     break;
   }
@@ -160,8 +164,6 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
     @param:freeable: returns the information to free or not to free the result
 */
 char *np_treeval_to_str(np_treeval_t val, bool *freeable) {
-  log_trace_msg(LOG_TRACE,
-                "start: char* np_treeval_to_str(np_treeval_t val) {");
 
   int   len    = 0;
   char *result = NULL;
@@ -323,6 +325,15 @@ char *np_treeval_to_str(np_treeval_t val, bool *freeable) {
     CHECK_MALLOC(result);
     if (freeable != NULL) *freeable = true;
     _np_dhkey_str(&val.value.dhkey, result);
+    break;
+  case np_treeval_type_uuid:
+    result = malloc((2 * NP_UUID_BYTES) + 1);
+    CHECK_MALLOC(result);
+    if (freeable != NULL) *freeable = true;
+    sodium_bin2hex(result,
+                   (2 * NP_UUID_BYTES) + 1,
+                   val.value.uuid,
+                   NP_UUID_BYTES);
     break;
   default:
     return "--> unknown";
@@ -507,8 +518,6 @@ np_treeval_t np_treeval_new_carray_nnt(char *carray) {
 }
 
 np_treeval_t np_treeval_new_tree(np_tree_t *tree) {
-  log_trace_msg(LOG_TRACE,
-                "start: np_treeval_t np_treeval_new_tree(np_tree_t* tree){");
   np_treeval_t j;
   j.value.tree = tree;
   j.type       = np_treeval_type_jrb_tree;
@@ -552,10 +561,6 @@ np_treeval_t np_treeval_new_hash(char *s) {
                      sizeof(s),
                      NULL,
                      0);
-
-  // char hex_hash[2*crypto_generichash_BYTES+1];
-  // sodium_bin2hex(hex_hash, 2*crypto_generichash_BYTES+1, (unsigned
-  // char*)hash, crypto_generichash_BYTES);
 
   j.size      = crypto_generichash_BYTES; // strlen(hex_hash);
   j.value.bin = hash;                     // strndup(hex_hash, j.size);
@@ -607,8 +612,6 @@ char *np_treeval_h(np_treeval_t j) { return j.value.bin; }
 
 size_t np_treeval_get_byte_size(np_treeval_t ele) {
 
-  log_trace_msg(LOG_TRACE,
-                "start: uint32_t np_treeval_get_byte_size(np_treeval_t ele){");
   size_t   byte_size = 0;
   uint64_t abs_value = 0;
 
@@ -856,7 +859,8 @@ size_t np_treeval_get_byte_size(np_treeval_t ele) {
 #endif // NP_USE_QCBOR
 
   default:
-    //    log_msg(LOG_ERROR, "unsupported length calculation for value / type
+    //    log_msg(LOG_ERROR, NULL, "unsupported length calculation for value /
+    //    type
     //    %"PRIu8"", ele.type );
     break;
   }

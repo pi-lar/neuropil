@@ -42,18 +42,20 @@
 np_aaatoken_t *
 __np_token_factory_new(np_state_t *context,
                        char        issuer[64],
-                       char        node_subject[255],
                        double      expires_at,
                        unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]) {
   np_aaatoken_t *ret = NULL;
   np_new_obj(np_aaatoken_t, ret, FUNC);
+
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, ret->uuid, NP_UUID_BYTES);
+  snprintf(ret->subject, 254, _NP_URN_IDENTITY_PREFIX ":%s", uuid_hex);
 
   // create token
   if (NULL != context->realm_id) {
     strncpy(ret->realm, context->realm_id, 255);
   }
   strncpy(ret->issuer, issuer, 65);
-  strncpy(ret->subject, node_subject, 254);
   // strncpy(ret->audience, (char*)
   // _np_key_as_str(context->my_identity->aaa_token->realm), 255);
 
@@ -78,7 +80,7 @@ np_aaatoken_t *__np_token_factory_derive(np_aaatoken_t         *source,
   np_ctx_memory(source);
   np_aaatoken_t *ret = NULL;
 
-  log_debug(LOG_AAATOKEN, "Deriving from token: %s", source->uuid);
+  log_debug(LOG_AAATOKEN, source->uuid, "deriving new token");
 
   /// contract begin
   ASSERT(source != NULL, "source token cannot be NULL");
@@ -109,6 +111,7 @@ np_aaatoken_t *__np_token_factory_derive(np_aaatoken_t         *source,
     break;
   default:
     log_msg(LOG_ERROR,
+            source->uuid,
             "scope to derive token to is unknown. scope: %" PRIu8,
             scope);
     ABORT("scope to derive token to is unknown. scope: %" PRIu8, scope);
@@ -188,7 +191,7 @@ np_token_factory_get_public_ident_token(np_aaatoken_t *source) {
   _np_aaatoken_set_signature(ret, NULL);
   _np_aaatoken_update_attributes_signature(ret);
 
-  log_debug(LOG_AAATOKEN, "generating public ident token (%s)", ret->uuid);
+  log_debug(LOG_AAATOKEN, ret->uuid, "generating public ident token");
 
   ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_derive", FUNC);
   return ret;
@@ -248,11 +251,12 @@ _np_token_factory_new_message_intent_token(np_msgproperty_conf_t *msg_request) {
   if (identity_token->expires_at < ret->expires_at) {
     ret->expires_at = identity_token->expires_at;
   }
-  log_debug_msg(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,
-                "setting msg token EXPIRY to: %f (now: %f diff: %f)",
-                ret->expires_at,
-                np_time_now(),
-                ret->expires_at - np_time_now());
+  log_debug(LOG_MESSAGE | LOG_AAATOKEN | LOG_DEBUG,
+            NULL,
+            "setting msg token EXPIRY to: %f (now: %f diff: %f)",
+            ret->expires_at,
+            np_time_now(),
+            ret->expires_at - np_time_now());
 
   // add e2e encryption details for sender
   // memcpy((char*)ret->crypto.ed25519_public_key,
@@ -316,11 +320,12 @@ _np_token_factory_new_handshake_token(np_state_t *context) {
 
   _LOCK_ACCESS(&context->my_node_key->key_lock) {
     np_aaatoken_t *my_node_token = _np_key_get_token(context->my_node_key);
-    log_debug_msg(LOG_MISC,
-                  "context->my_node_key =  %p %p %d",
-                  context->my_node_key,
-                  my_node_token,
-                  my_node_token->type);
+    log_debug(LOG_MISC,
+              NULL,
+              "context->my_node_key =  %p %p %d",
+              context->my_node_key,
+              my_node_token,
+              my_node_token->type);
 
     ASSERT(FLAG_CMP(my_node_token->type, np_aaatoken_type_node),
            "Can only derive handshake token from node token. current token "
@@ -354,10 +359,11 @@ _np_token_factory_new_handshake_token(np_state_t *context) {
   char       my_token_fp_s[65] = {0};
   np_dhkey_t my_token_fp       = np_aaatoken_get_fingerprint(ret, false);
   _np_dhkey_str(&my_token_fp, my_token_fp_s);
-  log_debug_msg(LOG_AAATOKEN | LOG_HANDSHAKE,
-                "new handshake token fp: %s from node: %s",
-                my_token_fp_s,
-                _np_key_as_str(context->my_node_key));
+  log_debug(LOG_AAATOKEN | LOG_HANDSHAKE,
+            ret->uuid,
+            "new handshake token fp: %s from node: %s",
+            my_token_fp_s,
+            _np_key_as_str(context->my_node_key));
   // ASSERT(strcmp(my_token_fp_s, _np_key_as_str(my_node_key)) == 0, "Node key
   // and handshake partner key has to be the same");
 #endif // DEBUG
@@ -376,14 +382,13 @@ _np_token_factory_new_handshake_token(np_state_t *context) {
                  ret->crypto.ed25519_public_key,
                  crypto_sign_PUBLICKEYBYTES);
 
-  log_debug_msg(
-      LOG_AAATOKEN,
-      "(token: %s) signature is%s valid: (pk: 0x%s) sig: 0x%s = %" PRId32,
-      ret->uuid,
-      (valid == true) ? "" : " not",
-      pk_hex,
-      signature_hex,
-      ret);
+  log_debug(LOG_AAATOKEN,
+            ret->uuid,
+            "token signature is%s valid: (pk: 0x%s) sig: 0x%s = %p",
+            (valid == true) ? "" : " not",
+            pk_hex,
+            signature_hex,
+            ret);
 #endif
 
   // np_unref_obj(np_aaatoken_t, my_node_token, FUNC);
@@ -406,17 +411,17 @@ np_node_private_token_t *_np_token_factory_new_node_token(np_state_t *context,
   double expires_at = np_time_now() + rand_interval;
 
   char issuer[64] = {0};
-  char node_subject[255];
-  snprintf(node_subject,
-           255,
+
+  np_node_private_token_t *ret =
+      __np_token_factory_new(context, issuer, expires_at, NULL);
+  ret->type = np_aaatoken_type_node;
+
+  snprintf(ret->subject,
+           254,
            _NP_URN_NODE_PREFIX ":%s:%s:%s",
            _np_network_get_protocol_string(context, protocol),
            hostname,
            port);
-
-  np_node_private_token_t *ret =
-      __np_token_factory_new(context, issuer, node_subject, expires_at, NULL);
-  ret->type = np_aaatoken_type_node;
 
   _np_aaatoken_set_signature(ret, NULL);
   _np_aaatoken_update_attributes_signature(ret);
@@ -430,18 +435,11 @@ np_ident_private_token_t *np_token_factory_new_identity_token(
     np_state_t *context,
     double      expires_at,
     unsigned char (*secret_key)[NP_SECRET_KEY_BYTES]) {
-  char  issuer[64] = {0};
-  char  node_subject[255];
-  char *uuid = np_uuid_create("generated identity", 0, NULL);
-  snprintf(node_subject, 255, _NP_URN_IDENTITY_PREFIX ":%s", uuid);
-  free(uuid);
+  char issuer[64] = {0};
 
-  np_aaatoken_t *ret = __np_token_factory_new(context,
-                                              issuer,
-                                              node_subject,
-                                              expires_at,
-                                              secret_key);
-  ret->type          = np_aaatoken_type_identity;
+  np_aaatoken_t *ret =
+      __np_token_factory_new(context, issuer, expires_at, secret_key);
+  ret->type = np_aaatoken_type_identity;
 
   np_merge_data(
       ret->attributes,
@@ -473,10 +471,11 @@ np_ident_private_token_t *np_token_factory_new_identity_token(
                  ret->crypto.derived_kx_public_key,
                  crypto_scalarmult_curve25519_BYTES);
 
-  log_debug_msg(LOG_DEBUG | LOG_AAATOKEN,
-                "     identity token: my cu pk: %s ### my ed pk: %s\n",
-                curve25519_pk,
-                ed25519_pk);
+  log_debug(LOG_DEBUG | LOG_AAATOKEN,
+            ret->uuid,
+            "     identity token: my cu pk: %s ### my ed pk: %s\n",
+            curve25519_pk,
+            ed25519_pk);
 #endif
 
   ref_replace_reason(np_aaatoken_t, ret, "__np_token_factory_new", FUNC);
@@ -492,11 +491,11 @@ np_aaatoken_t *np_token_factory_read_from_tree(np_state_t *context,
   bool           ok  = false;
   np_new_obj(np_aaatoken_t, ret, FUNC);
   if (np_aaatoken_decode(tree, ret)) {
-    log_debug_msg(LOG_AAATOKEN,
-                  "imported token %s (type: %" PRIu8 ") from tree %p",
-                  ret->uuid,
-                  ret->type,
-                  tree);
+    log_debug(LOG_AAATOKEN,
+              ret->uuid,
+              "imported token (type: %" PRIu8 ") from tree %p",
+              ret->type,
+              tree);
 
     if (_np_aaatoken_is_valid(context, ret, np_aaatoken_type_undefined)) {
       ASSERT(strlen(ret->subject) > 1,

@@ -14,6 +14,7 @@
 #include "neuropil.h"
 #include "neuropil_log.h"
 
+#include "util/np_pcg_rng.h"
 #include "util/np_serialization.h"
 #include "util/np_tree.h"
 
@@ -104,7 +105,7 @@ void _np_enhanced_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
       bloom_pointer->next->prev = bloom_pointer;
       bloom_pointer             = bloom_pointer->next;
       bloom_pointer->next       = NULL;
-      inserted_check            = true;
+      // inserted_check            = true;
     } else {
       bloom_pointer->next->prev =
           (struct list_node_s *)malloc(sizeof(struct list_node_s));
@@ -177,10 +178,10 @@ bool _np_enhanced_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
       return false;
     } else if (_local_pos < 64) {
       _bitmask.high = (0x8000000000000000 >> (_local_pos));
-      result        = bloom_pointer->value->high |= _bitmask.high;
+      bloom_pointer->value->high |= _bitmask.high;
     } else {
       _bitmask.low = (0x8000000000000000 >> (_local_pos - 64));
-      result       = bloom_pointer->value->low |= _bitmask.low;
+      bloom_pointer->value->low |= _bitmask.low;
     }
   }
   return (true);
@@ -257,9 +258,9 @@ int _np_enhanced_bloom_right_intersection(np_bloom_t **p_result,
   result->_bitset_128_list->next = NULL;
   while (delete_node != NULL) {
     struct list_node_s *delete_this = delete_node;
+    delete_node                     = delete_node->next;
     free(delete_this->value);
     free(delete_this);
-    delete_node = delete_node->next;
   }
 
   *p_result = result;
@@ -273,7 +274,7 @@ void _np_enhanced_bloom_clear(np_bloom_t *res) {
   while (res->_bitset_128_list->next != NULL) {
     res->_bitset_128_list->prev->next = NULL;
     free(res->_bitset_128_list->prev);
-    res->_bitset_128_list->prev->prev = NULL;
+    res->_bitset_128_list->prev = NULL;
     free(res->_bitset_128_list->value);
     res->_bitset_128_list = res->_bitset_128_list->next;
   }
@@ -515,6 +516,8 @@ np_bloom_t *_np_stable_bloom_create(size_t size, uint8_t d, uint8_t p) {
   res->_p          = p;
   res->_num_blocks = 1;
 
+  np_rng_init(&res->_rng);
+
   res->_bitset = calloc(1, (size * res->_d) >> 3);
   // simplified max elements calculation
   res->_free_items = (size * res->_d) >> 4;
@@ -523,20 +526,12 @@ np_bloom_t *_np_stable_bloom_create(size_t size, uint8_t d, uint8_t p) {
 }
 
 void _np_stable_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
-  uint32_t _as_number   = 0;
+
   uint32_t _killed_bits = 0;
 
-  for (uint8_t p = 0; p < bloom->_p; ++p) {
+  for (uint8_t p = 0; p < bloom->_p * bloom->_d; ++p) {
 
-    // shameless stolen from bind9 random() implementation
-#if RAND_MAX >= 0xfffff
-    /* We have at least 20 bits.  Use lower 16 excluding lower most 4 */
-    _as_number = ((rand() >> 4) & 0xffff) | ((rand() << 12) & 0xffff0000);
-#elif RAND_MAX >= 0x7fff
-    /* We have at least 15 bits.  Use lower 10/11 excluding lower most 4 */
-    _as_number = ((rand() >> 4) & 0x000007ff) | ((rand() << 7) & 0x003ff800) |
-                 ((rand() << 18) & 0xffc00000);
-#endif
+    uint32_t _as_number = np_rng_next(&bloom->_rng);
 
     uint32_t _bit_array_pos = _as_number & (bloom->_size - 1);
     uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
@@ -1034,7 +1029,7 @@ void _np_neuropil_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
         (block_index - 1) * block_size + (_bit_array_pos - 1) * 2;
     uint8_t *_current_age   = &bloom->_bitset[_local_pos];
     uint8_t *_current_count = &bloom->_bitset[_local_pos + 1];
-    (*_current_age) |= (1 << (bloom->_d / 2 - 1));
+    (*_current_age) |= (1 << ((bloom->_d >> 1) - 1));
     // e.g. bloom_d = 16:
     // 16 / 2 = 8 --> 8-bit for each sender/receiver
     // 0000000000000000000000000000001 =>
@@ -1124,12 +1119,11 @@ bool _np_neuropil_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
 }
 
 void _np_neuropil_bloom_age_decrement(np_bloom_t *bloom) {
-  uint16_t block_size = (bloom->_size * bloom->_d / 8);
-
+  uint16_t block_size = (bloom->_size * bloom->_d >> 3);
   for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k += 2) {
     uint8_t *_current_age = &bloom->_bitset[k];
-    if (*_current_age > bloom->_d / 2) {
-      (*_current_age) -= bloom->_d / 2;
+    if (*_current_age > bloom->_d >> 1) {
+      (*_current_age) -= (bloom->_d >> 1);
       // (*_current_age) = ((*_current_age) >> 1);
     } else {
       (*_current_age) = 0;
@@ -1142,8 +1136,8 @@ void _np_neuropil_bloom_age_increment(np_bloom_t *bloom) {
 
   for (uint16_t k = 0; k < block_size * bloom->_num_blocks; k += 2) {
     uint8_t *_current_age = &bloom->_bitset[k];
-    if (*_current_age < UINT8_MAX - bloom->_d / 2) {
-      (*_current_age) += bloom->_d / 2;
+    if (*_current_age < UINT8_MAX - (bloom->_d >> 1)) {
+      (*_current_age) += (bloom->_d >> 1);
       // (*_current_age) = ((*_current_age) >> 1);
     } else {
       (*_current_age) = UINT8_MAX;
@@ -1215,7 +1209,10 @@ bool _np_neuropil_bloom_intersect(np_bloom_t *result,
   uint16_t i = 0;
   for (uint16_t k = 0; k < result->_num_blocks * result->_size * result->_d / 8;
        k += 2) {
-    result->_bitset[k] &= to_intersect->_bitset[k];
+    // result->_bitset[k] &= to_intersect->_bitset[k];
+    result->_bitset[k] = result->_bitset[k] > to_intersect->_bitset[k]
+                             ? to_intersect->_bitset[k]
+                             : result->_bitset[k];
     if ((result->_bitset[k] > 0)) { // only add if an "age" is left
       result->_bitset[k + 1] += to_intersect->_bitset[k + 1];
       i++;
@@ -1346,7 +1343,10 @@ void _np_neuropil_bloom_union(np_bloom_t *result, np_bloom_t *to_add) {
 
   for (uint16_t k = 0; k < result->_num_blocks * result->_size * result->_d / 8;
        k += 2) {
-    result->_bitset[k] |= to_add->_bitset[k];
+    // result->_bitset[k] |= to_add->_bitset[k];
+    uint16_t temp      = result->_bitset[k] + to_add->_bitset[k];
+    result->_bitset[k] = (temp >= UINT8_MAX) ? UINT8_MAX : (uint8_t)temp;
+
     result->_bitset[k + 1] += to_add->_bitset[k + 1];
     /*
     fprintf(stdout, "%4d:union: %02x%02x --> %02x%02x\n", k,

@@ -74,25 +74,28 @@ np_module_struct(search) {
       pipeline_results; // pipelines in the meaning of callbacks, used to store
                         // intermediate results for queries / entries / ...
 
-  bool          on_shutdown_route;
+  bool on_shutdown_route;
+
   np_spinlock_t results_lock[UINT8_MAX];
   np_spinlock_t table_lock[BKTREE_ARRAY_SIZE];
   np_spinlock_t peer_lock[8 + 1];
   np_spinlock_t pipeline_lock;
 };
 
-bool _np_new_searchentry_cb(np_context               *ac,
-                            const np_message_t *const msg,
-                            np_tree_t                *body,
-                            void                     *localdata);
-bool _np_new_searchquery_cb(np_context               *ac,
-                            const np_message_t *const msg,
-                            np_tree_t                *body,
-                            void                     *localdata);
-bool _np_searchresult_receive_cb(np_context               *ac,
-                                 const np_message_t *const msg,
-                                 np_tree_t                *body,
-                                 void                     *localdata);
+bool _np_new_searchentry_cb(np_context                          *ac,
+                            const struct np_e2e_message_s *const msg,
+                            np_tree_t                           *body,
+                            void                                *localdata);
+
+bool _np_new_searchquery_cb(np_context                          *ac,
+                            const struct np_e2e_message_s *const msg,
+                            np_tree_t                           *body,
+                            void                                *localdata);
+
+bool _np_searchresult_receive_cb(np_context                          *ac,
+                                 const struct np_e2e_message_s *const msg,
+                                 np_tree_t                           *body,
+                                 void *localdata);
 
 struct search_pipeline_result {
 
@@ -133,7 +136,7 @@ bool __np_search_cleanup_pipeline(np_state_t               *context,
   RB_FOREACH (tmp, np_tree_s, pipeline_results) {
     struct search_pipeline_result *pipeline = tmp->val.value.v;
     if ((pipeline->stop_time + NP_SEARCH_CLEANUP_INTERVAL) < np_time_now()) {
-      np_tree_del_str(pipeline_results, tmp->key.value.s);
+      np_tree_del_uuid(pipeline_results, tmp->key.value.uuid);
       free(pipeline);
       break;
     }
@@ -164,19 +167,19 @@ bool _deprecate_map_func(np_map_reduce_t *mr_struct, const void *element) {
 
   float _jc = (float)_dist_common / _dist_diff; // jaccard index
   if (_jc > 0.9) {
-    // log_msg(LOG_DEBUG, "deprecating entry %p (%f)\n", it_1, _jc);
+    // log_msg(LOG_DEBUG, NULL, "deprecating entry %p (%f)\n", it_1, _jc);
     _np_neuropil_bloom_age_decrement(it_1->search_index._clk_hash);
     float _age = _np_neuropil_bloom_intersect_age(it_1->search_index._clk_hash,
                                                   it_1->search_index._clk_hash);
     if (_age == 0.0) {
-      // log_msg(LOG_DEBUG, "identified entry for deletion %p \n", it_1);
-      // log_msg(LOG_DEBUG,  "R COLLISION: %f <-> %p (%s)", _similarity,
+      // log_msg(LOG_DEBUG, NULL, "identified entry for deletion %p \n", it_1);
+      // log_msg(LOG_DEBUG, NULL,  "R COLLISION: %f <-> %p (%s)", _similarity,
       // it_2->search_index._clk_hash, it_2->intent.subject);
       sll_append(void_ptr, mr_struct->map_result, it_1);
     }
   } else {
-    // log_msg(LOG_DEBUG, "similarity not close enough (%f), deprecation of
-    // entry skipped \n", _jc);
+    // log_msg(LOG_DEBUG, NULL, "similarity not close enough (%f), deprecation
+    // of entry skipped \n", _jc);
   }
   return true;
 }
@@ -184,7 +187,7 @@ bool _deprecate_map_func(np_map_reduce_t *mr_struct, const void *element) {
 bool _deprecate_reduce_func(np_map_reduce_t *mr_struct, const void *element) {
   if (element == NULL) return false;
 
-  // log_msg(LOG_DEBUG, "deleting entry (%p) \n", element);
+  // log_msg(LOG_DEBUG, NULL, "deleting entry (%p) \n", element);
   np_searchentry_t *search_elem = (np_searchentry_t *)element;
   np_bktree_t      *tree        = (np_bktree_t *)mr_struct->reduce_args.io;
 
@@ -245,7 +248,7 @@ bool __np_search_deprecate_entries(np_state_t               *context,
   np_tree_free(mr.reduce_result);
 
   // static uint16_t i = 0;
-  // log_msg(LOG_DEBUG, "__np_search_deprecate_entries \n");
+  // log_msg(LOG_DEBUG, NULL, "__np_search_deprecate_entries \n");
   fflush(stdout);
 
   return true;
@@ -266,9 +269,6 @@ static int __search_table_bucket_cmp(const void *a, const void *b) {
 
 static JSON_Value *__np_generate_error_json(const char *error,
                                             const char *details) {
-  log_trace_msg(LOG_TRACE | LOG_HTTP,
-                "start: JSON_Value* _np_generate_error_json(const char* "
-                "error,const char* details) {");
   JSON_Value *ret = json_value_init_object();
 
   json_object_set_string(json_object(ret), "error", error);
@@ -319,7 +319,8 @@ bool _map_np_searchentry(np_map_reduce_t *mr_struct, const void *element) {
       np_tree_find_int(mr_struct->map_args.kv_pairs, 1)->val.value.f;
 
   float _similarity = 0.0;
-  // log_msg(LOG_DEBUG,  "P COLLISION: %p <-> %p ", it_1->intent, it_2->intent);
+  // log_msg(LOG_DEBUG, NULL,  "P COLLISION: %p <-> %p ", it_1->intent,
+  // it_2->intent);
   _np_neuropil_bloom_similarity(it_2->search_index._clk_hash,
                                 it_1->search_index._clk_hash,
                                 &_similarity);
@@ -340,7 +341,7 @@ bool _map_np_searchentry(np_map_reduce_t *mr_struct, const void *element) {
           it_2->intent.subject);
 
   if (_similarity > _target_similarity) {
-    // log_msg(LOG_DEBUG,  "R COLLISION: %f <-> %p (%s)", _similarity,
+    // log_msg(LOG_DEBUG, NULL, "R COLLISION: %f <-> %p (%s)", _similarity,
     // it_2->search_index._clk_hash, it_2->intent.subject);
     sll_append(void_ptr, mr_struct->map_result, it_2);
   }
@@ -385,9 +386,9 @@ bool _reduce_np_searchentry(np_map_reduce_t *mr_struct, const void *element) {
   return true;
 }
 
-int __compare_uint16_t(uint16_t *first, uint16_t *second) {
-  if (*first > *second) return 1;
-  if (*first < *second) return -1;
+int __compare_uint16_t(const void *first, const void *second) {
+  if (*(uint16_t *)first > *(uint16_t *)second) return 1;
+  if (*(uint16_t *)first < *(uint16_t *)second) return -1;
   return 0;
 }
 
@@ -407,9 +408,9 @@ bool __np_search_authorize_entries_cb(np_context      *ac,
                                       struct np_token *intent_token) {
   np_ctx_cast(ac);
 
-  bool                 ret      = false;
-  struct np_data_conf  conf     = {0};
-  struct np_data_conf *conf_ptr = &conf;
+  bool                ret  = false;
+  struct np_data_conf conf = {0};
+  // struct np_data_conf *conf_ptr = &conf;
 
   np_dhkey_t new_peer_dhkey = {0};
   np_id     *peer_id        = NULL;
@@ -425,7 +426,7 @@ bool __np_search_authorize_entries_cb(np_context      *ac,
   //     return false;
   // }
 
-  // log_msg(LOG_DEBUG,  "authz request %s from %02X%02X%02X%02X%02X%02X :
+  // log_msg(LOG_DEBUG, NULL, "authz request %s from %02X%02X%02X%02X%02X%02X :
   // %02X%02X%02X%02X%02X%02X ...",
   //                 intent_token->subject,
   //                 intent_token->issuer[0],     intent_token->issuer[1],
@@ -436,6 +437,7 @@ bool __np_search_authorize_entries_cb(np_context      *ac,
   //                 intent_token->public_key[4], intent_token->public_key[5]);
 
   log_msg(LOG_INFO,
+          NULL,
           "search authz grant %s for %02x%02x%02x%02x%02x%02x : "
           "%02x%02x%02x%02x%02x%02x ...",
           intent_token->subject,
@@ -476,11 +478,11 @@ bool __np_search_authorize_entries_cb(np_context      *ac,
   _np_dhkey_equal(&np_module(search)->searchnode->peers[j][index], &new_peer_id)
   )
       {
-          log_msg(LOG_DEBUG,  "authz granted %s for %02X%02X%02X%02X%02X%02X :
-  %02X%02X%02X%02X%02X%02X ...", intent_token->subject, intent_token->issuer[0],
-  intent_token->issuer[1],     intent_token->issuer[2], intent_token->issuer[3],
-  intent_token->issuer[4],     intent_token->issuer[5],
-                          intent_token->public_key[0],
+          log_msg(LOG_DEBUG,NULL,  "authz granted %s for
+  %02X%02X%02X%02X%02X%02X : %02X%02X%02X%02X%02X%02X ...",
+  intent_token->subject, intent_token->issuer[0], intent_token->issuer[1],
+  intent_token->issuer[2], intent_token->issuer[3], intent_token->issuer[4],
+  intent_token->issuer[5], intent_token->public_key[0],
   intent_token->public_key[1], intent_token->public_key[2],
   intent_token->public_key[3], intent_token->public_key[4],
   intent_token->public_key[5]); ret = true;
@@ -521,7 +523,7 @@ bool __np_search_authorize_node_cb(np_context      *ac,
   char           new_peer_type[22] = {0};
   unsigned char *bin_data          = NULL;
   // np_id new_peer_id = NULL;
-  // log_msg(LOG_DEBUG,  "authz request %s from %02X%02X%02X%02X%02X%02X :
+  // log_msg(LOG_DEBUG, NULL, "authz request %s from %02X%02X%02X%02X%02X%02X :
   // %02X%02X%02X%02X%02X%02X ...",
   //                 intent_token->subject,
   //                 intent_token->issuer[0],     intent_token->issuer[1],
@@ -565,6 +567,7 @@ bool __np_search_authorize_node_cb(np_context      *ac,
           &np_module(search)->peer_filter,
           new_peer_dhkey)) {
     log_msg(LOG_DEBUG,
+            NULL,
             "re-evaluation of  node as search peer %08" PRIx32 ":%08" PRIx32
             " skipped ...",
             new_peer_dhkey.t[0],
@@ -575,6 +578,7 @@ bool __np_search_authorize_node_cb(np_context      *ac,
   np_spinlock_unlock(&np_module(search)->peer_lock[8]);
 
   log_msg(LOG_DEBUG,
+          NULL,
           "found node as search peer, peer id is %08" PRIx32 ":%08" PRIx32 "",
           new_peer_dhkey.t[0],
           new_peer_dhkey.t[1]);
@@ -584,7 +588,7 @@ bool __np_search_authorize_node_cb(np_context      *ac,
   np_dhkey_t dh_diff_index = {0};
   np_dhkey_t to_delete     = {0};
 
-  // log_msg(LOG_DEBUG,  "checking search node as peer:
+  // log_msg(LOG_DEBUG, NULL, "checking search node as peer:
   // %02X%02X%02X%02X%02X%02X",
   //                 intent_token->issuer[0],     intent_token->issuer[1],
   //                 intent_token->issuer[2],     intent_token->issuer[3],
@@ -621,7 +625,8 @@ bool __np_search_authorize_node_cb(np_context      *ac,
       not_subscribed =
           !_np_dhkey_equal(&searchnode->peers[j][index], &new_peer_dhkey);
 
-    // log_msg(LOG_DEBUG,  "compare node as search peer [%u][%u], distance is %u
+    // log_msg(LOG_DEBUG, NULL, "compare node as search peer [%u][%u], distance
+    // is %u
     // (%u) (%u:%u)",
     //                 j, index, dh_diff_new.t[j], dh_diff_index.t[j], is_zero,
     //                 exists);
@@ -630,6 +635,7 @@ bool __np_search_authorize_node_cb(np_context      *ac,
       _np_dhkey_assign(&to_delete, &searchnode->peers[j][index]);
       _np_dhkey_assign(&searchnode->peers[j][index], &new_peer_dhkey);
       log_msg(LOG_INFO,
+              NULL,
               "adding node as search peer [%u][%u], distance is %u",
               j,
               index,
@@ -672,6 +678,7 @@ bool __np_search_authorize_node_cb(np_context      *ac,
         char _tmp[65] = {0};
         np_id_str(_tmp, &new_peer_dhkey);
         log_msg(LOG_INFO,
+                NULL,
                 "subscribed to peer search subject %s, peer id is %s / %s",
                 property->msg_subject,
                 _tmp,
@@ -686,13 +693,13 @@ bool __np_search_authorize_node_cb(np_context      *ac,
     }
     // else
     // {
-    // log_msg(LOG_DEBUG,  "checked search node as peer:
+    // log_msg(LOG_DEBUG, NULL, "checked search node as peer:
     // %02X%02X%02X%02X%02X%02X",
     //                 intent_token->issuer[0],     intent_token->issuer[1],
     //                 intent_token->issuer[2],     intent_token->issuer[3],
     //                 intent_token->issuer[4],     intent_token->issuer[5]);
-    // log_msg(LOG_DEBUG,  "checked node as search peer [%u][%u], distance was
-    // %u",
+    // log_msg(LOG_DEBUG, NULL, "checked node as search peer [%u][%u], distance
+    // was %u",
     //                 j, index, dh_diff_new);
     // }
 
@@ -715,7 +722,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
   np_context *ac = user_arg;
   np_ctx_cast(ac);
 
-  // log_msg(LOG_DEBUG,  "searching for ...");
+  // log_msg(LOG_DEBUG, NULL, "searching for ...");
 
   uint16_t    length;
   int         http_status = HTTP_CODE_INTERNAL_SERVER_ERROR; // HTTP_CODE_OK
@@ -727,7 +734,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
     np_tree_elem_t *query_elem =
         np_tree_find_str(ht_request->ht_query_args, "query_text");
     if (NULL == query_elem) {
-      log_msg(LOG_DEBUG, "no query found ...");
+      log_msg(LOG_DEBUG, NULL, "no query found ...");
       json_obj =
           __np_generate_error_json("request invalid",
                                    "looks like you are using a wrong url ...");
@@ -736,7 +743,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
     }
 
     char *search_string = urlDecode(query_elem->val.value.s);
-    log_msg(LOG_DEBUG, "searching for: ## %s ##\n", search_string);
+    log_msg(LOG_DEBUG, NULL, "searching for: ## %s ##\n", search_string);
 
     clock_t start_time;
     clock_t query_stop_time;
@@ -755,8 +762,8 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
       struct search_pipeline_result *pipeline = NULL;
       np_spinlock_lock(&np_module(search)->pipeline_lock);
       {
-        pipeline = np_tree_find_str(&np_module(search)->pipeline_results,
-                                    sq.result_uuid)
+        pipeline = np_tree_find_uuid(&np_module(search)->pipeline_results,
+                                     sq.result_uuid)
                        ->val.value.v;
         if (pipeline) pipeline->stop_time = np_time_now();
       }
@@ -818,6 +825,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
         if (byte_count < UINT16_MAX) {
           np_tree_insert_int(srs_tree, i, np_treeval_new_tree(r_tree));
           log_msg(LOG_DEBUG,
+                  NULL,
                   "%5s :: %s :: %3u / %2.2f / %5s",
                   search_val_title.str,
                   tmp->key.value.s,
@@ -825,7 +833,9 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
                   result->level,
                   val_title.str);
         } else {
-          log_msg(LOG_DEBUG, "please implement pagination of search results");
+          log_msg(LOG_DEBUG,
+                  NULL,
+                  "please implement pagination of search results");
         }
         i++;
         np_tree_free(r_tree);
@@ -835,9 +845,11 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
       popro_stop_time = clock();
 
       log_msg(LOG_DEBUG,
+              NULL,
               "search query took %3.6f seconds",
               (double)(query_stop_time - start_time) / CLOCKS_PER_SEC);
       log_msg(LOG_DEBUG,
+              NULL,
               "search popro took %3.6f seconds",
               (double)(popro_stop_time - start_time) / CLOCKS_PER_SEC);
 
@@ -853,7 +865,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
       ht_response->cleanup_body = true;
     } else {
       free(search_string);
-      log_msg(LOG_DEBUG, "no search result");
+      log_msg(LOG_DEBUG, NULL, "no search result");
       json_obj = __np_generate_error_json(
           "request invalid",
           "unable to to create query from arguments ...");
@@ -873,7 +885,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
 __json_return__:
 
   if (json_obj != NULL) {
-    log_debug_msg(LOG_DEBUG | LOG_SYSINFO, "serialise json response");
+    log_debug(LOG_DEBUG, NULL, "serialise json response");
 
     np_tree_insert_str(ht_response->ht_header,
                        "Content-Type",
@@ -888,31 +900,32 @@ __json_return__:
 
   // by now there should be a response
   if (http_status == HTTP_CODE_INTERNAL_SERVER_ERROR) {
-    log_msg(LOG_ERROR, "HTTP return is not defined for this code path");
+    log_msg(LOG_ERROR, NULL, "HTTP return is not defined for this code path");
   }
 
   return http_status;
 }
 
 // pipeline callbacks
-bool __np_search_query(np_context               *ac,
-                       const np_message_t *const msg,
-                       np_tree_t                *body,
-                       void                     *localdata) {
+bool __np_search_query(np_context                          *ac,
+                       const struct np_e2e_message_s *const msg,
+                       NP_UNUSED np_tree_t                 *body,
+                       void                                *localdata) {
   np_ctx_cast(ac);
 
   np_tree_t                     *pipeline_results = (np_tree_t *)localdata;
   struct search_pipeline_result *pipeline         = NULL;
 
   np_spinlock_lock(&np_module(search)->pipeline_lock);
-  if (NULL == np_tree_find_str(pipeline_results, msg->uuid)) abort();
-  else pipeline = np_tree_find_str(pipeline_results, msg->uuid)->val.value.v;
+  if (NULL == np_tree_find_uuid(pipeline_results, msg->uuid)) abort();
+  else pipeline = np_tree_find_uuid(pipeline_results, msg->uuid)->val.value.v;
   np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
   np_searchquery_t *query = pipeline->obj.query;
 
-  np_map_reduce_t mr = {.map    = _map_np_searchentry,
-                        .reduce = _reduce_np_searchentry};
+  np_map_reduce_t mr = {.map           = _map_np_searchentry,
+                        .reduce        = _reduce_np_searchentry,
+                        .reduce_result = NULL};
 
   mr.map_args.io       = &query->query_entry;
   mr.map_args.kv_pairs = np_tree_create();
@@ -921,15 +934,15 @@ bool __np_search_query(np_context               *ac,
                      np_treeval_new_f(query->target_similarity));
   sll_init(void_ptr, mr.map_result);
 
-  if (!_np_dhkey_equal(&pipeline->sending_peer_dhkey,
-                       &dhkey_zero)) // remote query
-    mr.reduce_result = np_tree_create();
-  else // local query
-    mr.reduce_result = np_module(search)->searchnode.results[query->query_id];
-
-  // prepare reply sending by creating the private reply subject
   np_subject result_subject = {0};
-  if (!_np_dhkey_equal(&pipeline->sending_peer_dhkey, &dhkey_zero)) {
+
+  if (_np_dhkey_equal(&pipeline->sending_peer_dhkey,
+                      &dhkey_zero)) // remote query
+  {
+    np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
+    mr.reduce_result = np_module(search)->searchnode.results[query->query_id];
+    np_spinlock_unlock(&np_module(search)->results_lock[query->query_id]);
+  } else { // prepare reply sending by creating the private reply subject
     np_generate_subject(&result_subject,
                         SEARCH_RESULT_SUBJECT,
                         strnlen(SEARCH_RESULT_SUBJECT, 256));
@@ -938,8 +951,11 @@ bool __np_search_query(np_context               *ac,
                         NP_FINGERPRINT_BYTES);
   }
 
-  // not all parts of the index matched, we have to handle the query locally as
-  // well
+  if (mr.reduce_result == NULL) {
+    // local query or empty remote query entry
+    mr.reduce_result = np_tree_create();
+  }
+
   if (pipeline->remote_distribution_count <= 6) {
     /*    uint16_t min_index[8];
         uint16_t snd_index[8];
@@ -957,8 +973,8 @@ bool __np_search_query(np_context               *ac,
             {
                 if (diff.t[j] < min_diff.t[j])
                 {
-                    log_msg(LOG_DEBUG,  "         into table %u (distance %u [at
-       %u] : old %u)", i , diff.t[j], j, snd_index[j]); snd_index[j] =
+                    log_msg(LOG_DEBUG, NULL, "         into table %u (distance
+       %u [at %u] : old %u)", i , diff.t[j], j, snd_index[j]); snd_index[j] =
        min_index[j]; min_index[j] = i; min_diff.t[j] = diff.t[j];
                 }
             }
@@ -992,27 +1008,27 @@ bool __np_search_query(np_context               *ac,
           np_module(search)->searchnode.local_table_count,
           sizeof(struct __search_table_bucket),
           __search_table_bucket_cmp);
-    // log_msg(LOG_DEBUG,  "         into table: ");
+    // log_msg(LOG_DEBUG, NULL,  "         into table: ");
     // for (uint16_t i = 0; i < 16; i++)
     // {
     //             log_msg(LOG_DEBUG,  "%u (%u) : ", buckets[i].index ,
     //             buckets[i].hamming_distance);
     // }
-    // log_msg(LOG_DEBUG,  "");
-    // log_msg(LOG_DEBUG,  "searching in   table: ");
+    // log_msg(LOG_DEBUG, NULL,  "");
+    // log_msg(LOG_DEBUG, NULL,  "searching in   table: ");
     // #pragma omp parallel for shared(query)
     for (uint16_t j = 0; (j < max_query_count) && (mr.reduce_result->size == 0);
          j++) {
       log_msg(LOG_DEBUG,
-              "distribution factor for %s was %2d, querying locally in %3d | "
-              "distance %3d",
               msg->uuid,
+              "distribution factor was %2d, querying locally in %3d | "
+              "distance %3d",
               pipeline->remote_distribution_count,
               buckets[j].index,
               buckets[j].hamming_distance);
-      // log_msg(LOG_DEBUG,  " %2u (distance %3u [at %2u] )", buckets[j].index ,
-      // buckets[j].hamming_distance, j); np_skipbi_query(&lsh->_skipbi[j],
-      // &mr);
+      // log_msg(LOG_DEBUG, NULL,  " %2u (distance %3u [at %2u] )",
+      // buckets[j].index , buckets[j].hamming_distance, j);
+      // np_skipbi_query(&lsh->_skipbi[j], &mr);
 
       np_spinlock_lock(&np_module(search)->table_lock[j]);
       np_bktree_query(np_module(search)->searchnode.tree[buckets[j].index],
@@ -1035,18 +1051,19 @@ bool __np_search_query(np_context               *ac,
     }
   } else {
     log_msg(LOG_DEBUG,
-            "distribution factor for %s was %2d, not querying locally",
             msg->uuid,
+            "distribution factor was %2d, not querying locally",
+
             pipeline->remote_distribution_count);
   }
-  // log_msg(LOG_DEBUG,  "");
+  // log_msg(LOG_DEBUG, NULL,  "");
 
   // if (mr.map_result->size == 0)
   // {
-  //     // log_msg(LOG_DEBUG,  "searching in   table: ");
+  //     // log_msg(LOG_DEBUG, NULL,  "searching in   table: ");
   //     for (uint16_t j = 0; j < 8; j++)
   //     {
-  //         // log_msg(LOG_DEBUG,  " %2u (distance %3u [at %2u] )",
+  //         // log_msg(LOG_DEBUG, NULL,  " %2u (distance %3u [at %2u] )",
   //         min_index[j] , min_diff.t[j], j);
   //         // np_skipbi_query(&lsh->_skipbi[j], &mr);
   //         np_bktree_query(np_module(search)->searchnode.tree[ snd_index[j] ],
@@ -1070,7 +1087,7 @@ bool __np_search_query(np_context               *ac,
     RB_FOREACH (tmp, np_tree_s, mr.reduce_result) {
       np_searchresult_t *result = tmp->val.value.v;
       result->query_id          = query->query_id;
-      strncpy(result->result_uuid, query->result_uuid, NP_UUID_BYTES);
+      memcpy(result->result_uuid, query->result_uuid, NP_UUID_BYTES);
       _np_searchresult_send(context, result_subject, result);
     }
     sll_clear(void_ptr, mr.map_result);
@@ -1115,7 +1132,8 @@ bool __np_search_query(np_context               *ac,
   //         {
   //             val_title.str = "";
   //         }
-  //         log_msg(LOG_INFO, "search result %-5s :: %s :: %3u / %2.2f / %5s",
+  //         log_msg(LOG_INFO, NULL,
+  //                           "search result %-5s :: %s :: %3u / %2.2f / %5s",
   //                           search_val_title.str, tmp->key.value.s,
   //                           result->hit_counter, result->level,
   //                           val_title.str);
@@ -1129,18 +1147,18 @@ bool __np_search_query(np_context               *ac,
   return true;
 }
 
-bool __np_search_add_entry(np_context               *ac,
-                           const np_message_t *const msg,
-                           np_tree_t                *body,
-                           void                     *localdata) {
+bool __np_search_add_entry(np_context                          *ac,
+                           const struct np_e2e_message_s *const msg,
+                           np_tree_t                           *body,
+                           void                                *localdata) {
   np_ctx_cast(ac);
 
   np_tree_t                     *pipeline_results = (np_tree_t *)localdata;
   struct search_pipeline_result *pipeline         = NULL;
 
   np_spinlock_lock(&np_module(search)->pipeline_lock);
-  if (NULL == np_tree_find_str(pipeline_results, msg->uuid)) abort();
-  else pipeline = np_tree_find_str(pipeline_results, msg->uuid)->val.value.v;
+  if (NULL == np_tree_find_uuid(pipeline_results, msg->uuid)) abort();
+  else pipeline = np_tree_find_uuid(pipeline_results, msg->uuid)->val.value.v;
   np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
   /*
@@ -1158,8 +1176,9 @@ bool __np_search_add_entry(np_context               *ac,
           {
               if (diff.t[j] < min_diff.t[j])
               {
-                  // log_msg(LOG_DEBUG,  "         into table %u (distance %u
-     [at %u] )", i , diff.t[j], j); min_index[j] = i; min_diff.t[j] = diff.t[j];
+                  // log_msg(LOG_DEBUG,  NULL, "         into table %u (distance
+     %u [at %u] )", i , diff.t[j], j); min_index[j] = i; min_diff.t[j] =
+     diff.t[j];
               }
           }
       }
@@ -1191,36 +1210,38 @@ bool __np_search_add_entry(np_context               *ac,
           sizeof(struct __search_table_bucket),
           __search_table_bucket_cmp);
 
-    // log_msg(LOG_DEBUG,  "         into table: ");
+    // log_msg(LOG_DEBUG, NULL,  "         into table: ");
     // for (uint16_t i = 0; i < 16; i++)
     // {
-    //             log_msg(LOG_DEBUG,  "%u (%u) : ", buckets[i].index ,
+    //             log_msg(LOG_DEBUG, NULL,  "%u (%u) : ", buckets[i].index ,
     //             buckets[i].hamming_distance);
     // }
-    // log_msg(LOG_DEBUG,  "");
+    // log_msg(LOG_DEBUG, NULL,  "");
 
     // uint8_t i = 0;
-    // log_msg(LOG_DEBUG,  "inserting into table: ");
+    // log_msg(LOG_DEBUG, NULL,  "inserting into table: ");
     // #pragma omp parallel for shared(entry)
     for (uint16_t j = 0; j < max_create_count; j++) {
       log_msg(LOG_DEBUG,
-              "distribution factor for %s was %2d, storing locally in %3d | "
-              "distance %3d",
               msg->uuid,
+              "distribution factor was %2d, storing locally in %3d | "
+              "distance %3d",
+
               pipeline->remote_distribution_count,
               buckets[j].index,
               buckets[j].hamming_distance);
 
       np_spinlock_lock(&np_module(search)->table_lock[j]);
 
-      // log_msg(LOG_DEBUG,  " %2u (distance %3u [at %2u] )", buckets[j].index ,
-      // buckets[j].hamming_distance, j); log_msg(LOG_DEBUG,  "< NODE INDEX:>
+      // log_msg(LOG_DEBUG, NULL,  " %2u (distance %3u [at %2u] )",
+      // buckets[j].index , buckets[j].hamming_distance, j); log_msg(LOG_DEBUG,
+      // NULL,  "< NODE INDEX:>
       // "); for (uint32_t k = 0; k < 8; k++)
       // {
-      //     log_msg(LOG_DEBUG,  "%08x", lsh->_bktree[j]._root._key.t[k]);
-      //     log_msg(LOG_DEBUG,  ".");
+      //     log_msg(LOG_DEBUG, NULL,  "%08x", lsh->_bktree[j]._root._key.t[k]);
+      //     log_msg(LOG_DEBUG, NULL,  ".");
       // }
-      // log_msg(LOG_DEBUG,  " </ NODE INDEX:>");
+      // log_msg(LOG_DEBUG, NULL,  " </ NODE INDEX:>");
       np_bktree_insert(np_module(search)->searchnode.tree[buckets[j].index],
                        pipeline->obj.entry->search_index.lower_dhkey,
                        pipeline->obj.entry);
@@ -1231,11 +1252,11 @@ bool __np_search_add_entry(np_context               *ac,
       // entry->search_index.upper_dhkey, entry);
       // np_skipbi_add(&lsh->_skipbi[j], _lp);
     }
-    // log_msg(LOG_DEBUG,  "");
+    // log_msg(LOG_DEBUG, NULL,  "");
   } else {
     log_msg(LOG_DEBUG,
-            "distribution factor for %s was %2d, not querying locally",
             msg->uuid,
+            "distribution factor was %2d, not querying locally",
             pipeline->remote_distribution_count);
     np_searchentry_t *entry = pipeline->obj.entry;
     np_index_destroy(&entry->search_index);
@@ -1247,18 +1268,20 @@ bool __np_search_add_entry(np_context               *ac,
   return true;
 }
 
-bool __check_remote_peer_distribution(np_context               *ac,
-                                      const np_message_t *const msg,
-                                      np_tree_t                *body,
-                                      void                     *localdata) {
+bool __check_remote_peer_distribution(np_context                          *ac,
+                                      const struct np_e2e_message_s *const msg,
+                                      np_tree_t                           *body,
+                                      void *localdata) {
   np_ctx_cast(ac);
 
   np_tree_t                     *pipeline_results = (np_tree_t *)localdata;
   struct search_pipeline_result *pipeline         = NULL;
 
+  NP_CAST(msg, struct np_e2e_message_s, old_msg);
+
   np_spinlock_lock(&np_module(search)->pipeline_lock);
-  if (NULL == np_tree_find_str(pipeline_results, msg->uuid)) abort();
-  else pipeline = np_tree_find_str(pipeline_results, msg->uuid)->val.value.v;
+  // if (NULL == np_tree_find_str(pipeline_results, msg->uuid)) abort();
+  pipeline = np_tree_find_uuid(pipeline_results, old_msg->uuid)->val.value.v;
   np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
   pipeline->remote_distribution_count = 0;
@@ -1298,6 +1321,7 @@ bool __check_remote_peer_distribution(np_context               *ac,
     int32_t delta = local_diff_index.t[j] - peer_diff_index.t[j];
 
     log_msg(LOG_DEBUG,
+            NULL,
             "%2d local distance %3d | peer distance %3d | %3d |",
             j,
             local_diff_index.t[j],
@@ -1322,6 +1346,7 @@ bool __check_remote_peer_distribution(np_context               *ac,
 
       if (32 <= index) index = 0;
       log_msg(LOG_DEBUG,
+              NULL,
               "[%p]                       | peer distance %3d | next index %3d "
               "| best index %3d ",
               ac,
@@ -1343,20 +1368,25 @@ bool __check_remote_peer_distribution(np_context               *ac,
           _np_msgproperty_run_get(context, OUTBOUND, localized_subject);
 
       if (out_property) {
-        np_message_t *cloned_msg = NULL;
-        np_new_obj(np_message_t, cloned_msg, FUNC);
-        np_message_clone(cloned_msg, msg);
-        np_tree_replace_str(cloned_msg->header,
-                            _NP_MSG_HEADER_SUBJECT,
-                            np_treeval_new_dhkey(localized_subject));
-        np_tree_replace_str(cloned_msg->header,
-                            _NP_MSG_HEADER_TO,
-                            np_treeval_new_dhkey(out_property->current_fp));
+        struct np_e2e_message_s *cloned_msg = NULL;
+        np_new_obj(np_message_t, cloned_msg);
 
-        np_tree_replace_str(
-            cloned_msg->header,
-            _NP_MSG_HEADER_FROM,
-            np_treeval_new_dhkey(np_module(search)->searchnode.node_id));
+        _np_message_create(cloned_msg,
+                           out_property->current_fp,
+                           out_property->current_fp,
+                           localized_subject,
+                           body);
+        memcpy(cloned_msg->uuid, old_msg->uuid, NP_UUID_BYTES);
+
+        // np_message_clone(cloned_msg, old_msg);
+        // _np_dhkey_assign(cloned_msg->subject, &localized_subject);
+        // _np_dhkey_assign(cloned_msg->audience, &out_property->current_fp);
+
+        // TODO: add to message attributes
+        // np_tree_replace_str(
+        //     cloned_msg->msg_attributes,
+        //     _NP_MSG_HEADER_FROM,
+        //     np_treeval_new_dhkey(np_module(search)->searchnode.node_id));
 
         np_util_event_t send_event = {.type      = (evt_internal | evt_message),
                                       .user_data = cloned_msg,
@@ -1371,23 +1401,25 @@ bool __check_remote_peer_distribution(np_context               *ac,
                 "event: userspace message delivery request")) {
           log_msg(
               LOG_DEBUG,
+              NULL,
               "rejecting possible sending of message, please check jobqueue "
               "settings!");
         } else {
           char tmp[65];
           np_id_str(tmp, &localized_subject);
           log_msg(LOG_DEBUG,
-                  "send new search object to peer: %" PRIx32
-                  " via channel %s (%s)",
+                  msg->uuid,
+                  "send new search object to peer: %" PRIx32 " via channel %s",
                   np_module(search)->searchnode.peers[j][best_index].t[0],
-                  tmp,
-                  msg->uuid);
+                  tmp);
         }
-        np_unref_obj(np_message_t, cloned_msg, FUNC);
+        np_unref_obj(np_message_t, cloned_msg, ref_obj_creation);
         pipeline->remote_distribution_count++;
+
       } else {
         char temp[65] = {0};
         log_warn(LOG_WARNING,
+                 NULL,
                  "runtime property not found for index %" PRId16
                  " and subject %s",
                  best_index,
@@ -1470,7 +1502,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
 
     char _tmp[65] = {0};
     np_id_str(_tmp, &np_module(search)->searchnode.node_id);
-    log_msg(LOG_INFO, "starting up searchnode, peer id is: %s", _tmp);
+    log_msg(LOG_INFO, NULL, "starting up searchnode, peer id is: %s", _tmp);
 
     for (uint16_t i = 0; i < np_module(search)->searchcfg.local_table_count;
          i++) {
@@ -1500,6 +1532,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
                                 &np_module(search)->searchnode.node_id,
                                 NP_FINGERPRINT_BYTES)) {
         log_msg(LOG_WARNING,
+                NULL,
                 "could not set search peer id to context / intent messages");
       }
 
@@ -1517,6 +1550,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
                                 peer_type,
                                 strnlen(SEARCH_PEERTYPE_HYBRID, 255))) {
         log_msg(LOG_WARNING,
+                NULL,
                 "could not set search peer id to context / intent messages");
       }
 
@@ -1566,6 +1600,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
         np_id_str(property->msg_subject, &property->subject_dhkey);
         np_id_str(_tmp, &np_module(search)->searchnode.node_id);
         log_msg(LOG_INFO,
+                NULL,
                 "adding peer search subject %s, peer id is %s / %s",
                 property->msg_subject,
                 _tmp,
@@ -1627,15 +1662,15 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
       sll_free(np_msgproperty_conf_ptr, msgproperties);
 
       log_msg(LOG_DEBUG,
+              NULL,
               "added node as search peer, peer id is %08" PRIx32 ":%08" PRIx32
               "",
               np_module(search)->searchnode.node_id.t[0],
               np_module(search)->searchnode.node_id.t[1]);
 
       // np_jobqueue_submit_event_periodic(context, PRIORITY_MOD_USER_DEFAULT,
-      //                             np_crypt_rand_mm(0,
-      //                             SYSINFO_PROACTIVE_SEND_IN_SEC*1000) /
-      //                             1000.,
+      //                             np_global_rng_bounded(
+      //                             SYSINFO_PROACTIVE_SEND_IN_SEC) / 1.),
       //                             //sysinfo_response_props->msg_ttl /
       //                             sysinfo_response_props->max_threshold,
       //                             SYSINFO_PROACTIVE_SEND_IN_SEC+.0,
@@ -1660,7 +1695,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
     }
   }
 
-  // log_msg(LOG_DEBUG,  "pipeline_results %p->%p", context,
+  // log_msg(LOG_DEBUG, NULL,  "pipeline_results %p->%p", context,
   // &np_module(search)->pipeline_results);
 
   if (np_module_initiated(http)) {
@@ -1672,7 +1707,7 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
   }
 
   np_add_shutdown_cb(ac, _np_search_shutdown_hook);
-  // log_msg(LOG_DEBUG,  "pipeline_results %p->%p", context,
+  // log_msg(LOG_DEBUG, NULL,  "pipeline_results %p->%p", context,
   // &np_module(search)->pipeline_results);
 }
 
@@ -1722,7 +1757,9 @@ void _np_search_shutdown_hook(np_context *ac) {
 np_tree_t *__encode_search_intent(struct np_token *data) {
   np_tree_t *intent_as_tree = np_tree_create();
 
-  np_tree_insert_str(intent_as_tree, "uuid", np_treeval_new_s(data->uuid));
+  np_tree_insert_str(intent_as_tree,
+                     "uuid",
+                     np_treeval_new_bin(data->uuid, NP_UUID_BYTES));
   np_tree_insert_str(intent_as_tree,
                      "subject",
                      np_treeval_new_s(data->subject));
@@ -1779,7 +1816,7 @@ bool __decode_search_intent(np_tree_t *tree, struct np_token *data) {
   CHECK_STR_FIELD(tree, "attributes", attributes);
   CHECK_STR_FIELD(tree, "attributes_signature", attributes_signature);
 
-  strncpy(data->uuid, uuid.value.s, NP_UUID_BYTES);
+  memcpy(data->uuid, uuid.value.bin, NP_UUID_BYTES);
   strncpy(data->subject, subject.value.s, subject.size);
   memcpy(&data->realm, realm.value.bin, NP_FINGERPRINT_BYTES);
   memcpy(&data->issuer, issuer.value.bin, NP_FINGERPRINT_BYTES);
@@ -1795,8 +1832,7 @@ bool __decode_search_intent(np_tree_t *tree, struct np_token *data) {
          attributes_signature.value.bin,
          NP_SIGNATURE_BYTES);
 
-__np_cleanup__ : { /* return false; */
-}
+__np_cleanup__: {}
 
   return true;
 }
@@ -1829,8 +1865,7 @@ bool __decode_search_index(np_tree_t *tree, struct np_index_s *index) {
   index->_cbl_index         = NULL;
   index->_cbl_index_counter = NULL;
 
-__np_cleanup__:
-  // return false;
+__np_cleanup__: {}
 
   return true;
 }
@@ -1842,14 +1877,14 @@ np_tree_t *__encode_search_entry(np_searchentry_t *data) {
   np_tree_t *entry_as_tree = np_tree_create();
 
   np_tree_t *index_as_tree = __encode_search_index(&data->search_index);
-  // log_msg(LOG_DEBUG,  "searchentry index as tree %p (%u / %u)",
+  // log_msg(LOG_DEBUG, NULL,  "searchentry index as tree %p (%u / %u)",
   // index_as_tree, index_as_tree->byte_size, index_as_tree->size);
   np_tree_insert_str(entry_as_tree,
                      "entry.index",
                      np_treeval_new_tree(index_as_tree));
 
   np_tree_t *intent_as_tree = __encode_search_intent(&data->intent);
-  // log_msg(LOG_DEBUG,  "searchentry intent as tree %p (%u / %u)",
+  // log_msg(LOG_DEBUG, NULL,  "searchentry intent as tree %p (%u / %u)",
   // intent_as_tree, intent_as_tree->byte_size, intent_as_tree->size);
   np_tree_insert_str(entry_as_tree,
                      "entry.intent",
@@ -1866,27 +1901,27 @@ np_searchentry_t *__decode_search_entry(np_tree_t *data) {
 
   new_entry = calloc(1, sizeof(np_searchentry_t));
 
-  // log_msg(LOG_DEBUG,  "searchentry index as tree %p (%u / %u)",
+  // log_msg(LOG_DEBUG, NULL,  "searchentry index as tree %p (%u / %u)",
   // search_index.value.tree, search_index.value.tree->byte_size,
   // search_index.value.tree->size);
   if (!__decode_search_index(search_index.value.tree,
                              &new_entry->search_index)) {
-    // log_msg(LOG_DEBUG,  "could not decode searchentry index");
+    // log_msg(LOG_DEBUG, NULL,  "could not decode searchentry index");
     free(new_entry);
     return NULL;
   }
 
-  // log_msg(LOG_DEBUG,  "searchentry intent as tree %p (%u / %u)",
+  // log_msg(LOG_DEBUG, NULL,  "searchentry intent as tree %p (%u / %u)",
   // search_intent.value.tree, search_intent.value.tree->byte_size,
   // search_intent.value.tree->size);
   if (!__decode_search_intent(search_intent.value.tree, &new_entry->intent)) {
-    // log_msg(LOG_DEBUG,  "could not decode searchentry intent");
+    // log_msg(LOG_DEBUG, NULL,  "could not decode searchentry intent");
     np_index_destroy(&new_entry->search_index);
     free(new_entry);
     return NULL;
   }
 
-__np_cleanup__ : {}
+__np_cleanup__: {}
 
   return new_entry;
 }
@@ -1931,7 +1966,7 @@ np_searchquery_t *__decode_search_query(np_tree_t *data) {
 
   new_query->query_id          = search_query_id.value.ush;
   new_query->target_similarity = search_similarity.value.f;
-  strncpy(new_query->result_uuid, search_uuid.value.s, NP_UUID_BYTES);
+  memcpy(new_query->result_uuid, search_uuid.value.bin, NP_UUID_BYTES);
 
   if (!__decode_search_index(search_index.value.tree,
                              &new_query->query_entry.search_index)) {
@@ -1945,7 +1980,7 @@ np_searchquery_t *__decode_search_query(np_tree_t *data) {
     return NULL;
   }
 
-__np_cleanup__ : {}
+__np_cleanup__: {}
 
   return new_query;
 }
@@ -1992,7 +2027,7 @@ np_searchresult_t *__decode_search_result(np_tree_t *result_tree) {
   new_result = calloc(1, sizeof(np_searchresult_t));
 
   new_result->query_id = result_query_id.value.ush;
-  strncpy(new_result->result_uuid, result_uuid.value.s, NP_UUID_BYTES);
+  strncpy(new_result->result_uuid, result_uuid.value.bin, NP_UUID_BYTES);
   new_result->label       = strndup(result_label.value.s, 256);
   new_result->level       = result_level.value.f;
   new_result->hit_counter = result_hit_count.value.ush;
@@ -2003,7 +2038,7 @@ np_searchresult_t *__decode_search_result(np_tree_t *result_tree) {
     return NULL;
   }
 
-__np_cleanup__ : {}
+__np_cleanup__:
 
   return new_result;
 }
@@ -2062,10 +2097,12 @@ bool np_create_searchentry(np_context       *ac,
                                     "title",
                                     &conf,
                                     &val_title)) {
-        log_msg(LOG_INFO, "SEARCH_ANALYTICS START");
+        log_msg(LOG_INFO, NULL, "SEARCH_ANALYTICS START");
         log_msg(LOG_INFO,
-                "analyzing %s (%u unique words / %u words):",
-                val_title,
+                NULL,
+                "analyzing %s (%" PRIsizet " unique words / %" PRIsizet
+                " words):",
+                val_title.str,
                 text_occurance->size,
                 text_as_array->size);
         uint16_t        i = 0;
@@ -2076,6 +2113,7 @@ bool np_create_searchentry(np_context       *ac,
           uint16_t word_count = tmp->val.value.a2_ui[1];
           if (word_count > 3 && word_count < 13)
             log_msg(LOG_INFO,
+                    NULL,
                     "word: %s (pos: %u) appeared %u times",
                     tmp->key.value.s,
                     tmp->val.value.a2_ui[0],
@@ -2088,6 +2126,7 @@ bool np_create_searchentry(np_context       *ac,
               __compare_uint16_t);
 
         log_msg(LOG_INFO,
+                NULL,
                 "analysis word count distribution: %u / %u / %u / %u / %u",
                 occurences[text_occurance->size * 2 / 64],
                 occurences[text_occurance->size * 11 / 64],
@@ -2110,7 +2149,7 @@ bool np_create_searchentry(np_context       *ac,
 
         for (uint32_t i = 0; i < 256; i++) {
           if (i > 0 && (i % 16 == 0)) {
-            log_msg(LOG_INFO, "%s", _number_string);
+            log_msg(LOG_INFO, NULL, "%s", _number_string);
             memset(_number_string, 256, '0');
           }
           snprintf(_number_string,
@@ -2119,7 +2158,7 @@ bool np_create_searchentry(np_context       *ac,
                    _number_string,
                    dd_signature[i]);
         }
-        log_msg(LOG_INFO, "SEARCH_ANALYTICS END");
+        log_msg(LOG_INFO, NULL, "SEARCH_ANALYTICS END");
       }
     }
 
@@ -2133,14 +2172,21 @@ bool np_create_searchentry(np_context       *ac,
       np_minhash_init(&minhash, 512, MIXHASH_MULTI, minhash_seed);
     } else {
       log_error(
+          NULL,
+          "%s",
           "only fixed minhash sizes available, data dependant not implemented");
+      free(copied_text);
+
       return false;
     }
 
     if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode, SEARCH_1_SHINGLE)) {
       np_minhash_push_tree(&minhash, text_as_array, 1, false);
     } else {
-      log_error("additional shingle modes currently not implemented");
+      log_error(NULL,
+                "%s",
+                "additional shingle modes currently not implemented");
+      free(copied_text);
       return false;
     }
 
@@ -2179,7 +2225,7 @@ bool np_create_searchentry(np_context       *ac,
 
     ret = true;
   } else {
-    log_msg(LOG_DEBUG, "data element not found !!!");
+    log_msg(LOG_DEBUG, NULL, "data element not found !!!");
   }
   return ret;
 }
@@ -2236,14 +2282,18 @@ bool np_create_searchquery(np_context       *ac,
     np_minhash_init(&minhash, 512, MIXHASH_MULTI, minhash_seed);
   } else {
     log_error(
+        NULL,
+        "%s",
         "only fixed minhash sized available, data dependant not implemented");
+    free(copied_text);
     return false;
   }
 
   if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode, SEARCH_1_SHINGLE)) {
     np_minhash_push_tree(&minhash, text_as_array, 1, false);
   } else {
-    log_error("additional shingle modes currently not implemented");
+    log_error(NULL, "%s", "additional shingle modes currently not implemented");
+    free(copied_text);
     return false;
   }
 
@@ -2317,14 +2367,16 @@ void np_search_add_entry(np_context *ac, np_searchentry_t *entry) {
   // unsigned char data[data_length];
   // np_tree2buffer(context, search_entry, data);
   log_msg(LOG_INFO,
-          "using searchentry (%s) as tree %p (%u / %u)",
+          NULL,
+          "using searchentry (%s) as tree %p (%" PRIsizet " / %" PRIsizet ")",
           entry->intent.subject,
           search_entry,
           search_entry->byte_size,
           search_entry->size);
 
-  np_message_t *new_entry_msg = NULL;
-  np_new_obj(np_message_t, new_entry_msg, ref_obj_creation);
+  struct np_e2e_message_s *new_entry_msg = NULL;
+  np_new_obj(np_message_t, new_entry_msg);
+
   _np_message_create(new_entry_msg,
                      pipeline->search_subject,
                      np_module(search)->searchnode.node_id,
@@ -2332,24 +2384,24 @@ void np_search_add_entry(np_context *ac, np_searchentry_t *entry) {
                      search_entry);
 
   np_spinlock_lock(&np_module(search)->pipeline_lock);
-  np_tree_insert_str(pipeline_results,
-                     new_entry_msg->uuid,
-                     np_treeval_new_v(pipeline));
+  np_tree_insert_uuid(pipeline_results,
+                      new_entry_msg->uuid,
+                      np_treeval_new_v(pipeline));
   np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
   // manual execution of pipeline for now
   __check_remote_peer_distribution(ac,
                                    new_entry_msg,
-                                   new_entry_msg->body,
+                                   search_entry,
                                    &np_module(search)->pipeline_results);
 
   if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_SERVER))
     __np_search_add_entry(ac,
                           new_entry_msg,
-                          new_entry_msg->body,
+                          search_entry,
                           &np_module(search)->pipeline_results);
 
-  // np_tree_free(search_entry); // deleted by message
+  np_tree_free(search_entry);
   np_unref_obj(np_message_t, new_entry_msg, ref_obj_creation);
 }
 
@@ -2395,9 +2447,9 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
   pipeline->obj.query = query;
 
   np_spinlock_lock(&np_module(search)->pipeline_lock);
-  np_tree_insert_str(pipeline_results,
-                     query->result_uuid,
-                     np_treeval_new_v(pipeline));
+  np_tree_insert_uuid(pipeline_results,
+                      query->result_uuid,
+                      np_treeval_new_v(pipeline));
   np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
   np_tree_t *search_query = __encode_search_query(query);
@@ -2406,36 +2458,37 @@ void np_search_query(np_context *ac, np_searchquery_t *query) {
   // unsigned char data[data_length];
   // np_tree2buffer(context, search_query, data);
   log_msg(LOG_INFO,
-          "using searchquery (%s / %s) as tree %p (%u / %u)",
-          query->query_entry.intent.subject,
           query->result_uuid,
+          "using searchquery (%s) as tree %p (%" PRIsizet " / %" PRIsizet ")",
+          query->query_entry.intent.subject,
           search_query,
           search_query->byte_size,
           search_query->size);
 
-  np_message_t *new_query_msg = NULL;
-  np_new_obj(np_message_t, new_query_msg, ref_obj_creation);
-  strncpy(new_query_msg->uuid, query->result_uuid, NP_UUID_BYTES);
+  struct np_e2e_message_s *new_query_msg = NULL;
+  np_new_obj(np_message_t, new_query_msg);
 
   _np_message_create(new_query_msg,
                      pipeline->search_subject,
                      np_module(search)->searchnode.node_id,
-                     //  context->my_node_key->dhkey,
                      pipeline->search_subject,
                      search_query);
+
+  memcpy(new_query_msg->uuid, query->result_uuid, NP_UUID_BYTES);
 
   // manual execution of pipeline for now
   __check_remote_peer_distribution(ac,
                                    new_query_msg,
-                                   new_query_msg->body,
+                                   search_query,
                                    &np_module(search)->pipeline_results);
 
   if (FLAG_CMP(np_module(search)->searchcfg.node_type, SEARCH_NODE_SERVER))
     __np_search_query(ac,
                       new_query_msg,
-                      new_query_msg->body,
+                      search_query,
                       &np_module(search)->pipeline_results);
 
+  np_tree_free(search_query);
   np_unref_obj(np_message_t, new_query_msg, ref_obj_creation);
 }
 
@@ -2453,8 +2506,8 @@ bool np_search_get_resultset(np_context       *ac,
   struct search_pipeline_result *pipeline = NULL;
   np_spinlock_lock(&np_module(search)->pipeline_lock);
   {
-    pipeline = np_tree_find_str(&np_module(search)->pipeline_results,
-                                query->result_uuid)
+    pipeline = np_tree_find_uuid(&np_module(search)->pipeline_results,
+                                 query->result_uuid)
                    ->val.value.v;
     if (pipeline) pipeline->stop_time = np_time_now();
   }
@@ -2488,6 +2541,7 @@ bool np_search_get_resultset(np_context       *ac,
                        result->hit_counter,
                        np_treeval_new_v(result));
     log_msg(LOG_DEBUG,
+            NULL,
             ":: %s :: %3u / %2.2f / %25s",
             tmp->key.value.s,
             result->hit_counter,
@@ -2505,18 +2559,13 @@ bool _np_searchnode_withdraw_cb(np_context *ac, struct np_message *token_msg) {
   return true;
 }
 
-// bool (*np_usercallbackfunction_t) (np_context* ac, const np_message_t* const
-// msg, np_tree_t* body, void* localdata);
-
-bool _np_new_searchentry_cb(np_context               *ac,
-                            const np_message_t *const entry_msg,
-                            np_tree_t                *body,
-                            void                     *localdata) {
+bool _np_new_searchentry_cb(np_context                          *ac,
+                            const struct np_e2e_message_s *const entry_msg,
+                            np_tree_t                           *body,
+                            void                                *localdata) {
   np_ctx_cast(ac);
 
-  log_msg(LOG_INFO,
-          "received new searchentry from peer with uuid: %s",
-          entry_msg->uuid);
+  log_msg(LOG_INFO, entry_msg->uuid, "received new searchentry from peer");
   np_tree_t *pipeline_results = (np_tree_t *)localdata;
 
   struct search_pipeline_result *pipeline =
@@ -2528,7 +2577,8 @@ bool _np_new_searchentry_cb(np_context               *ac,
                       strnlen(SEARCH_ENTRY_SUBJECT, 256));
 
   log_msg(LOG_DEBUG,
-          "searchentry as tree %p (%u / %u)",
+          NULL,
+          "searchentry as tree %p (%" PRIsizet " / %" PRIsizet ")",
           body,
           body->byte_size,
           body->size);
@@ -2538,27 +2588,25 @@ bool _np_new_searchentry_cb(np_context               *ac,
                    &pipeline->obj.entry->search_index.lower_dhkey);
 
   if (pipeline->obj.entry == NULL) {
-    log_msg(LOG_DEBUG, "could not decode searchentry");
+    log_msg(LOG_DEBUG, NULL, "could not decode searchentry");
     return false;
   } else {
     np_spinlock_lock(&np_module(search)->pipeline_lock);
-    np_tree_insert_str(pipeline_results,
-                       entry_msg->uuid,
-                       np_treeval_new_v(pipeline));
+    np_tree_insert_uuid(pipeline_results,
+                        entry_msg->uuid,
+                        np_treeval_new_v(pipeline));
     np_spinlock_unlock(&np_module(search)->pipeline_lock);
   }
   return true;
 }
 
-bool _np_new_searchquery_cb(np_context               *ac,
-                            const np_message_t *const query_msg,
-                            np_tree_t                *body,
-                            void                     *localdata) {
+bool _np_new_searchquery_cb(np_context                          *ac,
+                            const struct np_e2e_message_s *const query_msg,
+                            np_tree_t                           *body,
+                            void                                *localdata) {
   np_ctx_cast(ac);
 
-  log_msg(LOG_INFO,
-          "received new searchquery from peer with uuid: %s",
-          query_msg->uuid);
+  log_msg(LOG_INFO, query_msg->uuid, "received new searchquery from peer");
 
   np_tree_t *pipeline_results = (np_tree_t *)localdata;
 
@@ -2569,11 +2617,13 @@ bool _np_new_searchquery_cb(np_context               *ac,
                       SEARCH_QUERY_SUBJECT,
                       strnlen(SEARCH_QUERY_SUBJECT, 256));
 
-  np_dhkey_t search_peer_dhkey = _np_message_get_sender(query_msg);
+  // TODO: get from message attributes
+  np_dhkey_t search_peer_dhkey = {0}; // _np_message_get_sender(query_msg);
   _np_dhkey_assign(&pipeline->sending_peer_dhkey, &search_peer_dhkey);
 
   log_msg(LOG_DEBUG,
-          "searchquery as tree %p (%u / %u)",
+          query_msg->uuid,
+          "searchquery as tree %p (%" PRIsizet " / %" PRIsizet ")",
           body,
           body->byte_size,
           body->size);
@@ -2583,13 +2633,13 @@ bool _np_new_searchquery_cb(np_context               *ac,
                    &pipeline->obj.query->query_entry.search_index.lower_dhkey);
 
   if (pipeline->obj.query == NULL) {
-    log_msg(LOG_DEBUG, "could not decode searchquery");
+    log_msg(LOG_DEBUG, query_msg->uuid, "could not decode searchquery");
     return false;
   } else {
     np_spinlock_lock(&np_module(search)->pipeline_lock);
-    np_tree_insert_str(pipeline_results,
-                       query_msg->uuid,
-                       np_treeval_new_v(pipeline));
+    np_tree_insert_uuid(pipeline_results,
+                        query_msg->uuid,
+                        np_treeval_new_v(pipeline));
     np_spinlock_unlock(&np_module(search)->pipeline_lock);
   }
 
@@ -2603,9 +2653,10 @@ void _np_searchresult_send(np_context        *ac,
 
   np_tree_t *search_result = __encode_search_result(result);
   log_msg(LOG_INFO,
-          "sending searchresult (%s / %s) as tree %p (%u bytes / %u)",
-          result->result_entry->intent.subject,
           result->result_uuid,
+          "sending searchresult (%s) as tree %p (%" PRIsizet
+          " bytes / %" PRIsizet ")",
+          result->result_entry->intent.subject,
           result,
           search_result->byte_size,
           search_result->size);
@@ -2618,15 +2669,15 @@ void _np_searchresult_send(np_context        *ac,
   np_send(context, result_subject, data, data_length);
 }
 
-bool _np_searchresult_receive_cb(np_context         *ac,
-                                 const np_message_t *result_msg,
-                                 np_tree_t          *body,
-                                 void               *localdata) {
+bool _np_searchresult_receive_cb(np_context                    *ac,
+                                 const struct np_e2e_message_s *result_msg,
+                                 np_tree_t                     *body,
+                                 void                          *localdata) {
   np_ctx_cast(ac);
 
   np_tree_elem_t *userdata = np_tree_find_str(body, NP_SERIALISATION_USERDATA);
   if (userdata == NULL) {
-    log_msg(LOG_DEBUG, "could not find userdate element");
+    log_msg(LOG_DEBUG, result_msg->uuid, "could not find userdate element");
     return false;
   }
 
@@ -2637,7 +2688,9 @@ bool _np_searchresult_receive_cb(np_context         *ac,
                  search_result);
 
   log_msg(LOG_DEBUG,
-          "received searchresult as tree %p (%u bytes / %u)",
+          result_msg->uuid,
+          "received searchresult as tree %p (%" PRIsizet " bytes / %" PRIsizet
+          ")",
           search_result,
           search_result->byte_size,
           search_result->size);
@@ -2645,29 +2698,29 @@ bool _np_searchresult_receive_cb(np_context         *ac,
   np_searchresult_t *new_result = __decode_search_result(search_result);
 
   if (new_result == NULL) {
-    log_msg(LOG_DEBUG, "could not decode searchresult");
+    log_msg(LOG_DEBUG, result_msg->uuid, "could not decode searchresult");
     np_tree_free(search_result);
     return false;
   }
 
   log_msg(LOG_INFO,
-          "received new searchresult from peer with uuid %s for query with "
-          "uuid: %s",
           result_msg->uuid,
+          "received new searchresult from peer for query with uuid: %s",
           new_result->result_uuid);
 
   np_tree_t                     *pipeline_results = (np_tree_t *)localdata;
   struct search_pipeline_result *pipeline         = NULL;
 
   np_spinlock_lock(&np_module(search)->pipeline_lock);
-  if (NULL == np_tree_find_str(pipeline_results, new_result->result_uuid)) {
+  if (NULL == np_tree_find_uuid(pipeline_results, new_result->result_uuid)) {
     log_msg(LOG_DEBUG,
+            result_msg->uuid,
             "could not find pipeline definition for %s",
             new_result->result_uuid);
     np_spinlock_unlock(&np_module(search)->pipeline_lock);
     return false;
   } else {
-    pipeline = np_tree_find_str(pipeline_results, new_result->result_uuid)
+    pipeline = np_tree_find_uuid(pipeline_results, new_result->result_uuid)
                    ->val.value.v;
   }
 
@@ -2676,6 +2729,7 @@ bool _np_searchresult_receive_cb(np_context         *ac,
     np_spinlock_lock(&np_module(search)->pipeline_lock);
     if (pipeline->stop_time > pipeline->start_time) {
       log_msg(LOG_INFO,
+              result_msg->uuid,
               "pipeline %s already stopped by user",
               new_result->result_uuid);
       np_spinlock_unlock(&np_module(search)->pipeline_lock);
@@ -2709,7 +2763,9 @@ bool _np_searchresult_receive_cb(np_context         *ac,
 
   } else {
     log_msg(LOG_DEBUG,
-            "re-sending searchresult as tree %p (%u bytes / %u)",
+            result_msg->uuid,
+            "re-sending searchresult as tree %p (%" PRIsizet
+            " bytes / %" PRIsizet ")",
             search_result,
             search_result->byte_size,
             search_result->size);
@@ -2741,7 +2797,7 @@ bool pysearch_entry(np_context            *context,
                     const char            *text,
                     np_attributes_t        attributes) {
   bool ret = false;
-  // log_msg(LOG_DEBUG,  "%p : %s", &attributes, attributes);
+  // log_msg(LOG_DEBUG, NULL,  "%p : %s", &attributes, attributes);
   // np_iterate_data(attributes, __print_attributes, "-- external --");
 
   np_subject          urn_subject = {0};
@@ -2831,6 +2887,7 @@ bool pysearch_pullresult(np_context            *context,
       // fprintf(stdout,  "mapping result %s : %d : %f\n", result->label,
       // result->hit_counter, result->level);
       log_msg(LOG_DEBUG,
+              NULL,
               "mapping result %s : %d : %f",
               result->label,
               result->hit_counter,

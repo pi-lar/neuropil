@@ -19,7 +19,7 @@ Test(test_serialization_qcbor,
     char  buffer[512];
     void *buffer_ptr = buffer;
 
-    log_msg(LOG_INFO, "buffer_ptr\t\t %p\n", buffer_ptr);
+    log_msg(LOG_INFO, NULL, "buffer_ptr\t\t %p\n", buffer_ptr);
     memset(buffer_ptr, 0, 512);
 
     struct q_useful_buf qmp_write       = {.ptr = buffer_ptr, .len = 512};
@@ -178,8 +178,7 @@ Test(test_serialization_qcbor,
 
     cr_expect(strncmp(node_aaatoken->subject, read_token->subject, 255) == 0,
               "expect the subject to match");
-    cr_expect(strncmp(node_aaatoken->uuid, read_token->uuid, NP_UUID_BYTES) ==
-                  0,
+    cr_expect(memcmp(node_aaatoken->uuid, read_token->uuid, NP_UUID_BYTES) == 0,
               "expect the uuid to match");
     cr_expect(ret == true, "expect the result of the serialization to be true");
   }
@@ -190,7 +189,7 @@ Test(test_serialization_qcbor,
      .description = "test the serialization of a handshake token") {
 
   CTX() {
-    np_message_t *hs_message = NULL;
+    struct np_e2e_message_s *hs_message = NULL;
     np_new_obj(np_message_t, hs_message);
 
     np_dhkey_t example = {.t[0] = 1,
@@ -204,75 +203,63 @@ Test(test_serialization_qcbor,
     _np_message_create(hs_message, example, example, example, NULL);
 
     np_tree_t *jrb_body = np_tree_create();
+    np_tree_t *msg_body = np_tree_create();
     // get our node identity from the cache
     np_handshake_token_t *my_token =
         _np_token_factory_new_handshake_token(context);
 
     np_aaatoken_encode(jrb_body, my_token);
-    np_tree_insert_str(hs_message->body,
+    np_tree_insert_str(msg_body,
                        _NP_URN_HANDSHAKE_PREFIX,
                        np_treeval_new_cwt(jrb_body));
+    _np_message_setbody(hs_message, msg_body);
 
-    _np_message_calculate_chunking(hs_message);
     bool serialize_ok = _np_message_serialize_chunked(context, hs_message);
 
-    char *packet;
-    np_new_obj(BLOB_1024, packet, ref_obj_creation);
-    memcpy(packet,
-           pll_first(hs_message->msg_chunks)->val->msg_part,
-           MSG_CHUNK_SIZE_1024 - MSG_ENCRYPTION_BYTES_40);
+    _np_node_build_network_packet(hs_message->msg_chunks[0]);
+    char *packet = hs_message->msg_chunks[0]->msg_chunk;
 
-    np_message_t *msg_in = NULL;
-    np_new_obj(np_message_t, msg_in);
+    struct np_n2n_messagepart_s *msg_part = NULL;
+    np_new_obj(np_messagepart_t, msg_part);
 
     bool is_header_deserialization_successful =
-        _np_message_deserialize_header_and_instructions(msg_in, packet);
-    bool is_deserialization_successful = false;
+        _np_message_deserialize_header_and_instructions(packet, msg_part);
 
-    if (is_header_deserialization_successful) {
-      CHECK_STR_FIELD_BOOL(
-          msg_in->header,
-          _NP_MSG_HEADER_SUBJECT,
-          msg_subject_elem,
-          "NO SUBJECT IN MESSAGE") { // check if the message is really a
-                                     // handshake message
-        is_header_deserialization_successful &= true;
-      }
-      cr_expect(is_header_deserialization_successful == true,
-                "expect the header serialization to be succesful");
+    struct np_e2e_message_s *msg_in = NULL;
+    np_new_obj(np_message_t, msg_in);
 
-      log_debug(LOG_SERIALIZATION | LOG_MESSAGE,
-                "deserialized message header %s",
-                msg_in->uuid);
-      log_debug(LOG_ROUTING, "(msg: %s) received msg", msg_in->uuid);
+    uint16_t count_of_chunks = 0;
+    _np_message_add_chunk(msg_in, msg_part, &count_of_chunks);
 
-      is_deserialization_successful = _np_message_deserialize_chunked(msg_in);
-      CHECK_STR_FIELD_BOOL(
-          msg_in->body,
-          _NP_URN_HANDSHAKE_PREFIX,
-          msg_handshake_elem,
-          "NO HANDSHAKE IN MESSAGE") { // check if the message is really a
-                                       // handshake message
-        is_header_deserialization_successful &= true;
-      }
-      cr_expect(is_header_deserialization_successful == true,
-                "expect the chunked header serialization to be succesful");
+    cr_expect(is_header_deserialization_successful == true,
+              "expect the header serialization to be successful");
+    cr_expect(count_of_chunks == 1, "expect the number of chunks to be 1");
 
-      np_tree_t *hs_token =
-          np_tree_find_str(msg_in->body, _NP_URN_HANDSHAKE_PREFIX)
-              ->val.value.tree;
+    bool is_deserialization_successful = _np_message_deserialize_chunks(msg_in);
+    cr_expect(is_deserialization_successful == true,
+              "expect the de-chunking to be successful");
 
-      np_aaatoken_t *read_token = NULL;
-      np_new_obj(np_aaatoken_t, read_token);
+    cr_expect(msg_in->state == msgstate_binary,
+              "expect the message to be in state binary");
 
-      np_aaatoken_decode(hs_token, read_token);
+    _np_message_readbody(msg_in);
+    cr_expect(msg_in->state == msgstate_raw,
+              "expect the message to be in state raw");
 
-      struct np_data_conf conf        = {0};
-      np_data_value       val_hs_prio = {0};
-      cr_expect(
-          np_data_ok ==
-          np_get_data(read_token->attributes, NP_HS_PRIO, &conf, &val_hs_prio));
-    }
+    np_tree_t *hs_token =
+        np_tree_find_str(msg_in->msg_body, _NP_URN_HANDSHAKE_PREFIX)
+            ->val.value.tree;
+
+    np_aaatoken_t *read_token = NULL;
+    np_new_obj(np_aaatoken_t, read_token);
+
+    np_aaatoken_decode(hs_token, read_token);
+
+    struct np_data_conf conf        = {0};
+    np_data_value       val_hs_prio = {0};
+    cr_expect(
+        np_data_ok ==
+        np_get_data(read_token->attributes, NP_HS_PRIO, &conf, &val_hs_prio));
   }
 }
 

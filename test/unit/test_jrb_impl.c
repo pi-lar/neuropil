@@ -165,28 +165,30 @@ Test(np_tree_t,
               test_tree_2->size);
 
     /*
-    log_msg(LOG_INFO, "id: %d", tree_find_str(out_jrb, "id")->val.value.i);
-    log_msg(LOG_INFO, "from: %s", tree_find_str(out_jrb, "from")->val.value.s);
-    log_msg(LOG_INFO, "mail: %s", tree_find_str(out_jrb, "mail")->val.value.s);
-    log_msg(LOG_INFO, "to: %s", tree_find_str(out_jrb, "to")->val.value.s);
-    log_msg(LOG_INFO, "exp: %f", tree_find_str(out_jrb, "exp")->val.value.d);
-    log_msg(LOG_INFO, "ul: %lu", tree_find_str(out_jrb, "ul")->val.value.ull);
+    log_msg(LOG_INFO, NULL, "id: %d", tree_find_str(out_jrb,
+    "id")->val.value.i); log_msg(LOG_INFO, NULL, "from: %s",
+    tree_find_str(out_jrb, "from")->val.value.s); log_msg(LOG_INFO, NULL, "mail:
+    %s", tree_find_str(out_jrb, "mail")->val.value.s); log_msg(LOG_INFO, NULL,
+    "to: %s", tree_find_str(out_jrb, "to")->val.value.s); log_msg(LOG_INFO,
+    NULL, "exp: %f", tree_find_str(out_jrb, "exp")->val.value.d);
+    log_msg(LOG_INFO, NULL, "ul: %lu", tree_find_str(out_jrb,
+    "ul")->val.value.ull);
 
     np_tree_t* test_ex = tree_find_str(out_jrb, "tree_1")->val.value.tree;
-    log_msg(LOG_INFO, "tree_1: %p", test_ex);
-    log_msg(LOG_INFO, "tree_1/halli: %s", tree_find_str(test_ex,
+    log_msg(LOG_INFO, NULL, "tree_1: %p", test_ex);
+    log_msg(LOG_INFO, NULL, "tree_1/halli: %s", tree_find_str(test_ex,
     "halli")->val.value.s); log_msg(LOG_INFO, "tree_1/hallo: %s",
     tree_find_str(test_ex, "hallo")->val.value.s);
 
-    log_msg(LOG_INFO, "----------------------");
-    log_msg(LOG_INFO, "out jrb has size: %d %d", out_jrb->size,
-    out_jrb->byte_size); log_msg(LOG_INFO, "removing entries from jrb
+    log_msg(LOG_INFO, NULL, "----------------------");
+    log_msg(LOG_INFO, NULL, "out jrb has size: %d %d", out_jrb->size,
+    out_jrb->byte_size); log_msg(LOG_INFO, NULL, "removing entries from jrb
     message:");
 
     tree_del_str(out_jrb, "from");
     np_tree_elem_t* test = tree_find_str(out_jrb, "from");
-    if(test == NULL) log_msg(LOG_INFO, "deleted node not found");
-    log_msg(LOG_INFO, "out jrb has size: %d %d", out_jrb->size,
+    if(test == NULL) log_msg(LOG_INFO, NULL, "deleted node not found");
+    log_msg(LOG_INFO,NULL,  "out jrb has size: %d %d", out_jrb->size,
     out_jrb->byte_size);
     */
   }

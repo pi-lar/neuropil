@@ -10,6 +10,8 @@
 
 #include "sodium.h"
 
+#include "util/np_bloom.h"
+
 #include "np_constants.h"
 #include "np_crypto.h"
 #include "np_memory.h"
@@ -68,6 +70,8 @@ struct np_node_s {
   uint8_t success_win[NP_NODE_SUCCESS_WINDOW];
   uint8_t success_win_index;
   float   success_avg;
+
+  np_bloom_t *msg_forward_filter;
 
   // load average of the node
   float    load;

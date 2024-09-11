@@ -52,27 +52,26 @@ NP_SLL_GENERATE_IMPLEMENTATION(char_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION_COMPARATOR(np_key_ptr);
 NP_SLL_GENERATE_IMPLEMENTATION(np_key_ptr);
 
-char *np_uuid_create(const char *str, const uint16_t num, char **buffer) {
-  char *uuid_out = NULL;
+char *
+np_uuid_create(const char *str, const uint32_t num, unsigned char **buffer) {
+  unsigned char *uuid_out = NULL;
   if (buffer == NULL) {
     uuid_out = calloc(1, NP_UUID_BYTES);
     CHECK_MALLOC(uuid_out);
   } else {
     uuid_out = *buffer;
   }
-  char          input[256] = {'\0'};
-  unsigned char out[18]    = {'\0'};
+  char input[256] = {0};
 
   double now = _np_time_now(NULL);
-  snprintf(input, 255, "%s:%u:%16.16f", str, num, now);
-  // log_debug_msg(LOG_DEBUG, "created input uuid: %s", input);
-  crypto_generichash_blake2b(out, 18, (unsigned char *)input, 256, NULL, 0);
-  sodium_bin2hex(uuid_out, NP_UUID_BYTES, out, 18);
-  // log_debug_msg(LOG_DEBUG, "created raw uuid: %s", uuid_out);
-  uuid_out[8] = uuid_out[13] = uuid_out[18] = uuid_out[23] = '-';
-  uuid_out[14]                                             = '5';
-  uuid_out[19]                                             = '9';
-  // log_debug_msg(LOG_DEBUG, "created new uuid: %s", uuid_out);
+  snprintf(input, 255, "%64s:%010u:%16.16f", str, num, now);
+
+  crypto_generichash_blake2b(uuid_out,
+                             16,
+                             (unsigned char *)input,
+                             256,
+                             NULL,
+                             0);
 
   return uuid_out;
 }
@@ -139,13 +138,10 @@ void _np_sll_remove_doublettes(np_sll_t(np_key_ptr, list_of_keys)) {
 }
 
 JSON_Value *np_treeval2json(np_state_t *context, np_treeval_t val) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: JSON_Value* np_treeval2json(context, np_treeval_t val) {");
   JSON_Value *ret         = NULL;
   bool        free_string = false;
   char       *tmp_str     = NULL;
-  // log_debug_msg(LOG_DEBUG, "np_treeval2json type: %"PRIu8,val.type);
+
   switch (val.type) {
   case np_treeval_type_short:
     ret = json_value_init_number(val.value.sh);
@@ -238,8 +234,6 @@ void np_buffer2tree(np_state_t *context,
 }
 
 char *np_dump_tree2char(np_state_t *context, np_tree_t *tree) {
-  log_trace_msg(LOG_TRACE,
-                "start: char* np_dump_tree2char(context, np_tree_t* tree) {");
   JSON_Value *tmp  = np_tree2json(context, tree);
   char       *tmp2 = np_json2char(tmp, true);
   free(tmp);
@@ -247,14 +241,10 @@ char *np_dump_tree2char(np_state_t *context, np_tree_t *tree) {
 }
 
 JSON_Value *np_tree2json(np_state_t *context, np_tree_t *tree) {
-  log_trace_msg(LOG_TRACE,
-                "start: JSON_Value* np_tree2json(context, np_tree_t* tree) {");
   JSON_Value *ret = json_value_init_object();
   JSON_Value *arr = NULL;
 
   if (NULL != tree) {
-    // log_debug_msg(LOG_DEBUG, "np_tree2json (size: %"PRIu16", byte_size:
-    // %"PRIu64"):", tree->size, tree->byte_size);
 
     uint16_t i = 0;
     // write jrb tree
@@ -287,19 +277,18 @@ JSON_Value *np_tree2json(np_state_t *context, np_tree_t *tree) {
                          strlen(np_treeval_to_str(tmp->key, NULL)));
         } else {
           log_msg(LOG_WARNING,
+                  NULL,
                   "unknown key type for serialization. (type: %d)",
                   tmp->key.type);
           continue;
         }
 
-        // log_debug_msg(LOG_DEBUG, "np_tree2json set key %s:", name);
         JSON_Value *value = np_treeval2json(context, tmp->val);
 
         if (useArray == true) {
           if (NULL == arr) {
             arr = json_value_init_array();
           }
-          // log_debug_msg(LOG_DEBUG, "np_tree2json add to array");
 
           if (NULL != value) {
             json_array_append_value(json_array(arr), value);
@@ -319,7 +308,9 @@ JSON_Value *np_tree2json(np_state_t *context, np_tree_t *tree) {
     // sanity check and warning message
     if (i != tree->size) {
       log_msg(LOG_WARNING,
-              "serialized jrb size map size is %hd, but should be %hd",
+              NULL,
+              "serialized jrb size map size is %" PRIsizet
+              ", but should be %" PRIu16,
               tree->size,
               i);
     }
@@ -334,9 +325,6 @@ JSON_Value *np_tree2json(np_state_t *context, np_tree_t *tree) {
 }
 
 char *np_json2char(JSON_Value *data, bool prettyPrint) {
-  log_trace_msg(
-      LOG_TRACE,
-      "start: char* np_json2char(JSON_Value* data, bool prettyPrint) {");
   char *ret;
   /*
   size_t json_size ;
@@ -363,13 +351,11 @@ char *np_json2char(JSON_Value *data, bool prettyPrint) {
 }
 
 void np_dump_tree2log(np_state_t *context, log_type category, np_tree_t *tree) {
-  log_trace_msg(LOG_TRACE,
-                "start: void np_dump_tree2log(context, np_tree_t* tree){");
   if (NULL == tree) {
-    log_debug_msg(LOG_DEBUG | category, "NULL");
+    log_debug(LOG_DEBUG | category, NULL, "NULL");
   } else {
     char *tmp = np_dump_tree2char(context, tree);
-    log_debug_msg(LOG_DEBUG | category, "%s", tmp);
+    log_debug(LOG_DEBUG | category, NULL, "%s", tmp);
     json_free_serialized_string(tmp);
   }
 }
@@ -416,6 +402,7 @@ bool np_get_local_ip(np_state_t *context, char *buffer, int buffer_size) {
     ret = false;
     log_msg(
         LOG_ERROR,
+        NULL,
         "Could not detect local ip. (1) Error: Socket could not be created");
   } else {
 
@@ -428,6 +415,7 @@ bool np_get_local_ip(np_state_t *context, char *buffer, int buffer_size) {
     if (err < 0) {
       ret = false;
       log_msg(LOG_ERROR,
+              NULL,
               "Could not detect local ip. (2) Error: %s (%d)",
               strerror(errno),
               errno);
@@ -439,6 +427,7 @@ bool np_get_local_ip(np_state_t *context, char *buffer, int buffer_size) {
       if (err < 0) {
         ret = false;
         log_msg(LOG_ERROR,
+                NULL,
                 "Could not detect local ip. (3) Error: %s (%d)",
                 strerror(errno),
                 errno);
@@ -448,6 +437,7 @@ bool np_get_local_ip(np_state_t *context, char *buffer, int buffer_size) {
         if (p == NULL) {
           ret = false;
           log_msg(LOG_ERROR,
+                  NULL,
                   "Could not detect local ip. (4) Error: %s (%d)",
                   strerror(errno),
                   errno);
@@ -455,6 +445,7 @@ bool np_get_local_ip(np_state_t *context, char *buffer, int buffer_size) {
         if (strncmp(buffer, "0.0.0.0", 7) == 0) {
           ret = false;
           log_msg(LOG_ERROR,
+                  NULL,
                   "Could not detect local ip. (5) Error: ip result 0.0.0.0");
         } else {
           ret = true;
@@ -501,8 +492,9 @@ char *_sll_char_make_flat(np_state_t *context, np_sll_t(char_ptr, target)) {
   }
 #ifdef DEBUG
   if (sll_size(target) != i) {
-    log_msg(LOG_ERROR, "%s", ret);
+    log_msg(LOG_ERROR, NULL, "%s", ret);
     log_msg(LOG_ERROR,
+            NULL,
             "Size of original list (%" PRIu32
             ") does not equal the size of the flattend string (items flattend: "
             "%" PRIu32 ").",
