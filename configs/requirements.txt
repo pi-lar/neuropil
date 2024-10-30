@@ -7,7 +7,6 @@ meson
 nose2
 plantuml
 pydantic
-pydantic_core
 requests
 setuptools
 SCons
