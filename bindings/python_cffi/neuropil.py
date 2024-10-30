@@ -80,6 +80,12 @@ class np_id(object):
         neuropil.np_id_str(s, self._cdata)
         self._hex = ffi.string(s).decode("utf-8")
 
+    @staticmethod
+    def from_hex(s):
+        npid = ffi.new("np_id")
+        neuropil.np_str_id(ffi.addressof(npid), s.encode("utf-8"))
+        return np_id(npid)
+
     def __str__(self):
         return self._hex
 
