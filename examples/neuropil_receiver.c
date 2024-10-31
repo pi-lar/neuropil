@@ -24,7 +24,7 @@ int main(void) {
 
   np_context *ac = np_new_context(&cfg);
 
-  assert(np_ok == np_listen(ac, "udp4", "localhost", 3456, NULL));
+  assert(np_ok == np_listen(ac, "udp4", "localhost", 3456));
 
   assert(np_ok == np_run(ac, 0.0));
 

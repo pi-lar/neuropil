@@ -44,7 +44,6 @@ int main(int argc, char **argv) {
   char *proto              = "udp4";
   char *port               = NULL;
   char *hostname           = NULL;
-  char *dns_name           = NULL;
   int   level              = -2;
   char *logpath            = ".";
   char *required_nodes_opt = NULL;
@@ -59,7 +58,6 @@ int main(int argc, char **argv) {
                                          &proto,
                                          &port,
                                          &hostname,
-                                         &dns_name,
                                          &level,
                                          &logpath,
                                          "[-n nr_of_nodes]",
@@ -116,8 +114,7 @@ int main(int argc, char **argv) {
           np_context *context = np_new_context(settings);
           np_set_userdata(context, user_context);
 
-          if (np_ok !=
-              np_listen(context, proto, hostname, atoi(port), dns_name)) {
+          if (np_ok != np_listen(context, proto, hostname, atoi(port))) {
             np_example_print(context,
                              stderr,
                              "ERROR: Node could not listen to %s:%s:%s",
@@ -173,8 +170,7 @@ int main(int argc, char **argv) {
           np_context *context = np_new_context(settings);
           np_set_userdata(context, user_context);
 
-          if (np_ok !=
-              np_listen(context, proto, hostname, atoi(port), dns_name)) {
+          if (np_ok != np_listen(context, proto, hostname, atoi(port))) {
             np_example_print(context,
                              stderr,
                              "ERROR: Node could not listen to %s:%s:%s",
@@ -194,13 +190,12 @@ int main(int argc, char **argv) {
           np_join(context, data);
 
           int timeout = 200;
-          while (timeout > 0 &&
-                 false == child_status->my_node_key->node->joined_network) {
+          while (timeout > 0 && np_has_joined(context) == false) {
             // wait for join acceptance
             np_time_sleep(0.1);
             timeout--;
           }
-          if (true == child_status->my_node_key->node->joined_network) {
+          if (true == np_has_joined(context)) {
             fprintf(stdout, "%s joined network!\n", port);
           } else {
             fprintf(stderr, "%s could not join network!\n", port);

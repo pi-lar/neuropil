@@ -184,6 +184,7 @@ np_crypto_t *np_cryptofactory_by_public(
            crypto_sign_ed25519_PUBLICKEYBYTES);
     ret->ed25519_public_key_is_set = true;
   }
+
   if (ret != NULL && ret->ed25519_public_key_is_set) {
     if (0 != crypto_sign_ed25519_pk_to_curve25519(ret->derived_kx_public_key,
                                                   ret->ed25519_public_key)) {
@@ -284,27 +285,27 @@ int np_crypto_session(np_state_t          *context,
   assert(session != NULL);
   assert(remote_container != NULL);
   assert(remote_container->derived_kx_public_key_is_set);
+  assert(my_container->derived_kx_secret_key_is_set);
+  assert(my_container->derived_kx_public_key_is_set);
 
   int ret = -2;
-  if (my_container->derived_kx_public_key_is_set &&
-      my_container->derived_kx_secret_key_is_set) {
 
-    if (remote_is_client) {
-      ret = crypto_kx_server_session_keys(
-          session->session_key_to_read,
-          session->session_key_to_write,
-          my_container->derived_kx_public_key,
-          my_container->derived_kx_secret_key,
-          remote_container->derived_kx_public_key);
-    } else {
-      ret = crypto_kx_client_session_keys(
-          session->session_key_to_read,
-          session->session_key_to_write,
-          my_container->derived_kx_public_key,
-          my_container->derived_kx_secret_key,
-          remote_container->derived_kx_public_key);
-    }
+  if (remote_is_client) {
+    ret =
+        crypto_kx_server_session_keys(session->session_key_to_read,
+                                      session->session_key_to_write,
+                                      my_container->derived_kx_public_key,
+                                      my_container->derived_kx_secret_key,
+                                      remote_container->derived_kx_public_key);
+  } else {
+    ret =
+        crypto_kx_client_session_keys(session->session_key_to_read,
+                                      session->session_key_to_write,
+                                      my_container->derived_kx_public_key,
+                                      my_container->derived_kx_secret_key,
+                                      remote_container->derived_kx_public_key);
   }
+
   if (ret == 0) {
     session->session_key_to_read_is_set  = true;
     session->session_key_to_write_is_set = true;

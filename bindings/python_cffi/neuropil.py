@@ -331,7 +331,6 @@ class NeuropilNode(object):
         port,
         host=b"localhost",
         proto=b"udp4",
-        dns_name=None,
         auto_run=True,
         log_write_fn=None,
         **settings,
@@ -343,7 +342,6 @@ class NeuropilNode(object):
         self._context = None
         # python class variables
         self._host = host
-        self._dns_name = dns_name
         self._proto = proto
         self._port = port
         self._userdata = None
@@ -374,7 +372,7 @@ class NeuropilNode(object):
         self._context = neuropil.np_new_context(self._settings)
         neuropil.np_set_userdata(self._context, self._ffi_handle)
 
-        self.listen(self._proto, self._host, self._port, self._dns_name)
+        self.listen(self._proto, self._host, self._port)
         if auto_run:
             self.run(0)
 
@@ -419,22 +417,19 @@ class NeuropilNode(object):
             self.__callback_info_dict__[subject_id].append(recv_callback)
         return ret
 
-    def listen(self, protocol: str, hostname: str, port: int, dns_name: str):
+    def listen(self, protocol: str, hostname: str, port: int):
         protocol = _NeuropilHelper.convert_from_python(protocol)
         hostname = _NeuropilHelper.convert_from_python(hostname)
-        dns_name = _NeuropilHelper.convert_from_python(dns_name)
         port = _NeuropilHelper.convert_from_python(port)
 
         if not isinstance(protocol, bytes):
             raise ValueError(f"protocol needs to be of type `bytes` or `str`")
         if not isinstance(hostname, bytes):
             raise ValueError(f"hostname needs to be of type `bytes` or `str`")
-        if dns_name and not isinstance(dns_name, bytes):
-            raise ValueError(f"dns_name needs to be of type `bytes` or `str` on `None`")
         if not isinstance(port, int):
             raise ValueError(f"port needs to be of type `int`")
 
-        ret = neuropil.np_listen(self._context, protocol, hostname, port, dns_name)
+        ret = neuropil.np_listen(self._context, protocol, hostname, port)
         if ret is not neuropil.np_ok:
             raise NeuropilException(
                 "{error}".format(error=ffi.string(neuropil.np_error_str(ret))), ret

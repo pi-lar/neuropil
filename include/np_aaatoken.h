@@ -79,12 +79,12 @@ Type enum for np_aaatoken_t objects, has impact on serialization and usage
 FLAG
 */
 enum np_aaatoken_type {
-  np_aaatoken_type_undefined      = 0x00,
-  np_aaatoken_type_identity       = 0x01,
-  np_aaatoken_type_node           = 0x02,
-  np_aaatoken_type_handshake      = 0x04,
-  np_aaatoken_type_message_intent = 0x10,
-  np_aaatoken_type_accounting     = 0x20,
+  np_aaatoken_type_undefined = 0x00,
+  np_aaatoken_type_identity  = 0x01, // a digital identity authentication token
+  np_aaatoken_type_node      = 0x02, // a random digital identity
+  np_aaatoken_type_handshake = 0x04, // a interface token for 0x02
+  np_aaatoken_type_message_intent = 0x10, // a data exchange authorization token
+  np_aaatoken_type_accounting     = 0x20, // a accounting token
 };
 
 enum np_aaatoken_scope {

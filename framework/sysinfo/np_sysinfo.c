@@ -23,6 +23,7 @@
 
 #include "np_constants.h"
 #include "np_key.h"
+#include "np_keycache.h"
 #include "np_log.h"
 #include "np_memory.h"
 #include "np_node.h"
@@ -324,9 +325,19 @@ np_tree_t *np_sysinfo_get_my_info(np_state_t *context) {
                      _NP_SYSINFO_MY_NODE_STARTUP_AT,
                      np_treeval_new_d(np_module(sysinfo)->startup_at));
 
-  // build local node
+  // build local node with correct interface
   np_tree_t *local_node = np_tree_create();
-  _np_node_encode_to_jrb(local_node, context->my_node_key, true);
+
+  np_tree_insert_str(local_node,
+                     NP_SERIALISATION_NODE_KEY,
+                     np_treeval_new_s(_np_key_as_str(context->my_node_key)));
+
+  np_key_t *my_interface =
+      _np_keycache_find_interface(context, context->main_ip, NULL);
+
+  _np_node_encode_to_jrb(local_node, my_interface, true);
+
+  np_unref_obj(np_key_t, my_interface, "_np_keycache_find_interface");
 
   np_tree_insert_str(ret, _NP_SYSINFO_MY_NODE, np_treeval_new_tree(local_node));
   log_debug(LOG_SYSINFO, NULL, "my sysinfo object has a node");

@@ -239,8 +239,7 @@ NP_API_EXPORT
 enum np_return np_listen(np_context *ac,
                          const char *protocol,
                          const char *host,
-                         uint16_t    port,
-                         const char *dns_name);
+                         uint16_t    port);
 NP_API_EXPORT
 enum np_return np_node_fingerprint(np_context *ac, np_id(*id));
 
@@ -510,17 +509,18 @@ Starting up
 -----------
 
 .. c:function:: enum np_return np_listen(np_context* ac, const char* protocol,
-const char* host, uint16_t port, const char * dns_name)
+const char* host, uint16_t port)
 
    Binds a neuropil application context to a listening address.
 
    :param ac: a neuropil application context.
    :param protocol: a string denoting the underlying protocol to be used.
 Currently, only `"udp4"` is supported. :param host: the hostname to listen on.
-I.e., `"localhost"` to listen on the loopback interface. :param port: the port
-to listen on. If *port* is zero, the default port 3141 is used. :param dns_name:
-the dns name to publish, same as hostname if NULL. :return: :c:data:`np_ok` on
-success.
+I.e., `"localhost"` to listen on the loopback interface.
+   :param port: the port to listen on. If *port* is zero, the default port 3141
+is used.
+
+   :return: :c:data:`np_ok` on success.
 
    ===============================  ===========================================
    Status                           Meaning

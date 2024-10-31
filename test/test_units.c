@@ -25,6 +25,7 @@
 // #include "unit/test_memory.c"  // TODO: fixme
 #include "unit/test_message.c"
 #include "unit/test_minhash.c"
+#include "unit/test_network.c"
 #include "unit/test_node.c"
 #include "unit/test_route.c"
 #include "unit/test_util_uuid.c"

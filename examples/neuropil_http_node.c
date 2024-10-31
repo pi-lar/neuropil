@@ -37,7 +37,6 @@ int main(int argc, char **argv) {
   char *proto      = "udp4";
   char *port       = NULL;
   char *hostname   = NULL;
-  char *dns_name   = NULL;
   int   level      = -2;
   char *logpath    = ".";
 
@@ -50,7 +49,6 @@ int main(int argc, char **argv) {
                                          &proto,
                                          &port,
                                          &hostname,
-                                         &dns_name,
                                          &level,
                                          &logpath,
                                          "[-r realmname]",
@@ -88,7 +86,7 @@ int main(int argc, char **argv) {
   np_set_authorize_cb(context, authorize);
   np_set_authenticate_cb(context, authenticate);
 
-  if (np_ok != np_listen(context, proto, "localhost", atoi(port), dns_name)) {
+  if (np_ok != np_listen(context, proto, "localhost", atoi(port))) {
     np_example_print(context,
                      stderr,
                      "ERROR: Node could not listen to %s:%s:%s",

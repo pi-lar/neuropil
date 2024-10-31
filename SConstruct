@@ -546,6 +546,7 @@ programs = [
     #    (InDefaultBuild, PROGRAM_NAME (w/o neuropil_ prefix), DEPENDENCIES)
     (True, "controller", ["neuropil"]),
     (True, "receiver", ["neuropil"]),
+    (True, "privacy_relay", ["neuropil"]),
     (True, "sender", ["neuropil"]),
     (True, "bloom", ["neuropil"]),
     (True, "enhanced_bloom", ["neuropil"]),
@@ -567,7 +568,6 @@ programs = [
     (False, "echo_client", ["neuropil", "ncurses", "sodium"]),
     (False, "raspberry", ["neuropil", "ncurses", "sodium"]),
     (False, "demo_service", ["neuropil", "ncurses", "sodium"]),
-    # (False, 'raffle',         ['neuropil','ncurses','sodium','sqlite3']),
 ]
 
 for default, program, libs in programs:

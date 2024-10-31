@@ -121,7 +121,7 @@ Test(np_route_t,
                            "_np_keycache_find_or_create");
         np_node_t *new_node = NULL;
         np_new_obj(np_node_t, new_node);
-        insert_key->entity_array[2] = new_node;
+        insert_key->entity_array[e_nodeinfo] = new_node;
         sll_append(np_key_ptr, my_keys, insert_key);
       } else {
         ref_replace_reason(np_key_t,
@@ -130,7 +130,7 @@ Test(np_route_t,
                            "_np_keycache_find_or_create");
       }
 
-      NP_CAST(insert_key->entity_array[2], np_node_t, node);
+      NP_CAST(insert_key->entity_array[e_nodeinfo], np_node_t, node);
       node->latency = ((double)rand()) / 1000;
 
       np_key_t *added = NULL, *deleted = NULL;

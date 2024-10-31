@@ -212,7 +212,7 @@ int main(void) {
 
      \code
   */
-  assert(np_ok == np_listen(context, "udp4", "localhost", 3456, NULL));
+  assert(np_ok == np_listen(context, "udp4", "localhost", 3456));
 
   /**
    We need to give the keystore m a unique identifier, so we only use hash

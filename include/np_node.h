@@ -38,7 +38,7 @@ static const char *np_node_status_str[] = {
 struct np_node_s {
   char       *host_key;
   socket_type protocol;
-  char       *dns_name;
+  char       *ip_string;
   char       *port;
 
   // state extension
@@ -49,7 +49,6 @@ struct np_node_s {
   enum np_node_status _joined_status;
   double              join_send_at;
   double              leave_send_at;
-  bool                joined_network;
 
   uint8_t connection_attempts;
 
@@ -123,13 +122,6 @@ NP_API_INTERN
 void _np_node_encode_to_jrb(np_tree_t *data,
                             np_key_t  *node_key,
                             bool       include_stats);
-
-/** various getter method, mostly unused **/
-NP_API_INTERN
-char *_np_node_get_dns_name(np_node_t *np_node);
-
-NP_API_INTERN
-char *_np_node_get_port(np_node_t *np_node);
 
 NP_API_INTERN
 uint8_t _np_node_check_address_validity(np_node_t *np_node);

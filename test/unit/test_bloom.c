@@ -232,8 +232,11 @@ Test(np_bloom_t,
   //    fprintf(stdout, "### Testing stable bloom filter now\n");
   //    fprintf(stdout, "###\n");
 
-  np_bloom_t *stable_bloom = _np_stable_bloom_create(1024, 8, 16);
-  stable_bloom->op         = stable_operations;
+  np_bloom_t *stable_bloom =
+      _np_stable_bloom_create(NP_MSG_FORWARD_FILTER_SIZE,
+                              8,
+                              NP_MSG_FORWARD_FILTER_PRUNE_RATE);
+  stable_bloom->op = stable_operations;
 
   stable_bloom->op.add_cb(stable_bloom, test1);
   stable_bloom->op.add_cb(stable_bloom, test2);
@@ -248,7 +251,7 @@ Test(np_bloom_t,
   cr_expect(false == stable_bloom->op.check_cb(stable_bloom, test5),
             "expect that the id test5 is not found in bloom filter");
 
-  uint8_t test_count           = 100;
+  uint8_t test_count           = 10000;
   uint8_t test_success_counter = test_count;
   for (uint16_t i = 0; i < test_count; i++) {
 
@@ -258,7 +261,7 @@ Test(np_bloom_t,
     if (stable_bloom->op.check_cb(stable_bloom, test4)) {
       test_success_counter--;
     }
-    if (i % 4)
+    if (i % 8)
       cr_expect(true == stable_bloom->op.check_cb(stable_bloom, test2),
                 "expect that the id test2 is     found in bloom filter");
   }

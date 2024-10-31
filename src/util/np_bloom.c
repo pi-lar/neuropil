@@ -537,7 +537,7 @@ void _np_stable_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
     uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
     if (*_current_val > 0) {
-      (*_current_val)--;
+      (*_current_val) = (*_current_val) >> 1;
       _killed_bits++;
     }
   }

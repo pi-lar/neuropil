@@ -233,7 +233,6 @@ int main(int argc, char **argv) {
   char *proto      = "udp4";
   char *port       = NULL;
   char *hostname   = NULL;
-  char *dns_name   = NULL;
   int   level      = -2;
   char *logpath    = ".";
 
@@ -247,7 +246,6 @@ int main(int argc, char **argv) {
                                          &proto,
                                          &port,
                                          &hostname,
-                                         &dns_name,
                                          &level,
                                          &logpath,
                                          NULL,
@@ -274,7 +272,7 @@ int main(int argc, char **argv) {
 
   np_context *context = np_new_context(settings);
 
-  if (np_ok != np_listen(context, proto, hostname, atoi(port), dns_name)) {
+  if (np_ok != np_listen(context, proto, hostname, atoi(port))) {
     np_example_print(context,
                      stderr,
                      "ERROR: Node could not listen to %s:%s:%s",
@@ -292,8 +290,6 @@ int main(int argc, char **argv) {
   np_set_authenticate_cb(context, check_authenticate_token);
   np_set_authorize_cb(context, check_authorize_token);
   np_set_accounting_cb(context, check_account_token);
-
-  // state->my_node_key->node->joined_network = 1;
 
   /**
   check stdout and the log file because it will contain the hashvalue / connect

@@ -183,6 +183,7 @@ bool __np_axon_send_chunks(np_state_t              *context,
                "sending    message to hop %s",
                np_id_str(buf, &key_iter->val));
 
+      // duplicate message in case of more than one destination node
       void *message_to_send = msg;
       if (_np_memory_rtti_check(msg, np_memory_types_np_message_t)) {
         struct np_e2e_message_s *duplicate_msg = NULL;
@@ -198,18 +199,16 @@ bool __np_axon_send_chunks(np_state_t              *context,
         message_to_send = duplicate_msg;
       }
 
+      // async handover of message to node
       np_util_event_t send_event = {.type      = (evt_internal | evt_message),
                                     .user_data = message_to_send,
                                     .target_dhkey = msg_to};
-      _np_event_runtime_add_event(context,
-                                  current_run,
-                                  key_iter->val,
-                                  send_event);
-      // np_jobqueue_submit_event(context,
-      //                          0.0,
-      //                          key_iter->val,
-      //                          send_event,
-      //                          "event: message out");
+      np_jobqueue_submit_event(context,
+                               0.0,
+                               key_iter->val,
+                               send_event,
+                               "event: message out");
+
       if (_np_memory_rtti_check(msg, np_memory_types_np_message_t)) {
         np_unref_obj(np_message_t, message_to_send, ref_obj_creation);
       }
@@ -217,19 +216,6 @@ bool __np_axon_send_chunks(np_state_t              *context,
         np_unref_obj(np_messagepart_t, message_to_send, ref_obj_creation);
       }
 
-      // _np_event_runtime_add_event(context,
-      //                             current_run,
-      //                             key_iter->val,
-      //                             send_event);
-      /* POSSIBLE ASYNC POINT
-      char buf[100];
-      snprintf(buf, 100, "urn:np:message:splitter:%s", msg->uuid);
-      if(!np_jobqueue_submit_event(context, 0, key_iter->val, send_event,
-      buf)){ log_error("Jobqueue rejected new job for messagepart delivery of
-      msg %s", msg->uuid
-          );
-      }
-      */
       ret = true;
     } else {
       char buf[65] = {0};
@@ -563,11 +549,6 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
   if (is_generic_direction) {
     // lookup based on 2: leafset excluded
     tmp = _np_route_lookup(context, msg_event.target_dhkey, 2);
-    // if (sll_size(tmp) == 0) {
-    //   sll_free(np_key_ptr, tmp);
-    //   // lookup based on 1: leafset included
-    //   tmp = _np_route_lookup(context, msg_event.target_dhkey, 1);
-    // }
     if (sll_size(tmp) > 0)
       sll_append(np_dhkey_t, tmp_dhkeys, sll_first(tmp)->val->dhkey);
 
@@ -575,6 +556,16 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
     // already found a pheromone scent, use it!
     sll_init(np_key_ptr, tmp);
     sll_append(np_dhkey_t, tmp_dhkeys, msg_event.target_dhkey);
+  }
+
+  // no result from a targeted search in the key space, but we do have routing
+  // entries in our table -> use the best match of the whole table. Important
+  // for smaller networks, corner case on larger networks
+  if (sll_size(tmp) == 0 && _np_route_my_key_count_routes(context) > 0) {
+    tmp                = _np_route_get_table(context);
+    source_sll_of_keys = "_np_route_get_table";
+    _np_keycache_sort_keys_cpm(tmp, &msg_event.target_dhkey);
+    sll_append(np_dhkey_t, tmp_dhkeys, sll_first(tmp)->val->dhkey);
   }
 
   log_info(LOG_ROUTING,
@@ -890,17 +881,35 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
 
   NP_CAST(event.user_data, struct np_e2e_message_s, hs_message);
 
-  np_key_t *target_key = _np_keycache_find(context, event.target_dhkey);
+  np_key_t     *target_key     = _np_keycache_find(context, event.target_dhkey);
+  np_node_t    *target_node    = _np_key_get_node(target_key);
+  np_network_t *target_network = _np_key_get_network(target_key);
 
-  np_node_t *target_node = _np_key_get_node(target_key);
-  // np_node_t* my_node = _np_key_get_node(context->my_node_key);
+  char local_ip[64] = {0};
 
-  if (_np_node_check_address_validity(target_node)) {
+  if (_np_node_check_address_validity(target_node) &&
+      np_ok == _np_network_get_outgoing_ip(target_network,
+                                           target_node->ip_string,
+                                           target_node->protocol,
+                                           local_ip)) {
+
+    np_key_t *outgoing_node =
+        _np_keycache_find_interface(context, local_ip, NULL);
+
+    np_handshake_token_t *my_token = NULL;
+
+    if (outgoing_node == NULL) {
+      log_msg(LOG_WARNING,
+              hs_message->uuid,
+              "%s",
+              "target node ip address doesn't match with our interface list");
+      return false;
+    } else {
+      my_token = outgoing_node->entity_array[e_handshake_token];
+    }
+
     np_tree_t *msg_body = np_tree_create();
     np_tree_t *jrb_body = np_tree_create();
-    // get our node identity from the cache
-    np_handshake_token_t *my_token =
-        _np_token_factory_new_handshake_token(context);
 
     np_aaatoken_encode(jrb_body, my_token);
     np_tree_insert_str(msg_body,
@@ -911,10 +920,6 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
 
     np_tree_free(jrb_body);
     np_tree_free(msg_body);
-
-    np_unref_obj(np_aaatoken_t,
-                 my_token,
-                 "_np_token_factory_new_handshake_token");
 
     bool serialize_ok = _np_message_serialize_chunked(context, hs_message);
 
@@ -929,7 +934,7 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
                 hs_message->uuid,
                 "sending handshake message to %s (%s:%s)",
                 _np_key_as_str(target_key),
-                target_node->dns_name,
+                target_node->ip_string,
                 target_node->port);
 
       np_util_event_t handshake_send_evt = {
@@ -942,7 +947,9 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
                                   handshake_send_evt);
     }
   } else {
-    log_msg(LOG_ERROR, hs_message->uuid, "target node is not valid");
+    log_msg(LOG_ERROR,
+            hs_message->uuid,
+            "target node is not valid or cannot be joined");
   }
 
   np_unref_obj(np_key_t, target_key, "_np_keycache_find");

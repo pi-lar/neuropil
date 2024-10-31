@@ -757,7 +757,6 @@ example_user_context *parse_program_args(char  *program,
                                          char **proto,
                                          char **port,
                                          char **hostname,
-                                         char **dns_name,
                                          int   *level,
                                          char **logpath,
                                          char  *additional_fields_desc,
@@ -770,7 +769,7 @@ example_user_context *parse_program_args(char  *program,
   asprintf(
       &usage,
       "./%s [ -j key:proto:host:port ] [ -p protocol] [-b port] [-t (> 0) "
-      "worker_thread_count ] [-u hostname ] [-r dns_name] [-d loglevel] [-l "
+      "worker_thread_count ] [-u hostname ] [-d loglevel] [-l "
       "logpath] [-s display 0=Off 1=Ncurse 2=Log 4=Console] [-y statistic "
       "types (flag) 0=None 1=All 2=general 4=locks ] [-i identity filename] "
       "[-a passphrase for identity file]  [-w http domain] [-e http port] [-o "
@@ -799,7 +798,7 @@ example_user_context *parse_program_args(char  *program,
   while ((opt = getopt(argc, argv, optstr)) != EOF) {
     switch ((char)opt) {
     case 'j':
-      *j_key              = strdup(optarg);
+      *j_key              = strndup(optarg, 255);
       user_context->j_key = *j_key;
       break;
     case 't':
@@ -810,19 +809,16 @@ example_user_context *parse_program_args(char  *program,
       }
       break;
     case 'p':
-      *proto = strdup(optarg);
+      *proto = strndup(optarg, 4);
       break;
     case 'u':
-      *hostname = strdup(optarg);
-      break;
-    case 'r':
-      *dns_name = strdup(optarg);
+      *hostname = strndup(optarg, 255);
       break;
     case 'w':
-      user_context->opt_http_domain = strdup(optarg);
+      user_context->opt_http_domain = strndup(optarg, 255);
       break;
     case 'e':
-      user_context->opt_http_port = strdup(optarg);
+      user_context->opt_http_port = strndup(optarg, 6);
       break;
     case 'o':
       user_context->opt_sysinfo_mode = atoi(optarg);
@@ -837,7 +833,7 @@ example_user_context *parse_program_args(char  *program,
       user_context->statistic_types = atoi(optarg);
       break;
     case 'b':
-      *port              = strdup(optarg);
+      *port              = strndup(optarg, 6);
       user_context->port = *port;
       break;
     case 'i':
@@ -874,6 +870,10 @@ example_user_context *parse_program_args(char  *program,
   }
 
   free(optstr);
+
+  if (*hostname == NULL) {
+    *hostname = strndup("localhost", 9);
+  }
 
   if (ret) {
     for (additional_field_idx = 0;

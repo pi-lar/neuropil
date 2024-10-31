@@ -271,7 +271,7 @@ int main(void) {
                                &robot_identity);
 
     assert(np_ok ==
-           np_listen(controller_context, "udp4", "localhost", 3456, NULL));
+           np_listen(controller_context, "udp4", "localhost", 3456));
 
     np_get_id(&controller_authnz_keystore_id, "np:authnz:keystore", 18);
     np_keystore_init(controller_context,
@@ -287,7 +287,7 @@ int main(void) {
         np_keystore_destroy(controller_context, controller_authnz_keystore_id);
     printf("Keystore destroy: %d\n", keystore_destroy);
 
-    assert(np_ok == np_listen(robot_context, "udp4", "localhost", 3456, NULL));
+    assert(np_ok == np_listen(robot_context, "udp4", "localhost", 3456));
     np_get_id(&robot_authnz_keystore_id, "np:authnz:keystore", 18);
     np_keystore_init(robot_context,
                      robot_authnz_keystore_id,

@@ -119,7 +119,7 @@ void _np_message_t_del(np_state_t       *context,
                        void             *data) {
   struct np_e2e_message_s *msg = (struct np_e2e_message_s *)data;
 
-  log_debug(LOG_MEMORY | LOG_DEBUG, msg->uuid, "msg freeing memory");
+  log_debug(LOG_MEMORY, msg->uuid, "msg freeing memory");
 
   if (msg->msg_chunks != NULL) {
     assert(msg->state == msgstate_chunked);
@@ -153,7 +153,10 @@ static void _np_message_calculate_chunking(struct np_e2e_message_s *msg) {
   uint32_t chunks = ((uint16_t)(msg->binary_length - fixed_header_bytes) /
                      (MSG_CHUNK_SIZE_1024 - fixed_header_bytes));
 
-  log_info(LOG_INFO, msg->uuid, "required message chunks: %" PRId32, chunks);
+  log_debug(LOG_MESSAGE,
+            msg->uuid,
+            "required message chunks: %" PRId32,
+            chunks);
 
   if (chunks > UINT16_MAX) {
     log_error(msg->uuid,
@@ -195,11 +198,11 @@ enum np_return _np_message_add_chunk(struct np_e2e_message_s     *msg,
     msg->msg_flags = n2n_message->e2e_msg_part.msg_flags;
     msg->mac_e     = n2n_message->e2e_msg_part.mac_e;
     msg->nonce     = n2n_message->e2e_msg_part.nonce;
-    log_msg(LOG_INFO,
-            msg->uuid,
-            "message base chunk (%" PRIu32 " / %" PRIu16 ") now in list",
-            n2n_message->seq,
-            *((uint16_t *)n2n_message->e2e_msg_part.mac_e));
+    log_debug(LOG_MESSAGE,
+              msg->uuid,
+              "message base chunk (%" PRIu32 " / %" PRIu16 ") now in list",
+              n2n_message->seq,
+              *((uint16_t *)n2n_message->e2e_msg_part.mac_e));
 
     return np_ok;
   }
@@ -211,12 +214,12 @@ enum np_return _np_message_add_chunk(struct np_e2e_message_s     *msg,
   struct np_n2n_messagepart_s *tmp = NULL;
 
   if (cmp_result == 0) {
-    log_msg(LOG_INFO,
-            msg->uuid,
-            "message base chunk (%" PRIu32 " / %" PRIu16
-            ") already present in list, ignoring",
-            n2n_message->seq,
-            *((uint16_t *)n2n_message->e2e_msg_part.mac_e));
+    log_debug(LOG_MESSAGE,
+              msg->uuid,
+              "message base chunk (%" PRIu32 " / %" PRIu16
+              ") already present in list, ignoring",
+              n2n_message->seq,
+              *((uint16_t *)n2n_message->e2e_msg_part.mac_e));
     *count_of_chunks = msg->msg_chunk_counter;
     np_memory_unref_obj(context, n2n_message, ref_message_messagepart);
     return np_operation_failed;
@@ -308,12 +311,12 @@ double _np_message_get_expiry(const struct np_e2e_message_s *const self) {
 
   if (tstamp > now) {
     // timestap of msg is in the future.
-    // this is not possible and may indecate
+    // this is not possible and may indicate
     // a faulty date/time setup on the client
     log_msg(LOG_WARNING,
-            NULL,
-            "Detected faulty timestamp for message. Setting to now. "
-            "(timestamp: %f, now: %f, diff: %f sec)",
+            self->uuid,
+            "Detected faulty timestamp for message:"
+            "message timestamp: %f, now: %f, diff: %f sec)",
             tstamp,
             now,
             tstamp - now);

@@ -97,8 +97,7 @@ enum np_return np_token_fingerprint(np_context     *ac,
 enum np_return np_listen(np_context *ac,
                          const char *protocol,
                          const char *host,
-                         uint16_t    port,
-                         const char *dns_name);
+                         uint16_t    port);
 enum np_return np_node_fingerprint(np_context *ac, np_id(*id));
 enum np_return np_get_address(np_context *ac, char *address, uint32_t max);
 enum np_return np_join(np_context *ac, const char *address);

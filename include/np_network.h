@@ -71,8 +71,6 @@ struct np_network_s {
 
   socket_type socket_type;
 
-  struct addrinfo *addr_in; // where a node receives messages
-
   struct sockaddr *remote_addr;
   socklen_t        remote_addr_len;
 
@@ -120,6 +118,12 @@ bool _np_network_get_address(np_state_t       *context,
 // struct addrinfo _np_network_get_address (char *hostname);
 
 NP_API_INTERN
+enum np_return _np_network_get_remote_ip(np_context       *context,
+                                         const char       *hostname,
+                                         const socket_type protocol,
+                                         char             *remote_ip);
+
+NP_API_INTERN
 void _np_network_stop(np_network_t *ng, bool force);
 NP_API_INTERN
 void _np_network_start(np_network_t *ng, bool force);
@@ -137,6 +141,26 @@ bool _np_network_init(np_network_t *network,
                       uint16_t      max_messages_per_second,
                       int           prepared_socket_fd,
                       socket_type   passive_socket_type);
+
+NP_API_INTERN
+enum np_return _np_network_get_local_ip(NP_UNUSED const np_network_t *ng,
+                                        const char                   *hostname,
+                                        const socket_type socket_type,
+                                        char             *local_ip);
+
+NP_API_INTERN
+enum np_return
+_np_network_get_outgoing_ip(NP_UNUSED const np_network_t *ng,
+                            const char                   *hostname,
+                            const socket_type             passive_socket_type,
+                            char                         *local_ip);
+
+NP_API_INTERN
+bool _np_network_is_loopback_address(NP_UNUSED const np_network_t *ng,
+                                     const char                   *ip);
+
+NP_API_INTERN
+bool _np_network_is_private_address(NP_UNUSED np_network_t *ng, const char *ip);
 
 // NP_API_INTERN
 // bool _np_network_send_data(np_state_t   *context,

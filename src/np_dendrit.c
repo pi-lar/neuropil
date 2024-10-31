@@ -80,12 +80,12 @@ bool _check_and_send_destination_ack(np_state_t     *context,
       np_key_t *alias_key = NULL;
       alias_key           = _np_keycache_find(context, msg_event.target_dhkey);
       if (NULL != alias_key) {
-        log_info(LOG_MESSAGE, msg->uuid, "ack of message");
+        log_debug(LOG_MESSAGE, msg->uuid, "ack of message");
         _np_dhkey_assign(&from_dhkey, &alias_key->parent_dhkey);
         np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
       } else {
         _np_dhkey_assign(&from_dhkey, &msg_event.target_dhkey);
-        log_info(LOG_MESSAGE, msg->uuid, "ack of message");
+        log_debug(LOG_MESSAGE, msg->uuid, "ack of message");
       }
     }
 
@@ -98,14 +98,14 @@ bool _check_and_send_destination_ack(np_state_t     *context,
 
       np_key_t *subject_key = _np_keycache_find(context, in_subject_dhkey);
       if (NULL == subject_key) {
-        log_info(LOG_MESSAGE, msg->uuid, "e2e  ack key not found");
+        log_debug(LOG_MESSAGE, msg->uuid, "e2e  ack key not found");
         return true;
       }
 
       if (_np_intent_get_ack_session(subject_key, target_dhkey, &from_dhkey)) {
-        log_info(LOG_MESSAGE, msg->uuid, "e2e  ack of message found");
+        log_debug(LOG_MESSAGE, msg->uuid, "e2e  ack of message     found");
       } else {
-        log_info(LOG_MESSAGE, msg->uuid, "e2e  ack of message not found");
+        log_debug(LOG_MESSAGE, msg->uuid, "e2e  ack of message not found");
         return true;
       }
       np_unref_obj(np_key_t, subject_key, "_np_keycache_find");
@@ -132,7 +132,7 @@ bool _check_and_send_destination_ack(np_state_t     *context,
 #ifdef DEBUG
     char tmp[NP_UUID_BYTES * 2 + 1];
     sodium_bin2hex(tmp, NP_UUID_BYTES * 2 + 1, msg_out->uuid, NP_UUID_BYTES);
-    log_debug(LOG_ROUTING, msg->uuid, "ack of message with %s", tmp);
+    log_debug(LOG_MESSAGE, msg->uuid, "ack of message with %s", tmp);
 #endif
 
     np_util_event_t ack_event = {.type         = evt_message | evt_internal,
@@ -200,19 +200,16 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
       np_unref_obj(np_node_t, node_entry, "_np_node_decode_from_jrb");
       continue;
     }
-    // ignore myself (use hash?)
-    if (node_entry->protocol ==
-            _np_key_get_node(context->my_node_key)->protocol &&
-        (strncmp(node_entry->dns_name,
-                 _np_key_get_node(context->my_node_key)->dns_name,
-                 255) == 0 ||
-         strncmp(node_entry->dns_name, context->hostname, 255) == 0) &&
-        strncmp(node_entry->port,
-                _np_key_get_node(context->my_node_key)->port,
-                10) == 0) {
+
+    np_key_t *my_key = _np_keycache_find_interface(context,
+                                                   node_entry->ip_string,
+                                                   node_entry->port);
+    if (my_key != NULL) {
+      np_unref_obj(np_key_t, my_key, "_np_keycache_find_interface");
       np_unref_obj(np_node_t, node_entry, "_np_node_decode_from_jrb");
       continue;
     }
+
     // add entries in the message to our routing table
     // routing table is responsible to handle possible double entries
     np_dhkey_t search_key = np_dhkey_create_from_hash(node_entry->host_key);
@@ -229,26 +226,26 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
       if (sll_size(sll_of_keys) < NP_ROUTES_MAX_ENTRIES) {
         // our routing table is not full
         send_join = true;
-      } else { // our routing table is full, but the new dhkey is closer to
-               // us
+      } else {
+        // our routing table is full, but the new dhkey is closer to us
         _np_keycache_sort_keys_kd(sll_of_keys, &context->my_node_key->dhkey);
         send_join = _np_dhkey_between(&search_key,
                                       &context->my_node_key->dhkey,
                                       &sll_last(sll_of_keys)->val->dhkey,
                                       true);
-        // log_msg(LOG_INFO, "xxxxxxx  node %s is qualified for a piggy
-        // join.", _np_key_as_str(piggy_key));
       }
 
-      if (send_join) {
+      // check whether we can connect to this node
+      char ip_buffer[64] = {0};
+      _np_network_get_outgoing_ip(NULL,
+                                  node_entry->ip_string,
+                                  node_entry->protocol,
+                                  ip_buffer);
+      np_key_t *interface_key =
+          _np_keycache_find_interface(context, ip_buffer, NULL);
 
-        // enum np_node_status old_e = node_entry->_handshake_status;
-        // node_entry->_handshake_status = np_node_status_Initiated;
-        // log_info(LOG_HANDSHAKE,"set %s %s _handshake_status: %"PRIu8" ->
-        // %"PRIu8,
-        //     FUNC, node_entry->dns_name, old_e ,
-        //     node_entry->_handshake_status
-        // );
+      if (send_join && interface_key != NULL) {
+
         piggy_key = _np_keycache_find_or_create(context, search_key);
         np_util_event_t new_node_evt = {.type      = (evt_internal),
                                         .user_data = node_entry};
@@ -262,10 +259,13 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
                  _np_key_as_str(piggy_key));
         np_unref_obj(np_key_t, piggy_key, "_np_keycache_find_or_create");
       }
+
+      if (interface_key != NULL)
+        np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
       np_key_unref_list(sll_of_keys, "_np_route_row_lookup");
       sll_free(np_key_ptr, sll_of_keys);
+
     } else if (NULL != _np_key_get_node(piggy_key) &&
-               _np_key_get_node(piggy_key)->joined_network &&
                _np_key_get_node(piggy_key)->success_avg > BAD_LINK &&
                (np_time_now() - piggy_key->created_at) >=
                    BAD_LINK_REMOVE_GRACETIME) {
@@ -280,7 +280,6 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
                 msg->uuid,
                 "node %s is not qualified for a further piggy actions.",
                 _np_key_as_str(piggy_key));
-      // ,_np_key_get_node(piggy_key)->joined_network ? "J":"NJ");
       np_unref_obj(np_key_t, piggy_key, "_np_keycache_find");
     }
     np_unref_obj(np_node_t, node_entry, "_np_node_decode_from_jrb");
@@ -328,7 +327,7 @@ bool _np_in_callback_wrapper(np_state_t *context, np_util_event_t msg_event) {
 
   if (ret == np_ok && session_found &&
       crypto_session.session_type == crypto_session_initial) {
-    log_msg(LOG_INFO,
+    log_msg(LOG_DEBUG,
             msg_in->uuid,
             "initial crypto_session message detected (%s), importing values",
             msg_prop->msg_subject);
@@ -340,9 +339,9 @@ bool _np_in_callback_wrapper(np_state_t *context, np_util_event_t msg_event) {
   np_unref_obj(np_key_t, prop_in_key, "_np_keycache_find");
 
   if (ret != np_ok) {
-    log_info(LOG_ROUTING | LOG_MESSAGE,
-             msg_in->uuid,
-             "Could not decrypt data or initial session message");
+    log_msg(LOG_DEBUG | LOG_MESSAGE,
+            msg_in->uuid,
+            "could not decrypt data or initial session message");
     return false;
   }
   return true;
@@ -613,18 +612,17 @@ bool _np_in_ack(np_state_t *context, np_util_event_t msg_event) {
     response->received_at = np_time_now();
 
 #ifdef DEBUG
-    log_debug(LOG_ROUTING | LOG_MESSAGE,
-              msg->uuid,
-              "msg is acknowledgment of uuid=%s",
-              tmp);
+    log_info(LOG_MESSAGE, msg->uuid, "msg is acknowledgment of uuid=%s", tmp);
 #endif
 
   } else {
-    log_debug(LOG_ROUTING | LOG_MESSAGE,
-              msg->uuid,
-              "msg is acknowledgment of uuid=%s but we do not "
-              "know of this msg",
-              tmp);
+#ifdef DEBUG
+    log_warn(LOG_MESSAGE,
+             msg->uuid,
+             "msg is acknowledgment of uuid=%s but we do not "
+             "know of this msg",
+             tmp);
+#endif
   }
 
   np_unref_obj(np_key_t, ack_key, "_np_keycache_find");
@@ -656,13 +654,14 @@ bool _np_in_update(np_state_t *context, np_util_event_t msg_event) {
 
   np_aaatoken_decode(update_tree, update_token);
 
-  if (false ==
-      _np_aaatoken_is_valid(context, update_token, np_aaatoken_type_node)) {
+  if (false == _np_aaatoken_is_valid(context,
+                                     update_token,
+                                     np_aaatoken_type_handshake)) {
     np_unref_obj(np_aaatoken_t, update_token, ref_obj_creation);
     return false;
   }
 
-  np_dhkey_t update_dhkey = np_aaatoken_get_fingerprint(update_token, false);
+  np_dhkey_t      update_dhkey = _np_aaatoken_get_issuer(update_token);
   np_util_event_t update_event = {.type         = (evt_external | evt_token),
                                   .user_data    = update_token,
                                   .target_dhkey = update_dhkey};
@@ -991,12 +990,13 @@ bool _np_in_handshake(np_state_t *context, np_util_event_t msg_event) {
   np_util_event_t hs_event = msg_event;
   hs_event.user_data       = handshake_token;
   hs_event.type            = (evt_external | evt_token);
-  _np_event_runtime_start_with_event(context, search_dhkey, hs_event);
   /*
-      Sollte eigentlich _np_event_runtime_add_event sein, aber der folgende
-     code muss dann in eine cleanup methode o.ä. ausgelagert werden da so
-     nicht auf asyncronität ausgelegt
+  Sollte eigentlich _np_event_runtime_add_event sein,
+  aber der folgende code muss dann in eine cleanup methode
+  o.ä. ausgelagert werden da aktuell nicht auf Asynchronität ausgelegt
   */
+  _np_event_runtime_start_with_event(context, search_dhkey, hs_event);
+
   log_debug(LOG_HANDSHAKE,
             msg->uuid,
             "Update node key done! %p",
@@ -1008,7 +1008,7 @@ bool _np_in_handshake(np_state_t *context, np_util_event_t msg_event) {
     hs_alias_key = _np_keycache_find_or_create(context, msg_event.target_dhkey);
     hs_alias_key->parent_dhkey = msg_source_key->dhkey;
 
-    hs_event.type = (evt_internal | evt_token);
+    hs_event.type = (evt_external | evt_token);
     _np_event_runtime_add_event(context,
                                 msg_event.current_run,
                                 hs_alias_key->dhkey,
@@ -1021,8 +1021,9 @@ bool _np_in_handshake(np_state_t *context, np_util_event_t msg_event) {
     np_unref_obj(np_key_t, hs_alias_key, "_np_keycache_find_or_create");
 
     // finally delete possible wildcard #
-    char *tmp_connection_str =
-        handshake_token->subject + 12 /*_NP_URN_NODE_PREFIX + Protocol*/ + 5;
+    char *tmp_connection_str = handshake_token->subject +
+                               12 /*_NP_URN_NODE_PREFIX + Protocol*/
+                               + 5;
     np_dhkey_t wildcard_dhkey =
         np_dhkey_create_from_hostport("*", tmp_connection_str);
     hs_wildcard_key = _np_keycache_find(context, wildcard_dhkey);

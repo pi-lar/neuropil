@@ -36,10 +36,7 @@ Test(np_node_t,
     log_debug(LOG_DEBUG, NULL, "creating 1st key/node");
     _np_node_update(new_node_1, IPv4 | UDP, "localhost", "1111");
 
-    np_aaatoken_t *node_token_1 = _np_token_factory_new_node_token(context,
-                                                                   IPv4 | UDP,
-                                                                   "localhost",
-                                                                   "1111");
+    np_aaatoken_t *node_token_1 = _np_token_factory_new_node_token(context);
     np_node_t *node_1 = _np_node_from_token(node_token_1, node_token_1->type);
 
     np_node_t *node_key_2 =

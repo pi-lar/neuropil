@@ -80,26 +80,32 @@ enum NP_KEY_STATES {
 // my_node_key (1) -> (n) intents
 
 void __np_key_to_trinity(np_key_t *key, struct __np_node_trinity *trinity) {
-  ASSERT(key->entity_array[0] == NULL ||
-             _np_memory_rtti_check(key->entity_array[0],
+  ASSERT(key->entity_array[e_handshake_token] == NULL ||
+             _np_memory_rtti_check(key->entity_array[e_handshake_token],
                                    np_memory_types_np_aaatoken_t),
          "entity at 0 should be a token");
-  if (_np_memory_rtti_check(key->entity_array[1],
+  if (_np_memory_rtti_check(key->entity_array[e_aaatoken],
                             np_memory_types_np_aaatoken_t))
-    trinity->token = key->entity_array[1];
-  if (_np_memory_rtti_check(key->entity_array[2], np_memory_types_np_node_t))
-    trinity->node = key->entity_array[2];
-  if (_np_memory_rtti_check(key->entity_array[3], np_memory_types_np_network_t))
-    trinity->network = key->entity_array[3];
+    trinity->token = key->entity_array[e_aaatoken];
+  if (_np_memory_rtti_check(key->entity_array[e_nodeinfo],
+                            np_memory_types_np_node_t))
+    trinity->node = key->entity_array[e_nodeinfo];
+  if (_np_memory_rtti_check(key->entity_array[e_network],
+                            np_memory_types_np_network_t))
+    trinity->network = key->entity_array[e_network];
 }
 
 np_network_t *_np_key_get_network(np_key_t *key) {
-  return key->entity_array[3];
+  return key->entity_array[e_network];
 }
 
-np_node_t *_np_key_get_node(np_key_t *key) { return key->entity_array[2]; }
+np_node_t *_np_key_get_node(np_key_t *key) {
+  return key->entity_array[e_nodeinfo];
+}
 
-np_aaatoken_t *_np_key_get_token(np_key_t *key) { return key->entity_array[1]; }
+np_aaatoken_t *_np_key_get_token(np_key_t *key) {
+  return key->entity_array[e_aaatoken];
+}
 
 void __keystate_noop(np_util_statemachine_t *statemachine,
                      const np_util_event_t   event) {
@@ -179,7 +185,7 @@ void __np_key_populate_states(np_key_t *key) {
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, UNUSED, IN_SETUP_ALIAS,
         __np_alias_set, __is_alias_handshake_token); 
-    // handle external udp handshake network connection info
+    // handle external udp network connection info
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, UNUSED, UNUSED,
         __np_alias_set_node, __is_alias_node_info); 
@@ -203,7 +209,6 @@ void __np_key_populate_states(np_key_t *key) {
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, UNUSED, IN_DESTROY,
         __np_alias_set_node_destroy, __is_unused);
-
 
     // create node as well and "steal" network structure
     NP_UTIL_STATEMACHINE_STATE(
@@ -250,6 +255,10 @@ void __np_key_populate_states(np_key_t *key) {
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, IN_SETUP_NODE, IN_SETUP_NODE,
         __np_node_split_message, __is_np_message); 
+    // received handshake token (from other node)
+    NP_UTIL_STATEMACHINE_TRANSITION(
+        states, IN_SETUP_NODE, IN_SETUP_NODE,
+        __np_node_update_token, __is_node_handshake_token); 
     // received a full node token (join)
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, IN_SETUP_NODE, IN_SETUP_NODE,
@@ -416,6 +425,10 @@ void __np_key_populate_states(np_key_t *key) {
     NP_UTIL_STATEMACHINE_TRANSITION(
         states, IN_USE_IDENTITY, IN_DESTROY,
         __np_identity_shutdown, __is_identity_invalid); 
+    // check for local identity validity
+    NP_UTIL_STATEMACHINE_TRANSITION(
+        states, IN_USE_IDENTITY, IN_USE_IDENTITY,
+        __keystate_noop, __is_noop_event); 
 
 
     NP_UTIL_STATEMACHINE_STATE(

@@ -375,6 +375,24 @@ void _np_set_identity(np_context *ac, np_aaatoken_t *identity) {
   np_unref_obj(np_key_t, my_identity_key, "_np_keycache_find_or_create");
 }
 
+void _np_add_interface(np_context *ac, np_aaatoken_t *hs_token) {
+
+  np_ctx_cast(ac);
+
+  assert(context->my_node_key != NULL);
+
+  np_dhkey_t search_key      = np_aaatoken_get_fingerprint(hs_token, false);
+  np_key_t *my_interface_key = _np_keycache_find_or_create(context, search_key);
+
+  np_util_event_t ev = {.type         = (evt_internal | evt_token),
+                        .user_data    = hs_token,
+                        .target_dhkey = search_key};
+  _np_event_runtime_start_with_event(context, search_key, ev);
+  _np_statistics_update(context);
+
+  np_unref_obj(np_key_t, my_interface_key, "_np_keycache_find_or_create");
+}
+
 void np_send_response_msg(np_context   *ac,
                           np_message_t *original,
                           np_tree_t    *body) {
@@ -396,38 +414,139 @@ void np_send_response_msg(np_context   *ac,
 char *np_get_connection_string(np_context *ac) {
   np_ctx_cast(ac);
 
-  return np_get_connection_string_from(context->my_node_key, true);
+  np_key_t *main_itf_key =
+      _np_keycache_find_interface(context, context->main_ip, NULL);
+
+  if (main_itf_key) {
+    return np_get_connection_string_from(main_itf_key, true);
+  }
+  return NULL;
 }
 
 char *np_get_connection_string_from(np_key_t *node_key, bool includeHash) {
   np_ctx_memory(node_key);
 
-  // "can only extract connection string from node or wildcard. type is:
-  // %"PRIu32,node_key->type
+  // can only extract connection string from node, wildcard or interface.
   if (!(FLAG_CMP(node_key->type, np_key_type_node) ||
-        FLAG_CMP(node_key->type, np_key_type_wildcard)))
+        FLAG_CMP(node_key->type, np_key_type_wildcard) ||
+        FLAG_CMP(node_key->type, np_key_type_interface)))
     return NULL;
 
   np_node_t *node_data = _np_key_get_node(node_key);
   if (node_data) {
+
+    log_msg(LOG_DEBUG, NULL, "node_data->host_key: %s", node_data->host_key);
+
     return (np_build_connection_string(
-        includeHash == true ? _np_key_as_str(node_key) : NULL,
+        includeHash == true ? node_data->host_key : NULL,
         _np_network_get_protocol_string(context, node_data->protocol),
-        node_data->dns_name,
+        node_data->ip_string,
         node_data->port,
         includeHash));
   }
-
   return NULL;
 }
 
+enum np_return
+_np_listen_safe(np_context *ac, char *protocol, char *host, char *port) {
+  enum np_return ret = np_ok;
+  np_ctx_cast(ac);
+
+  char        safe_hostname[256];
+  char        local_ip[255];
+  socket_type np_proto = UDP | IPv6;
+
+  // verify requested protocol
+  if (NULL != protocol) {
+    np_proto = _np_network_parse_protocol_string(protocol);
+    if (np_proto == UNKNOWN_PROTO) {
+      log_msg(LOG_WARNING,
+              NULL,
+              "neuropil_init: could not parse protocol string %s",
+              protocol);
+      return (np_invalid_argument);
+    }
+  }
+
+  // get local hostname and local ip
+  if (host == NULL) {
+    gethostname(safe_hostname, 255);
+  } else {
+    strncpy(safe_hostname, host, 255);
+  }
+  if (np_ok !=
+      _np_network_get_local_ip(NULL, safe_hostname, np_proto, local_ip)) {
+    log_msg(LOG_WARNING,
+            NULL,
+            "neuropil_init: could not get local ip for hostname %s",
+            host);
+    return (np_invalid_argument);
+  }
+
+  // check if we are already listening on this ip
+  if (context->main_ip != NULL &&
+      strncmp(context->main_ip, local_ip, 50) == 0) {
+    log_msg(LOG_INFO,
+            NULL,
+            "neuropil_init: already listening on hostname %s (%s)",
+            safe_hostname,
+            local_ip);
+    return (np_ok);
+  }
+
+  log_debug(LOG_NETWORK,
+            NULL,
+            "now initializing networking for %x:%s:%s",
+            np_proto,
+            local_ip,
+            port);
+
+  log_debug(LOG_NETWORK, NULL, "building network base structure");
+
+  // create listening interface
+  np_aaatoken_t *hs_token =
+      _np_token_factory_new_handshake_token(context, np_proto, local_ip, port);
+  _np_add_interface(context, hs_token);
+
+  if (context->main_ip == NULL) {
+    context->main_ip = strndup(local_ip, 50);
+  }
+  np_unref_obj(np_aaatoken_t,
+               hs_token,
+               "_np_token_factory_new_handshake_token");
+
+  if (_np_jobqueue_init(context) == false) {
+    log_msg(LOG_ERROR,
+            NULL,
+            "neuropil_init: _np_jobqueue_init failed: %s",
+            strerror(errno));
+    ret = np_startup;
+
+  } else if (!_np_network_module_init(context)) {
+    log_msg(LOG_ERROR,
+            NULL,
+            "neuropil_init: could not enable general networking");
+    ret = np_startup;
+
+  } else if (!_np_statistics_enable(context)) {
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not enable statistics");
+    ret = np_startup;
+  }
+
+  if (ret != np_ok) {
+    TSP_SET(context->status, np_error);
+  }
+
+  return ret;
+}
+
 char *np_build_connection_string(
-    char *hash, char *protocol, char *dns_name, char *port, bool includeHash) {
+    char *hash, char *protocol, char *hostname, char *port, bool includeHash) {
   char *connection_str;
   if (true == includeHash) {
-    asprintf(&connection_str, "%s:%s:%s:%s", hash, protocol, dns_name, port);
+    asprintf(&connection_str, "%s:%s:%s:%s", hash, protocol, hostname, port);
   } else {
-    asprintf(&connection_str, "%s:%s:%s", protocol, dns_name, port);
+    asprintf(&connection_str, "%s:%s:%s", protocol, hostname, port);
   }
 
   return connection_str;
@@ -445,16 +564,60 @@ void np_send_join(np_context *ac, const char *node_string) {
   np_node_t *new_node = _np_node_decode_from_str(context, node_string);
   if (new_node == NULL) return;
 
-  if (new_node->protocol == _np_key_get_node(context->my_node_key)->protocol &&
-      (strncmp(new_node->dns_name,
-               _np_key_get_node(context->my_node_key)->dns_name,
-               255) == 0 ||
-       strncmp(new_node->dns_name, context->hostname, 255) == 0) &&
-      strncmp(new_node->port,
-              _np_key_get_node(context->my_node_key)->port,
-              10) == 0) {
+  // node_string could not contain a valid ip address, so we need to resolve it
+  char ip_buffer[64] = {0};
+  _np_network_get_remote_ip(ac,
+                            new_node->ip_string,
+                            new_node->protocol,
+                            ip_buffer);
+  free(new_node->ip_string);
+  new_node->ip_string = strndup(ip_buffer, 64);
+
+  memset(ip_buffer, 0, 64);
+  snprintf(ip_buffer, 64, "%s:%s", new_node->ip_string, new_node->port);
+  // now lookup existing connection based on the resolved ip address
+  np_key_t *existing_connection = _np_keycache_find_by_details(context,
+                                                               ip_buffer,
+                                                               true,
+                                                               0,
+                                                               false,
+                                                               true,
+                                                               true,
+                                                               false);
+
+  if (existing_connection != NULL) {
+    np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
     return;
   }
+
+  // check whether we have already an interface setup for the remote address
+  char local_ip[64] = {0};
+  if (np_ok != _np_network_get_outgoing_ip(NULL,
+                                           new_node->ip_string,
+                                           new_node->protocol,
+                                           local_ip)) {
+    np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
+    return; // np_invalid_operation;
+  }
+
+  np_key_t *interface_key =
+      _np_keycache_find_interface(context, local_ip, NULL);
+  // if no interface exists, try to setup a new passive interface because the
+  // user explicitly requested this np_join() command
+  if (interface_key == NULL &&
+      np_ok != _np_listen_safe(context,
+                               _np_network_get_protocol_string(
+                                   context,
+                                   new_node->protocol | PASSIVE),
+                               local_ip,
+                               "31415")) {
+    np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
+    return; // np_invalid_operation;
+  }
+
+  np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
+  np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
+
   np_dhkey_t search_key = {0};
   if (new_node->host_key[0] == '*') {
     search_key = np_dhkey_create_from_hostport("*", node_string + 2);
@@ -465,12 +628,15 @@ void np_send_join(np_context *ac, const char *node_string) {
     return;
   }
 
+  char search_key_str[65] = {0};
+  np_id_str(search_key_str, &search_key);
+
   if (FLAG_CMP(new_node->protocol, PASSIVE)) {
     log_msg(LOG_WARNING,
             NULL,
             "user requests to join passive node at %u:%s:%s!",
             new_node->protocol,
-            new_node->dns_name,
+            new_node->ip_string,
             new_node->port);
     np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");
     return;
@@ -479,15 +645,9 @@ void np_send_join(np_context *ac, const char *node_string) {
             NULL,
             "user request to join %u:%s:%s",
             new_node->protocol,
-            new_node->dns_name,
+            new_node->ip_string,
             new_node->port);
   }
-
-  // enum np_node_status old_e = new_node->_handshake_status;
-  // new_node->_handshake_status = np_node_status_Initiated;
-  // log_info(LOG_HANDSHAKE,"set %s %s _handshake_status: %"PRIu8" -> %"PRIu8,
-  //     FUNC, new_node->dns_name, old_e , new_node->_handshake_status
-  // );
 
   np_key_t *node_key = _np_keycache_find_or_create(context, search_key);
 

@@ -158,7 +158,8 @@ static const char *_NP_MSG_EXTENSIONS_SESSION = "_np.session";
 static const char *NP_HS_PAYLOAD   = "_np.payload";
 static const char *NP_HS_SIGNATURE = "_np.signature";
 static const char *NP_HS_PRIO      = "_np.hs.priority";
-
+static const char *NP_NW_MAX_MSGS_PER_SEC =
+    "_np.network.default_max_msgs_per_sec";
 // body constants
 static const char *NP_MSG_BODY_TEXT = "_np.text";
 static const char *NP_MSG_BODY_XML  = "_np.xml";

@@ -954,7 +954,6 @@ void __np_msgproperty_redeliver_messages(np_util_statemachine_t *statemachine,
     current = (np_redelivery_data_t *)iter_tree->val.value.v;
 
     if (current->redelivery_at < now) { // send message redelivery attempt
-      current->redelivery_at = current->redelivery_at + resend_interval;
 
       struct np_e2e_message_s *redeliver_copy = NULL;
       np_new_obj(np_message_t, redeliver_copy);
@@ -969,6 +968,8 @@ void __np_msgproperty_redeliver_messages(np_util_statemachine_t *statemachine,
                                   event.current_run,
                                   property_conf->subject_dhkey_out,
                                   message_event);
+
+      current->redelivery_at = current->redelivery_at + resend_interval;
       /*
       char buf[100];
       snprintf(buf,100,"urn:np:message:redelivery:%s",redeliver_copy->uuid);
@@ -2037,8 +2038,8 @@ void __np_property_handle_in_msg(np_util_statemachine_t *statemachine,
                                          iter_usercallbacks->val->data);
       log_info(LOG_MESSAGE,
                msg_in->uuid,
-               "invoked user callbacks. result: %" PRIu8,
-               ret);
+               "invoked user callbacks. result: %s",
+               ret ? "ok" : "error");
       sll_next(iter_usercallbacks);
     }
   }

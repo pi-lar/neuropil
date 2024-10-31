@@ -39,7 +39,6 @@ int main(int argc, char **argv) {
   char *proto      = "udp4";
   char *port       = NULL;
   char *hostname   = NULL;
-  char *dns_name   = NULL;
   int   level      = -2;
   char *logpath    = ".";
   /**
@@ -61,7 +60,6 @@ int main(int argc, char **argv) {
                                          &proto,
                                          &port,
                                          &hostname,
-                                         &dns_name,
                                          &level,
                                          &logpath,
                                          "[-m message_to_send]",
@@ -98,7 +96,7 @@ int main(int argc, char **argv) {
   np_set_userdata(ac, user_context);
   np_ctx_cast(ac);
 
-  if (np_ok != np_listen(context, proto, hostname, atoi(port), dns_name)) {
+  if (np_ok != np_listen(context, proto, hostname, atoi(port))) {
     np_example_print(context,
                      stderr,
                      "ERROR: Node could not listen to %s:%s:%s",

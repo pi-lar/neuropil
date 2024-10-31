@@ -53,6 +53,7 @@
 
 static const char *error_strings[] = {
     "",
+    "operation failed",
     "unknown error cause",
     "operation is not implemented",
     "could not init network",
@@ -60,6 +61,7 @@ static const char *error_strings[] = {
     "operation is currently invalid",
     "insufficient memory",
     "startup error. See log for more details"};
+
 const char *np_error_str(enum np_return e) {
   if (e > 0) return error_strings[e];
   else return NULL;
@@ -240,6 +242,22 @@ np_context *np_new_context(struct np_settings *settings_in) {
   } else if (_np_attributes_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: _np_attributes_init failed");
     status = np_startup;
+  } else if (_np_jobqueue_init(context) == false) {
+    log_msg(LOG_ERROR,
+            NULL,
+            "neuropil_init: _np_jobqueue_init failed: %s",
+            strerror(errno));
+    status = np_startup;
+
+  } else if (!_np_network_module_init(context)) {
+    log_msg(LOG_ERROR,
+            NULL,
+            "neuropil_init: could not enable general networking");
+    status = np_startup;
+
+  } else if (!_np_statistics_enable(context)) {
+    log_msg(LOG_ERROR, NULL, "neuropil_init: could not enable statistics");
+    status = np_startup;
   } else {
     np_thread_t *new_thread =
         __np_createThread(context, NULL, false, np_thread_type_main);
@@ -267,157 +285,37 @@ np_context *np_new_context(struct np_settings *settings_in) {
     context->msg_part_filter->op = decaying_op;
   }
 
-  TSP_INITD(context->status, np_uninitialized);
-  if (status == np_ok) {
-    TSP_SET(context->status, np_stopped);
-  } else {
-    TSP_SET(context->status, np_error);
+  np_aaatoken_t *node_token = _np_token_factory_new_node_token(context);
+  _np_set_identity(context, node_token);
+
+  // initialize routing table
+  if (_np_route_init(context, context->my_node_key) == false) {
+    log_msg(LOG_ERROR,
+            NULL,
+            "neuropil_init: route_init failed: %s",
+            strerror(errno));
+    status = np_startup;
   }
+
+  TSP_INITD(context->status, np_stopped);
   return ((np_context *)context);
-}
-
-bool __np_is_already_listening(np_state_t *context) {
-  return (context->my_node_key != NULL);
-}
-
-enum np_return _np_listen_safe(np_context *ac,
-                               char       *protocol,
-                               char       *host,
-                               uint16_t    port,
-                               const char *dns_name) {
-  enum np_return ret = np_ok;
-  np_ctx_cast(ac);
-
-  TSP_GET(enum np_status, context->status, context_status);
-
-  if (__np_is_already_listening(context)) {
-    log_msg(LOG_ERROR,
-            NULL,
-            "node listens already and cannot get a second listener");
-    ret = np_invalid_operation;
-  } else if (context_status != np_stopped) {
-    log_msg(LOG_ERROR,
-            NULL,
-            "node is not in stopped state and cannot start propertly");
-    ret = np_invalid_operation;
-  } else {
-    char        np_service[7];
-    socket_type np_proto = UDP | IPv6;
-
-    snprintf(np_service, 7, "%" PRIu16, port);
-
-    if (NULL != protocol) {
-      np_proto = _np_network_parse_protocol_string(protocol);
-      if (np_proto == UNKNOWN_PROTO) {
-        ret = np_invalid_argument;
-      } else {
-        log_debug(LOG_NETWORK,
-                  NULL,
-                  "now initializing networking for %s:%s",
-                  protocol,
-                  np_service);
-      }
-    } else {
-      log_debug(LOG_NETWORK,
-                NULL,
-                "now initializing networking for udp6://%s",
-                np_service);
-    }
-
-    if (ret == np_ok) {
-      log_debug(LOG_NETWORK, NULL, "building network base structure");
-      // np_network_t* my_network = NULL;
-      // np_new_obj(np_network_t, my_network);
-      // get public / local network interface id
-      char np_host[255];
-      bool has_host = true;
-      if (NULL == host && port != 0) {
-        log_debug(LOG_NETWORK, NULL, "neuropil_init: resolve hostname");
-        // if (np_get_local_ip(context, np_host, 255) == false) {
-        if (0 != gethostname(np_host, 255)) {
-          strncpy(np_host, "localhost", 255);
-        }
-        // }
-      } else if (NULL != host) {
-        strncpy(np_host, host, 255);
-      } else {
-        has_host = false;
-      }
-
-      char np_dns_name[255];
-      if (dns_name == NULL) {
-        strncpy(np_dns_name, np_host, 255);
-      } else {
-        strncpy(np_dns_name, dns_name, 255);
-      }
-      strncpy(context->hostname, np_host, 255);
-
-      np_aaatoken_t *node_token = _np_token_factory_new_node_token(context,
-                                                                   np_proto,
-                                                                   np_dns_name,
-                                                                   np_service);
-      _np_set_identity(context, node_token);
-
-      // initialize routing table
-      if (_np_route_init(context, context->my_node_key) == false) {
-        log_msg(LOG_ERROR,
-                NULL,
-                "neuropil_init: route_init failed: %s",
-                strerror(errno));
-        ret = np_startup;
-      } else if (_np_jobqueue_init(context) == false) {
-        log_msg(LOG_ERROR,
-                NULL,
-                "neuropil_init: _np_jobqueue_init failed: %s",
-                strerror(errno));
-        ret = np_startup;
-      } else if (!_np_network_module_init(context)) {
-        log_msg(LOG_ERROR,
-                NULL,
-                "neuropil_init: could not enable general networking");
-        ret = np_startup;
-      } else if (!_np_statistics_enable(context)) {
-        log_msg(LOG_ERROR, NULL, "neuropil_init: could not enable statistics");
-        ret = np_startup;
-      } else {
-        _np_shutdown_init(context);
-        np_threads_start_workers(context, context->settings->n_threads);
-        TSP_SET(context->status, np_stopped);
-
-        log_info(LOG_MISC,
-                 NULL,
-                 "neuropil successfully initialized: id:   %s",
-                 _np_key_as_str(context->my_identity));
-        log_info(LOG_MISC,
-                 NULL,
-                 "neuropil successfully initialized: node: %s",
-                 _np_key_as_str(context->my_node_key));
-        log_info(LOG_EXPERIMENT,
-                 NULL,
-                 "node: %s / id: %s",
-                 _np_key_as_str(context->my_node_key),
-                 _np_key_as_str(context->my_identity));
-        _np_log_fflush(context, true);
-      }
-    }
-    if (ret != np_ok) {
-      TSP_SET(context->status, np_error);
-    }
-  }
-
-  return ret;
 }
 
 enum np_return np_listen(np_context *ac,
                          const char *protocol,
                          const char *host,
-                         uint16_t    port,
-                         const char *dns_name) {
-  char          *safe_protocol = protocol ? strndup(protocol, 5) : NULL;
-  char          *safe_host     = host ? strndup(host, 200) : NULL;
-  char          *safe_dns_name = dns_name ? strndup(dns_name, 200) : NULL;
+                         uint16_t    port) {
+  assert(host != NULL);
+  assert(protocol != NULL);
+
+  char *safe_protocol   = protocol ? strndup(protocol, 5) : NULL;
+  char *safe_host       = host ? strndup(host, 255) : NULL;
+  char  safe_service[8] = {0};
+
+  snprintf(safe_service, 7, "%" PRIu16, port);
+
   enum np_return ret =
-      _np_listen_safe(ac, safe_protocol, safe_host, port, safe_dns_name);
+      _np_listen_safe(ac, safe_protocol, safe_host, safe_service);
   free(safe_host);
   free(safe_protocol);
   return ret;
@@ -599,7 +497,13 @@ enum np_return np_get_address(np_context *ac, char *address, uint32_t max) {
   enum np_return ret = np_ok;
   np_ctx_cast(ac);
 
-  char *str = np_get_connection_string_from(context->my_node_key, true);
+  np_key_t *main_itf_key =
+      _np_keycache_find_interface(context, context->main_ip, NULL);
+
+  if (main_itf_key == NULL) return np_operation_failed;
+
+  char *str = np_get_connection_string_from(main_itf_key, true);
+  log_msg(LOG_DEBUG, NULL, "str: %s", str);
   if (strlen(str) > max) {
     ret = np_invalid_argument;
   } else {
@@ -616,9 +520,8 @@ bool np_has_joined(np_context *ac) {
   np_ctx_cast(ac);
 
   if (_np_route_my_key_has_connection(context) &&
-      context->my_node_key != NULL &&
-      _np_key_get_node(context->my_node_key) != NULL) {
-    ret = _np_key_get_node(context->my_node_key)->joined_network;
+      context->my_node_key != NULL) {
+    ret = true;
   }
 
   return ret;
@@ -646,9 +549,6 @@ bool np_has_receiver_for(np_context *ac, np_subject subject) {
   np_dhkey_t prop_dhkey =
       _np_msgproperty_tweaked_dhkey(OUTBOUND, subject_dhkey);
   np_key_t *prop_key = _np_keycache_find(context, prop_dhkey);
-
-  // log_debug(LOG_MISC, NULL, "receiver key %p for %08"PRIx32":%08"PRIx32 "!",
-  // prop_key, subject_dhkey.t[0], subject_dhkey.t[1]);
 
   if (prop_key == NULL) return false;
 
@@ -731,6 +631,7 @@ enum np_return np_send_to(np_context          *ac,
                      np_treeval_new_bin((void *)message_body, length));
 
   np_attributes_t tmp_msg_attr;
+
   if (np_ok == np_init_datablock(tmp_msg_attr, sizeof(tmp_msg_attr))) {
     struct np_data_conf from_config = {.type      = NP_DATA_TYPE_BIN,
                                        .data_size = NP_FINGERPRINT_BYTES};
@@ -1062,12 +963,35 @@ enum np_return np_run(np_context *ac, double duration) {
   enum np_return ret    = np_ok;
   np_thread_t   *thread = _np_threads_get_self(context);
 
-  if (!__np_is_already_listening(context)) {
+  if (context->main_ip == NULL) {
     ret = np_listen(ac,
                     _np_network_get_protocol_string(context, PASSIVE | IPv4),
                     "localhost",
-                    31415,
-                    NULL);
+                    31415);
+  }
+
+  TSP_SCOPE(context->status) {
+    if (context->status == np_stopped) {
+
+      _np_shutdown_init(context);
+      np_threads_start_workers(context, context->settings->n_threads);
+
+      log_info(LOG_MISC,
+               NULL,
+               "neuropil successfully initialized: id:   %s",
+               _np_key_as_str(context->my_identity));
+      log_info(LOG_MISC,
+               NULL,
+               "neuropil successfully initialized: node: %s",
+               _np_key_as_str(context->my_node_key));
+      log_info(LOG_EXPERIMENT,
+               NULL,
+               "node: %s / id: %s",
+               _np_key_as_str(context->my_node_key),
+               _np_key_as_str(context->my_identity));
+      _np_log_fflush(context, true);
+    }
+    ret = np_ok;
   }
 
   TSP_GET(enum np_status, context->status, context_status);

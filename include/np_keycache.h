@@ -107,6 +107,21 @@ _np_keycache_find_by_details(np_state_t         *context,
                              bool                require_port,
                              bool                require_hash);
 
+/**
+ * This function performs a lookup on np_key_t nodes in the key cache, that have
+ * the type "np_key_type_interface" set. If a np_key_t was found, the ip_string
+ * and port arguments are matched against the np_node_t information
+ *
+ * @param context The context to search in
+ * @param ip_string The ip_string to match against
+ * @param port The port to match against
+ * @return The np_key_t if found, NULL otherwise
+ */
+NP_API_INTERN
+np_key_t *_np_keycache_find_interface(np_state_t *context,
+                                      const char *ip_string,
+                                      const char *port);
+
 NP_API_INTERN
 sll_return(np_key_ptr) _np_keycache_get_all(np_state_t *context);
 

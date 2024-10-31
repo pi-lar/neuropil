@@ -206,7 +206,10 @@ Test(test_serialization_qcbor,
     np_tree_t *msg_body = np_tree_create();
     // get our node identity from the cache
     np_handshake_token_t *my_token =
-        _np_token_factory_new_handshake_token(context);
+        _np_token_factory_new_handshake_token(context,
+                                              UDP | IPv4,
+                                              "127.0.0.1",
+                                              "4000");
 
     np_aaatoken_encode(jrb_body, my_token);
     np_tree_insert_str(msg_body,

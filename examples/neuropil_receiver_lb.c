@@ -130,7 +130,6 @@ int main(int argc, char **argv) {
   char *proto      = "udp4";
   char *port       = NULL;
   char *hostname   = NULL;
-  char *dns_name   = NULL;
   int   level      = -2;
   char *logpath    = ".";
 
@@ -143,7 +142,6 @@ int main(int argc, char **argv) {
                                          &proto,
                                          &port,
                                          &hostname,
-                                         &dns_name,
                                          &level,
                                          &logpath,
                                          NULL,
@@ -227,7 +225,7 @@ int main(int argc, char **argv) {
      \endcode
   */
 
-  if (np_ok != np_listen(context_1, proto, hostname, atoi(port), dns_name)) {
+  if (np_ok != np_listen(context_1, proto, hostname, atoi(port))) {
     fprintf(stdout,
             "ERROR: Node could not listen to %s:%s:%s",
             proto,
@@ -236,8 +234,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  if (np_ok !=
-      np_listen(context_2, proto, hostname, atoi(port) + 1, dns_name)) {
+  if (np_ok != np_listen(context_2, proto, hostname, atoi(port) + 1)) {
     fprintf(stdout,
             "ERROR: Node could not listen to %s:%s:%d",
             proto,

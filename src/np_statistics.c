@@ -383,7 +383,7 @@ void _np_statistics_update_prometheus_labels(np_state_t        *context,
         snprintf(instance_label.value,
                  254,
                  "%s:%s",
-                 _np_key_get_node(context->my_node_key)->dns_name,
+                 _np_key_get_node(context->my_node_key)->ip_string,
                  _np_key_get_node(context->my_node_key)->port);
     }
     if (context->my_identity != NULL)

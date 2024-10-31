@@ -250,115 +250,144 @@ bool __is_alias_handshake_token(np_util_statemachine_t *statemachine,
   bool ret = false;
 
   if (!ret)
-    ret = FLAG_CMP(event.type, evt_token) && FLAG_CMP(event.type, evt_internal);
+    ret = FLAG_CMP(event.type, evt_token) && FLAG_CMP(event.type, evt_external);
   if (ret)
     ret &=
         _np_memory_rtti_check(event.user_data, np_memory_types_np_aaatoken_t);
   if (ret) {
     NP_CAST(event.user_data, np_aaatoken_t, hs_token);
     ret &= (hs_token->type == np_aaatoken_type_handshake);
+    if (ret && hs_token->issuer != NULL) {
+      np_dhkey_t issuer_dhkey = {0};
+      np_str_id(&issuer_dhkey, hs_token->issuer);
+
+      ret &= !_np_dhkey_equal(&issuer_dhkey, &event.__source_dhkey);
+    }
     ret &= _np_aaatoken_is_valid(context, hs_token, hs_token->type);
   }
   return ret;
 }
 
-void __np_alias_set(
-    np_util_statemachine_t *statemachine,
-    const np_util_event_t   event) { // handle internal received handshake token
+void __np_alias_set(np_util_statemachine_t *statemachine,
+                    const np_util_event_t   event) {
+  // handle internal received handshake token
   np_ctx_memory(statemachine->_user_data);
 
-  NP_CAST(statemachine->_user_data, np_key_t, alias_key);
+  NP_CAST(statemachine->_user_data, np_key_t, peer_alias_key);
   NP_CAST(event.user_data, np_aaatoken_t, handshake_token);
-  if (!FLAG_CMP(alias_key->type, np_key_type_alias)) {
-    alias_key->type |= np_key_type_alias;
-    np_ref_obj(np_key_t, alias_key, "__np_alias_set");
+
+  if (!FLAG_CMP(peer_alias_key->type, np_key_type_alias)) {
+    peer_alias_key->type |= np_key_type_alias;
+    np_ref_obj(np_key_t, peer_alias_key, "__np_alias_set");
   }
 
   // fix TCP setup and set correct key
-  np_network_t *alias_network = _np_key_get_network(alias_key);
-  if (alias_network != NULL) {
+  np_network_t *peer_alias_network = _np_key_get_network(peer_alias_key);
+  if (peer_alias_network != NULL) {
     log_info(LOG_NETWORK, "_np_network_stop %s", FUNC);
-    _np_network_stop(alias_network, true);
+    _np_network_stop(peer_alias_network, true);
     ref_replace_reason(np_network_t,
-                       alias_network,
+                       peer_alias_network,
                        ref_obj_creation,
                        "__np_alias_set");
-    _np_network_set_key(alias_network, alias_key->dhkey);
-    _np_network_start(alias_network, true);
+    _np_network_set_key(peer_alias_network, peer_alias_key->dhkey);
+    _np_network_start(peer_alias_network, true);
   }
 
-  if (alias_key->entity_array[0] == NULL) {
-    alias_key->entity_array[0] = handshake_token;
+  if (peer_alias_key->entity_array[e_handshake_token] == NULL) {
+    peer_alias_key->entity_array[e_handshake_token] = handshake_token;
     np_ref_obj(np_aaatoken_t, handshake_token, "__np_alias_set");
   }
   np_dhkey_t search_key = {0};
   _np_str_dhkey(handshake_token->issuer, &search_key);
 
-  np_node_t *alias_node = NULL;
-  np_key_t  *node_key   = _np_keycache_find(context, search_key);
-  if (NULL == node_key) {
+  log_msg(LOG_DEBUG,
+          NULL,
+          "setup of alias %p (%u)",
+          peer_alias_key,
+          statemachine->_current_state);
+
+  np_node_t *peer_alias_node    = NULL;
+  np_key_t  *peer_interface_key = _np_keycache_find(context, search_key);
+  if (NULL == peer_interface_key) {
     // TODO: check if this code gets executed ever ...
-    alias_node = alias_key->entity_array[2];
-    if (alias_node == NULL) {
-      alias_node = _np_node_from_token(handshake_token, handshake_token->type);
+    peer_alias_node = peer_alias_key->entity_array[e_nodeinfo];
+    if (peer_alias_node == NULL) {
+      peer_alias_node =
+          _np_node_from_token(handshake_token, handshake_token->type);
       ref_replace_reason(np_node_t,
-                         alias_node,
+                         peer_alias_node,
                          "_np_node_from_token",
                          "__np_alias_set");
-      alias_key->entity_array[2] = alias_node;
+      peer_alias_key->entity_array[e_nodeinfo] = peer_alias_node;
     }
-    // enum np_node_status old_e = alias_node->_handshake_status;
-    // alias_node->_handshake_status = np_node_status_Initiated;
-    // log_info(LOG_HANDSHAKE,"set %s %s _handshake_status: %"PRIu8" -> %"PRIu8,
-    //     FUNC,alias_node->dns_name, old_e , alias_node->_handshake_status
-    // );
-  } else
-  // if (NULL != node_key)
-  {
-    alias_node = alias_key->entity_array[2];
-    if (NULL != alias_node && alias_node != _np_key_get_node(node_key)) {
-      np_unref_obj(np_node_t, alias_node, "__np_alias_set");
-      alias_node = _np_key_get_node(node_key);
-      np_ref_obj(np_node_t, alias_node, "__np_alias_set");
-      alias_key->entity_array[2] = alias_node;
-    } else if (NULL == alias_node) {
-      alias_node = _np_key_get_node(node_key);
-      np_ref_obj(np_node_t, alias_node, "__np_alias_set");
-      alias_key->entity_array[2] = alias_node;
+
+  } else {
+    peer_alias_key->parent_dhkey = peer_interface_key->dhkey;
+
+    peer_alias_node = peer_alias_key->entity_array[e_nodeinfo];
+    if (NULL != peer_alias_node &&
+        peer_alias_node != _np_key_get_node(peer_interface_key)) {
+      np_unref_obj(np_node_t, peer_alias_node, "__np_alias_set");
+      peer_alias_node = _np_key_get_node(peer_interface_key);
+      np_ref_obj(np_node_t, peer_alias_node, "__np_alias_set");
+      peer_alias_key->entity_array[e_nodeinfo] = peer_alias_node;
+
+    } else if (NULL == peer_alias_node) {
+      peer_alias_node = _np_key_get_node(peer_interface_key);
+      if (peer_alias_node != NULL) {
+        np_ref_obj(np_node_t, peer_alias_node, "__np_alias_set");
+        peer_alias_key->entity_array[e_nodeinfo] = peer_alias_node;
+      }
     }
-    log_trace_msg(LOG_TRACE,
-                  "start: void __np_alias_set(...) %p / %p {",
-                  node_key,
-                  alias_node);
+    log_msg(LOG_DEBUG,
+            NULL,
+            "start: void __np_alias_set(...) %p / %p {",
+            peer_interface_key,
+            peer_alias_node);
   }
 
-  np_node_t *_my_node = _np_key_get_node(context->my_node_key);
+  // fetch own outgoing interface
+  char local_ip[64] = {0};
+  _np_network_get_outgoing_ip(NULL,
+                              peer_alias_node->ip_string,
+                              peer_alias_node->protocol,
+                              local_ip);
+  np_key_t *my_interface_key =
+      _np_keycache_find_interface(context, local_ip, NULL);
+  np_node_t *my_interface_node = _np_key_get_node(my_interface_key);
+
   // check node key for passive network connection (partner or own node is
   // passive)
-  if (NULL != node_key && NULL != _my_node &&
-      (FLAG_CMP(alias_node->protocol, PASSIVE) ||
-       FLAG_CMP(_my_node->protocol, PASSIVE))) {
+  if (NULL != peer_interface_key && NULL != my_interface_node &&
+      (FLAG_CMP(peer_alias_node->protocol, PASSIVE) ||
+       FLAG_CMP(my_interface_node->protocol, PASSIVE))) {
     // take over existing network if partner is passive
     log_debug(LOG_NETWORK,
               NULL,
               "try to take over existing network (passive mode)");
     struct __np_node_trinity node_trinity = {0};
-    __np_key_to_trinity(node_key, &node_trinity);
+    __np_key_to_trinity(peer_interface_key, &node_trinity);
     if (NULL != node_trinity.network) {
       log_debug(LOG_NETWORK, NULL, "take over existing network (passive mode)");
-      if (alias_key->entity_array[3] != node_trinity.network) {
+      if (peer_alias_key->entity_array[e_network] != node_trinity.network) {
         log_info(LOG_NETWORK, "_np_network_stop %s", FUNC);
         _np_network_stop(node_trinity.network, true);
         np_ref_obj(np_network_t, node_trinity.network, "__np_alias_set");
-        alias_key->entity_array[3] = node_trinity.network;
+        peer_alias_key->entity_array[e_network] = node_trinity.network;
         // set our key to receive and decrypt messages
-        _np_network_start(alias_key->entity_array[3], true);
+        _np_network_start(peer_alias_key->entity_array[e_network], true);
       }
-      _np_network_set_key(alias_key->entity_array[3], alias_key->dhkey);
+      _np_network_set_key(peer_alias_key->entity_array[e_network],
+                          peer_alias_key->dhkey);
     }
   }
 
-  if (NULL != node_key) np_unref_obj(np_key_t, node_key, "_np_keycache_find");
+  if (NULL != peer_interface_key)
+    np_unref_obj(np_key_t, peer_interface_key, "_np_keycache_find");
+
+  if (NULL != my_interface_key)
+    np_unref_obj(np_key_t, my_interface_key, "_np_keycache_find_interface");
 
   handshake_token->state = AAA_VALID;
 }
@@ -382,7 +411,9 @@ void __np_alias_set_node_destroy(np_util_statemachine_t *statemachine,
            "removing leftover node key: %s",
            _np_key_as_str(alias_key));
 
-  np_unref_obj(np_node_t, alias_key->entity_array[2], "__np_alias_set");
+  np_unref_obj(np_node_t,
+               alias_key->entity_array[e_nodeinfo],
+               "__np_alias_set");
 
   if (FLAG_CMP(alias_key->type, np_key_type_alias)) {
     np_unref_obj(np_key_t, alias_key, "__np_alias_set");
@@ -415,10 +446,10 @@ void __np_alias_set_node(np_util_statemachine_t *statemachine,
 
   log_trace_msg(LOG_TRACE,
                 "start: void __np_alias_set_node(...) { %s:%s",
-                node->dns_name,
+                node->ip_string,
                 node->port);
 
-  if (alias_key->entity_array[2] == NULL) {
+  if (alias_key->entity_array[e_nodeinfo] == NULL) {
     if (!FLAG_CMP(alias_key->type, np_key_type_alias)) {
       alias_key->type |= np_key_type_alias;
       np_ref_obj(np_key_t, alias_key, "__np_alias_set");
@@ -427,27 +458,40 @@ void __np_alias_set_node(np_util_statemachine_t *statemachine,
     log_debug(LOG_ROUTING,
               NULL,
               "created new alias structure %s / %s",
-              node->dns_name,
+              node->ip_string,
               node->port);
 
     np_ref_obj(np_node_t, node, "__np_alias_set");
-    alias_key->entity_array[2] = node;
+    alias_key->entity_array[e_nodeinfo] = node;
   }
 }
 
-void __np_create_session(
-    np_util_statemachine_t *statemachine,
-    NP_UNUSED const np_util_event_t
-        event) { // create crypto session and "steal" node sructure
+void __np_create_session(np_util_statemachine_t         *statemachine,
+                         NP_UNUSED const np_util_event_t event) {
+
+  // create crypto session
   np_ctx_memory(statemachine->_user_data);
 
   NP_CAST(statemachine->_user_data, np_key_t, alias_key);
 
-  np_aaatoken_t *handshake_token = alias_key->entity_array[0];
-  np_node_t     *alias_node      = alias_key->entity_array[2];
+  np_aaatoken_t *handshake_token = alias_key->entity_array[e_handshake_token];
+  np_node_t     *alias_node      = alias_key->entity_array[e_nodeinfo];
 
-  np_aaatoken_t *my_token = _np_key_get_token(context->my_node_key);
-  np_node_t     *my_node  = _np_key_get_node(context->my_node_key);
+  // fetch own outgoing interface
+  char outgoing_ip[64] = {0};
+  _np_network_get_outgoing_ip(NULL,
+                              alias_node->ip_string,
+                              alias_node->protocol,
+                              outgoing_ip);
+  np_key_t *interface_key =
+      _np_keycache_find_interface(context, outgoing_ip, NULL);
+  if (interface_key == NULL) {
+    interface_key =
+        _np_keycache_find_interface(context, context->main_ip, NULL);
+  }
+
+  np_aaatoken_t *my_token = interface_key->entity_array[e_aaatoken];
+  np_node_t     *my_node  = _np_key_get_node(interface_key);
 
   // HAS TO BE be there
   struct np_data_conf cfg;
@@ -458,46 +502,44 @@ void __np_create_session(
                   &cfg,
                   &remote_hs_prio) != np_ok) {
     log_error(handshake_token->uuid,
-              "Structual error in token. Missing %s key",
+              "structural error in token. Missing %s key",
               NP_HS_PRIO);
   }
-  // COULD be there
-  // np_tree_elem_t* response_uuid =
-  // np_tree_find_str(handshake_token->extensions, _NP_MSG_INST_RESPONSE_UUID);
 
   TSP_SCOPE(alias_node->session_key_is_set) {
 
-    if (/* response_uuid == NULL ||*/
-        remote_hs_prio.unsigned_integer < my_node->handshake_priority) {
-      log_info(LOG_HANDSHAKE,
-               handshake_token->uuid,
-               "handshake session created in server mode. remote-prio: %" PRIu32
-               " local-prio: %" PRIu32 " ",
-               remote_hs_prio.unsigned_integer,
-               my_node->handshake_priority);
+    if (remote_hs_prio.unsigned_integer < my_node->handshake_priority) {
       np_crypto_session(context,
                         &my_token->crypto,
                         &alias_node->session,
                         &handshake_token->crypto,
                         false);
-    } else {
-      log_info(LOG_HANDSHAKE,
+      log_info(LOG_AAATOKEN,
                handshake_token->uuid,
-               "handshake session created in client mode. remote-prio: %" PRIu32
-               " local-prio: %" PRIu32 " ",
+               "handshake session created in server mode. remote-prio: %" PRIu32
+               " local-prio: %" PRIu32 " %p ",
                remote_hs_prio.unsigned_integer,
-               my_node->handshake_priority);
+               my_node->handshake_priority,
+               handshake_token);
+    } else {
       np_crypto_session(context,
                         &my_token->crypto,
                         &alias_node->session,
                         &handshake_token->crypto,
                         true);
+      log_info(LOG_AAATOKEN,
+               handshake_token->uuid,
+               "handshake session created in client mode. remote-prio: %" PRIu32
+               " local-prio: %" PRIu32 " %p ",
+               remote_hs_prio.unsigned_integer,
+               my_node->handshake_priority,
+               handshake_token);
     }
-    log_info(LOG_HANDSHAKE,
+    log_info(LOG_AAATOKEN,
              handshake_token->uuid,
              "session %s %s _handshake_status",
              FUNC,
-             alias_node->dns_name);
+             alias_node->ip_string);
     // enum np_node_status old_e = alias_node->_handshake_status;
     // alias_node->_handshake_status = np_node_status_WaitForConfirmation;
     // log_info(LOG_HANDSHAKE,"set %s %s _handshake_status: %"PRIu8" -> %"PRIu8,
@@ -505,6 +547,8 @@ void __np_create_session(
     // );
     alias_node->session_key_is_set = true;
   }
+  if (NULL != interface_key)
+    np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
 }
 
 bool __is_crypted_message(np_util_statemachine_t *statemachine,
@@ -533,18 +577,15 @@ void __np_alias_decrypt(
 
   NP_CAST(statemachine->_user_data, np_key_t, alias_key);
   NP_CAST(event.user_data, unsigned char, packet);
-  // NP_CAST(event.user_data, struct np_n2n_messagepart_s, part);
+
   TSP_GET(bool,
           _np_key_get_node(alias_key)->session_key_is_set,
           session_key_is_set);
-  /*
-  if(!session_key_is_set){
-      log_error(NULL, "%s", "received message before i could read it (node
-  key)"); return;
-  }
-  */
-  if (!_np_key_get_node(alias_key)->session.session_key_to_read_is_set) {
-    log_error(NULL, "%s", "received message before i could read it");
+
+  if (!session_key_is_set) {
+    log_error(NULL,
+              "%s",
+              "received message before crypto session setup completed");
     return;
   }
 
@@ -919,12 +960,15 @@ void __np_handle(np_util_statemachine_t *statemachine,
         _np_msgproperty_tweaked_dhkey(INBOUND, *msg_to_use->subject);
     np_util_event_t msg_event = event;
     msg_event.user_data       = msg_to_use;
-    char buff[100]            = {0};
+
+    char buff[100] = {0};
     np_regenerate_subject(context, buff, 100, msg_to_use->subject);
     log_info(LOG_ROUTING,
              msg_to_use->uuid,
-             "handling message for subject: %s",
-             buff);
+             "handling message for subject: %s %s",
+             buff,
+             np_id_str(buff, msg_to_use->audience));
+
     if (false == np_jobqueue_submit_event(context,
                                           0.0,
                                           subject_dhkey_in,
@@ -1184,10 +1228,10 @@ bool __is_alias_invalid(np_util_statemachine_t         *statemachine,
   log_trace(LOG_TRACE,
             NULL,
             "__is_alias_invalid(...) { [0]:%p [1]:%p [2]:%p [3]:%p }",
-            alias_key->entity_array[0],
-            alias_key->entity_array[1],
-            alias_key->entity_array[2],
-            alias_key->entity_array[3]);
+            alias_key->entity_array[e_handshake_token],
+            alias_key->entity_array[e_aaatoken],
+            alias_key->entity_array[e_nodeinfo],
+            alias_key->entity_array[e_network]);
 
   if (!ret) {
     ret = FLAG_CMP(alias_key->type, np_key_type_unknown);
@@ -1319,12 +1363,16 @@ void __np_alias_destroy(np_util_statemachine_t         *statemachine,
     np_unref_obj(np_key_t, alias_key, "__np_alias_set");
   }
 
-  if (alias_key->entity_array[0] != NULL)
-    np_unref_obj(np_aaatoken_t, alias_key->entity_array[0], "__np_alias_set");
+  if (alias_key->entity_array[e_handshake_token] != NULL)
+    np_unref_obj(np_aaatoken_t,
+                 alias_key->entity_array[e_handshake_token],
+                 "__np_alias_set");
   if (trinity.token != NULL)
     np_unref_obj(np_aaatoken_t, trinity.token, "__np_alias_set");
-  if (alias_key->entity_array[2] != NULL) {
-    np_unref_obj(np_node_t, alias_key->entity_array[2], "__np_alias_set");
+  if (alias_key->entity_array[e_nodeinfo] != NULL) {
+    np_unref_obj(np_node_t,
+                 alias_key->entity_array[e_nodeinfo],
+                 "__np_alias_set");
   }
   if (trinity.network != NULL) {
     _np_network_disable(trinity.network);

@@ -44,7 +44,7 @@
 
 static const char _np_ref_event_runtime[] = "_np_event_runtime";
 
-enum { np_event_runtime_max_size = 254 };
+enum { np_event_runtime_max_size = 255 };
 
 struct np_event_runtime_s {
   np_util_event_t  __chained_events[np_event_runtime_max_size];
@@ -72,7 +72,7 @@ void __np_event_runtime_add_event(np_state_t         *context,
     return;
   }
 
-  if (runtime->__chained_events_size >= np_event_runtime_max_size) {
+  if (runtime->__chained_events_size == np_event_runtime_max_size) {
     // IS ERROR
     for (uint8_t _idx = 0; _idx < runtime->__chained_events_size; _idx++) {
       np_util_event_t next_event = runtime->__chained_events[_idx];

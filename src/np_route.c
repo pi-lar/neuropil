@@ -844,8 +844,8 @@ void _np_route_update(np_key_t  *key,
       if (!key_already_in_routing_table && !found_empty_routing_table_entry) {
         double latency_diff = _np_key_get_node(slowest_node)->latency -
                               _np_key_get_node(key)->latency;
-        if (latency_diff > NP_PI / 1000) // the new node has a reasonably lower
-                                         // latency than slowest node
+        if (latency_diff > NP_PI / 1000) // the new node has a reasonably
+                                         // lower latency than slowest node
         {
           deleted_from                          = slowest_node;
           np_module(route)->table[index + pick] = key;

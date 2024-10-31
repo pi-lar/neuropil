@@ -48,9 +48,15 @@ bool __is_identity_aaatoken(np_util_statemachine_t *statemachine,
         (np_memory_get_type(event.user_data) == np_memory_types_np_aaatoken_t);
   if (ret) {
     NP_CAST(event.user_data, np_aaatoken_t, identity);
+
     ret &= FLAG_CMP(identity->type, np_aaatoken_type_identity) ||
-           FLAG_CMP(identity->type, np_aaatoken_type_node);
-    ret &= identity->private_key_is_set;
+           FLAG_CMP(identity->type, np_aaatoken_type_node) ||
+           FLAG_CMP(identity->type, np_aaatoken_type_handshake);
+
+    ret &= identity->private_key_is_set ||
+           FLAG_CMP(identity->scope, np_aaatoken_scope_private) || FLAG_CMP(
+               identity->scope,
+               np_aaatoken_scope_private_available);
 
     ret &= _np_aaatoken_is_valid(context, identity, identity->type);
   }
@@ -66,9 +72,9 @@ bool __is_identity_invalid(np_util_statemachine_t *statemachine,
 
   NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
 
-  if (!ret) ret = (my_identity_key->entity_array[1] != NULL);
+  if (!ret) ret = (my_identity_key->entity_array[e_aaatoken] != NULL);
   if (ret) {
-    NP_CAST(my_identity_key->entity_array[1], np_aaatoken_t, identity);
+    NP_CAST(my_identity_key->entity_array[e_aaatoken], np_aaatoken_t, identity);
     ret &= (identity->type == np_aaatoken_type_identity) ||
            ((identity->type == np_aaatoken_type_node) &&
             identity->private_key_is_set);
@@ -143,14 +149,29 @@ void __np_set_identity(np_util_statemachine_t *statemachine,
       .clear_cb = _np_standard_bloom_clear,
   };
   np_bloom_t *duplicate_checker =
-      _np_stable_bloom_create(NP_MSG_FORWARD_FILTER_SIZE, 8, 2);
+      _np_stable_bloom_create(NP_MSG_FORWARD_FILTER_SIZE,
+                              8,
+                              NP_MSG_FORWARD_FILTER_PRUNE_RATE);
   duplicate_checker->op            = stable_op;
   my_identity_key->entity_array[4] = duplicate_checker;
 
-  if (FLAG_CMP(identity_token->type, np_aaatoken_type_node)) {
+  if (FLAG_CMP(identity_token->type, np_aaatoken_type_handshake)) {
+    my_identity_key->type |= (np_key_type_node | np_key_type_interface);
+
+    my_identity_key->entity_array[e_handshake_token] = identity_token;
+    np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
+
+    my_identity_key->entity_array[e_aaatoken] =
+        context->my_node_key->entity_array[e_aaatoken];
+    np_ref_obj(np_aaatoken,
+               my_identity_key->entity_array[e_aaatoken],
+               "__np_set_identity");
+    my_identity_key->parent_dhkey = context->my_node_key->dhkey;
+
+  } else if (FLAG_CMP(identity_token->type, np_aaatoken_type_node)) {
     my_identity_key->type |= np_key_type_node;
 
-    my_identity_key->entity_array[1] = identity_token;
+    my_identity_key->entity_array[e_aaatoken] = identity_token;
     np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
 
     context->my_node_key = my_identity_key;
@@ -168,7 +189,7 @@ void __np_set_identity(np_util_statemachine_t *statemachine,
               identity_token,
               identity_token->type);
   } else if (FLAG_CMP(identity_token->type, np_aaatoken_type_identity)) {
-    my_identity_key->entity_array[1] = identity_token;
+    my_identity_key->entity_array[e_aaatoken] = identity_token;
     np_ref_obj(np_aaatoken_t, identity_token, "__np_set_identity");
 
     if ((NULL == context->my_identity ||
@@ -231,44 +252,49 @@ void __np_create_identity_network(np_util_statemachine_t *statemachine,
   NP_CAST(statemachine->_user_data, np_key_t, my_identity_key);
   NP_CAST(event.user_data, np_aaatoken_t, identity);
 
-  if (FLAG_CMP(identity->type, np_aaatoken_type_node)) {
+  if (FLAG_CMP(identity->type, np_aaatoken_type_handshake)) {
     // create node structure (we still need it !!!)
-    np_node_t *my_node = _np_node_from_token(identity, np_aaatoken_type_node);
+    np_node_t *my_node =
+        _np_node_from_token(identity, np_aaatoken_type_handshake);
+
     ref_replace_reason(np_node_t,
                        my_node,
                        "_np_node_from_token",
-                       "__np_create_identity_network")
-        my_identity_key->entity_array[2] = my_node;
+                       "__np_create_identity_network");
+    my_identity_key->entity_array[e_nodeinfo] = my_node;
+
+    log_msg(LOG_DEBUG, NULL, "my_identity->protocol: %s", my_node->host_key);
 
     if (!FLAG_CMP(my_node->protocol, PASSIVE)) {
       // create incoming network
       np_network_t *my_network = NULL;
       np_new_obj(np_network_t, my_network);
-      ASSERT(context->hostname != NULL, "Hostname cannot be NULL");
+
       if (_np_network_init(my_network,
                            true,
                            my_node->protocol,
-                           context->hostname,
+                           my_node->ip_string,
                            my_node->port,
                            context->settings->max_msgs_per_sec,
                            -1,
                            UNKNOWN_PROTO)) {
         _np_network_set_key(my_network, my_identity_key->dhkey);
 
-        my_identity_key->entity_array[3] = my_network;
+        my_identity_key->entity_array[e_network] = my_network;
         ref_replace_reason(np_network_t,
                            my_network,
                            ref_obj_creation,
-                           "__np_create_identity_network")
+                           "__np_create_identity_network");
 
-            log_debug(LOG_NETWORK,
-                      np_memory_get_id(my_network),
-                      "Network (%s:%s) is the main receiving network %d",
-                      context->hostname,
-                      my_node->port,
-                      identity->type);
+        log_debug(LOG_NETWORK,
+                  np_memory_get_id(my_network),
+                  "Network (%s:%s) is a receiving network %d",
+                  my_node->ip_string,
+                  my_node->port,
+                  identity->type);
 
         _np_network_enable(my_network);
+
       } else {
         np_unref_obj(np_network_t, my_network, ref_obj_creation);
       }
@@ -297,6 +323,7 @@ void __np_extract_handshake(np_util_statemachine_t *statemachine,
                             const np_util_event_t   event) {
   np_ctx_memory(statemachine->_user_data);
 
+  NP_CAST(statemachine->_user_data, np_key_t, identity_key);
   NP_CAST_RAW(event.user_data, void, raw_message);
   struct np_n2n_messagepart_s *n2n_part_in = NULL;
   np_new_obj(np_messagepart_t, n2n_part_in);
@@ -513,8 +540,6 @@ void __np_identity_handle_authn(np_util_statemachine_t *statemachine,
 
       // np_unref_obj(np_aaanp_key_ttoken_t, join_ident_key,
       // "_np_keycache_find_or_create");
-
-      _np_key_get_node(context->my_node_key)->joined_network = true;
 
     } else if (false == join_allowed && context->enable_realm_client == false) {
       np_dhkey_t leave_dhkey = np_aaatoken_get_fingerprint(authn_token, false);

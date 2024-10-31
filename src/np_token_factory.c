@@ -20,6 +20,7 @@
 
 #include "core/np_comp_msgproperty.h"
 #include "core/np_comp_node.h"
+#include "util/np_pcg_rng.h"
 #include "util/np_tree.h"
 #include "util/np_treeval.h"
 
@@ -133,23 +134,16 @@ np_aaatoken_t *__np_token_factory_derive(np_aaatoken_t         *source,
   ret->version    = source->version;
   ret->state      = source->state;
 
-  memcpy(ret->crypto.ed25519_public_key,
-         source->crypto.ed25519_public_key,
-         sizeof source->crypto.ed25519_public_key);
-  ret->crypto.ed25519_public_key_is_set = true;
-
   if (scope != np_aaatoken_scope_private) {
-    memset(ret->crypto.ed25519_secret_key,
-           0,
-           sizeof ret->crypto.ed25519_secret_key);
-    ret->crypto.ed25519_secret_key_is_set = false;
-    ret->private_key_is_set               = false;
+    assert(NULL !=
+           np_cryptofactory_by_public(context,
+                                      &ret->crypto,
+                                      source->crypto.ed25519_public_key));
   } else {
-    memcpy(ret->crypto.ed25519_secret_key,
-           source->crypto.ed25519_secret_key,
-           sizeof source->crypto.ed25519_secret_key);
-    ret->crypto.ed25519_secret_key_is_set = true;
-    ret->private_key_is_set               = true;
+    assert(NULL !=
+           np_cryptofactory_by_secret(context,
+                                      &ret->crypto,
+                                      source->crypto.ed25519_secret_key));
   }
 
   ret->scope = scope;
@@ -313,9 +307,10 @@ _np_token_factory_new_message_intent_token(np_msgproperty_conf_t *msg_request) {
 }
 
 np_handshake_token_t *
-_np_token_factory_new_handshake_token(np_state_t *context) {
-  /// NP_PERFORMANCE_POINT_START(tokenfactory_new_handshake);
-
+_np_token_factory_new_handshake_token(np_state_t *context,
+                                      socket_type protocol,
+                                      const char *local_ip,
+                                      const char *port) {
   np_handshake_token_t *ret = NULL;
 
   _LOCK_ACCESS(&context->my_node_key->key_lock) {
@@ -346,11 +341,19 @@ _np_token_factory_new_handshake_token(np_state_t *context) {
     _np_dhkey_str(&node_dhkey, ret->issuer);
   }
 
-  np_node_t          *my_node = _np_key_get_node(context->my_node_key);
+  snprintf(ret->subject,
+           254,
+           _NP_URN_NODE_PREFIX ":%s:%s:%s",
+           _np_network_get_protocol_string(context, protocol),
+           local_ip,
+           port);
+
   struct np_data_conf cfg;
   strncpy(cfg.key, NP_HS_PRIO, 255);
   cfg.type = NP_DATA_TYPE_UNSIGNED_INT;
-  np_set_data(ret->attributes, cfg, (np_data_value)my_node->handshake_priority);
+  np_set_data(ret->attributes,
+              cfg,
+              (np_data_value){.unsigned_integer = np_global_rng_next()});
 
   _np_aaatoken_set_signature(ret, NULL);
   _np_aaatoken_update_attributes_signature(ret);
@@ -401,13 +404,12 @@ _np_token_factory_new_handshake_token(np_state_t *context) {
   return ret;
 }
 
-np_node_private_token_t *_np_token_factory_new_node_token(np_state_t *context,
-                                                          socket_type protocol,
-                                                          const char *hostname,
-                                                          const char *port) {
+np_node_private_token_t *_np_token_factory_new_node_token(np_state_t *context) {
+
+  // TODO: replace with pcg implementation
   int rand_interval =
-      ((int)randombytes_uniform(NODE_MAX_TTL_SEC - NODE_MIN_TTL_SEC) +
-       NODE_MIN_TTL_SEC);
+      np_global_rng_next_bounded(NODE_MAX_TTL_SEC) + NODE_MIN_TTL_SEC;
+
   double expires_at = np_time_now() + rand_interval;
 
   char issuer[64] = {0};
@@ -416,12 +418,9 @@ np_node_private_token_t *_np_token_factory_new_node_token(np_state_t *context,
       __np_token_factory_new(context, issuer, expires_at, NULL);
   ret->type = np_aaatoken_type_node;
 
-  snprintf(ret->subject,
-           254,
-           _NP_URN_NODE_PREFIX ":%s:%s:%s",
-           _np_network_get_protocol_string(context, protocol),
-           hostname,
-           port);
+  char uuid_hex[2 * NP_UUID_BYTES + 1];
+  sodium_bin2hex(uuid_hex, 2 * NP_UUID_BYTES + 1, ret->uuid, NP_UUID_BYTES);
+  snprintf(ret->subject, 254, _NP_URN_NODE_PREFIX ":%s", uuid_hex);
 
   _np_aaatoken_set_signature(ret, NULL);
   _np_aaatoken_update_attributes_signature(ret);

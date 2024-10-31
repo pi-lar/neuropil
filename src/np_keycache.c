@@ -154,6 +154,30 @@ np_key_t *_np_keycache_find(np_state_t      *context,
   return return_key;
 }
 
+np_key_t *_np_keycache_find_interface(np_state_t *context,
+                                      const char *ip_string,
+                                      const char *port) {
+  np_key_t *ret  = NULL;
+  np_key_t *iter = NULL;
+
+  _LOCK_MODULE(np_keycache_t) {
+    RB_FOREACH (iter, st_keycache_s, np_module(keycache)->__key_cache) {
+      if (FLAG_CMP(iter->type, np_key_type_interface)) {
+        np_node_t *node = _np_key_get_node(iter);
+        if (node != NULL && node->ip_string != NULL &&
+            strncmp(node->ip_string, ip_string, strlen(ip_string)) == 0 &&
+            (port == NULL || (node->port != NULL &&
+                              strncmp(node->port, port, strlen(port)) == 0))) {
+          np_ref_obj(np_key_t, iter);
+          ret = iter;
+          break;
+        }
+      }
+    }
+  }
+  return ret;
+}
+
 np_key_t *
 _np_keycache_find_by_details(np_state_t         *context,
                              char               *details_container,
@@ -177,7 +201,10 @@ _np_keycache_find_by_details(np_state_t         *context,
           continue;
         }
       }
-      np_node_t *node = _np_key_get_node(iter);
+      np_node_t *node = NULL;
+      if (iter->type == np_key_type_node || iter->type == np_key_type_interface)
+        node = _np_key_get_node(iter);
+      
       if ((!require_handshake_status ||
            (NULL != node && node->_handshake_status == search_handshake_status)
 
@@ -185,8 +212,8 @@ _np_keycache_find_by_details(np_state_t         *context,
           (!require_hash ||
            strstr(details_container, iter->dhkey_str) != NULL) &&
           (!require_dns ||
-           (NULL != node && NULL != node->dns_name &&
-            strstr(details_container, node->dns_name) != NULL)) &&
+           (NULL != node && NULL != node->ip_string &&
+            strstr(details_container, node->ip_string) != NULL)) &&
           (!require_port || (NULL != node && NULL != node->port &&
                              strstr(details_container, node->port) != NULL))) {
         np_ref_obj(np_key_t, iter);

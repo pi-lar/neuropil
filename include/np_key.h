@@ -27,17 +27,30 @@
 extern "C" {
 #endif
 
+enum np_entity_index {
+  e_handshake_token = 0, // = 0
+  e_aaatoken,            // = 1
+  e_nodeinfo,            // = 2
+  e_network,             // = 3
+  e_mxproperty_in,       // = 4
+  e_mxproperty_out,      // = 5
+  e_intent_in,           // = 6
+  e_intent_out,          // = 7
+  e_entity_index_max,    // = 8
+};
+
 enum np_key_type {
-  np_key_type_unknown  = 0x001,
-  np_key_type_alias    = 0x002, // an alias is used for incoming connections
-  np_key_type_node     = 0x004, // a node represents another app or next hop
-  np_key_type_wildcard = 0x008, // a wildcard to join without knowing the hash
-  np_key_type_ident    = 0x010, // an identity represents a user or endpoint
-  np_key_type_subject  = 0x020, // a subject/msgproperty that two identities
-                                // share 	np_key_type_intent
+  np_key_type_unknown   = 0x001,
+  np_key_type_alias     = 0x002, // an alias is used for incoming connections
+  np_key_type_node      = 0x004, // a node represents another app or next hop
+  np_key_type_wildcard  = 0x008, // a wildcard to join without knowing the hash
+  np_key_type_ident     = 0x010, // an identity represents a user or endpoint
+  np_key_type_interface = 0x020, // an interface represents endpoint of a node
+  np_key_type_subject   = 0x040, // a subject/msgproperty that two identities
+                                 // share 	np_key_type_intent
   // = 0x020, // exchange point for intent messages
   np_key_type_realm =
-      0x040, // a realm component to forward authn/authz/acc requests
+      0x080, // a realm component to forward authn/authz/acc requests
 };
 
 struct np_key_entity_s {

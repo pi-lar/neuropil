@@ -146,7 +146,13 @@ extern "C" {
  * The maximum lifetime of a node before it is refreshed
  */
 #ifndef NODE_MAX_TTL_SEC
-#define NODE_MAX_TTL_SEC (NP_PI_INT * 100000000)
+#define NODE_MAX_TTL_SEC (NP_PI_INT << 16)
+#endif
+/*
+ * The minimum lifetime of a node before it is refreshed
+ */
+#ifndef NODE_MIN_TTL_SEC
+#define NODE_MIN_TTL_SEC (NP_PI_INT << 8)
 #endif
 
 #ifndef TOKEN_GRACETIME
@@ -155,12 +161,6 @@ extern "C" {
 
 #ifndef NP_TOKEN_MIN_RESEND_INTERVAL_SEC
 #define NP_TOKEN_MIN_RESEND_INTERVAL_SEC (10)
-#endif
-/*
- * The minimum lifetime of a node before it is refreshed
- */
-#ifndef NODE_MIN_TTL_SEC
-#define NODE_MIN_TTL_SEC (NODE_MAX_TTL_SEC - 120)
 #endif
 #ifndef NODE_RENEW_BEFORE_EOL_SEC
 #define NODE_RENEW_BEFORE_EOL_SEC (5)
@@ -346,7 +346,10 @@ extern "C" {
 #define NP_MSG_PART_FILTER_SIZE 8192
 #endif
 #ifndef NP_MSG_FORWARD_FILTER_SIZE
-#define NP_MSG_FORWARD_FILTER_SIZE 8192
+#define NP_MSG_FORWARD_FILTER_SIZE 2048
+#endif
+#ifndef NP_MSG_FORWARD_FILTER_PRUNE_RATE
+#define NP_MSG_FORWARD_FILTER_PRUNE_RATE 3
 #endif
 
 #ifdef __cplusplus

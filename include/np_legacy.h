@@ -112,8 +112,8 @@ struct np_state_s {
   np_tree_t  *msg_part_cache;
   np_bloom_t *msg_part_filter;
 
-  int  thread_count;
-  char hostname[255];
+  int   thread_count;
+  char *main_ip;
 
   bool enable_realm_server; // act as a realm server for other nodes or not
   bool
@@ -177,6 +177,21 @@ NP_API_INTERN
 void _np_set_identity(np_context *ac, np_aaatoken_t *identity);
 
 /**
+.. c:function:: void _np_add_interface(np_state_t* state, np_aaatoken_t*
+handshake_token)
+
+   Manually add an interface which is used to send and receive messages.
+   The identity will use the information from the handshake token to add another
+listening interface
+
+   :param state: the previously initialized :c:type:`np_state_t` structure
+   :param identity: a valid :c:type:`np_aaatoken_t` handshake token
+
+*/
+NP_API_INTERN
+void _np_add_interface(np_context *ac, np_aaatoken_t *handshake_token);
+
+/**
 .. c:function:: np_send_join(np_key_t* node_key);
 
    send a join message to another node and request to enter his network.
@@ -203,6 +218,23 @@ void np_send_join(np_context *ac, const char *node_string);
  */
 NP_API_EXPORT
 void np_send_wildcard_join(np_context *ac, const char *node_string);
+
+/**
+  .. c:function:: enum np_return _np_listen_safe(np_context *ac, char* protocol,
+char* host, char* port)
+
+   Listen on a specific interface. This function is a wrapper around the
+   needed function calls and ensures that interfaces are not setup multiple
+   times.
+
+   :param ac: the neuropil context
+   :param protocol: the protocol to listen on
+   :param host: the host to listen on
+   :param port: the port to listen on
+*/
+NP_API_EXPORT
+enum np_return
+_np_listen_safe(np_context *ac, char *protocol, char *host, char *port);
 
 /**
 .. c:function:: np_waitforjoin()
@@ -330,7 +362,7 @@ char *np_get_connection_string_from(np_key_t *node_key, bool includeHash);
 
 NP_API_EXPORT
 char *np_build_connection_string(
-    char *hash, char *protocol, char *dns_name, char *port, bool includeHash);
+    char *hash, char *protocol, char *hostname, char *port, bool includeHash);
 
 #define np_time_now() _np_time_now(context)
 NP_API_PROTEC

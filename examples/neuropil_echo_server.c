@@ -36,7 +36,6 @@ int main(int argc, char **argv) {
   char *proto      = "udp4";
   char *port       = NULL;
   char *hostname   = NULL;
-  char *dns_name   = NULL;
   int   level      = -2;
   char *logpath    = ".";
 
@@ -49,7 +48,6 @@ int main(int argc, char **argv) {
                                          &proto,
                                          &port,
                                          &hostname,
-                                         &dns_name,
                                          &level,
                                          &logpath,
                                          NULL,
@@ -76,7 +74,7 @@ int main(int argc, char **argv) {
 
   np_context *context = np_new_context(settings);
   np_set_userdata(context, user_context);
-  if (np_ok != np_listen(context, proto, hostname, atoi(port), dns_name)) {
+  if (np_ok != np_listen(context, proto, hostname, atoi(port))) {
     np_example_print(context,
                      stderr,
                      "ERROR: Node could not listen to %s:%s:%s",

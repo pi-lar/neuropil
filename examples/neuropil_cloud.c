@@ -37,7 +37,6 @@ int main(int argc, char **argv) {
   char *proto          = "udp4";
   char *opt_port       = NULL;
   char *hostname       = NULL;
-  char *dns_name       = NULL;
   int   level          = -2;
   char *opt_cloud_size = "32";
   char *logpath        = ".";
@@ -51,7 +50,6 @@ int main(int argc, char **argv) {
                                                   &proto,
                                                   &opt_port,
                                                   &hostname,
-                                                  &dns_name,
                                                   &level,
                                                   &logpath,
                                                   "[-n cloud size]",
@@ -98,7 +96,7 @@ int main(int argc, char **argv) {
                      "INFO: Starting Node %" PRIsizet "\n",
                      i);
 
-    if (np_ok != (tmp = np_listen(nodes[i], proto, hostname, port, dns_name))) {
+    if (np_ok != (tmp = np_listen(nodes[i], proto, hostname, port))) {
       np_example_print(nodes[0],
                        stderr,
                        "ERROR: Node %" PRIsizet " could not listen. %s\n",
@@ -178,7 +176,9 @@ int main(int argc, char **argv) {
           // for fun and testing make every second join a wildcard join
           // currently all via wildcard as of bug "hash join"
           // if (i % 2 == 0)
-          { make_wildcard(addr); }
+          {
+            make_wildcard(addr);
+          }
           // join previous node
           if (np_ok != (tmp = np_join(nodes[i], addr))) {
             np_example_print(nodes[0],

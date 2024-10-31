@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
     np_set_authorize_cb(context[i], authorize);
     np_set_authenticate_cb(context[i], authenticate);
 
-    if (np_ok != np_listen(context[i], "pas4", "localhost", atoi(port), NULL)) {
+    if (np_ok != np_listen(context[i], "pas4", "localhost", atoi(port))) {
       np_example_print(context[i],
                        stderr,
                        "ERROR: Node could not listen to %s:%s:%s\n",

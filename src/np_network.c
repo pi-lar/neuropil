@@ -17,7 +17,9 @@
 #include <errno.h>
 #include <event/ev.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 #include <inttypes.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -548,10 +550,10 @@ void _np_network_accept(struct ev_loop *loop, ev_io *event, int revents) {
                                         &data_container.port[0]);
       np_key_t *alias_key = _np_keycache_find_or_create(context, search_key);
 
-      ASSERT(alias_key->entity_array[3] == NULL,
+      ASSERT(alias_key->entity_array[e_network] == NULL,
              "There should be no network for a tcp connection yet");
 
-      alias_key->entity_array[3] = new_network;
+      alias_key->entity_array[e_network] = new_network;
       // will be reset to alias key after first (handshake) message
       _np_network_set_key(new_network,
                           ((_np_network_data_t *)event->data)->owner_dhkey);
@@ -975,7 +977,7 @@ void _np_network_t_del(np_state_t       *context,
     __np_network_close(network);
   }
 
-  freeaddrinfo(network->addr_in);
+  // freeaddrinfo(network->addr_in);
   network->initialized = false;
   // finally destroy the mutex
   _np_threads_mutex_destroy(context, &network->access_lock);
@@ -986,10 +988,10 @@ void _np_network_t_new(np_state_t       *context,
                        NP_UNUSED uint8_t type,
                        NP_UNUSED size_t  size,
                        void             *data) {
-  np_network_t *ng            = (np_network_t *)data;
-  ng->is_multiuse_socket      = false;
-  ng->socket                  = -1;
-  ng->addr_in                 = NULL;
+  np_network_t *ng       = (np_network_t *)data;
+  ng->is_multiuse_socket = false;
+  ng->socket             = -1;
+  // ng->addr_in                 = NULL;
   ng->out_events              = NULL;
   ng->initialized             = false;
   ng->is_running              = np_network_stopped;
@@ -1067,16 +1069,17 @@ bool _np_network_init(np_network_t *ng,
 
   log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "try to get_network_address");
 
-  bool res = _np_network_get_address(context,
+  struct addrinfo *address_info = NULL;
+  bool             res          = _np_network_get_address(context,
                                      create_server,
-                                     &ng->addr_in,
+                                     &address_info,
                                      type,
                                      hostname,
                                      service);
 
   ng->socket_type = type | passive_socket_type;
 
-  if (!res || (NULL == ng->addr_in && !FLAG_CMP(type, PASSIVE))) {
+  if (!res || (NULL == address_info && !FLAG_CMP(type, PASSIVE))) {
     log_msg(LOG_ERROR, NULL, "could not resolve requested network address");
     return false;
   }
@@ -1084,6 +1087,7 @@ bool _np_network_init(np_network_t *ng,
   log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "done get_network_address");
 
   ng->max_messages_per_second = max_messages_per_second;
+
   // only need for client setup, but initialize to have zero size of list
   if (ng->out_events == NULL) sll_init(void_ptr, ng->out_events);
 
@@ -1102,11 +1106,12 @@ bool _np_network_init(np_network_t *ng,
       ng->is_multiuse_socket = true;
     } else {
       // server setup - create socket
-      ng->socket = socket(ng->addr_in->ai_family,
-                          ng->addr_in->ai_socktype,
-                          ng->addr_in->ai_protocol);
+      ng->socket = socket(address_info->ai_family,
+                          address_info->ai_socktype,
+                          address_info->ai_protocol);
       if (0 > ng->socket) {
         log_error(NULL, "could not create socket: %s", strerror(errno));
+        freeaddrinfo(address_info);
         return false;
       }
       /* attach socket to #port#. */
@@ -1120,9 +1125,11 @@ bool _np_network_init(np_network_t *ng,
                   ng,
                   strerror(errno));
         __np_network_close(ng);
+        freeaddrinfo(address_info);
         return false;
       }
-      if (0 > bind(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen)) {
+      if (0 >
+          bind(ng->socket, address_info->ai_addr, address_info->ai_addrlen)) {
         // UDP note: not using a connected socket for sending messages to a
         // different target_node leads to unreliable delivery. The sending
         // socket changes too often to be useful for finding the correct
@@ -1134,6 +1141,7 @@ bool _np_network_init(np_network_t *ng,
                   service,
                   strerror(errno));
         __np_network_close(ng);
+        freeaddrinfo(address_info);
         // listening port could not be opened
         return false;
       }
@@ -1143,6 +1151,7 @@ bool _np_network_init(np_network_t *ng,
                   ng,
                   strerror(errno));
         __np_network_close(ng);
+        freeaddrinfo(address_info);
         return false;
       }
     }
@@ -1194,11 +1203,12 @@ bool _np_network_init(np_network_t *ng,
       ng->socket             = prepared_socket_fd;
       ng->is_multiuse_socket = true;
     } else {
-      ng->socket = socket(ng->addr_in->ai_family,
-                          ng->addr_in->ai_socktype,
-                          ng->addr_in->ai_protocol);
+      ng->socket = socket(address_info->ai_family,
+                          address_info->ai_socktype,
+                          address_info->ai_protocol);
       if (0 > ng->socket) {
         log_error(NULL, "could not create socket: %s", strerror(errno));
+        freeaddrinfo(address_info);
         return false;
       }
       if (-1 == setsockopt(ng->socket,
@@ -1211,6 +1221,7 @@ bool _np_network_init(np_network_t *ng,
                   ng,
                   strerror(errno));
         __np_network_close(ng);
+        freeaddrinfo(address_info);
         return false;
       }
       // UDP note: not using a bound and connected socket for sending messages
@@ -1274,9 +1285,10 @@ bool _np_network_init(np_network_t *ng,
                  errno);
       }
       do {
-        connection_status =
-            connect(ng->socket, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
-        l_errno = errno;
+        connection_status = connect(ng->socket,
+                                    address_info->ai_addr,
+                                    address_info->ai_addrlen);
+        l_errno           = errno;
         if (connection_status != 0 && l_errno != EISCONN) {
           // As we do have a async connection (and TCP may need longer due to
           // handshake packages) we need to check the connection status for a
@@ -1302,6 +1314,7 @@ bool _np_network_init(np_network_t *ng,
                 strerror(errno),
                 errno);
       __np_network_close(ng);
+      freeaddrinfo(address_info);
       return false;
     }
 
@@ -1354,14 +1367,16 @@ bool _np_network_init(np_network_t *ng,
     log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "created local sending socket");
   }
 
-  if (ng->addr_in != NULL) {
+  if (address_info != NULL) {
     memset((char *)&ng->remote_addr, 0, sizeof(ng->remote_addr));
-    ng->remote_addr = calloc(1, ng->addr_in->ai_addrlen);
+    ng->remote_addr = calloc(1, address_info->ai_addrlen);
     CHECK_MALLOC(ng->remote_addr);
 
-    ng->remote_addr_len = ng->addr_in->ai_addrlen;
-    memcpy(ng->remote_addr, ng->addr_in->ai_addr, ng->addr_in->ai_addrlen);
+    ng->remote_addr_len = address_info->ai_addrlen;
+    memcpy(ng->remote_addr, address_info->ai_addr, address_info->ai_addrlen);
   }
+
+  freeaddrinfo(address_info);
 
   log_info(LOG_NETWORK,
            NULL,
@@ -1375,7 +1390,236 @@ bool _np_network_init(np_network_t *ng,
            service,
            ng->socket,
            prepared_socket_fd > 0 ? " (prepared fd)" : "");
+
   return ng->initialized;
+}
+
+enum np_return _np_network_get_outgoing_ip(NP_UNUSED const np_network_t *ng,
+                                           const char                   *ip,
+                                           const socket_type             type,
+                                           char *local_ip) {
+
+  assert(FLAG_CMP(type, IPv4) || FLAG_CMP(type, IPv6));
+
+  enum np_return  ret = np_operation_failed;
+  struct addrinfo hints, *res, *p;
+  int             sockfd;
+  char            service[6];
+
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = (type & IPv4) ? AF_INET : AF_INET6;
+  // hints.ai_socktype = (type & TCP) ? SOCK_STREAM : SOCK_DGRAM;
+  hints.ai_socktype = SOCK_DGRAM;
+  snprintf(service, sizeof(service), "%d", /* FLAG_CMP(type, TCP) ? 80 :*/ 53);
+
+  if (getaddrinfo(ip, service, &hints, &res) != 0) {
+    return np_invalid_argument;
+  }
+
+  for (p = res; p != NULL; p = p->ai_next) {
+    sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    if (sockfd == -1) continue;
+
+    if (connect(sockfd, p->ai_addr, p->ai_addrlen) != -1) {
+      struct sockaddr_storage local_addr;
+      socklen_t               addr_len = sizeof(local_addr);
+
+      if (getsockname(sockfd, (struct sockaddr *)&local_addr, &addr_len) == 0) {
+        if (local_addr.ss_family == AF_INET) {
+          struct sockaddr_in *s = (struct sockaddr_in *)&local_addr;
+          inet_ntop(AF_INET, &s->sin_addr, local_ip, INET_ADDRSTRLEN);
+        } else if (local_addr.ss_family == AF_INET6) {
+          struct sockaddr_in6 *s = (struct sockaddr_in6 *)&local_addr;
+          inet_ntop(AF_INET6, &s->sin6_addr, local_ip, INET6_ADDRSTRLEN);
+        }
+        close(sockfd);
+        ret = np_ok;
+        break;
+      }
+    }
+    close(sockfd);
+  }
+
+  freeaddrinfo(res);
+  return ret;
+}
+
+bool _np_network_is_loopback_address(NP_UNUSED const np_network_t *ng,
+                                     const char                   *ip) {
+  return strncmp(ip, "127.0.0.1", 9) == 0 || strncmp(ip, "::1", 3) == 0;
+}
+
+bool _np_network_is_private_address(NP_UNUSED np_network_t *ng,
+                                    const char             *ip) {
+  // Check if the IP is IPv4 or IPv6
+  struct in_addr  ipv4_addr;
+  struct in6_addr ipv6_addr;
+  bool            is_ipv4 = inet_pton(AF_INET, ip, &ipv4_addr) == 1;
+  bool            is_ipv6 = inet_pton(AF_INET6, ip, &ipv6_addr) == 1;
+
+  if (!is_ipv4 && !is_ipv6) {
+    return false; // Invalid IP address
+  }
+
+  if (is_ipv4) {
+    uint32_t ip_int = ntohl(ipv4_addr.s_addr);
+
+    // Check IPv4 private ranges
+    return ((ip_int >= 0x0A000000 &&
+             ip_int <= 0x0AFFFFFF) || // 10.0.0.0 to 10.255.255.255
+            (ip_int >= 0xAC100000 &&
+             ip_int <= 0xAC1FFFFF) || // 172.16.0.0 to 172.31.255.255
+            (ip_int >= 0xC0A80000 &&
+             ip_int <= 0xC0A8FFFF) // 192.168.0.0 to 192.168.255.255
+    );
+  } else { // IPv6
+    // Check if it's a unique local address (fc00::/7)
+    return (ipv6_addr.s6_addr[0] == 0xFC || ipv6_addr.s6_addr[0] == 0xFD);
+  }
+}
+
+enum np_return _np_network_get_local_ip(NP_UNUSED const np_network_t *ng,
+                                        const char                   *hostname,
+                                        const socket_type             type,
+                                        char *local_ip) {
+
+  assert(hostname != NULL && local_ip != NULL);
+
+  if (!FLAG_CMP(type, IPv4) && !FLAG_CMP(type, IPv6)) {
+    return np_invalid_argument;
+  }
+
+  enum np_return ret = np_operation_failed;
+
+  struct ifaddrs *ifaddr;
+  int             family, s;
+  char            host[NI_MAXHOST];
+
+  if (getifaddrs(&ifaddr) == -1) {
+    // perror("getifaddrs");
+    return (ret);
+  }
+
+  for (struct ifaddrs *ifa = ifaddr; ifa != NULL && ret == np_operation_failed;
+       ifa                 = ifa->ifa_next) {
+
+    if (ifa->ifa_addr == NULL) continue;
+    family = ifa->ifa_addr->sa_family;
+
+    if (family == AF_INET && FLAG_CMP(type, IPv4)) {
+      s = getnameinfo(ifa->ifa_addr,
+                      sizeof(struct sockaddr_in),
+                      host,
+                      NI_MAXHOST,
+                      NULL,
+                      0,
+                      NI_NAMEREQD);
+      if (s == 0 && 0 == strncmp(host, hostname, 255)) {
+        s = getnameinfo(ifa->ifa_addr,
+                        sizeof(struct sockaddr_in6),
+                        host,
+                        NI_MAXHOST,
+                        NULL,
+                        0,
+                        NI_NUMERICHOST);
+        if (s == 0) {
+          strncpy(local_ip, host, 255);
+          ret = np_ok;
+        }
+      } else if (s == 0 && 0 != strncmp(host, hostname, 255)) {
+        local_ip = inet_ntop(AF_INET,
+                             &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr,
+                             local_ip,
+                             INET_ADDRSTRLEN);
+        if (strncmp(local_ip, hostname, 255) == 0) {
+          ret = np_ok;
+        }
+      }
+    }
+
+    if (family == AF_INET6 && FLAG_CMP(type, IPv6)) {
+      s = getnameinfo(ifa->ifa_addr,
+                      sizeof(struct sockaddr_in6),
+                      host,
+                      NI_MAXHOST,
+                      NULL,
+                      0,
+                      NI_NAMEREQD);
+      if (s == 0 && 0 == strncmp(host, hostname, 255)) {
+        s = getnameinfo(ifa->ifa_addr,
+                        sizeof(struct sockaddr_in6),
+                        host,
+                        NI_MAXHOST,
+                        NULL,
+                        0,
+                        NI_NUMERICHOST);
+        if (s == 0) {
+          strncpy(local_ip, host, 255);
+          ret = np_ok;
+        }
+      } else if (s == 0 && 0 != strncmp(host, hostname, 255)) {
+        local_ip = inet_ntop(AF_INET6,
+                             &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr,
+                             local_ip,
+                             INET6_ADDRSTRLEN);
+        if (strncmp(local_ip, hostname, 255) == 0) {
+          ret = np_ok;
+        }
+      }
+    }
+  }
+  freeifaddrs(ifaddr);
+
+  return (ret);
+}
+
+enum np_return _np_network_get_remote_ip(np_context       *context,
+                                         const char       *hostname,
+                                         const socket_type protocol,
+                                         char             *remote_ip) {
+  assert(hostname != NULL);
+  assert(remote_ip != NULL);
+  assert(FLAG_CMP(protocol, IPv4) || FLAG_CMP(protocol, IPv6));
+
+  enum np_return   ret         = np_ok;
+  struct addrinfo *adress_info = NULL;
+  struct addrinfo  hints       = {0};
+
+  hints.ai_family   = (protocol & IPv4) ? AF_INET : AF_INET6;
+  hints.ai_socktype = (protocol & UDP) ? SOCK_DGRAM : SOCK_STREAM;
+  hints.ai_flags    = AI_ADDRCONFIG;
+
+  int status = getaddrinfo(hostname, NULL, &hints, &adress_info);
+  if (status != 0) {
+    // log_msg(LOG_ERROR | LOG_NETWORK,
+    //         NULL,
+    //         "getaddrinfo error: %s",
+    //         gai_strerror(status));
+    return np_operation_failed;
+  }
+
+  // Iterate through results and get the first IP address
+  for (struct addrinfo *rp = adress_info; rp != NULL; rp = rp->ai_next) {
+    void *addr = NULL;
+    if (rp->ai_family == AF_INET) { // IPv4
+      struct sockaddr_in *ipv4 = (struct sockaddr_in *)rp->ai_addr;
+      addr                     = &(ipv4->sin_addr);
+    } else if (rp->ai_family == AF_INET6) { // IPv6
+      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)rp->ai_addr;
+      addr                      = &(ipv6->sin6_addr);
+    } else {
+      continue;
+    }
+
+    // Convert IP to string
+    if (inet_ntop(rp->ai_family, addr, remote_ip, INET6_ADDRSTRLEN) != NULL) {
+      ret = np_ok;
+      break;
+    }
+  }
+
+  freeaddrinfo(adress_info);
+  return ret;
 }
 
 void _np_network_disable(np_network_t *self) {
