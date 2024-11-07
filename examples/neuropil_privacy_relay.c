@@ -268,9 +268,15 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
               proto,
               public_ips[i]);
     } else {
-      printf("Listening on public ip %s:%s\n", proto, public_ips[i]);
+      fprintf(stdout, "Listening on public ip %s:%s\n", proto, public_ips[i]);
       memset(public_ips[i], 0, 64);
     }
+  }
+
+  // Then listen on a passive localhost connection so that we are always able to
+  // create connectivity with the outside world (populate main interface)
+  if (np_ok != np_listen(ac, "pas4", "localhost", port)) {
+    fprintf(stderr, "Failed to listen on public ip pas4:localhost:%s\n", port);
   }
 
   // Then listen on private IPs
@@ -282,7 +288,7 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
               proto,
               private_ips[i]);
     } else {
-      printf("Listening on private ip %s:%s\n", proto, private_ips[i]);
+      fprintf(stdout, "Listening on private ip %s:%s\n", proto, private_ips[i]);
       memset(public_ips[i], 0, 64);
     }
   }
