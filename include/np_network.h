@@ -46,6 +46,7 @@ typedef uint16_t socket_type;
 static const socket_type UNKNOWN_PROTO  = 0x001;
 static const socket_type IPv4           = 0x002;
 static const socket_type IPv6           = 0x004;
+static const socket_type MASK_IP        = 0x00F;
 static const socket_type UDP            = 0x010; // UDP protocol - default
 static const socket_type TCP            = 0x020; // TCP protocol
 static const socket_type MASK_PROTOCOLL = 0x0FF;
@@ -155,12 +156,20 @@ _np_network_get_outgoing_ip(NP_UNUSED const np_network_t *ng,
                             const socket_type             passive_socket_type,
                             char                         *local_ip);
 
+// checks whether a given IP is a loopback address
 NP_API_INTERN
 bool _np_network_is_loopback_address(NP_UNUSED const np_network_t *ng,
                                      const char                   *ip);
 
+// checks whether a given IP falls into the range of private IP's or not
 NP_API_INTERN
 bool _np_network_is_private_address(NP_UNUSED np_network_t *ng, const char *ip);
+
+// compares two ip strings and return the number of overlapping ip tuples
+NP_API_INTERN
+uint8_t _np_network_count_common_tuples(NP_UNUSED const np_network_t *ng,
+                                        const char                   *remote_ip,
+                                        const char                   *local_ip);
 
 // NP_API_INTERN
 // bool _np_network_send_data(np_state_t   *context,

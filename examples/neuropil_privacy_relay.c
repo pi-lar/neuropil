@@ -102,11 +102,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  //   if (mandatory_realm == false) {
-  //     fprintf(stderr, "Realm name is required. Use -r flag to specify.\n");
-  //     exit(1);
-  //   }
-
   fprintf(stdout, "\n");
 
   char realm_buffer[65] = {0};
@@ -207,11 +202,10 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
     perror("getifaddrs");
     return false;
   }
-
   // Arrays to store IP addresses
-  static char    public_ips[8][64];
-  static char    private_ips[8][64];
-  static uint8_t public_count = 0, private_count = 0;
+  char    public_ips[8][64]  = {0};
+  char    private_ips[8][64] = {0};
+  uint8_t public_count = 0, private_count = 0;
 
   for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
     if (ifa->ifa_addr == NULL) continue;
@@ -227,27 +221,22 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
         struct sockaddr_in6 *s = (struct sockaddr_in6 *)ifa->ifa_addr;
         inet_ntop(AF_INET6, &s->sin6_addr, host, INET6_ADDRSTRLEN);
       }
-      //   getnameinfo(ifa->ifa_addr,
-      //               (family == AF_INET) ? sizeof(struct sockaddr_in)
-      //                                   : sizeof(struct sockaddr_in6),
-      //               host,
-      //               NI_MAXHOST,
-      //               NULL,
-      //               0,
-      //               NI_NUMERICHOST);
-      //       if (s != 0) {
-      //     printf("getnameinfo() failed: %s\n", gai_strerror(s));
-      //     continue;
-      //   }
 
-      if (_np_network_is_private_address(NULL, host) && private_count < 8) {
+      if (_np_network_is_private_address(NULL, host) && private_count < 16) {
         // Check if it's a public IP (simplified check, might need refinement)
-        // fprintf(stdout, "adding ip %s to private interface list\n", host);
-        strncpy(private_ips[private_count++], host, 64);
-      } else if (!_np_network_is_loopback_address(NULL, host) &&
-                 public_count < 8) {
-        // fprintf(stdout, "adding ip %s to public interface list\n", host);
-        strncpy(public_ips[public_count++], host, 64);
+        fprintf(stdout, "adding ip %s to private interface list\n", host);
+        strncpy(private_ips[private_count], host, 64);
+        private_count++;
+        continue;
+      } else if (_np_network_is_private_address(NULL, host)) {
+        continue;
+      }
+
+      if (!_np_network_is_loopback_address(NULL, host) && public_count < 8) {
+        fprintf(stdout, "adding ip %s to public interface list\n", host);
+        strncpy(public_ips[public_count], host, 64);
+        public_count++;
+        continue;
       } else {
         // fprintf(stderr,
         //         "private (%" PRIu8 " ) / public ( %" PRIu8
@@ -259,8 +248,19 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
     }
   }
 
-  // Listen on public IPs first
-  for (int i = 0; i < public_count; i++) {
+  // Listen on a passive localhost connection so that we are always able to
+  // create connectivity with the outside world (populate main interface)
+  // prefer ipv6 connectivity
+  if (np_ok != np_listen(ac, "pas6", "localhost", port)) {
+    fprintf(stderr, "Failed to listen on pas6:localhost:%d\n", port);
+  }
+  if (np_ok != np_listen(ac, "pas4", "localhost", port)) {
+    fprintf(stderr, "Failed to listen on pas4:localhost:%d\n", port);
+  }
+  fprintf(stdout, "\nsetup of passive localhost interfaces done\n\n");
+
+  // Then listen on our public IPs
+  for (int16_t i = 0; i < public_count; i++) {
     const char *proto = (strchr(public_ips[i], ':') == NULL) ? "udp4" : "udp6";
     if (np_ok != np_listen(ac, proto, public_ips[i], port)) {
       fprintf(stderr,
@@ -272,15 +272,10 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
       memset(public_ips[i], 0, 64);
     }
   }
-
-  // Then listen on a passive localhost connection so that we are always able to
-  // create connectivity with the outside world (populate main interface)
-  if (np_ok != np_listen(ac, "pas4", "localhost", port)) {
-    fprintf(stderr, "Failed to listen on public ip pas4:localhost:%s\n", port);
-  }
+  fprintf(stdout, "\nsetup of public network interfaces done\n\n");
 
   // Then listen on private IPs
-  for (int i = 0; i < private_count; i++) {
+  for (uint8_t i = 0; i < private_count; i++) {
     const char *proto = (strchr(private_ips[i], ':') == NULL) ? "udp4" : "udp6";
     if (np_ok != np_listen(ac, proto, private_ips[i], port)) {
       fprintf(stderr,
@@ -289,9 +284,10 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
               private_ips[i]);
     } else {
       fprintf(stdout, "Listening on private ip %s:%s\n", proto, private_ips[i]);
-      memset(public_ips[i], 0, 64);
+      memset(private_ips[i], 0, 64);
     }
   }
+  fprintf(stdout, "\nsetup of network private interfaces done\n");
 
   freeifaddrs(ifaddr);
   return true;

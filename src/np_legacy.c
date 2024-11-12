@@ -604,14 +604,36 @@ void np_send_join(np_context *ac, const char *node_string) {
       _np_keycache_find_interface(context, local_ip, NULL);
   // if no interface exists, try to setup a new passive interface because the
   // user explicitly requested this np_join() command
-  if (interface_key == NULL &&
-      np_ok != _np_listen_safe(context,
-                               _np_network_get_protocol_string(
-                                   context,
-                                   new_node->protocol | PASSIVE),
-                               local_ip,
-                               "31415")) {
+  if (interface_key == NULL) {
+    if (np_ok != _np_listen_safe(context,
+                                 _np_network_get_protocol_string(
+                                     context,
+                                     new_node->protocol | PASSIVE),
+                                 local_ip,
+                                 "31415")) {
+      log_warn(LOG_NETWORK,
+               NULL,
+               "could not create passive listening interface for %s on %s",
+               ip_buffer,
+               local_ip);
+      np_unref_obj(np_key_t,
+                   existing_connection,
+                   "_np_keycache_find_by_details");
+      return; // np_invalid_operation;
+    } else {
+      interface_key = _np_keycache_find_interface(context, local_ip, NULL);
+    }
+  }
+
+  // final check whether we can reach the new node
+  if (!_node_can_be_reached(context, new_node->ip_string, new_node->protocol)) {
+    log_warn(LOG_NETWORK,
+             NULL,
+             "network setups do not match %s <-> %s",
+             local_ip,
+             new_node->ip_string);
     np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
+    np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
     return; // np_invalid_operation;
   }
 

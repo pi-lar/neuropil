@@ -201,15 +201,6 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
       continue;
     }
 
-    np_key_t *my_key = _np_keycache_find_interface(context,
-                                                   node_entry->ip_string,
-                                                   node_entry->port);
-    if (my_key != NULL) {
-      np_unref_obj(np_key_t, my_key, "_np_keycache_find_interface");
-      np_unref_obj(np_node_t, node_entry, "_np_node_decode_from_jrb");
-      continue;
-    }
-
     // add entries in the message to our routing table
     // routing table is responsible to handle possible double entries
     np_dhkey_t search_key = np_dhkey_create_from_hash(node_entry->host_key);
@@ -235,16 +226,12 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
                                       true);
       }
 
-      // check whether we can connect to this node
-      char ip_buffer[64] = {0};
-      _np_network_get_outgoing_ip(NULL,
-                                  node_entry->ip_string,
-                                  node_entry->protocol,
-                                  ip_buffer);
-      np_key_t *interface_key =
-          _np_keycache_find_interface(context, ip_buffer, NULL);
+      if (send_join)
+        send_join = _node_can_be_reached(context,
+                                         node_entry->ip_string,
+                                         node_entry->protocol);
 
-      if (send_join && interface_key != NULL) {
+      if (send_join) {
 
         piggy_key = _np_keycache_find_or_create(context, search_key);
         np_util_event_t new_node_evt = {.type      = (evt_internal),
@@ -260,8 +247,6 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
         np_unref_obj(np_key_t, piggy_key, "_np_keycache_find_or_create");
       }
 
-      if (interface_key != NULL)
-        np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
       np_key_unref_list(sll_of_keys, "_np_route_row_lookup");
       sll_free(np_key_ptr, sll_of_keys);
 

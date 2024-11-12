@@ -5,13 +5,22 @@
 #ifndef _NP_GLIA_H_
 #define _NP_GLIA_H_
 
-#include "core/np_comp_msgproperty.h"
-
+#include "np_legacy.h"
+#include "np_network.h"
 #include "np_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// np_glia contains "glue" code between the np_axon (outgoing) and np_dendrit
+// (incoming) network events. To some extent, it also contains helper functions.
+
+NP_API_INTERN
+bool _node_can_be_reached(const np_state_t *context,
+                          const char       *remote_ip,
+                          const socket_type protocol);
+
 /*
 // critical self invoking functions
 void _np_retransmit_message_tokens_jobexec(np_state_t* context, np_jobargs_t

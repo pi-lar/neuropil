@@ -236,3 +236,74 @@ Test(network_h,
                np_operation_failed,
                "Should fail with invalid IP address input");
 }
+
+Test(network_h,
+     _np_network_count_common_tuples,
+     .description = "test the retrieval of the local ip address") {
+  // a test case that is testing the function _np_network_count_common_tuples.
+  // The test covers IPv4, IPv6 and mixed combinations.
+
+  np_network_t *ng = NULL;
+
+  // Test IPv4 addresses with common prefixes
+  uint8_t common =
+      _np_network_count_common_tuples(ng, "192.168.1.1", "192.168.1.2");
+  cr_expect_eq(common,
+               3,
+               "IPv4 addresses with 3 common octets should return 3");
+
+  common = _np_network_count_common_tuples(ng, "192.168.1.1", "192.168.2.1");
+  cr_expect_eq(common,
+               2,
+               "IPv4 addresses with 2 common octets should return 2");
+
+  common = _np_network_count_common_tuples(ng, "192.168.1.1", "192.169.1.1");
+  cr_expect_eq(common, 1, "IPv4 addresses with 1 common octet should return 1");
+
+  common = _np_network_count_common_tuples(ng, "192.168.1.1", "172.168.1.1");
+  cr_expect_eq(common,
+               0,
+               "IPv4 addresses with no common octets should return 0");
+
+  // Test IPv6 addresses with common prefixes
+  common =
+      _np_network_count_common_tuples(ng,
+                                      "2001:db8:85a3:8d3:1319:8a2e:370:7348",
+                                      "2001:db8:85a3:8d3:1319:8a2e:370:7349");
+  cr_expect_eq(common,
+               7,
+               "IPv6 addresses with 7 common blocks should return 7");
+
+  common =
+      _np_network_count_common_tuples(ng,
+                                      "2001:db8:85a3:8d3:1319:8a2e:370:7348",
+                                      "2001:db8:85a3:8d3:1319:8a2e:371:7348");
+  cr_expect_eq(common,
+               6,
+               "IPv6 addresses with 6 common blocks should return 6");
+
+  common =
+      _np_network_count_common_tuples(ng,
+                                      "2001:db8:85a3:8d3:1319:8a2e:370:7348",
+                                      "2001:db8:85a3:8d3:1319:8a2f:370:7348");
+  cr_expect_eq(common,
+               5,
+               "IPv6 addresses with 5 common blocks should return 5");
+
+  // Test mixed IPv4/IPv6 combinations
+  common = _np_network_count_common_tuples(ng, "192.168.1.1", "2001:db8::1");
+  cr_expect_eq(common, 0, "Mixed IPv4/IPv6 addresses should return 0");
+
+  common = _np_network_count_common_tuples(ng, "2001:db8::1", "192.168.1.1");
+  cr_expect_eq(common, 0, "Mixed IPv6/IPv4 addresses should return 0");
+
+  // Test invalid inputs
+  common = _np_network_count_common_tuples(ng, "invalid", "192.168.1.1");
+  cr_expect_eq(common, 0, "Invalid IP address should return 0");
+
+  common = _np_network_count_common_tuples(ng, "192.168.1.1", "invalid");
+  cr_expect_eq(common, 0, "Invalid IP address should return 0");
+
+  common = _np_network_count_common_tuples(ng, "invalid1", "invalid2");
+  cr_expect_eq(common, 0, "Invalid IP addresses should return 0");
+}

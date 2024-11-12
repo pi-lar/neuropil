@@ -1135,7 +1135,7 @@ bool _np_network_init(np_network_t *ng,
         // socket changes too often to be useful for finding the correct
         // decryption shared secret. Especially true for ipv6 ...
         log_error(NULL,
-                  "network: %p bind failed for %s:%s: %s",
+                  "network: %p bind failed for %s:%s :: %s",
                   ng,
                   hostname,
                   service,
@@ -1394,6 +1394,61 @@ bool _np_network_init(np_network_t *ng,
   return ng->initialized;
 }
 
+uint8_t _np_network_count_common_tuples(NP_UNUSED const np_network_t *ng,
+                                        const char                   *remote_ip,
+                                        const char *local_ip) {
+
+  uint8_t common_tuples = 0;
+
+  char *colon_pos_r = strchr(remote_ip, ':');
+  char *colon_pos_l = strchr(local_ip, ':');
+
+  if ((colon_pos_l != NULL && colon_pos_r == NULL) ||
+      (colon_pos_l == NULL && colon_pos_r != NULL))
+    return common_tuples;
+
+  if (colon_pos_r == NULL) { // IPv4
+
+    struct in_addr ipv4_remote, ipv4_node;
+    if (inet_pton(AF_INET, remote_ip, &ipv4_remote) == 1 &&
+        inet_pton(AF_INET, local_ip, &ipv4_node) == 1) {
+
+      uint32_t r_addr = ntohl(ipv4_remote.s_addr);
+      uint32_t n_addr = ntohl(ipv4_node.s_addr);
+
+      uint32_t diff = r_addr ^ n_addr;
+      common_tuples = __builtin_clz(diff) >> 3;
+
+      // Compare each octet
+      // for (int i = 0; i < 4; i++) {
+      //   uint8_t r_octet = (r_addr >> (24 - i * 8)) & 0xFF;
+      //   uint8_t n_octet = (n_addr >> (24 - i * 8)) & 0xFF;
+      //   if (r_octet == n_octet) {
+      //     common_tuples++;
+      //   } else {
+      //     break;
+      //   }
+      // }
+    }
+  } else { // IPv6
+
+    struct in6_addr ipv6_remote, ipv6_local;
+    if (inet_pton(AF_INET6, remote_ip, &ipv6_remote) == 1 &&
+        inet_pton(AF_INET6, local_ip, &ipv6_local) == 1) {
+      // Compare each byte pair and increment common_tuples for matching blocks
+      for (int i = 0; i < 16; i += 2) {
+        if (ipv6_remote.s6_addr[i] == ipv6_local.s6_addr[i] &&
+            ipv6_remote.s6_addr[i + 1] == ipv6_local.s6_addr[i + 1]) {
+          common_tuples++;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+  return common_tuples;
+}
+
 enum np_return _np_network_get_outgoing_ip(NP_UNUSED const np_network_t *ng,
                                            const char                   *ip,
                                            const socket_type             type,
@@ -1474,7 +1529,9 @@ bool _np_network_is_private_address(NP_UNUSED np_network_t *ng,
     );
   } else { // IPv6
     // Check if it's a unique local address (fc00::/7)
-    return (ipv6_addr.s6_addr[0] == 0xFC || ipv6_addr.s6_addr[0] == 0xFD);
+    // or link local address (fe80::/7)
+    return (ipv6_addr.s6_addr[0] == 0xFC || ipv6_addr.s6_addr[0] == 0xFD ||
+            (ipv6_addr.s6_addr[0] == 0xFE && ipv6_addr.s6_addr[1] == 0x80));
   }
 }
 
@@ -1500,10 +1557,14 @@ enum np_return _np_network_get_local_ip(NP_UNUSED const np_network_t *ng,
     return (ret);
   }
 
-  for (struct ifaddrs *ifa = ifaddr; ifa != NULL && ret == np_operation_failed;
-       ifa                 = ifa->ifa_next) {
+  struct ifaddrs *ifa = ifaddr;
+  while (ifa != NULL && ret == np_operation_failed) {
 
-    if (ifa->ifa_addr == NULL) continue;
+    if (ifa->ifa_addr == NULL) {
+      ifa = ifa->ifa_next;
+      continue;
+    };
+
     family = ifa->ifa_addr->sa_family;
 
     if (family == AF_INET && FLAG_CMP(type, IPv4)) {
@@ -1527,10 +1588,10 @@ enum np_return _np_network_get_local_ip(NP_UNUSED const np_network_t *ng,
           ret = np_ok;
         }
       } else if (s == 0 && 0 != strncmp(host, hostname, 255)) {
-        local_ip = inet_ntop(AF_INET,
-                             &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr,
-                             local_ip,
-                             INET_ADDRSTRLEN);
+        inet_ntop(AF_INET,
+                  &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr,
+                  local_ip,
+                  INET_ADDRSTRLEN);
         if (strncmp(local_ip, hostname, 255) == 0) {
           ret = np_ok;
         }
@@ -1558,15 +1619,16 @@ enum np_return _np_network_get_local_ip(NP_UNUSED const np_network_t *ng,
           ret = np_ok;
         }
       } else if (s == 0 && 0 != strncmp(host, hostname, 255)) {
-        local_ip = inet_ntop(AF_INET6,
-                             &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr,
-                             local_ip,
-                             INET6_ADDRSTRLEN);
+        inet_ntop(AF_INET6,
+                  &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr,
+                  local_ip,
+                  INET6_ADDRSTRLEN);
         if (strncmp(local_ip, hostname, 255) == 0) {
           ret = np_ok;
         }
       }
     }
+    ifa = ifa->ifa_next;
   }
   freeifaddrs(ifaddr);
 
