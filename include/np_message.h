@@ -80,6 +80,7 @@ void _np_message_create(struct np_e2e_message_s *msg,
                         np_dhkey_t               subject,
                         np_tree_t               *the_data);
 
+NP_API_INTERN
 enum np_return _np_message_add_chunk(struct np_e2e_message_s     *msg,
                                      struct np_n2n_messagepart_s *raw_message,
                                      uint16_t *count_of_chunks);

@@ -479,7 +479,7 @@ _np_listen_safe(np_context *ac, char *protocol, char *host, char *port) {
     log_msg(LOG_WARNING,
             NULL,
             "neuropil_init: could not get local ip for hostname %s",
-            host);
+            safe_hostname);
     return (np_invalid_argument);
   }
 
@@ -586,6 +586,10 @@ void np_send_join(np_context *ac, const char *node_string) {
                                                                false);
 
   if (existing_connection != NULL) {
+    log_msg(LOG_INFO,
+            NULL,
+            "connectivity to join node %s is already established\n",
+            ip_buffer);
     np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
     return;
   }
@@ -596,6 +600,10 @@ void np_send_join(np_context *ac, const char *node_string) {
                                            new_node->ip_string,
                                            new_node->protocol,
                                            local_ip)) {
+    log_msg(LOG_INFO,
+            NULL,
+            "no outgoing connectivity to join node %s found\n",
+            ip_buffer);
     np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
     return; // np_invalid_operation;
   }
@@ -626,7 +634,10 @@ void np_send_join(np_context *ac, const char *node_string) {
   }
 
   // final check whether we can reach the new node
-  if (!_node_can_be_reached(context, new_node->ip_string, new_node->protocol)) {
+  if (!_np_glia_node_can_be_reached(context,
+                                    new_node->ip_string,
+                                    new_node->protocol,
+                                    NULL)) {
     log_warn(LOG_NETWORK,
              NULL,
              "network setups do not match %s <-> %s",
@@ -642,16 +653,20 @@ void np_send_join(np_context *ac, const char *node_string) {
 
   np_dhkey_t search_key = {0};
   if (new_node->host_key[0] == '*') {
-    search_key = np_dhkey_create_from_hostport("*", node_string + 2);
+    char *tmp_connection_str = np_build_connection_string(
+        NULL,
+        _np_network_get_protocol_string(context, new_node->protocol),
+        new_node->ip_string,
+        new_node->port,
+        false);
+    search_key = np_dhkey_create_from_hostport("*", tmp_connection_str);
+    free(tmp_connection_str);
   } else if (strnlen(new_node->host_key, 64) == 64) {
-    search_key = np_dhkey_create_from_hash(node_string);
+    search_key = np_dhkey_create_from_hash(new_node->host_key);
   } else {
     np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");
     return;
   }
-
-  char search_key_str[65] = {0};
-  np_id_str(search_key_str, &search_key);
 
   if (FLAG_CMP(new_node->protocol, PASSIVE)) {
     log_msg(LOG_WARNING,

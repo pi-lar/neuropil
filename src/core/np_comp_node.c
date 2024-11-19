@@ -19,6 +19,7 @@
 #include "np_axon.h"
 #include "np_eventqueue.h"
 #include "np_evloop.h"
+#include "np_glia.h"
 #include "np_key.h"
 #include "np_keycache.h"
 #include "np_legacy.h"
@@ -1245,14 +1246,14 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
   struct __np_node_trinity node_trinity = {0};
   __np_key_to_trinity(node_key, &node_trinity);
 
-  log_debug(LOG_NETWORK,
-            NULL,
-            "__np_create_client_network key %p (type: %d)",
-            node_key,
-            node_key->type);
-
   // lookup wildcard to extract existing np_network_t structure
   char *tmp_connection_str = np_get_connection_string_from(node_key, false);
+  log_debug(LOG_NETWORK,
+            NULL,
+            "__np_create_client_network key %p (type: %d): %s",
+            node_key,
+            node_key->type,
+            tmp_connection_str);
 
   if (tmp_connection_str) {
     np_dhkey_t wildcard_dhkey =
@@ -1288,32 +1289,43 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
   np_key_t *alias_key = _np_keycache_find(context, event.target_dhkey);
   if (NULL != alias_key) np_unref_obj(np_key_t, alias_key, "_np_keycache_find");
 
+  np_key_t *outgoing_key = NULL;
+  if (!_np_glia_node_can_be_reached(context,
+                                    node_trinity.node->ip_string,
+                                    node_trinity.node->protocol,
+                                    &outgoing_key)) {
+    log_msg(
+        LOG_WARNING,
+        NULL,
+        "node with connection string %s:%s:%s is not reachable",
+        _np_network_get_protocol_string(context, node_trinity.node->protocol),
+        node_trinity.node->ip_string,
+        node_trinity.node->port);
+    return;
+  }
+
   if (NULL == node_trinity.network &&
       NULL != node_trinity.node) { // create outgoing network
 
     // find interface that we have to use for the incoming passive
     // connection
-    char outgoing_ip[64] = {0};
-    _np_network_get_outgoing_ip(NULL,
-                                node_trinity.node->ip_string,
-                                node_trinity.node->protocol,
-                                outgoing_ip);
-    np_key_t *outgoing_key =
-        _np_keycache_find_interface(context, outgoing_ip, NULL);
-    if (outgoing_key == NULL) {
-      outgoing_key =
-          _np_keycache_find_interface(context, context->main_ip, NULL);
-    }
+
     np_node_t *my_node = _np_key_get_node(outgoing_key);
 
     np_network_t *new_network = NULL;
     np_new_obj(np_network_t, new_network);
     log_debug(LOG_NETWORK,
               NULL,
-              "node_info: %" PRIu16 ":%s:%s",
+              "to   node_info: %" PRIu16 ":%s:%s",
               node_trinity.node->protocol,
               node_trinity.node->ip_string,
               node_trinity.node->port);
+    log_debug(LOG_NETWORK,
+              NULL,
+              "from node_info: %" PRIu16 ":%s:%s",
+              my_node->protocol,
+              my_node->ip_string,
+              my_node->port);
     if (FLAG_CMP(node_trinity.node->protocol, PASSIVE)) {
       if (FLAG_CMP(my_node->protocol, UDP)) {
         np_network_t *my_network = _np_key_get_network(outgoing_key);
@@ -1421,6 +1433,7 @@ void __np_create_client_network(np_util_statemachine_t         *statemachine,
       }
     }
   }
+  np_unref_obj(np_key_t, outgoing_key, "_np_keycache_find_interface");
 }
 
 bool __is_wildcard_invalid(np_util_statemachine_t         *statemachine,

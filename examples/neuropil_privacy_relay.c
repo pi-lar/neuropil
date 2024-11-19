@@ -162,18 +162,21 @@ int main(int argc, char *argv[]) {
   // np_realm_enable_authorization(ac);
   // np_realm_enable_accounting(ac);
 
-  // char address[256];
-  // assert(np_ok == np_get_address(ac, address, sizeof(address)));
-  // fprintf(stdout,
-  //         "\nThis privacy relay can be joined under the following main "
-  //         "address: %s\n",
-  //         address);
+  char address[256];
+  assert(np_ok == np_get_address(ac, address, sizeof(address)));
+  fprintf(stdout,
+          "\nThis privacy relay was started with the following main "
+          "address: %s\n",
+          address);
 
   assert(np_ok == np_run(ac, 0.0));
 
   if (bootstrap_url != NULL) {
     assert(np_ok == np_join(ac, bootstrap_url));
   }
+
+  fprintf(stdout, "entering relay endless loop ...\n");
+  fflush(stdout);
 
   enum np_return status;
   do

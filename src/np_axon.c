@@ -887,26 +887,15 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
 
   char local_ip[64] = {0};
 
-  if (_np_node_check_address_validity(target_node) &&
-      np_ok == _np_network_get_outgoing_ip(target_network,
-                                           target_node->ip_string,
-                                           target_node->protocol,
-                                           local_ip)) {
+  np_key_t *outgoing_key = NULL;
 
-    np_key_t *outgoing_node =
-        _np_keycache_find_interface(context, local_ip, NULL);
+  if (_np_glia_node_can_be_reached(context,
+                                   target_node->ip_string,
+                                   target_node->protocol,
+                                   &outgoing_key)) {
 
-    np_handshake_token_t *my_token = NULL;
-
-    if (outgoing_node == NULL) {
-      log_msg(LOG_WARNING,
-              hs_message->uuid,
-              "%s",
-              "target node ip address doesn't match with our interface list");
-      return false;
-    } else {
-      my_token = outgoing_node->entity_array[e_handshake_token];
-    }
+    np_handshake_token_t *my_token =
+        outgoing_key->entity_array[e_handshake_token];
 
     np_tree_t *msg_body = np_tree_create();
     np_tree_t *jrb_body = np_tree_create();
@@ -946,6 +935,8 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
                                   event.target_dhkey,
                                   handshake_send_evt);
     }
+    np_unref_obj(np_key_t, outgoing_key, "_np_keycache_find_interface");
+
   } else {
     log_msg(LOG_ERROR,
             hs_message->uuid,

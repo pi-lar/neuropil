@@ -17,9 +17,10 @@ extern "C" {
 // (incoming) network events. To some extent, it also contains helper functions.
 
 NP_API_INTERN
-bool _node_can_be_reached(const np_state_t *context,
-                          const char       *remote_ip,
-                          const socket_type protocol);
+bool _np_glia_node_can_be_reached(const np_state_t *context,
+                                  const char       *remote_ip,
+                                  const socket_type protocol,
+                                  np_key_t        **outgoing_interface);
 
 /*
 // critical self invoking functions

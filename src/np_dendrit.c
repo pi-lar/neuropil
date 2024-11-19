@@ -227,9 +227,10 @@ bool _np_in_piggy(np_state_t *context, np_util_event_t msg_event) {
       }
 
       if (send_join)
-        send_join = _node_can_be_reached(context,
-                                         node_entry->ip_string,
-                                         node_entry->protocol);
+        send_join = _np_glia_node_can_be_reached(context,
+                                                 node_entry->ip_string,
+                                                 node_entry->protocol,
+                                                 NULL);
 
       if (send_join) {
 

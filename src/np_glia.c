@@ -141,9 +141,10 @@ responsecontainer, ref_ack_obj);
 }
 */
 
-bool _node_can_be_reached(const np_state_t *context,
-                          const char       *remote_ip,
-                          const socket_type protocol) {
+bool _np_glia_node_can_be_reached(const np_state_t *context,
+                                  const char       *remote_ip,
+                                  const socket_type protocol,
+                                  np_key_t        **outgoing_interface) {
   // functions checks whether th remote_ip can be reached from already existing
   // interfaces. It does not check for potential interfaces, as we assume the
   // user knows what he is doing and will setup needed interfaces with seperate
@@ -192,13 +193,6 @@ bool _node_can_be_reached(const np_state_t *context,
     goto _np_return;
   }
 
-  if ((remote_is_private && local_is_localhost) ||
-      (local_is_private && !remote_is_private)) {
-    // we need a passive connection for these combinations to connect
-    ret = FLAG_CMP(node_info->protocol, PASSIVE | (MASK_IP & protocol));
-    goto _np_return;
-  }
-
   if (remote_is_private && local_is_private) {
     // if remote is a private ip address, then local and remote ip addresses
     // must match (at least some leading tuples)
@@ -208,18 +202,28 @@ bool _node_can_be_reached(const np_state_t *context,
     if (ret) goto _np_return;
   }
 
-  if (local_is_private && !is_main_interface) {
-    // our own interface may not be in passive mode, check whether the main
-    // interface is passive
-    np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
-    interface_key =
-        _np_keycache_find_interface(context, context->main_ip, NULL);
-    node_info = interface_key->entity_array[e_nodeinfo];
-    ret       = FLAG_CMP(node_info->protocol, PASSIVE | (MASK_IP & protocol));
+  if ((remote_is_private && local_is_localhost) ||
+      (local_is_private && !remote_is_private)) {
+    // we need a passive connection for these combinations to connect
+    ret = FLAG_CMP(node_info->protocol, PASSIVE | (MASK_IP & protocol));
+    if (!ret && local_is_private && !is_main_interface) {
+      // our own interface may not be in passive mode, check whether the main
+      // interface is passive
+      np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
+      interface_key =
+          _np_keycache_find_interface(context, context->main_ip, NULL);
+      node_info = interface_key->entity_array[e_nodeinfo];
+      ret       = FLAG_CMP(node_info->protocol, PASSIVE | (MASK_IP & protocol));
+    }
+    goto _np_return;
   }
 
 _np_return:
 
-  np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
+  if (ret && outgoing_interface != NULL) {
+    *outgoing_interface = interface_key;
+  } else {
+    np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
+  }
   return ret;
 }
