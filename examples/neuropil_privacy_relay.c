@@ -206,8 +206,8 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
     return false;
   }
   // Arrays to store IP addresses
-  char    public_ips[8][64]  = {0};
-  char    private_ips[8][64] = {0};
+  char    public_ips[8][64]   = {0};
+  char    private_ips[16][64] = {0};
   uint8_t public_count = 0, private_count = 0;
 
   for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
@@ -250,13 +250,14 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
       }
     }
   }
+  freeifaddrs(ifaddr);
 
   // Listen on a passive localhost connection so that we are always able to
   // create connectivity with the outside world (populate main interface)
   // prefer ipv6 connectivity
-  if (np_ok != np_listen(ac, "pas6", "localhost", port)) {
-    fprintf(stderr, "Failed to listen on pas6:localhost:%d\n", port);
-  }
+  // if (np_ok != np_listen(ac, "pas6", "localhost", port)) {
+  //   fprintf(stderr, "Failed to listen on pas6:localhost:%d\n", port);
+  // }
   if (np_ok != np_listen(ac, "pas4", "localhost", port)) {
     fprintf(stderr, "Failed to listen on pas4:localhost:%d\n", port);
   }
@@ -292,6 +293,5 @@ bool install_network_interfaces(np_context *ac, uint16_t port) {
   }
   fprintf(stdout, "\nsetup of network private interfaces done\n");
 
-  freeifaddrs(ifaddr);
   return true;
 }

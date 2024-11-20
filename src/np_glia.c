@@ -218,6 +218,11 @@ bool _np_glia_node_can_be_reached(const np_state_t *context,
     goto _np_return;
   }
 
+  if (!remote_is_private && !local_is_private) {
+    ret = true;
+    goto _np_return;
+  }
+
 _np_return:
 
   if (ret && outgoing_interface != NULL) {

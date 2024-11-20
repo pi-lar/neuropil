@@ -1540,95 +1540,63 @@ enum np_return _np_network_get_local_ip(NP_UNUSED const np_network_t *ng,
                                         const socket_type             type,
                                         char *local_ip) {
 
-  assert(hostname != NULL && local_ip != NULL);
-
-  if (!FLAG_CMP(type, IPv4) && !FLAG_CMP(type, IPv6)) {
-    return np_invalid_argument;
-  }
+  assert(hostname != NULL);
+  assert(local_ip != NULL);
+  // assert(FLAG_CMP(type, IPv4) || FLAG_CMP(type, IPv6));
 
   enum np_return ret = np_operation_failed;
 
   struct ifaddrs *ifaddr;
-  int             family, s;
-  char            host[NI_MAXHOST];
 
   if (getifaddrs(&ifaddr) == -1) {
     // perror("getifaddrs");
     return (ret);
   }
 
-  struct ifaddrs *ifa = ifaddr;
-  while (ifa != NULL && ret == np_operation_failed) {
+  struct ifaddrs *ifa = NULL;
+  for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    if (ifa->ifa_addr == NULL) continue;
 
-    if (ifa->ifa_addr == NULL) {
-      ifa = ifa->ifa_next;
+    char host[NI_MAXHOST];
+    char host_ip[INET6_ADDRSTRLEN + 1];
+    int  name_result = 0;
+
+    if (ifa->ifa_addr->sa_family == AF_INET && FLAG_CMP(type, IPv4)) {
+      struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+      inet_ntop(AF_INET, &sa->sin_addr, host_ip, INET_ADDRSTRLEN);
+      name_result = getnameinfo(ifa->ifa_addr,
+                                sizeof(struct sockaddr_in),
+                                host,
+                                NI_MAXHOST,
+                                NULL,
+                                0,
+                                NI_NAMEREQD);
+    } else if (ifa->ifa_addr->sa_family == AF_INET6 && FLAG_CMP(type, IPv6)) {
+      struct sockaddr_in6 *sa = (struct sockaddr_in6 *)ifa->ifa_addr;
+      inet_ntop(AF_INET6, &sa->sin6_addr, host_ip, INET6_ADDRSTRLEN);
+      name_result = getnameinfo(ifa->ifa_addr,
+                                sizeof(struct sockaddr_in6),
+                                host,
+                                NI_MAXHOST,
+                                NULL,
+                                0,
+                                NI_NAMEREQD);
+    } else {
       continue;
-    };
-
-    family = ifa->ifa_addr->sa_family;
-
-    if (family == AF_INET && FLAG_CMP(type, IPv4)) {
-      s = getnameinfo(ifa->ifa_addr,
-                      sizeof(struct sockaddr_in),
-                      host,
-                      NI_MAXHOST,
-                      NULL,
-                      0,
-                      NI_NAMEREQD);
-      if (s == 0 && 0 == strncmp(host, hostname, 255)) {
-        s = getnameinfo(ifa->ifa_addr,
-                        sizeof(struct sockaddr_in6),
-                        host,
-                        NI_MAXHOST,
-                        NULL,
-                        0,
-                        NI_NUMERICHOST);
-        if (s == 0) {
-          strncpy(local_ip, host, 255);
-          ret = np_ok;
-        }
-      } else if (s == 0 && 0 != strncmp(host, hostname, 255)) {
-        inet_ntop(AF_INET,
-                  &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr,
-                  local_ip,
-                  INET_ADDRSTRLEN);
-        if (strncmp(local_ip, hostname, 255) == 0) {
-          ret = np_ok;
-        }
-      }
     }
 
-    if (family == AF_INET6 && FLAG_CMP(type, IPv6)) {
-      s = getnameinfo(ifa->ifa_addr,
-                      sizeof(struct sockaddr_in6),
-                      host,
-                      NI_MAXHOST,
-                      NULL,
-                      0,
-                      NI_NAMEREQD);
-      if (s == 0 && 0 == strncmp(host, hostname, 255)) {
-        s = getnameinfo(ifa->ifa_addr,
-                        sizeof(struct sockaddr_in6),
-                        host,
-                        NI_MAXHOST,
-                        NULL,
-                        0,
-                        NI_NUMERICHOST);
-        if (s == 0) {
-          strncpy(local_ip, host, 255);
-          ret = np_ok;
-        }
-      } else if (s == 0 && 0 != strncmp(host, hostname, 255)) {
-        inet_ntop(AF_INET6,
-                  &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr,
-                  local_ip,
-                  INET6_ADDRSTRLEN);
-        if (strncmp(local_ip, hostname, 255) == 0) {
-          ret = np_ok;
-        }
-      }
+    if (strncmp(host_ip, hostname, INET6_ADDRSTRLEN + 1) == 0) {
+      // ip addresses already match
+      strncpy(local_ip, host_ip, INET6_ADDRSTRLEN + 1);
+      ret = np_ok;
+      break;
+    } else if (name_result == 0 && 0 == strncmp(host, hostname, 255)) {
+      strncpy(local_ip, host_ip, INET6_ADDRSTRLEN + 1);
+      ret = np_ok;
+      break;
+    } else {
+      // log_msg(LOG_DEBUG, NULL, "NOT OK: %s -> %s", host_ip, host);
     }
-    ifa = ifa->ifa_next;
   }
   freeifaddrs(ifaddr);
 

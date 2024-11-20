@@ -73,7 +73,7 @@ int main(void) {
 
      \code
    */
-  assert(np_ok == np_join(ac, "*:udp6:demo.neuropil.io:3400"));
+  assert(np_ok == np_join(ac, "*:udp4:localhost:2345"));
   /**
      \endcode
   */
