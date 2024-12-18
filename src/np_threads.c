@@ -1101,7 +1101,7 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
   }
   */
 
-  context->thread_count += pool_size;
+  context->thread_count  = pool_size;
   uint8_t worker_threads = ((int)pool_size / 2) + 1;
 
   // start jobs

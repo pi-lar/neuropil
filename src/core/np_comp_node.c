@@ -1193,9 +1193,11 @@ void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
   np_ctx_memory(statemachine->_user_data);
 
   NP_CAST(statemachine->_user_data, np_key_t, node_key);
+  np_node_t *node = _np_key_get_node(node_key);
 
   if (FLAG_CMP(event.type, evt_internal) &&
-      FLAG_CMP(event.type, evt_shutdown)) {
+      FLAG_CMP(event.type, evt_shutdown) &&
+      node->leave_send_at < node->join_send_at) {
     // 1: create leave message
     np_tree_t *jrb_data    = np_tree_create();
     np_tree_t *jrb_my_node = np_tree_create();
@@ -1233,7 +1235,6 @@ void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
 
   __np_node_remove_from_routing(statemachine, event);
 
-  np_node_t *node     = _np_key_get_node(node_key);
   node->leave_send_at = np_time_now();
 }
 

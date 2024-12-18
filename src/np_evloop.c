@@ -104,9 +104,6 @@
     while (ev_pending_count(EV_A)) {                                           \
       ev_invoke_pending(np_module(events)->__loop_##LOOPNAME);                 \
     }                                                                          \
-    _np_threads_module_condition_timedwait(context,                            \
-                                           np_event_##LOOPNAME##_t_lock,       \
-                                           NP_EVENT_IO_CHECK_PERIOD_SEC);      \
     if (np_get_status(context) >= np_shutdown) {                               \
       ev_break(EV_A_ EVBREAK_ALL);                                             \
     }                                                                          \
@@ -131,12 +128,17 @@
     EV_P = _np_event_get_loop_##LOOPNAME(context);                             \
     ev_set_invoke_pending_cb(np_module(events)->__loop_##LOOPNAME,             \
                              _l_invoke_##LOOPNAME);                            \
-    _LOCK_MODULE(np_event_##LOOPNAME##_t) { ev_run(EV_A_ EVRUN_NOWAIT); }      \
-    log_info(LOG_THREADS,                                                      \
-             NULL,                                                             \
-             "thread %" PRIsizet " type %" PRIu32 " stopping ...",             \
-             thread->id,                                                       \
-             thread->thread_type);                                             \
+    _LOCK_MODULE(np_event_##LOOPNAME##_t) {                                    \
+      ev_run(EV_A_ EVRUN_NOWAIT);                                              \
+      _np_threads_module_condition_timedwait(context,                          \
+                                             np_event_##LOOPNAME##_t_lock,     \
+                                             NP_EVENT_IO_CHECK_PERIOD_SEC);    \
+    }                                                                          \
+    log_debug(LOG_THREADS,                                                     \
+              NULL,                                                            \
+              "thread %" PRIsizet " type %" PRIu32 " stopping ...",            \
+              thread->id,                                                      \
+              thread->thread_type);                                            \
   }                                                                            \
   void _np_event_suspend_loop_##LOOPNAME(np_state_t *context) {                \
     _np_threads_lock_module(context, np_event_##LOOPNAME##_t_lock, FUNC);      \

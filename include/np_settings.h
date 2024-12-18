@@ -176,7 +176,7 @@ extern "C" {
 
 // log file handling
 #ifndef MISC_LOG_FLUSH_INTERVAL_SEC
-#define MISC_LOG_FLUSH_INTERVAL_SEC (NP_PI / 30)
+#define MISC_LOG_FLUSH_INTERVAL_SEC (NP_PI / 60)
 #endif
 #ifndef MISC_LOG_FLUSH_AFTER_X_ITEMS
 #define MISC_LOG_FLUSH_AFTER_X_ITEMS (31U)
@@ -220,10 +220,10 @@ extern "C" {
 #define MISC_RENEW_NODE_SEC (NP_PI * 1000)
 #endif
 #ifndef MISC_READ_EVENTS_SEC
-#define MISC_READ_EVENTS_SEC (NP_PI / 100)
+#define MISC_READ_EVENTS_SEC (NP_PI / 600)
 #endif
 #ifndef MISC_READ_HTTP_SEC
-#define MISC_READ_HTTP_SEC (NP_PI / 10)
+#define MISC_READ_HTTP_SEC (NP_PI / 300)
 #endif
 
 /** settings that affect node to node communication behaviour - use with care */
