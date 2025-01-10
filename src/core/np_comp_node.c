@@ -140,6 +140,21 @@ bool __is_node_invalid(np_util_statemachine_t         *statemachine,
 
   if (!ret) ret = (node->connection_attempts > 15);
 
+  if (!ret) // check whether leave msg has been sent
+  {
+    np_node_t *node = _np_key_get_node(node_key);
+    ret             = (node->leave_send_at > node->join_send_at) ? true : false;
+    if (ret) {
+      log_info(LOG_ROUTING,
+               NULL,
+               "bad node [left mesh]: %s , is_in_leafset: %d, "
+               "is_in_routing_table: %d",
+               _np_key_as_str(node_key),
+               node->is_in_leafset,
+               node->is_in_routing_table);
+    }
+  }
+
   if (!ret) // check for not in routing / leafset table anymore
   {
     ret = (!node->is_in_leafset) && (!node->is_in_routing_table);
@@ -232,14 +247,15 @@ bool __has_to_leave(np_util_statemachine_t *statemachine,
 
   if (!ret) ret = (_np_key_get_node(node_key) == NULL);
 
+  if (!ret) {
+    np_node_t *node = _np_key_get_node(node_key);
+    if (node->leave_send_at > node->join_send_at) return false;
+  }
+
   if (!ret) // check for not in routing / leafset table anymore
   {
     np_node_t *node = _np_key_get_node(node_key);
-
-    ret = (!node->is_in_leafset && !node->is_in_routing_table) ||
-          (node->success_avg < BAD_LINK);
-    ret = (node->leave_send_at > node->join_send_at) ? true : ret;
-
+    ret = (node->is_in_leafset == false && node->is_in_routing_table == false);
     if (ret) {
       log_info(LOG_ROUTING,
                NULL,
@@ -249,24 +265,19 @@ bool __has_to_leave(np_util_statemachine_t *statemachine,
                node->is_in_leafset,
                node->is_in_routing_table);
     }
-
-    log_trace(LOG_TRACE,
-              NULL,
-              "end  : bool __has_to_leave(...) { %d (%d / %d / %f < %f)",
-              ret,
-              node->is_in_leafset,
-              node->is_in_routing_table,
-              (node_key->created_at + BAD_LINK_REMOVE_GRACETIME),
-              np_time_now());
   }
-  log_msg(LOG_INFO | LOG_MISC,
-          NULL,
-          "__has_to_leave(...) == %s { [0]:%p [1]:%p [2]:%p [3]:%p }",
-          ret ? "true" : "false",
-          node_key->entity_array[e_handshake_token],
-          node_key->entity_array[e_aaatoken],
-          node_key->entity_array[e_nodeinfo],
-          node_key->entity_array[e_network]);
+  if (!ret) // bad node connectivity
+  {
+    np_node_t *node = _np_key_get_node(node_key);
+    ret             = (node->success_avg < BAD_LINK);
+    if (ret) {
+      log_info(LOG_ROUTING,
+               NULL,
+               "bad node [connectivity]: %s success_avg: %f ",
+               _np_key_as_str(node_key),
+               node->success_avg);
+    }
+  }
 
   return ret;
 }
@@ -839,7 +850,7 @@ void __np_node_update(np_util_statemachine_t *statemachine,
   }
 
   // the node received a shutdown event or decided to shutdown by the rules
-  // below do not furthe process
+  // below do not further process events
   if (node->leave_send_at > node->join_send_at) {
     return;
   }
@@ -871,10 +882,9 @@ void __np_node_update(np_util_statemachine_t *statemachine,
     }
   }
 
+  double now = np_time_now();
   // follow up actions
-  if ((node->success_avg > BAD_LINK) &&
-      (np_time_now() >= (node->last_success + MISC_SEND_PINGS_MAX_EVERY_X_SEC *
-                                                  node->success_avg))) {
+  if ((node->success_avg > BAD_LINK) && (now >= node->next_ping_update)) {
     np_dhkey_t ping_dhkey = {0};
     np_generate_subject(&ping_dhkey,
                         _NP_MSG_PING_REQUEST,
@@ -907,6 +917,8 @@ void __np_node_update(np_util_statemachine_t *statemachine,
               _np_key_as_str(node_key),
               node_key);
     np_unref_obj(np_message_t, msg_out, ref_obj_creation);
+    node->next_ping_update =
+        now + MISC_SEND_PINGS_MAX_EVERY_X_SEC * node->success_avg;
   }
 
   // there seem to be (a couple of) failure(s) to contact the peer node, remove
@@ -1151,6 +1163,8 @@ void __np_node_destroy(np_util_statemachine_t         *statemachine,
   struct __np_node_trinity trinity = {0};
   __np_key_to_trinity(node_key, &trinity);
 
+  __np_node_remove_from_routing(statemachine, event);
+
   _np_network_disable(trinity.network);
 
   if (node_key->entity_array[e_network] != NULL)
@@ -1196,7 +1210,7 @@ void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
   np_node_t *node = _np_key_get_node(node_key);
 
   if (FLAG_CMP(event.type, evt_internal) &&
-      FLAG_CMP(event.type, evt_shutdown) &&
+      FLAG_CMP(event.type, evt_shutdown) && node->success_avg > BAD_LINK &&
       node->leave_send_at < node->join_send_at) {
     // 1: create leave message
     np_tree_t *jrb_data    = np_tree_create();
@@ -1232,8 +1246,6 @@ void __np_node_send_shutdown(np_util_statemachine_t *statemachine,
     np_tree_free(jrb_my_node);
     np_tree_free(jrb_data);
   }
-
-  __np_node_remove_from_routing(statemachine, event);
 
   node->leave_send_at = np_time_now();
 }
@@ -1928,9 +1940,8 @@ void __np_node_handle_response(np_util_statemachine_t *statemachine,
     node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = 0;
     node->latency_win[node->latency_win_index % NP_NODE_SUCCESS_WINDOW] =
         (response->expires_at - response->send_at);
-  }
 
-  if (FLAG_CMP(event.type, evt_response)) {
+  } else if (FLAG_CMP(event.type, evt_response)) {
     node->last_success = np_time_now();
     node->success_win[node->success_win_index % NP_NODE_SUCCESS_WINDOW] = 1;
     double new_latency_value = (response->received_at - response->send_at);

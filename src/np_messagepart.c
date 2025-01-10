@@ -67,8 +67,7 @@ void _np_messagepart_t_new(np_state_t       *context,
                            void             *obj) {
   struct np_n2n_messagepart_s *part = (struct np_n2n_messagepart_s *)obj;
 
-  // memset(part->uuid, 0, NP_UUID_BYTES);
-  // part->msg_part = NULL;
+  memset(&part->e2e_msg_part, 0, sizeof(struct np_e2e_messagepart_s));
   part->chunk_offset      = 0;
   part->is_forwarded_part = false;
 }

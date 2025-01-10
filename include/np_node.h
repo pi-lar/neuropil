@@ -55,6 +55,7 @@ struct np_node_s {
   np_crypto_session_t session;
   TSP(bool, session_key_is_set);
 
+  double next_ping_update;
   double next_routing_table_update;
   bool   is_in_routing_table;
   bool   is_in_leafset;

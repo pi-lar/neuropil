@@ -556,10 +556,9 @@ void _np_msgproperty_cleanup_response_handler(np_msgproperty_run_t *self,
   double now = np_time_now();
   sll_init_full(void_ptr, to_remove);
 
-  np_tree_elem_t         *iter_tree = NULL;
-  np_responsecontainer_t *current   = NULL;
-  now                               = np_time_now();
-  uint8_t max_events                = NP_PI_INT * 10;
+  np_tree_elem_t         *iter_tree  = NULL;
+  np_responsecontainer_t *current    = NULL;
+  uint8_t                 max_events = NP_PI_INT * 10;
 
   RB_FOREACH (iter_tree, np_tree_s, self->response_handler) {
     bool handle_event = false;
@@ -609,8 +608,6 @@ void _np_msgproperty_cleanup_response_handler(np_msgproperty_run_t *self,
                               NULL)) { // clean up ping ack
 
         np_ref_obj(np_responsecontainer_t, response_event.user_data, FUNC);
-        // response_event.cleanup =
-        //     __np_msgproperty_event_cleanup_response_handler;
 
         response_event.target_dhkey = current->dest_dhkey;
         _np_event_runtime_add_event(context,

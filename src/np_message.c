@@ -838,7 +838,6 @@ void _np_message_add_response_handler(
   memcpy(&rh->send_at, self->tstamp, sizeof(double));
   if (out_prop != NULL) rh->expires_at = rh->send_at + out_prop->msg_ttl;
   else rh->expires_at = rh->send_at + MSGPROPERTY_DEFAULT_MSG_TTL;
-  rh->received_at = 0.0;
 
   np_dhkey_t      ack_dhkey = _np_msgproperty_dhkey(INBOUND, _NP_MSG_ACK);
   np_util_event_t rh_event  = {.user_data    = rh,
