@@ -75,9 +75,10 @@ void _np_node_t_new(np_state_t       *context,
   entry->handshake_priority = np_global_rng_next();
 
   entry->next_routing_table_update = np_time_now() + NP_PI;
-  entry->next_ping_update          = np_time_now() + NP_PI;
-  entry->is_in_routing_table       = false;
-  entry->is_in_leafset             = false;
+  entry->next_ping_update =
+      np_time_now() + np_global_rng_next_bounded(NP_PI * 10);
+  entry->is_in_routing_table = false;
+  entry->is_in_leafset       = false;
 
   for (uint8_t i = 0; i < NP_NODE_SUCCESS_WINDOW; i++)
     entry->success_win[i] = i % 2;

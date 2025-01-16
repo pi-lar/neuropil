@@ -44,7 +44,8 @@
 #define __NP_EVENT_EVLOOP_STRUCTS(LOOPNAME)                                    \
   struct ev_loop *__loop_##LOOPNAME;                                           \
   ev_idle         __idle_##LOOPNAME;                                           \
-  ev_async        __async_##LOOPNAME;
+  ev_async        __async_##LOOPNAME;                                          \
+  size_t          __trigger_count_##LOOPNAME;
 
 #define __NP_EVENT_EVLOOP_DEINIT(LOOPNAME)                                     \
   ev_loop_destroy(_module->__loop_##LOOPNAME);
@@ -110,7 +111,8 @@
   }                                                                            \
   bool _np_events_read_##LOOPNAME(np_state_t               *context,           \
                                   NP_UNUSED np_util_event_t event) {           \
-    EV_P = _np_event_get_loop_##LOOPNAME(context);                             \
+    EV_P         = _np_event_get_loop_##LOOPNAME(context);                     \
+    size_t count = 1;                                                          \
     _LOCK_MODULE(np_event_##LOOPNAME##_t) {                                    \
       ev_run(EV_A_(EVRUN_ONCE | EVRUN_NOWAIT));                                \
     }                                                                          \
@@ -118,27 +120,31 @@
   }                                                                            \
   void _np_event_##LOOPNAME##_run(np_state_t            *context,              \
                                   NP_UNUSED np_thread_t *thread_ptr) {         \
-    enum np_status tmp_status;                                                 \
     EV_P = _np_event_get_loop_##LOOPNAME(context);                             \
     _LOCK_MODULE(np_event_##LOOPNAME##_t) { ev_run(EV_A_(0)); }                \
   }                                                                            \
   void _np_event_##LOOPNAME##_run_triggered(np_state_t  *context,              \
                                             np_thread_t *thread) {             \
-    enum np_status tmp_status;                                                 \
     EV_P = _np_event_get_loop_##LOOPNAME(context);                             \
     ev_set_invoke_pending_cb(np_module(events)->__loop_##LOOPNAME,             \
                              _l_invoke_##LOOPNAME);                            \
     _LOCK_MODULE(np_event_##LOOPNAME##_t) {                                    \
-      ev_run(EV_A_ EVRUN_NOWAIT);                                              \
-      _np_threads_module_condition_timedwait(context,                          \
-                                             np_event_##LOOPNAME##_t_lock,     \
-                                             NP_EVENT_IO_CHECK_PERIOD_SEC);    \
+      ev_run(EV_A_(EVRUN_NOWAIT | EVRUN_ONCE));                                \
+      if (np_module(events)->__trigger_count_##LOOPNAME == 0) {                \
+        _np_threads_module_condition_timedwait(context,                        \
+                                               np_event_##LOOPNAME##_t_lock,   \
+                                               NP_EVENT_IO_CHECK_PERIOD_SEC);  \
+      } else {                                                                 \
+        size_t count = np_module(events)->__trigger_count_##LOOPNAME;          \
+        np_module(events)->__trigger_count_##LOOPNAME =                        \
+            (count > 0) ? count - 1 : count;                                   \
+      }                                                                        \
+      log_debug(LOG_THREADS,                                                   \
+                NULL,                                                          \
+                "thread %" PRIsizet " type %" PRIu32 " stopping ...",          \
+                thread->id,                                                    \
+                thread->thread_type);                                          \
     }                                                                          \
-    log_debug(LOG_THREADS,                                                     \
-              NULL,                                                            \
-              "thread %" PRIsizet " type %" PRIu32 " stopping ...",            \
-              thread->id,                                                      \
-              thread->thread_type);                                            \
   }                                                                            \
   void _np_event_suspend_loop_##LOOPNAME(np_state_t *context) {                \
     _np_threads_lock_module(context, np_event_##LOOPNAME##_t_lock, FUNC);      \
@@ -157,6 +163,7 @@
     if (0 == _np_threads_trylock_module(context,                               \
                                         np_event_##LOOPNAME##_t_lock,          \
                                         "ev_out")) {                           \
+      np_module(events)->__trigger_count_##LOOPNAME++;                         \
       _np_threads_module_condition_signal(context,                             \
                                           np_event_##LOOPNAME##_t_lock);       \
       _np_threads_unlock_module(context, np_event_##LOOPNAME##_t_lock);        \

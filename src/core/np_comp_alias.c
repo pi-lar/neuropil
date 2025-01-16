@@ -570,6 +570,21 @@ bool __is_crypted_message(np_util_statemachine_t *statemachine,
   return ret;
 }
 
+bool __is_msgpart_expired(const struct np_n2n_messagepart_s *part) {
+  np_ctx_memory(part);
+  double   now    = np_time_now();
+  double   tstamp = 0.0;
+  uint32_t ttl    = 0;
+  memcpy(&tstamp, part->e2e_msg_part.tstamp, sizeof(double));
+  memcpy(&ttl, part->e2e_msg_part.ttl, sizeof(uint32_t));
+
+  // log_msg(LOG_DEBUG,
+  //         part->e2e_msg_part.uuid,
+  //         "message has %s expired",
+  //         now < (tstamp + ttl) ? "not" : "");
+  return (now > (tstamp + ttl));
+}
+
 void __np_alias_decrypt(
     np_util_statemachine_t *statemachine,
     const np_util_event_t   event) { // decrypt transport encryption
@@ -652,7 +667,17 @@ void __np_alias_decrypt(
     return;
   }
 
-  // TODO: compare sequence number and check for increase
+  // check whether message contains proper time values
+  if (__is_msgpart_expired(part)) {
+    log_msg(
+        LOG_WARNING | LOG_MESSAGE,
+        part->e2e_msg_part.uuid,
+        "packet send from %s is expired or clock skew detected, dropping ...",
+        _np_key_as_str(alias_key));
+    np_unref_obj(np_messagepart_t, part, ref_obj_creation);
+    return;
+  }
+
 
   log_debug(LOG_SERIALIZATION,
             part->e2e_msg_part.uuid,
@@ -673,17 +698,6 @@ void __np_alias_decrypt(
                                 in_message_evt);
   }
   np_unref_obj(np_messagepart_t, part, ref_obj_creation);
-}
-
-bool __is_msgpart_expired(const struct np_n2n_messagepart_s *part) {
-  np_ctx_memory(part);
-  double   now    = np_time_now();
-  double   tstamp = 0.0;
-  uint32_t ttl    = 0;
-  memcpy(&tstamp, part->e2e_msg_part.tstamp, sizeof(double));
-  memcpy(&ttl, part->e2e_msg_part.ttl, sizeof(uint32_t));
-
-  return (now < (tstamp + ttl));
 }
 
 bool __is_join_in_message(np_util_statemachine_t *statemachine,
@@ -713,7 +727,6 @@ bool __is_join_in_message(np_util_statemachine_t *statemachine,
     np_generate_subject(&leave_dhkey,
                         _NP_MSG_LEAVE_REQUEST,
                         strnlen(_NP_MSG_LEAVE_REQUEST, 256));
-    ret &= __is_msgpart_expired(join_message);
     ret &= (_np_dhkey_equal(join_message->e2e_msg_part.subject, &join_dhkey)) ||
            (_np_dhkey_equal(join_message->e2e_msg_part.subject, &leave_dhkey));
   }
@@ -746,7 +759,6 @@ bool __is_forward_message(np_util_statemachine_t *statemachine,
     NP_CAST(event.user_data, struct np_n2n_messagepart_s, forward_message);
     /* TODO: use the bloom, luke */
     // messagepart is not addressed to our node --> forward
-    ret &= __is_msgpart_expired(forward_message);
     ret &= !_np_dhkey_equal(&context->my_node_key->dhkey,
                             forward_message->e2e_msg_part.audience);
     log_trace(LOG_MESSAGE,
@@ -766,8 +778,6 @@ bool __is_discovery_message(np_util_statemachine_t *statemachine,
   bool ret = __is_forward_message(statemachine, event);
   if (ret) {
     NP_CAST(event.user_data, struct np_n2n_messagepart_s, discovery_message);
-    /* TODO: use the bloom, luke */
-    ret &= __is_msgpart_expired(discovery_message);
 
     np_dhkey_t avail_recv_dhkey = {0};
     np_generate_subject((np_subject *)&avail_recv_dhkey,
@@ -816,8 +826,6 @@ bool __is_pheromone_message(np_util_statemachine_t *statemachine,
 
   if (ret) {
     NP_CAST(event.user_data, struct np_n2n_messagepart_s, pheromone_message);
-
-    ret &= __is_msgpart_expired(pheromone_message);
 
     np_dhkey_t pheromone_dhkey = {0};
     np_generate_subject((np_subject *)&pheromone_dhkey,
@@ -892,7 +900,6 @@ bool __is_dht_message(np_util_statemachine_t *statemachine,
 
   if (ret) {
     NP_CAST(event.user_data, struct np_n2n_messagepart_s, dht_message);
-    ret &= __is_msgpart_expired(dht_message);
     ret &= _np_dhkey_equal(&context->my_node_key->dhkey,
                            dht_message->e2e_msg_part.audience);
     log_debug(LOG_MESSAGE,
@@ -921,8 +928,6 @@ bool __is_usr_in_message(np_util_statemachine_t *statemachine,
 
   if (ret) {
     NP_CAST(event.user_data, struct np_n2n_messagepart_s, usr_message);
-
-    ret &= __is_msgpart_expired(usr_message);
 
     np_msgproperty_conf_t *user_prop =
         _np_msgproperty_conf_get(context,
