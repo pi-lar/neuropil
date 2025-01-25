@@ -90,6 +90,9 @@ enum np_return np_use_identity(np_context *ac, struct np_token identity);
 enum np_return np_use_token(np_context *ac, struct np_token token);
 enum np_return
 np_sign_identity(np_context *ac, struct np_token *identity, bool self_sign);
+enum np_return np_verify_issuer(np_context     *ac,
+                                struct np_token identity,
+                                struct np_token issuer);
 enum np_return np_token_fingerprint(np_context     *ac,
                                     struct np_token identity,
                                     bool            include_attributes,

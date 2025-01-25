@@ -144,7 +144,6 @@ class np_token(object):
         self._raw = raw
         self._node = node
         self.__dict__.update(entries)
-        self.issuer = np_id(self.issuer)
 
     def get_fingerprint(self, check_attributes: bool = False):
         id = ffi.new("np_id", b"\0")
@@ -162,9 +161,33 @@ class np_token(object):
 
         return np_id(id)
 
+    def __getattribute__(self, name: str):
+        match (name):
+            case "issuer" | "audience" | "realm":
+                return np_id(ffi.addressof(self._raw, name)[0])
+            case _:
+                return super().__getattribute__(name)
+
+    def __setattr__(self, name: str, value) -> None:
+        match (name):
+            case "issuer" | "audience" | "realm":
+                ffi.memmove(
+                    ffi.addressof(self._raw, name),
+                    ffi.addressof(value._cdata),
+                    neuropil.NP_FINGERPRINT_BYTES,
+                )
+            case "public_key" | "secret_key" | "signature" | "attributes_signature":
+                raise NeuropilException("operation not allowed")
+            case _:
+                super().__setattr__(name, value)
+
     def get_attr_bin(self, key: bytes):
         if isinstance(key, str):
-            key = key.encode("utf-8")
+            local_key = key.encode("utf-8")
+        elif isinstance(key, np_id):
+            local_key = str(key).encode("utf-8")
+        else:
+            local_key = key
         out_data_config = ffi.new("struct np_data_conf[1]")
         out_data_config_ptr = ffi.new("struct np_data_conf *[1]")
         out_data_config_ptr[0] = ffi.addressof(out_data_config[0])
@@ -172,7 +195,7 @@ class np_token(object):
         out_data[0] = ffi.NULL
 
         data_return = neuropil.np_get_token_attr_bin(
-            ffi.addressof(self._raw), key, out_data_config_ptr, out_data
+            ffi.addressof(self._raw), local_key, out_data_config_ptr, out_data
         )
 
         data = None
@@ -207,6 +230,34 @@ class np_token(object):
                 f"Could not set attribute. Error code: {data_return}. Please review neuropil_data.h for details",
                 data_return,
             )
+
+    def sign_identity(self, token):
+        ret = neuropil.np_sign_identity(
+            self._node._context, ffi.addressof(token._raw), False
+        )
+        if ret is not neuropil.np_ok:
+            raise NeuropilException(
+                "{error}".format(error=ffi.string(neuropil.np_error_str(ret))), ret
+            )
+        return ret
+
+    def verify_issuer(self, issuer):
+        ret = neuropil.np_verify_issuer(self._node._context, self._raw, issuer._raw)
+        if ret is not neuropil.np_ok:
+            raise NeuropilException(
+                "{error}".format(error=ffi.string(neuropil.np_error_str(ret))), ret
+            )
+        return ret
+
+    def update(self):
+        ret = neuropil.np_sign_identity(
+            self._node._context, ffi.addressof(self._raw), True
+        )
+        if ret is not neuropil.np_ok:
+            raise NeuropilException(
+                "{error}".format(error=ffi.string(neuropil.np_error_str(ret))), ret
+            )
+        return ret
 
 
 class np_message(object):

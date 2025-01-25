@@ -225,9 +225,10 @@ NP_API_EXPORT
 enum np_return
 np_sign_identity(np_context *ac, struct np_token *identity, bool self_sign);
 
-// NP_API_EXPORT
-// enum np_return np_verify_fingerprint(np_context* ac, struct np_token*
-// identity, bool self_sign);
+NP_API_EXPORT
+enum np_return np_verify_issuer(np_context     *ac,
+                                struct np_token identity,
+                                struct np_token issuer);
 
 NP_API_EXPORT
 enum np_return np_token_fingerprint(np_context     *ac,

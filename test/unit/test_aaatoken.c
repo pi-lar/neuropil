@@ -294,3 +294,77 @@ Test(np_aaatoken_t,
     */
   }
 }
+
+Test(np_aaatoken_t,
+     token_signatures,
+     .description = "test creation and verification of signed tokens") {
+
+  CTX() {
+    // Create and verify a self-signed token without issuer
+    np_aaatoken_t *issuer =
+        np_token_factory_new_identity_token(context,
+                                            np_time_now() + 3600,
+                                            NULL);
+    cr_expect(issuer != NULL, "expect the token to be created");
+    strncpy(issuer->subject, "issuer", 7);
+    // Sign the token
+    _np_aaatoken_set_signature(issuer, NULL);
+    issuer->state = AAA_AUTHENTICATED | AAA_VALID;
+
+    // Verify signature
+    cr_expect(np_ok == _np_aaatoken_verify_signature(issuer, NULL));
+    cr_expect(issuer->is_signature_verified == true);
+    cr_expect(issuer->is_signature_attributes_verified == true);
+    cr_expect(issuer->is_issuer_verified == false);
+
+    // Verify issuer (should pass since no issuer set)
+    // cr_expect(np_ok == np_verify_issuer(self_signed, NULL));
+
+    // Create a token signed by another identity
+    np_aaatoken_t *signed_token =
+        np_token_factory_new_identity_token(context,
+                                            np_time_now() + 3600,
+                                            NULL);
+    cr_expect(signed_token != NULL, "expect the token to be created");
+    strncpy(signed_token->subject, "signed_token", 13);
+    signed_token->state = AAA_AUTHENTICATED | AAA_VALID;
+
+    // Set issuer and sign
+    np_dhkey_t issuer_dhkey = np_aaatoken_get_fingerprint(issuer, false);
+    np_id_str(signed_token->issuer, &issuer_dhkey);
+    _np_aaatoken_set_signature(signed_token, NULL);   // set own signature
+    _np_aaatoken_set_signature(signed_token, issuer); // set issuer signature
+    _np_aaatoken_set_signature(signed_token, NULL);   // set own signature
+
+    // Verify issuer fails with wrong issuer
+    np_aaatoken_t *wrong_issuer =
+        np_token_factory_new_identity_token(context,
+                                            np_time_now() + 3600,
+                                            NULL);
+    cr_expect(wrong_issuer != NULL, "expect the token to be created");
+    strncpy(wrong_issuer->subject, "wrong_issuer", 13);
+    _np_aaatoken_set_signature(wrong_issuer, NULL);
+    wrong_issuer->state = AAA_AUTHENTICATED | AAA_VALID;
+
+    cr_expect(np_operation_failed ==
+              _np_aaatoken_verify_signature(signed_token, wrong_issuer));
+    cr_expect(signed_token->is_signature_verified == true);
+    cr_expect(signed_token->is_signature_attributes_verified == true);
+    cr_expect(signed_token->is_issuer_verified == false);
+
+    // Verify signature with real issuer
+    cr_expect(np_ok == _np_aaatoken_verify_signature(signed_token, issuer));
+    cr_expect(signed_token->is_signature_verified == true);
+    cr_expect(signed_token->is_signature_attributes_verified == true);
+    cr_expect(signed_token->is_issuer_verified == true);
+
+    // Cleanup
+    np_unref_obj(np_aaatoken_t, issuer, "np_token_factory_new_identity_token");
+    np_unref_obj(np_aaatoken_t,
+                 signed_token,
+                 "np_token_factory_new_identity_token");
+    np_unref_obj(np_aaatoken_t,
+                 wrong_issuer,
+                 "np_token_factory_new_identity_token");
+  }
+}

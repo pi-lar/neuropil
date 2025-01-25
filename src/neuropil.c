@@ -331,7 +331,7 @@ np_new_identity(np_context *ac,
   struct np_token           ret = {0};
   np_ident_private_token_t *new_token =
       np_token_factory_new_identity_token(context, expires_at, secret_key);
-  np_aaatoken4user(&ret, new_token);
+  np_aaatoken4user(&ret, new_token, true);
 
 #ifdef DEBUG
   char       tmp[65] = {0};
@@ -367,31 +367,72 @@ enum np_return
 np_sign_identity(np_context *ac, struct np_token *identity, bool self_sign) {
   np_ctx_cast(ac);
 
-  enum np_return ret = np_ok;
   if (identity == NULL) {
-    ret = np_invalid_argument;
-  } else {
-    np_ident_private_token_t *id_token = NULL;
-    if (self_sign) {
-      id_token = np_token_factory_new_identity_token(context,
-                                                     identity->expires_at,
-                                                     &identity->secret_key);
-      np_user4aaatoken(id_token, identity);
-      _np_aaatoken_set_signature(id_token, NULL);
-    } else {
-      id_token = np_token_factory_new_identity_token(context, 20.0, NULL);
-      np_user4aaatoken(id_token, identity);
-      _np_aaatoken_set_signature(id_token,
-                                 _np_key_get_token(context->my_identity));
-    }
-    _np_aaatoken_update_attributes_signature(id_token);
-    np_aaatoken4user(identity, id_token);
-
-    np_unref_obj(np_aaatoken_t,
-                 id_token,
-                 "np_token_factory_new_identity_token");
+    return (np_invalid_argument);
   }
+  // check for empty signature
+  char empty_sk[NP_SECRET_KEY_BYTES] = {0};
+  if (self_sign &&
+      0 == memcmp(empty_sk, identity->secret_key, NP_SECRET_KEY_BYTES)) {
+    return (np_invalid_argument);
+  }
+
+  enum np_return            ret      = np_ok;
+  np_ident_private_token_t *id_token = NULL;
+
+  if (self_sign) {
+    id_token = np_token_factory_new_identity_token(context,
+                                                   identity->expires_at,
+                                                   &identity->secret_key);
+    np_user4aaatoken(id_token, identity);
+    _np_aaatoken_set_signature(id_token, NULL);
+    _np_aaatoken_update_attributes_signature(id_token);
+
+  } else {
+    id_token = np_token_factory_new_identity_token(context, 20.0, NULL);
+    np_user4aaatoken(id_token, identity);
+    _np_aaatoken_set_signature(id_token,
+                               _np_key_get_token(context->my_identity));
+  }
+  np_aaatoken4user(identity, id_token, self_sign);
+
+
+  np_unref_obj(np_aaatoken_t, id_token, "np_token_factory_new_identity_token");
+
   return ret;
+}
+
+enum np_return np_verify_issuer(np_context     *ac,
+                                struct np_token identity,
+                                struct np_token issuer) {
+  np_ctx_cast(ac);
+
+  enum np_return ret = np_operation_failed;
+
+  np_ident_public_token_t *identity_token =
+      np_token_factory_new_identity_token(context, identity.expires_at, NULL);
+  np_user4aaatoken(identity_token, &identity);
+  identity_token->state = AAA_AUTHENTICATED | AAA_VALID;
+  _np_aaatoken_get_hash(identity_token);
+  log_msg(LOG_DEBUG, NULL, "have identity token");
+
+  np_ident_public_token_t *issuer_token =
+      np_token_factory_new_identity_token(context, issuer.expires_at, NULL);
+  np_user4aaatoken(issuer_token, &issuer);
+  issuer_token->state = AAA_AUTHENTICATED | AAA_VALID;
+  _np_aaatoken_get_hash(issuer_token);
+  log_msg(LOG_DEBUG, NULL, "have issuer token");
+
+  ret = _np_aaatoken_verify_signature(identity_token, issuer_token);
+
+  np_unref_obj(np_aaatoken_t,
+               identity_token,
+               "np_token_factory_new_identity_token");
+  np_unref_obj(np_aaatoken_t,
+               issuer_token,
+               "np_token_factory_new_identity_token");
+
+  return (ret);
 }
 
 enum np_return np_token_fingerprint(np_context     *ac,

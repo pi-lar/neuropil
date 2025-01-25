@@ -149,7 +149,7 @@ Test(test_serialization_qcbor,
     char           *buffer[10240];
     struct np_token node_token    = {0};
     np_aaatoken_t  *node_aaatoken = _np_key_get_token(context->my_node_key);
-    np_aaatoken4user(&node_token, node_aaatoken);
+    np_aaatoken4user(&node_token, node_aaatoken, false);
     np_set_ident_attr_bin(context,
                           &node_token,
                           NP_ATTR_INTENT_AND_IDENTITY,

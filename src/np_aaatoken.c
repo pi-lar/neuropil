@@ -80,7 +80,6 @@ void _np_aaatoken_t_new(np_state_t       *context,
          crypto_sign_ed25519_SECRETKEYBYTES * (sizeof(unsigned char)));
 
   memset(aaa_token->signature, 0, crypto_sign_BYTES * (sizeof(unsigned char)));
-  aaa_token->is_signature_verified = false;
 
   char *uuid = aaa_token->uuid;
   np_uuid_create("urn:np:token:create_generic_token", 0, &uuid);
@@ -97,6 +96,10 @@ void _np_aaatoken_t_new(np_state_t       *context,
 
   np_init_datablock(aaa_token->attributes, sizeof(aaa_token->attributes));
   aaa_token->state = AAA_UNKNOWN;
+
+  aaa_token->is_signature_verified            = false;
+  aaa_token->is_signature_attributes_verified = false;
+  aaa_token->is_issuer_verified               = false;
 
   aaa_token->type         = np_aaatoken_type_undefined;
   aaa_token->scope        = np_aaatoken_scope_undefined;
@@ -676,17 +679,21 @@ void _np_aaatoken_set_signature(np_aaatoken_t *self, np_aaatoken_t *signee) {
   int ret = 0;
 
   // create the hash of the core token data
-  unsigned char *hash = _np_aaatoken_get_hash(self);
+  unsigned char *token_hash = _np_aaatoken_get_hash(self);
 
   if (signee == NULL) {
+
     // set the signature of the token
     ret = __np_aaatoken_generate_signature(
         context,
-        hash,
+        token_hash,
         self->issuer_token->crypto.ed25519_secret_key,
         self->signature);
+    _np_aaatoken_update_attributes_signature(self);
+
   } else {
-    // add a field to the exension containing an additional signature
+
+    // add a field to the extension containing an additional signature
     char       signee_token_fp[NP_FINGERPRINT_BYTES * 2 + 1] = {0};
     np_dhkey_t my_token_fp = np_aaatoken_get_fingerprint(signee, false);
     _np_dhkey_str(&my_token_fp, signee_token_fp);
@@ -705,7 +712,7 @@ void _np_aaatoken_set_signature(np_aaatoken_t *self, np_aaatoken_t *signee) {
            crypto_sign_PUBLICKEYBYTES);
     // add signature of signer to extensions
     ret = __np_aaatoken_generate_signature(context,
-                                           self->signature,
+                                           token_hash,
                                            signee->crypto.ed25519_secret_key,
                                            signer_pubsig +
                                                crypto_sign_PUBLICKEYBYTES);
@@ -717,11 +724,9 @@ void _np_aaatoken_set_signature(np_aaatoken_t *self, np_aaatoken_t *signee) {
     np_set_data(self->attributes,
                 attr_conf,
                 (np_data_value){.bin = signer_pubsig});
-
-    _np_aaatoken_update_attributes_signature(self);
   }
 
-  free(hash);
+  free(token_hash);
 
 #ifdef DEBUG
   char sign_hex[crypto_sign_BYTES * 2 + 1];
@@ -738,6 +743,195 @@ void _np_aaatoken_set_signature(np_aaatoken_t *self, np_aaatoken_t *signee) {
   ASSERT(ret == 0, "Error in token signature creation");
 }
 
+enum np_return _np_aaatoken_verify_signature(np_aaatoken_t *token,
+                                             np_aaatoken_t *signee) {
+  assert(token != NULL);
+  np_state_t    *context = np_ctx_by_memory(token);
+  enum np_return ret     = np_operation_failed;
+
+  unsigned char *token_hash = _np_aaatoken_get_hash(token);
+
+  if (token->is_signature_verified == false) {
+
+    // verify inserted signature first
+    log_debug(LOG_AAATOKEN, token->uuid, "try to check signature checksum");
+    int verify_ret =
+        crypto_sign_verify_detached((unsigned char *)token->signature,
+                                    token_hash,
+                                    crypto_generichash_BYTES,
+                                    token->crypto.ed25519_public_key);
+
+#ifdef DEBUG
+    char signature_hex[crypto_sign_BYTES * 2 + 1] = {0};
+    sodium_bin2hex(signature_hex,
+                   crypto_sign_BYTES * 2 + 1,
+                   token->signature,
+                   crypto_sign_BYTES);
+
+    char pk_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = {0};
+    sodium_bin2hex(pk_hex,
+                   crypto_sign_PUBLICKEYBYTES * 2 + 1,
+                   token->crypto.ed25519_public_key,
+                   crypto_sign_PUBLICKEYBYTES);
+    char kx_hex[crypto_sign_PUBLICKEYBYTES * 2 + 1] = {0};
+    sodium_bin2hex(kx_hex,
+                   crypto_sign_PUBLICKEYBYTES * 2 + 1,
+                   token->crypto.derived_kx_public_key,
+                   crypto_sign_PUBLICKEYBYTES);
+
+    log_debug(LOG_AAATOKEN,
+              token->uuid,
+              "signature is%s valid: (pk: 0x%s) sig: 0x%s = %" PRId32,
+              verify_ret != 0 ? " not" : "",
+              pk_hex,
+              signature_hex,
+              verify_ret);
+#endif
+
+    if (verify_ret < 0) {
+      log_warn(LOG_AAATOKEN,
+               token->uuid,
+               "token for subject \"%s\": checksum verification failed",
+               token->subject);
+      token->state &= AAA_INVALID;
+      free(token_hash);
+      return (np_operation_failed);
+    }
+    log_debug(LOG_AAATOKEN,
+              token->uuid,
+              "token for subject \"%s\": checksum verification success",
+              token->subject);
+    token->is_signature_verified = true;
+  }
+
+  if (token->is_signature_attributes_verified == false) {
+    // verify inserted signature first
+    log_debug(LOG_AAATOKEN,
+              token->uuid,
+              "try to check attribute signature checksum");
+    size_t attr_data_size = 0;
+    bool   data_ret =
+        np_get_data_size(token->attributes, &attr_data_size) == np_data_ok;
+    if (!data_ret) {
+      log_warn(LOG_AAATOKEN,
+               token->uuid,
+               "token for subject \"%s\": attributes do have no valid "
+               "structure (total_size)",
+               token->subject);
+    } else {
+      unsigned char *attributes_hash = __np_aaatoken_get_attributes_hash(token);
+      data_ret &=
+          crypto_sign_verify_detached(token->attributes_signature,
+                                      attributes_hash,
+                                      crypto_generichash_BYTES,
+                                      token->crypto.ed25519_public_key) == 0;
+      free(attributes_hash);
+    }
+
+    if (!data_ret) {
+      _np_debug_log_bin0(token->attributes_signature,
+                         sizeof(token->attributes_signature),
+                         LOG_AAATOKEN,
+                         token->uuid,
+                         "token attribute signature: %s");
+      log_warn(LOG_AAATOKEN,
+               token->uuid,
+               "token for subject \"%s\": attribute signature "
+               "checksum verification failed",
+               token->subject);
+      log_trace(LOG_AAATOKEN, token->uuid, ".end  .token_is_valid");
+      token->state &= AAA_INVALID;
+      free(token_hash);
+      return (np_operation_failed);
+    }
+    log_debug(LOG_AAATOKEN,
+              token->uuid,
+              "token for subject \"%s\": attribute signature "
+              "checksum verification success",
+              token->subject);
+    token->is_signature_attributes_verified = true;
+  }
+
+  char null_iss[65] = {0};
+  if (0 != memcmp(null_iss, token->issuer, NP_FINGERPRINT_BYTES) &&
+      signee == NULL) {
+    log_warn(LOG_AAATOKEN,
+             token->uuid,
+             "token contains issuer information \"%s\", but no signee used "
+             "for validation.",
+             token->subject);
+    token->state &= AAA_INVALID;
+    free(token_hash);
+    return (np_operation_failed);
+  }
+
+  if (signee != NULL && token->is_issuer_verified == false) {
+    // check whether the issuer fingerprint in the token matches the
+    // fingerprint fo the signee token
+    np_dhkey_t issuer_dhkey = np_dhkey_create_from_hash(token->issuer);
+    np_dhkey_t signee_fp    = np_aaatoken_get_fingerprint(signee, false);
+    if (!_np_dhkey_equal(&issuer_dhkey, &signee_fp)) {
+      log_warn(
+          LOG_AAATOKEN,
+          token->uuid,
+          "issuer fingerprint for token \"%s\" does not match signee token",
+          token->subject);
+      token->state &= AAA_INVALID;
+      free(token_hash);
+      return (np_operation_failed);
+    }
+
+    // check whether the signee has been authenticated as well
+    if (IS_INVALID(signee->state) || IS_NOT_AUTHENTICATED(signee->state)) {
+      log_warn(
+          LOG_AAATOKEN,
+          token->uuid,
+          "token for subject \"%s\": issuer key is invalid or not authentic",
+          token->subject);
+      token->state &= AAA_INVALID;
+      free(token_hash);
+      return (np_operation_failed);
+    }
+    // finally extract additional signature and verify it
+    struct np_data_conf conf = {0};
+    np_data_value       val  = {0};
+    enum np_data_return r =
+        np_get_data(token->attributes, token->issuer, &conf, &val);
+
+    if (r != np_ok) {
+      log_warn(LOG_AAATOKEN,
+               token->uuid,
+               "token for subject \"%s\": issuer signature not found in "
+               "attributes",
+               token->subject);
+      token->state &= AAA_INVALID;
+      free(token_hash);
+      return (np_operation_failed);
+    }
+
+    unsigned char *issuer_pubkey = val.bin;
+    unsigned char *issuer_sig    = val.bin + crypto_sign_PUBLICKEYBYTES;
+
+    int verify_result = crypto_sign_verify_detached(issuer_sig,
+                                                    token_hash,
+                                                    crypto_generichash_BYTES,
+                                                    issuer_pubkey);
+
+    if (verify_result != 0) {
+      log_warn(LOG_AAATOKEN,
+               token->uuid,
+               "token for subject \"%s\": issuer signature verification failed",
+               token->subject);
+      token->state &= AAA_INVALID;
+      free(token_hash);
+      return (np_operation_failed);
+    }
+
+    token->is_issuer_verified = true;
+  }
+  return (np_ok);
+}
+
 void _np_aaatoken_update_attributes_signature(np_aaatoken_t *self) {
 
   assert(self != NULL);
@@ -748,10 +942,10 @@ void _np_aaatoken_update_attributes_signature(np_aaatoken_t *self) {
 
   np_ctx_memory(self);
 
-  unsigned char *hash = __np_aaatoken_get_attributes_hash(self);
-  int            ret  = __np_aaatoken_generate_signature(
+  unsigned char *attributes_hash = __np_aaatoken_get_attributes_hash(self);
+  int            ret             = __np_aaatoken_generate_signature(
       context,
-      hash,
+      attributes_hash,
       self->issuer_token->crypto.ed25519_secret_key,
       self->attributes_signature);
 
@@ -763,7 +957,7 @@ void _np_aaatoken_update_attributes_signature(np_aaatoken_t *self) {
                      self->uuid,
                      "attribute signature hash is %s");
 
-  free(hash);
+  free(attributes_hash);
 }
 
 unsigned char *__np_aaatoken_get_attributes_hash(np_aaatoken_t *self) {
@@ -862,7 +1056,9 @@ void _np_aaatoken_trace_info(char *desc, np_aaatoken_t *self) {
 }
 #endif
 
-struct np_token *np_aaatoken4user(struct np_token *dest, np_aaatoken_t *src) {
+struct np_token *np_aaatoken4user(struct np_token *dest,
+                                  np_aaatoken_t   *src,
+                                  bool             include_secret) {
 
   assert(src != NULL);
   assert(dest != NULL);
@@ -891,11 +1087,11 @@ struct np_token *np_aaatoken4user(struct np_token *dest, np_aaatoken_t *src) {
   memcpy(dest->public_key, src->crypto.ed25519_public_key, NP_PUBLIC_KEY_BYTES);
 
   assert(crypto_sign_SECRETKEYBYTES == NP_SECRET_KEY_BYTES);
-  if (src->private_key_is_set)
+  if (include_secret && src->private_key_is_set)
     memcpy(dest->secret_key,
            src->crypto.ed25519_secret_key,
            NP_SECRET_KEY_BYTES);
-  else memset(dest->secret_key, 0, NP_SECRET_KEY_BYTES);
+  // else memset(dest->secret_key, 0, NP_SECRET_KEY_BYTES);
 
   memcpy(dest->signature, src->signature, NP_SIGNATURE_BYTES);
 
@@ -942,10 +1138,6 @@ np_aaatoken_t *np_user4aaatoken(np_aaatoken_t *dest, struct np_token *src) {
     np_id_str(dest->audience, src->audience);
   }
 
-  // TODO: convert to np_id
-  // strncpy(dest->issuer, src->issuer, 65);
-  //  strncpy(dest->realm, src->realm, 255);
-  //  strncpy(dest->audience, src->audience, 255);
   strncpy(dest->subject, src->subject, 255);
 
   // copy public key

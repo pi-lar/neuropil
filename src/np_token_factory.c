@@ -251,6 +251,9 @@ _np_token_factory_new_message_intent_token(np_msgproperty_conf_t *msg_request) {
             ret->expires_at,
             np_time_now(),
             ret->expires_at - np_time_now());
+  // fingerprinting and signing the token
+  _np_aaatoken_set_signature(ret, NULL);
+  _np_aaatoken_set_signature(ret, identity_token);
 
   // add e2e encryption details for sender
   // memcpy((char*)ret->crypto.ed25519_public_key,
@@ -279,11 +282,6 @@ _np_token_factory_new_message_intent_token(np_msgproperty_conf_t *msg_request) {
                     (np_data_value){.unsigned_integer = 0});
   ASSERT(np_ok == tmp, "Could not set \"msg_threshold\" data %" PRIu32, tmp);
 
-  // TODO: insert value based on msg properties / respect (sticky) reply
-  np_aaatoken_set_partner_fp(ret, context->my_node_key->dhkey);
-  // np_aaatoken_set_partner_fp calls
-  // _np_aaatoken_update_attributes_signature(ret);
-
   ret->state = AAA_AUTHORIZED | AAA_AUTHENTICATED | AAA_VALID;
 
   np_merge_data(
@@ -298,8 +296,10 @@ _np_token_factory_new_message_intent_token(np_msgproperty_conf_t *msg_request) {
       (np_datablock_t *)_np_get_attributes_cache(context,
                                                  NP_ATTR_INTENT_AND_IDENTITY));
 
-  // fingerprinting and signing the token
-  _np_aaatoken_set_signature(ret, NULL);
+  // TODO: insert value based on msg properties / respect (sticky) reply
+  np_aaatoken_set_partner_fp(ret, context->my_node_key->dhkey);
+  // np_aaatoken_set_partner_fp calls
+  // _np_aaatoken_update_attributes_signature(ret);
 
   _np_aaatoken_trace_info("build_intent", ret);
 

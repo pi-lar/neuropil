@@ -131,3 +131,53 @@ class IdentityTest(unittest.TestCase):
                 np_1.run(0.1)
         finally:
             np_1.shutdown()
+
+    def test_identity_sign(self):
+        node = NeuropilNode(
+            4001, log_file="logs/smoke_test_identity_nl1.log", auto_run=False
+        )
+
+        # generate a key:
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        # use private and public bytes for identity
+        secret_key = private_key.private_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PrivateFormat.Raw,
+            encryption_algorithm=serialization.NoEncryption(),
+        ) + private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+        )
+        # create a issuer identity
+        identity = node.new_identity(secret_key=secret_key)
+        # pass our issuer identity to our node
+        node.use_identity(identity)
+        # get the fingerprint of our identity to be used by others
+        id_1 = identity.get_fingerprint()
+        TestHelper.disableAAA(node)
+        node.run(0)
+
+        # generate a key:
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        # use private and public bytes for identity
+        secret_key = private_key.private_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PrivateFormat.Raw,
+            encryption_algorithm=serialization.NoEncryption(),
+        ) + private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+        )
+        # create an identity to be signed by the issuer
+        identity_2 = node.new_identity(secret_key=secret_key)
+        # add the issuer fingerprint
+        identity_2.issuer = id_1
+        # update our own signature, it has changed because of the issuer field
+        identity_2.update()
+
+        # sign the token by the issuer, this will update our attribute set
+        identity.sign_identity(identity_2)
+
+        # update attributes signature ourselves (now contains issuer info)
+        identity_2.update()
+
+        # verify our token again with the issuer identity
+        identity_2.verify_issuer(identity)

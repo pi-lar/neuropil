@@ -211,6 +211,7 @@ struct np_aaatoken_s {
 
   bool is_signature_verified;
   bool is_signature_attributes_verified;
+  bool is_issuer_verified;
 } NP_API_EXPORT;
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_aaatoken_t);
@@ -282,8 +283,15 @@ NP_API_INTERN
 void np_aaatoken_set_partner_fp(np_aaatoken_t *self, np_dhkey_t partner_fp);
 NP_API_INTERN
 np_dhkey_t np_aaatoken_get_partner_fp(np_aaatoken_t *self);
+
+// create, update and or verify the signature of a token. If signee is not NULL,
+// the token will receive and additional signature for the signee.
 NP_API_INTERN
 void _np_aaatoken_set_signature(np_aaatoken_t *self, np_aaatoken_t *signee);
+NP_API_INTERN
+enum np_return _np_aaatoken_verify_signature(np_aaatoken_t *self,
+                                             np_aaatoken_t *signee);
+
 NP_API_INTERN
 void _np_aaatoken_update_attributes_signature(np_aaatoken_t *self);
 NP_API_INTERN
@@ -305,7 +313,9 @@ void _np_aaatoken_trace_info(char *desc, np_aaatoken_t *token);
 #define _np_aaatoken_trace_info(desc, token) ;
 #endif
 NP_API_INTERN
-struct np_token *np_aaatoken4user(struct np_token *dest, np_aaatoken_t *src);
+struct np_token *np_aaatoken4user(struct np_token *dest,
+                                  np_aaatoken_t   *src,
+                                  bool             include_secret);
 NP_API_INTERN
 np_aaatoken_t *np_user4aaatoken(np_aaatoken_t *dest, struct np_token *src);
 #ifdef __cplusplus

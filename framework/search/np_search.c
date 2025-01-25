@@ -2203,7 +2203,7 @@ bool np_create_searchentry(np_context       *ac,
     // TODO: fetch the already existing mx token for this subject
     np_message_intent_public_token_t *token =
         _np_token_factory_new_message_intent_token(prop);
-    np_aaatoken4user(&entry->intent, token);
+    np_aaatoken4user(&entry->intent, token, false);
     np_merge_data((np_datablock_t *)entry->intent.attributes,
                   (np_datablock_t *)attributes);
 
@@ -2324,7 +2324,7 @@ bool np_create_searchquery(np_context       *ac,
   // TODO: fetch the already existing mx token for this subject
   np_message_intent_public_token_t *token =
       _np_token_factory_new_message_intent_token(prop);
-  np_aaatoken4user(&query->query_entry.intent, token);
+  np_aaatoken4user(&query->query_entry.intent, token, false);
   // TODO: push all attributes as dhkey's into the index
   // np_index_update_with_dhkey(&entry, ...);
   // for now: only merge to apply later "reduce" functionality

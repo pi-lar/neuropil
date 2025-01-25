@@ -507,7 +507,7 @@ void __np_identity_handle_authn(np_util_statemachine_t *statemachine,
     struct np_token tmp_user_token = {0};
     bool            join_allowed   = context->authenticate_func(
         context,
-        np_aaatoken4user(&tmp_user_token, authn_token));
+        np_aaatoken4user(&tmp_user_token, authn_token, false));
     log_info(LOG_AAATOKEN,
              authn_token->uuid,
              "authentication of token: %sOK, issuer: %s",
@@ -591,22 +591,23 @@ void __np_identity_handle_authz(np_util_statemachine_t *statemachine,
         access_allowed =
             /*access_allowed_by_policy && */ in_prop->authorize_func(
                 context,
-                np_aaatoken4user(&tmp_user_token, authz_token));
+                np_aaatoken4user(&tmp_user_token, authz_token, false));
       }
       if (out_prop != NULL && out_prop->authorize_func != NULL) {
         access_allowed =
             /* access_allowed_by_policy && */ out_prop->authorize_func(
                 context,
-                np_aaatoken4user(&tmp_user_token, authz_token));
+                np_aaatoken4user(&tmp_user_token, authz_token, false));
       }
 
       // check whether a authorization function on subject level has been
       // triggered. if not, then call the global authz function
       if (!access_allowed)
-        access_allowed = access_allowed_by_policy &&
-                         context->authorize_func(
-                             context,
-                             np_aaatoken4user(&tmp_user_token, authz_token));
+        access_allowed =
+            access_allowed_by_policy &&
+            context->authorize_func(
+                context,
+                np_aaatoken4user(&tmp_user_token, authz_token, false));
       log_info(LOG_AAATOKEN,
                authz_token->uuid,
                "authorization of token: %s",
