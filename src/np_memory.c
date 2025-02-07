@@ -359,6 +359,8 @@ bool _np_memory_rtti_check(void *item, enum np_memory_types_e type) {
 
 void __np_memory_space_increase(np_memory_container_t *container,
                                 uint32_t               block_size) {
+  assert(block_size < UINT32_MAX);
+
   np_ctx_decl(container->module->context);
   for (uint32_t j = 0; j < block_size; j++) {
     size_t whole_item_size =
@@ -623,7 +625,9 @@ void __np_memory_space_decrease(np_memory_container_t *container) {
   for (uint32_t j = 0; j < container->count_of_items_per_block; j++) {
     // best pick: a free container (not refreshed)
     np_spinlock_lock(&container->free_items_lock);
-    { item_config = sll_head(np_memory_itemconf_ptr, container->free_items); }
+    {
+      item_config = sll_head(np_memory_itemconf_ptr, container->free_items);
+    }
     np_spinlock_unlock(&container->free_items_lock);
 
     if (item_config == NULL) {
@@ -1139,7 +1143,9 @@ void np_mem_printpool_reasons(np_state_t *context) {
         np_module(memory)->__np_memory_container[memory_type];
 
     np_spinlock_lock(&container->current_in_use_lock);
-    { tmp = container->current_in_use; }
+    {
+      tmp = container->current_in_use;
+    }
     np_spinlock_unlock(&container->current_in_use_lock);
     summary[container->type] = fmax(summary[container->type], tmp);
 

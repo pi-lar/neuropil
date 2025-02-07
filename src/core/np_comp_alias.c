@@ -1365,7 +1365,9 @@ void __np_alias_destroy(np_util_statemachine_t         *statemachine,
            _np_key_as_str(alias_key));
 
   if (FLAG_CMP(alias_key->type, np_key_type_alias)) {
-    np_unref_obj(np_key_t, alias_key, "__np_alias_set");
+      // unreffing here should leave object in place (ref count > 1)
+      np_unref_obj(np_key_t, alias_key, "__np_alias_set");
+      assert(alias_key != NULL);
   }
 
   if (alias_key->entity_array[e_handshake_token] != NULL)

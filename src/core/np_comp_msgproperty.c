@@ -1396,7 +1396,6 @@ void _np_msgproperty_upsert_token(np_util_statemachine_t         *statemachine,
       np_data_value msg_threshold;
       msg_threshold.unsigned_integer = property_run->msg_threshold;
 
-      r = np_could_not_read_object;
       // currently disabled, needs more elaboration
       // r = np_set_data(iter->val->attributes,
       //                 (struct np_data_conf){.key  = "msg_threshold",

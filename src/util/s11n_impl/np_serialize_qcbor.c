@@ -1433,7 +1433,6 @@ bool np_serializer_read_ed25519(const void    *buffer,
   if (private_or_public_key_set == false) return false;
 
   QCBORDecode_ExitMap(&decoder);
-  QCBORError qcbor_ret = QCBORDecode_Finish(&decoder);
 
   if (!(decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
         decoder.uLastError == QCBOR_SUCCESS)) {
@@ -1530,7 +1529,6 @@ bool np_serializer_read_encrypted(const void    *input_buffer,
     return false;
   }
   QCBORDecode_ExitArray(&decoder);
-  QCBORError qcbor_ret = QCBORDecode_Finish(&decoder);
 
   if (!(decoder.uLastError == QCBOR_ERR_EXTRA_BYTES ||
         decoder.uLastError == QCBOR_SUCCESS)) {

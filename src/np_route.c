@@ -384,7 +384,7 @@ sll_return(np_key_ptr)
     i = _np_dhkey_index(&np_module(route)->my_key->dhkey, &dhkey);
     ASSERT(i < __MAX_ROW, "index out of routing table bounds.");
     for (j = 0; j < __MAX_COL; j++) {
-      int index = __MAX_ENTRY * (j + (__MAX_COL * (i)));
+      uint16_t index = __MAX_ENTRY * (j + (__MAX_COL * (i)));
       // for (k = 0; k < __MAX_ENTRY; k++) {
       //   np_key_t *_key = np_module(route)->table[index + k];
       // only forward the fastest entry
@@ -614,7 +614,8 @@ sll_return(np_key_ptr)
           }
         }
       }
-      i--;
+      if (i == 0) break;
+      else i--;
     }
 
     if (count == 1) {

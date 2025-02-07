@@ -219,6 +219,9 @@ void np_util_statemachine_add_transition(
   // memcpy(st->_transition_table+transition_offset, &trans, transition_size);
 
   st->_transitions++;
+
+  assert(st->_transitions < UINT8_MAX);
+
   // st->_transition_table = &temp;
 
   /*

@@ -411,7 +411,7 @@ uint16_t _np_dhkey_index(const np_dhkey_t *a, const np_dhkey_t *b) {
 
   uint8_t ret = 0;
   for (uint8_t k = 0; k < sizeof(np_dhkey_t); k++) {
-    // check heach half byte for a diff
+    // check each half byte for a diff
     if ((*_pos_a & 0xf0) != (*_pos_b & 0xf0)) break;
     ret++;
     if ((*_pos_a & 0x0f) != (*_pos_b & 0x0f)) break;

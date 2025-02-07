@@ -917,8 +917,12 @@ void __np_node_update(np_util_statemachine_t *statemachine,
               _np_key_as_str(node_key),
               node_key);
     np_unref_obj(np_message_t, msg_out, ref_obj_creation);
-    node->next_ping_update =
-        now + MISC_SEND_PINGS_MAX_EVERY_X_SEC * node->success_avg;
+
+    if (node->success_win[node->success_win_index] == 0)
+      node->next_ping_update = now + MISC_SEND_PINGS_SEC;
+    else
+      node->next_ping_update =
+          now + MISC_SEND_PINGS_MAX_EVERY_X_SEC * node->success_avg;
   }
 
   // there seem to be (a couple of) failure(s) to contact the peer node, remove

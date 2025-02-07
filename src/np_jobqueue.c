@@ -436,7 +436,7 @@ void np_jobqueue_run_jobs_for(np_state_t  *context,
   double end   = now + duration;
   double sleep = NP_JOBQUEUE_MAX_SLEEPTIME_SEC;
 
-  enum np_status np_runtime_status = np_get_status(context);
+  enum np_status np_runtime_status = np_uninitialized;
   do {
     np_threads_busyness(context, thread, true);
     sleep = __np_jobqueue_run_jobs_once(context, thread);

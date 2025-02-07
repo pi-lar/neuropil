@@ -208,56 +208,42 @@ np_context *np_new_context(struct np_settings *settings_in) {
 
   if (sodium_init() == -1) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not init crypto library");
-    status = np_startup;
   } else if (_np_threads_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not init threading mutexes");
-    status = np_startup;
   } else if (_np_statistics_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not init statistics");
-    status = np_startup;
   } else if (_np_event_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not init event system");
-    status = np_startup;
   } else if (_np_log_init(context, settings->log_file, settings->log_level) ==
              false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not init logging");
-    status = np_startup;
   } else if (_np_memory_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not init memory");
-    status = np_startup;
   } else if (_np_time_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not init time cache");
-    status = np_startup;
   } else if (_np_dhkey_init(context) == false) {
     log_msg(LOG_ERROR,
             NULL,
             "neuropil_init: could not init distributed hash table");
-    status = np_startup;
   } else if (_np_keycache_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: _np_keycache_init failed");
-    status = np_startup;
   } else if (_np_msgproperty_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: _np_msgproperty_init failed");
-    status = np_startup;
   } else if (_np_attributes_init(context) == false) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: _np_attributes_init failed");
-    status = np_startup;
   } else if (_np_jobqueue_init(context) == false) {
     log_msg(LOG_ERROR,
             NULL,
             "neuropil_init: _np_jobqueue_init failed: %s",
             strerror(errno));
-    status = np_startup;
 
   } else if (!_np_network_module_init(context)) {
     log_msg(LOG_ERROR,
             NULL,
             "neuropil_init: could not enable general networking");
-    status = np_startup;
 
   } else if (!_np_statistics_enable(context)) {
     log_msg(LOG_ERROR, NULL, "neuropil_init: could not enable statistics");
-    status = np_startup;
   } else {
     np_thread_t *new_thread =
         __np_createThread(context, NULL, false, np_thread_type_main);
@@ -294,7 +280,6 @@ np_context *np_new_context(struct np_settings *settings_in) {
             NULL,
             "neuropil_init: route_init failed: %s",
             strerror(errno));
-    status = np_startup;
   }
 
   TSP_INITD(context->status, np_stopped);
@@ -396,7 +381,6 @@ np_sign_identity(np_context *ac, struct np_token *identity, bool self_sign) {
   }
   np_aaatoken4user(identity, id_token, self_sign);
 
-
   np_unref_obj(np_aaatoken_t, id_token, "np_token_factory_new_identity_token");
 
   return ret;
@@ -496,10 +480,11 @@ enum np_return np_use_token(np_context *ac, struct np_token token) {
   }
 
   // here for the side effect: creating an entity in our internal table
-  np_key_t *my_identity_key = _np_keycache_find_or_create(context, search_key);
-  np_util_event_t ev        = {.type         = (evt_internal | evt_token),
-                               .user_data    = imported_token,
-                               .target_dhkey = search_key};
+  _np_keycache_find_or_create(context, search_key);
+
+  np_util_event_t ev = {.type         = (evt_internal | evt_token),
+                        .user_data    = imported_token,
+                        .target_dhkey = search_key};
   _np_event_runtime_start_with_event(context, search_key, ev);
 
   log_msg(LOG_INFO,
@@ -597,8 +582,9 @@ bool np_has_receiver_for(np_context *ac, np_subject subject) {
   sll_init(np_aaatoken_ptr, receiver_list);
 
   np_dhkey_t null_dhkey = {0};
-  _np_intent_get_all_receiver(prop_key, null_dhkey, &receiver_list);
-
+  _LOCK_ACCESS(&prop_key->key_lock) {
+    _np_intent_get_all_receiver(prop_key, null_dhkey, &receiver_list);
+  }
   if (sll_size(receiver_list) > 0) ret = true;
 
   np_aaatoken_unref_list(receiver_list, "_np_intent_get_all_receiver");

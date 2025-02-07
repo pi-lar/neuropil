@@ -428,7 +428,6 @@ np_node_t *_np_node_from_token(np_handshake_token_t *token,
   // read in optional attributes of node
 
   // Extract handshake priority from token attributes
-  np_attributes_t    *attributes = &token->attributes;
   np_data_value       handshake_priority, max_messages_per_seconds;
   struct np_data_conf conf;
   enum np_data_return get_data_ret;

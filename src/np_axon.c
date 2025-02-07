@@ -881,9 +881,8 @@ bool _np_out_handshake(np_state_t *context, const np_util_event_t event) {
 
   NP_CAST(event.user_data, struct np_e2e_message_s, hs_message);
 
-  np_key_t     *target_key     = _np_keycache_find(context, event.target_dhkey);
-  np_node_t    *target_node    = _np_key_get_node(target_key);
-  np_network_t *target_network = _np_key_get_network(target_key);
+  np_key_t  *target_key  = _np_keycache_find(context, event.target_dhkey);
+  np_node_t *target_node = _np_key_get_node(target_key);
 
   char local_ip[64] = {0};
 
