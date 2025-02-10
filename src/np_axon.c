@@ -244,7 +244,7 @@ bool _np_out_forward(np_state_t *context, np_util_event_t event) {
   bool ret = false;
   NP_CAST(event.user_data, struct np_n2n_messagepart_s, forward_msg);
 
-  if (!_np_route_my_key_has_connection(context)) {
+  if (!_np_route_has_connection(context)) {
     log_info(
         LOG_ROUTING,
         forward_msg->e2e_msg_part.uuid,
@@ -359,7 +359,7 @@ bool _np_out_default(np_state_t *context, np_util_event_t event) {
   bool ret = false;
   NP_CAST(event.user_data, struct np_e2e_message_s, default_msg);
 
-  if (!_np_route_my_key_has_connection(context)) {
+  if (!_np_route_has_connection(context)) {
     log_info(LOG_ROUTING,
              default_msg->uuid,
              "--- request for default message out, but no connections "
@@ -431,7 +431,7 @@ bool _np_out_available_messages(np_state_t *context, np_util_event_t event) {
 
   log_debug(LOG_ROUTING, available_msg->uuid, "handling available request");
 
-  if (!_np_route_my_key_has_connection(context)) {
+  if (!_np_route_has_connection(context)) {
     log_info(LOG_ROUTING,
              available_msg->uuid,
              "--- request for available message out, but no connections "
@@ -527,7 +527,7 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
   bool ret = false;
   NP_CAST(msg_event.user_data, struct np_e2e_message_s, pheromone_msg_out);
 
-  if (!_np_route_my_key_has_connection(context)) {
+  if (!_np_route_has_connection(context)) {
     log_info(LOG_ROUTING,
              pheromone_msg_out->uuid,
              "--- request for pheromone update message out, but no connections "
@@ -561,7 +561,7 @@ bool _np_out_pheromone(np_state_t *context, np_util_event_t msg_event) {
   // no result from a targeted search in the key space, but we do have routing
   // entries in our table -> use the best match of the whole table. Important
   // for smaller networks, corner case on larger networks
-  if (sll_size(tmp) == 0 && _np_route_my_key_count_routes(context) > 0) {
+  if (sll_size(tmp) == 0 && _np_get_route_count(context) > 0) {
     tmp                = _np_route_get_table(context);
     source_sll_of_keys = "_np_route_get_table";
     _np_keycache_sort_keys_cpm(tmp, &msg_event.target_dhkey);
@@ -620,7 +620,7 @@ bool _np_out_ack(np_state_t *context, np_util_event_t event) {
     assert(true == false);
   }
 
-  if (!_np_route_my_key_has_connection(context)) {
+  if (!_np_route_has_connection(context)) {
     log_info(
         LOG_ROUTING,
         ack_msg->uuid,
@@ -725,7 +725,7 @@ bool _np_out_update(np_state_t *context, const np_util_event_t event) {
 
   NP_CAST(event.user_data, struct np_e2e_message_s, update_msg);
 
-  if (!_np_route_my_key_has_connection(context)) {
+  if (!_np_route_has_connection(context)) {
     log_info(LOG_ROUTING,
              update_msg->uuid,
              "--- request for update message out, but no connections left ...");

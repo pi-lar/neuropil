@@ -543,10 +543,12 @@ enum np_return np_get_address(np_context *ac, char *address, uint32_t max) {
 bool np_has_joined(np_context *ac) {
   assert(ac != NULL);
   bool ret = false;
-  np_ctx_cast(ac);
 
-  if (_np_route_my_key_has_connection(context) &&
-      context->my_node_key != NULL) {
+  np_ctx_cast(ac);
+  TSP_GET(enum np_status, context->status, context_status);
+  if (context_status != np_running) return ret;
+
+  if (_np_route_has_connection(context) && context->my_node_key != NULL) {
     ret = true;
   }
 
@@ -592,6 +594,14 @@ bool np_has_receiver_for(np_context *ac, np_subject subject) {
   np_unref_obj(np_key_t, prop_key, "_np_keycache_find");
 
   return ret;
+}
+
+uint16_t np_get_route_count(np_context *ac) {
+  np_ctx_cast(ac);
+  TSP_GET(enum np_status, context->status, context_status);
+  if (context_status != np_running) return 0;
+
+  return _np_get_route_count(context);
 }
 
 enum np_return np_join(np_context *ac, const char *address) {
@@ -735,7 +745,6 @@ bool __np_receive_callback_converter(void                                *ac,
   bool                ret      = true;
   np_receive_callback callback = localdata;
   np_tree_elem_t *userdata = np_tree_find_str(body, NP_SERIALISATION_USERDATA);
-  // NP_CAST(msg, struct np_e2e_message_s, e2e_message);
 
   if (userdata != NULL) {
     struct np_message message = {0};

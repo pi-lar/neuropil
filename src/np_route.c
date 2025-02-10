@@ -38,7 +38,7 @@ np_module_struct(route) {
   np_key_t   *my_key;
 
   np_key_t *table[NP_ROUTES_TABLE_SIZE];
-  TSP(uint32_t, route_count);
+  TSP(uint16_t, route_count);
 
   np_sll_t(np_key_ptr, left_leafset);
   np_sll_t(np_key_ptr, right_leafset);
@@ -48,8 +48,8 @@ np_module_struct(route) {
   np_dhkey_t Rrange;
   np_dhkey_t Lrange;
 
-  TSP(uint32_t, leafset_left_count);
-  TSP(uint32_t, leafset_right_count);
+  TSP(uint16_t, leafset_left_count);
+  TSP(uint16_t, leafset_right_count);
 };
 
 void _np_route_append_leafset_to_sll(np_key_ptr_sll_t *left_leafset,
@@ -59,16 +59,16 @@ bool __np_route_periodic_log(np_state_t               *context,
                              NP_UNUSED np_util_event_t event) {
   if (np_module_initiated(route)) {
 
-    TSP_GET(uint32_t, np_module(route)->route_count, route_count);
-    TSP_GET(uint32_t, np_module(route)->leafset_left_count, leafset_left_count);
-    TSP_GET(uint32_t,
+    TSP_GET(uint16_t, np_module(route)->route_count, route_count);
+    TSP_GET(uint16_t, np_module(route)->leafset_left_count, leafset_left_count);
+    TSP_GET(uint16_t,
             np_module(route)->leafset_right_count,
             leafset_right_count);
 
     log_info(LOG_ROUTING,
              NULL,
-             "[routing capacity] route total:%" PRIu32 "/%" PRIu32
-             "=%f%% leafset:%" PRIu32 "+%" PRIu32 "=%" PRIu32 "/%" PRIu32 "=%f",
+             "[routing capacity] route total:%" PRIu16 "/%" PRIu16
+             "=%f%% leafset:%" PRIu16 "+%" PRIu16 "=%" PRIu16 "/%" PRIu16 "=%f",
              route_count,
              NP_ROUTES_TABLE_SIZE,
              route_count / (NP_ROUTES_TABLE_SIZE + 0.0),
@@ -584,7 +584,7 @@ sll_return(np_key_ptr)
       log_debug(LOG_ROUTING | LOG_DEBUG,
                 NULL,
                 "+me: (%s)",
-                /* leaf->dns_name, leaf->port,*/
+                /* leaf->ip_string, leaf->port,*/
                 _np_key_as_str(np_module(route)->my_key));
       sll_append(np_key_ptr, key_list, np_module(route)->my_key);
     }
@@ -906,34 +906,23 @@ void _np_route_update(np_key_t  *key,
   }
 }
 
-uint32_t __np_route_my_key_count_routes(np_state_t    *context,
-                                        NP_UNUSED bool break_on_first) {
-  TSP_GET(uint32_t, np_module(route)->route_count, ret);
-
+uint16_t _np_get_route_count(np_state_t *context) {
+  TSP_GET(uint16_t, np_module(route)->route_count, ret);
   return ret;
 }
 
-uint32_t np_get_route_count(np_context *ac) {
-  np_ctx_cast(ac);
-  return __np_route_my_key_count_routes(context, false);
-}
-
-bool _np_route_my_key_has_connection(np_state_t *context) {
-  return (__np_route_my_key_count_routes(context, true) +
-          _np_route_my_key_count_neighbors(context, NULL, NULL)) > 0
+bool _np_route_has_connection(np_state_t *context) {
+  return (_np_get_route_count(context) +
+          _np_route_count_neighbors(context, NULL, NULL)) > 0
              ? true
              : false;
 }
 
-uint32_t _np_route_my_key_count_routes(np_state_t *context) {
-  return __np_route_my_key_count_routes(context, false);
-}
-
-uint32_t _np_route_my_key_count_neighbors(np_state_t *context,
-                                          uint32_t   *left,
-                                          uint32_t   *right) {
-  TSP_GET(uint32_t, np_module(route)->leafset_left_count, l);
-  TSP_GET(uint32_t, np_module(route)->leafset_right_count, r);
+uint16_t _np_route_count_neighbors(np_state_t *context,
+                                   uint16_t   *left,
+                                   uint16_t   *right) {
+  TSP_GET(uint16_t, np_module(route)->leafset_left_count, l);
+  TSP_GET(uint16_t, np_module(route)->leafset_right_count, r);
 
   if (left != NULL) *left = l;
   if (right != NULL) *right = r;

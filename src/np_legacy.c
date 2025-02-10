@@ -285,7 +285,7 @@ void np_enable_realm_server(np_context *ac) {
  */
 void np_waitforjoin(np_context *ac) {
   np_ctx_cast(ac);
-  while (false == _np_route_my_key_has_connection(context)) {
+  while (false == _np_route_has_connection(context)) {
     np_time_sleep(0.0);
   }
 }

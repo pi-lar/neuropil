@@ -262,23 +262,25 @@ enum np_return np_set_accounting_cb(np_context *ac, np_aaa_callback callback);
 
 // duration: 0 => process pending events and return
 //           N => process events for up to N seconds and return
+
 NP_API_EXPORT
 enum np_return np_run(np_context *ac, double duration);
 
-// enum np_mx_pattern        { NP_MX_BROADCAST, NP_MX_ONE_WAY, /* NP_MX_REQ_REP,
-// ... */ } NP_ENUM;
 enum np_mx_role { NP_MX_PROVIDER, NP_MX_CONSUMER, NP_MX_PROSUMER } NP_ENUM;
+
 enum np_mx_cache_policy {
   NP_MX_FIFO_REJECT,
   NP_MX_FIFO_PURGE,
   NP_MX_LIFO_REJECT,
   NP_MX_LIFO_PURGE
 } NP_ENUM;
+
 enum np_mx_ackmode {
   NP_MX_ACK_NONE,
   NP_MX_ACK_DESTINATION,
   NP_MX_ACK_CLIENT
 } NP_ENUM;
+
 enum np_mx_audience_type {
   NP_MX_AUD_PUBLIC,
   NP_MX_AUD_VIRTUAL,
@@ -374,7 +376,7 @@ NP_API_EXPORT
 bool np_id_equals(np_id first, np_id second);
 
 NP_API_EXPORT
-uint32_t np_get_route_count(np_context *ac);
+uint16_t np_get_route_count(np_context *ac);
 #ifdef __cplusplus
 }
 #endif

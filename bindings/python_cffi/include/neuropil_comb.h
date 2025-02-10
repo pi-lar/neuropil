@@ -169,7 +169,7 @@ void           np_destroy(np_context *ac, bool gracefully);
 typedef void (*np_callback)(np_context *ac);
 enum np_return np_add_shutdown_cb(np_context *ac, np_callback callback);
 bool           np_id_equals(np_id first, np_id second);
-uint32_t       np_get_route_count(np_context *ac);
+uint16_t       np_get_route_count(np_context *ac);
 enum np_data_return {
   np_data_ok       = 0,
   np_key_not_found = 1,

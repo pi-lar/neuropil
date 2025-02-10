@@ -122,10 +122,10 @@ bool __np_statistics_gather_data_clb(np_state_t               *context,
   prometheus_metric_set(
       _module->_prometheus_metrics
           [np_prometheus_exposed_metrics_routing_neighbor_count],
-      _np_route_my_key_count_neighbors(context, NULL, NULL));
+      _np_route_count_neighbors(context, NULL, NULL));
   prometheus_metric_set(_module->_prometheus_metrics
                             [np_prometheus_exposed_metrics_routing_route_count],
-                        _np_route_my_key_count_routes(context));
+                        _np_get_route_count(context));
 
   return true;
 }
@@ -741,7 +741,7 @@ char *np_statistics_print(np_state_t *context, bool asOneLine) {
   char *details = ret;
   ret           = NULL;
 
-  uint32_t routes = _np_route_my_key_count_routes(context);
+  uint32_t routes = _np_get_route_count(context);
 
   uint32_t tenth           = 1;
   char     tmp_format[512] = {0};
@@ -825,10 +825,10 @@ char *np_statistics_print(np_state_t *context, bool asOneLine) {
   ret = np_str_concatAndFree(ret, tmp_format, routes, /*new_line*/ "  ");
   snprintf(tmp_format,
            512,
-           "%-17s %%" PRIu32 " (:= %%" PRIu32 "|%%" PRIu32 ") ",
+           "%-17s %%" PRIu16 " (:= %%" PRIu16 "|%%" PRIu16 ") ",
            "Neighbours nodes:");
-  uint32_t l, r;
-  uint32_t c = _np_route_my_key_count_neighbors(context, &l, &r);
+  uint16_t l, r;
+  uint16_t c = _np_route_count_neighbors(context, &l, &r);
   ret        = np_str_concatAndFree(ret, tmp_format, c, l, r);
 
   snprintf(tmp_format, 512, "In: %8%s(%5%s) Out: %8%s(%5%s)%%s");

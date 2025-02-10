@@ -94,13 +94,13 @@ NP_API_INTERN
 void _np_route_leafset_range_update(np_state_t *context);
 
 NP_API_INTERN
-bool _np_route_my_key_has_connection(np_state_t *context);
+uint16_t _np_get_route_count(np_state_t *context);
+
 NP_API_INTERN
-uint32_t _np_route_my_key_count_routes(np_state_t *context);
+bool _np_route_has_connection(np_state_t *context);
 NP_API_INTERN
-uint32_t _np_route_my_key_count_neighbors(np_state_t *context,
-                                          uint32_t   *left,
-                                          uint32_t   *right);
+uint16_t
+_np_route_count_neighbors(np_state_t *context, uint16_t *left, uint16_t *right);
 NP_API_INTERN
 np_key_t *_np_route_get_key(np_state_t *context);
 NP_API_INTERN

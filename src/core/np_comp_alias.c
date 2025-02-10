@@ -202,8 +202,8 @@ bool _np_alias_cleanup_msgpart_cache(np_state_t               *context,
   }
   sll_free(np_dhkey_t, to_del);
 
-  uint16_t _peer_nodes = _np_route_my_key_count_routes(context) +
-                         _np_route_my_key_count_neighbors(context, NULL, NULL);
+  uint16_t _peer_nodes = _np_get_route_count(context) +
+                         _np_route_count_neighbors(context, NULL, NULL);
   uint8_t _size_modifier = floor(cbrt(_peer_nodes));
 
   _LOCK_MODULE(np_message_part_cache_t) {
