@@ -103,6 +103,9 @@ void _np_dhkey_hamming_distance_each(np_dhkey_t             *diff,
                                      const np_dhkey_t *const x,
                                      const np_dhkey_t *const y);
 
+NP_API_INTERN
+void _np_dhkey_rotate_left(np_dhkey_t *to_rotate, uint8_t bits);
+
 /* key_between: test, left, right
  * check to see if the value in #test# falls in the range from #left# clockwise
  * around the ring to #right#.

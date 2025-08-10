@@ -301,7 +301,6 @@ SOURCES += [
 ]
 SOURCES += [
     "../framework/search/np_index.c",
-    "../framework/search/np_bktree.c",
     "../framework/search/np_search.c",
 ]
 

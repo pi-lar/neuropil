@@ -238,7 +238,47 @@ void _np_dhkey_xor(np_dhkey_t             *result,
   // }
 }
 
-bool _np_dhkey_init(NP_UNUSED np_state_t *context) {
+void _np_dhkey_rotate_left(np_dhkey_t *to_rotate, uint8_t bits) {
+
+  uint8_t  left_shift = sizeof(uint32_t) * 8 - bits;
+  uint32_t bit_mask   = 0xffffffff << left_shift;
+
+  uint32_t carry_bits_0 = (to_rotate->t[0] & bit_mask) >> left_shift;
+
+  uint32_t carry_bits_1 = (to_rotate->t[1] & bit_mask) >> left_shift;
+  to_rotate->t[0] <<= bits;
+  to_rotate->t[0] |= carry_bits_1;
+
+  uint32_t carry_bits_2 = (to_rotate->t[2] & bit_mask) >> left_shift;
+  to_rotate->t[1] <<= bits;
+  to_rotate->t[1] |= carry_bits_2;
+
+  uint32_t carry_bits_3 = (to_rotate->t[3] & bit_mask) >> left_shift;
+  to_rotate->t[2] <<= bits;
+  to_rotate->t[2] |= carry_bits_3;
+
+  uint32_t carry_bits_4 = (to_rotate->t[4] & bit_mask) >> left_shift;
+  to_rotate->t[3] <<= bits;
+  to_rotate->t[3] |= carry_bits_4;
+
+  uint32_t carry_bits_5 = (to_rotate->t[5] & bit_mask) >> left_shift;
+  to_rotate->t[4] <<= bits;
+  to_rotate->t[4] |= carry_bits_5;
+
+  uint32_t carry_bits_6 = (to_rotate->t[6] & bit_mask) >> left_shift;
+  to_rotate->t[5] <<= bits;
+  to_rotate->t[5] |= carry_bits_6;
+
+  uint32_t carry_bits_7 = (to_rotate->t[7] & bit_mask) >> left_shift;
+  to_rotate->t[6] <<= bits;
+  to_rotate->t[6] |= carry_bits_7;
+
+  // push in the element of the beginning
+  to_rotate->t[7] <<= bits;
+  to_rotate->t[7] |= carry_bits_0;
+}
+
+bool _np_dhkey_init(np_state_t *context) {
   uint32_t half = (UINT32_MAX >> 1) + 1;
   for (uint8_t i = 0; i < 8; i++) {
     __dhkey_max.t[i]  = UINT32_MAX;

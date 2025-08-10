@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-#define BKTREE_ARRAY_SIZE 256
+#define BKTREE_ARRAY_SIZE 32
 
 typedef struct np_searchquery_s np_searchquery_t;
 

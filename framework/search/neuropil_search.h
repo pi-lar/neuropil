@@ -24,6 +24,7 @@ enum np_search_minhash_mode {
 enum np_search_shingle_mode {
   SEARCH_1_SHINGLE = 1,
   SEARCH_1_IN_2_SHINGLE,
+  SEARCH_3_SHINGLE,
   SEARCH_4_KMER
 };
 enum np_search_node_type { SEARCH_NODE_SERVER = 1, SEARCH_NODE_CLIENT };

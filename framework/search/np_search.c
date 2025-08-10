@@ -16,9 +16,9 @@
 
 #include "core/np_comp_msgproperty.h"
 #include "http/np_http.h"
-#include "search/np_bktree.h"
 #include "search/np_index.h"
 #include "util/np_bloom.h"
+#include "util/np_cupidtrie.h"
 #include "util/np_list.h"
 #include "util/np_mapreduce.h"
 #include "util/np_minhash.h"
@@ -49,8 +49,9 @@
 struct np_searchnode_s {
   np_dhkey_t node_id;
 
-  uint16_t     local_table_count;
-  np_bktree_t *tree[BKTREE_ARRAY_SIZE];
+  uint8_t             prime_shift;
+  uint16_t            local_table_count;
+  struct np_cupidtrie tree[BKTREE_ARRAY_SIZE];
 
   uint16_t   remote_peer_count;
   np_dhkey_t peers[8][32]; // could be extended with additional third [128] in
@@ -187,11 +188,13 @@ bool _deprecate_map_func(np_map_reduce_t *mr_struct, const void *element) {
 bool _deprecate_reduce_func(np_map_reduce_t *mr_struct, const void *element) {
   if (element == NULL) return false;
 
-  // log_msg(LOG_DEBUG, NULL, "deleting entry (%p) \n", element);
-  np_searchentry_t *search_elem = (np_searchentry_t *)element;
-  np_bktree_t      *tree        = (np_bktree_t *)mr_struct->reduce_args.io;
+  // log_msg(LOG_DEBUG, "deleting entry (%p) \n", element);
+  np_searchentry_t    *search_elem = (np_searchentry_t *)element;
+  struct np_cupidtrie *trie = (struct np_cupidtrie *)mr_struct->reduce_args.io;
 
-  np_bktree_remove(tree, search_elem->search_index.lower_dhkey, search_elem);
+  np_cupidtrie_delete(trie,
+                      &search_elem->search_index.lower_dhkey,
+                      &search_elem);
 
   np_tree_insert_str(mr_struct->reduce_result,
                      search_elem->intent.uuid,
@@ -200,9 +203,45 @@ bool _deprecate_reduce_func(np_map_reduce_t *mr_struct, const void *element) {
   return true;
 }
 
+// select all search entries in trie
+int8_t _cmp_all_searchentries(np_map_reduce_t *mr_struct, const void *element) {
+
+  np_searchentry_t *_1 = (np_searchentry_t *)mr_struct->map_args.io;
+  np_searchentry_t *_2 = (np_searchentry_t *)element;
+
+  np_dhkey_t _common = {0}, _diff = {0};
+
+  _np_dhkey_and(&_common,
+                &_1->search_index.lower_dhkey,
+                &_2->search_index.lower_dhkey);
+  _np_dhkey_xor(&_diff,
+                &_1->search_index.lower_dhkey,
+                &_2->search_index.lower_dhkey);
+
+  uint8_t _dist_common = 0, _dist_diff = 0;
+  _np_dhkey_hamming_distance(&_dist_common, &dhkey_zero, &_common);
+  _np_dhkey_hamming_distance(&_dist_diff, &dhkey_zero, &_diff);
+
+  // fprintf(stdout,
+  //         "    comm: %u diff: %u  --> %d\n",
+  //         _dist_common,
+  //         _dist_diff,
+  //         _dist_common / _dist_diff);
+
+  float _jc = (float)_dist_common / _dist_diff; // jaccard index
+  if (_jc > 0.80) return 0;
+
+  // if (_dist_diff == 0) {
+  //   return 0;
+  // } else if (_dist_diff > _dist_common) return -1;
+  else return 1;
+
+  return 0;
+}
+
 bool __np_search_deprecate_entries(np_state_t               *context,
                                    NP_UNUSED np_util_event_t args) {
-  np_bktree_t *search_tree = NULL;
+  struct np_cupidtrie_s *search_tree = NULL;
 
   if (np_module(search)->on_shutdown_route == true) return true;
 
@@ -210,6 +249,7 @@ bool __np_search_deprecate_entries(np_state_t               *context,
   randombytes_buf(&_random_dhkey, NP_FINGERPRINT_BYTES);
 
   np_map_reduce_t mr = {0};
+  mr.cmp             = _cmp_all_searchentries;
   mr.map             = _deprecate_map_func;
   mr.map_args.io     = &_random_dhkey;
   sll_init(void_ptr, mr.map_result);
@@ -220,16 +260,13 @@ bool __np_search_deprecate_entries(np_state_t               *context,
   for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
        i++) {
     np_spinlock_lock(&np_module(search)->table_lock[i]);
-    np_bktree_query(np_module(search)->searchnode.tree[i],
-                    _random_dhkey,
-                    NULL,
-                    &mr);
+    np_cupidtrie_map_reduce(&np_module(search)->searchnode.tree[i], &mr);
     np_spinlock_unlock(&np_module(search)->table_lock[i]);
 
     sll_iterator(void_ptr) iterator = sll_first(mr.map_result);
     while (iterator != NULL) {
       np_spinlock_lock(&np_module(search)->table_lock[i]);
-      mr.reduce_args.io = np_module(search)->searchnode.tree[i];
+      mr.reduce_args.io = &np_module(search)->searchnode.tree[i];
       mr.reduce(&mr, iterator->val);
       np_spinlock_unlock(&np_module(search)->table_lock[i]);
 
@@ -923,9 +960,9 @@ bool __np_search_query(np_context                          *ac,
 
   np_searchquery_t *query = pipeline->obj.query;
 
-  np_map_reduce_t mr = {.map           = _map_np_searchentry,
-                        .reduce        = _reduce_np_searchentry,
-                        .reduce_result = NULL};
+  np_map_reduce_t mr = {.cmp    = _cmp_all_searchentries,
+                        .map    = _map_np_searchentry,
+                        .reduce = _reduce_np_searchentry};
 
   mr.map_args.io       = &query->query_entry;
   mr.map_args.kv_pairs = np_tree_create();
@@ -991,15 +1028,19 @@ bool __np_search_query(np_context                          *ac,
     uint8_t max_query_count =
         (np_module(search)->searchnode.local_table_count < 16)
             ? np_module(search)->searchnode.local_table_count
-            : 16;
+            : 8;
     for (uint8_t j = 0; j < max_query_count; j++) {
+
+      np_dhkey_t rotated = {0};
+      _np_dhkey_assign(&rotated, &np_module(search)->searchnode.node_id);
       // #pragma omp parallel for shared(query)
       for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
            i++) {
-        _np_dhkey_hamming_distance(
-            &dh_diff,
-            &query->query_entry.search_index.lower_dhkey,
-            &np_module(search)->searchnode.tree[i]->_root._key);
+        _np_dhkey_rotate_left(&rotated,
+                              (np_module(search)->searchnode.prime_shift));
+        _np_dhkey_hamming_distance(&dh_diff,
+                                   &query->query_entry.search_index.lower_dhkey,
+                                   &rotated);
         buckets[i].hamming_distance = dh_diff;
         buckets[i].index            = i;
       }
@@ -1017,9 +1058,15 @@ bool __np_search_query(np_context                          *ac,
     // log_msg(LOG_DEBUG, NULL,  "");
     // log_msg(LOG_DEBUG, NULL,  "searching in   table: ");
     // #pragma omp parallel for shared(query)
-    for (uint16_t j = 0; (j < max_query_count) && (mr.reduce_result->size == 0);
-         j++) {
-      log_msg(LOG_DEBUG,
+
+    uint16_t j          = 0;
+    uint16_t initial_hd = buckets[0].hamming_distance;
+    while (buckets[j].hamming_distance <= (initial_hd + 1)) {
+
+      // for (uint16_t j = 0;
+      //      (j < max_query_count) && (mr.reduce_result->size == 0);
+      //      j++) {
+      log_msg(LOG_INFO,
               msg->uuid,
               "distribution factor was %2d, querying locally in %3d | "
               "distance %3d",
@@ -1031,10 +1078,9 @@ bool __np_search_query(np_context                          *ac,
       // np_skipbi_query(&lsh->_skipbi[j], &mr);
 
       np_spinlock_lock(&np_module(search)->table_lock[j]);
-      np_bktree_query(np_module(search)->searchnode.tree[buckets[j].index],
-                      query->query_entry.search_index.lower_dhkey,
-                      &query->query_entry,
-                      &mr);
+      np_cupidtrie_map_reduce(
+          &np_module(search)->searchnode.tree[buckets[j].index],
+          &mr);
       np_spinlock_unlock(&np_module(search)->table_lock[j]);
 
       np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
@@ -1046,8 +1092,10 @@ bool __np_search_query(np_context                          *ac,
       np_spinlock_unlock(&np_module(search)->results_lock[query->query_id]);
 
       // np_bktree_query(np_module(search)->searchnode.tree[ min_index[j] ],
-      // entry->query_entry.search_index.upper_dhkey, &entry->query_entry, &mr);
+      // entry->query_entry.search_index.upper_dhkey, &entry->query_entry,
+      // &mr);
       sll_clear(void_ptr, mr.map_result);
+      j++;
     }
   } else {
     log_msg(LOG_DEBUG,
@@ -1162,8 +1210,8 @@ bool __np_search_add_entry(np_context                          *ac,
   np_spinlock_unlock(&np_module(search)->pipeline_lock);
 
   /*
-      uint16_t min_index[8];
-      np_dhkey_t min_diff = { .t[0] = UINT32_MAX, .t[1] = UINT32_MAX, .t[2] =
+     uint16_t min_index[8];
+     np_dhkey_t min_diff = { .t[0] = UINT32_MAX, .t[1] = UINT32_MAX, .t[2] =
      UINT32_MAX, .t[3] = UINT32_MAX, .t[4] = UINT32_MAX, .t[5] = UINT32_MAX,
      .t[6] = UINT32_MAX, .t[7] = UINT32_MAX, }; for (uint16_t i = 0; i <
      np_module(search)->searchnode.local_table_count; i++)
@@ -1194,12 +1242,17 @@ bool __np_search_add_entry(np_context                          *ac,
             : 8;
     for (uint8_t j = 0; j < max_create_count; j++) {
       // #pragma omp parallel for shared(entry)
+      np_dhkey_t rotated = {0};
+      _np_dhkey_assign(&rotated, &np_module(search)->searchnode.node_id);
+
       for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
            i++) {
+        _np_dhkey_rotate_left(&rotated,
+                              (np_module(search)->searchnode.prime_shift));
         _np_dhkey_hamming_distance(
             &dh_diff,
             &pipeline->obj.entry->search_index.lower_dhkey,
-            &np_module(search)->searchnode.tree[i]->_root._key);
+            &rotated);
         buckets[i].hamming_distance = dh_diff;
         buckets[i].index            = i;
       }
@@ -1210,51 +1263,68 @@ bool __np_search_add_entry(np_context                          *ac,
           sizeof(struct __search_table_bucket),
           __search_table_bucket_cmp);
 
-    // log_msg(LOG_DEBUG, NULL,  "         into table: ");
-    // for (uint16_t i = 0; i < 16; i++)
-    // {
-    //             log_msg(LOG_DEBUG, NULL,  "%u (%u) : ", buckets[i].index ,
-    //             buckets[i].hamming_distance);
+    // log_msg(LOG_DEBUG, "         into table: ");
+    // for (uint16_t i = 0; i < 16; i++) {
+    //   log_msg(LOG_DEBUG,
+    //           "%u (%u) : ",
+    //           buckets[i].index,
+    //           buckets[i].hamming_distance);
     // }
     // log_msg(LOG_DEBUG, NULL,  "");
 
     // uint8_t i = 0;
-    // log_msg(LOG_DEBUG, NULL,  "inserting into table: ");
+    log_msg(LOG_INFO,
+            NULL,
+            "inserting into %" PRIu8 " tables : ",
+            max_create_count);
     // #pragma omp parallel for shared(entry)
-    for (uint16_t j = 0; j < max_create_count; j++) {
-      log_msg(LOG_DEBUG,
+    uint16_t j          = 0;
+    uint16_t initial_hd = buckets[0].hamming_distance;
+    while (buckets[j].hamming_distance == initial_hd) {
+      // for (uint16_t j = 0; j < max_create_count; j++) {
+      log_msg(LOG_INFO,
               msg->uuid,
               "distribution factor was %2d, storing locally in %3d | "
               "distance %3d",
-
               pipeline->remote_distribution_count,
               buckets[j].index,
               buckets[j].hamming_distance);
 
       np_spinlock_lock(&np_module(search)->table_lock[j]);
 
-      // log_msg(LOG_DEBUG, NULL,  " %2u (distance %3u [at %2u] )",
-      // buckets[j].index , buckets[j].hamming_distance, j); log_msg(LOG_DEBUG,
-      // NULL,  "< NODE INDEX:>
-      // "); for (uint32_t k = 0; k < 8; k++)
-      // {
-      //     log_msg(LOG_DEBUG, NULL,  "%08x", lsh->_bktree[j]._root._key.t[k]);
-      //     log_msg(LOG_DEBUG, NULL,  ".");
+      // log_msg(LOG_DEBUG,
+      //         " %2u (distance %3u [at %2u] )",
+      //         buckets[j].index,
+      //         buckets[j].hamming_distance,
+      //         j);
+      // log_msg(LOG_DEBUG, "< NODE INDEX:>");
+      // for (uint32_t k = 0; k < 8; k++) {
+      //   log_msg(LOG_DEBUG, "%08x", lsh->_bktree[j]._root._key.t[k]);
+      //   log_msg(LOG_DEBUG, ".");
       // }
-      // log_msg(LOG_DEBUG, NULL,  " </ NODE INDEX:>");
-      np_bktree_insert(np_module(search)->searchnode.tree[buckets[j].index],
-                       pipeline->obj.entry->search_index.lower_dhkey,
-                       pipeline->obj.entry);
+      // log_msg(LOG_DEBUG, " </ NODE INDEX:>");
+
+      uintptr_t *search_storage = NULL;
+      np_cupidtrie_insert(&np_module(search)->searchnode.tree[buckets[j].index],
+                          &pipeline->obj.entry->search_index.lower_dhkey,
+                          &search_storage);
+      if (search_storage == NULL) {
+        log_msg(LOG_DEBUG,
+                NULL,
+                "could not insert data into search table at index %" PRIu16,
+                buckets[j].index);
+        np_spinlock_unlock(&np_module(search)->table_lock[j]);
+        return (false);
+      }
+      *search_storage = (uintptr_t)pipeline->obj.entry;
 
       np_spinlock_unlock(&np_module(search)->table_lock[j]);
-
-      // np_bktree_insert(np_module(search)->searchnode.tree[ min_index[j] ],
-      // entry->search_index.upper_dhkey, entry);
-      // np_skipbi_add(&lsh->_skipbi[j], _lp);
+      j++;
     }
     // log_msg(LOG_DEBUG, NULL,  "");
   } else {
     log_msg(LOG_DEBUG,
+            "distribution factor for %s was %2d, not adding locally",
             msg->uuid,
             "distribution factor was %2d, not querying locally",
             pipeline->remote_distribution_count);
@@ -1439,18 +1509,44 @@ bool _np_searchnode_announce_cb(np_context        *context,
   return true;
 }
 
+bool __is_prime(uint8_t x) {
+  uint8_t o = 4;
+  for (uint8_t i = 5; true; i += o) {
+    uint8_t q = x / i;
+    if (q < i) return true;
+    if (x == q * i) return false;
+    o ^= 6;
+  }
+  return true;
+}
+
+uint8_t __get_next_prime(uint8_t number) {
+  bool found_prime = false;
+  if (number <= 2) return 2;
+  if (number == 3) return 3;
+  if (number <= 5) return 5;
+
+  uint8_t k = number / 6;
+  uint8_t i = number - 6 * k;
+  uint8_t o = i < 2 ? 1 : 5;
+  number    = 6 * k + o;
+  for (i = (3 + o) / 2; !__is_prime(number); number += i)
+    i ^= 6;
+  return number;
+}
+
 np_search_settings_t *np_default_searchsettings() {
   np_search_settings_t *settings = calloc(1, sizeof(np_search_settings_t));
   settings->enable_remote_peers  = true;
-  // settings->local_table_count    = 16;
-  settings->local_table_count = BKTREE_ARRAY_SIZE;
-  settings->node_type         = SEARCH_NODE_SERVER;
+  settings->local_table_count    = BKTREE_ARRAY_SIZE;
+
+  settings->node_type = SEARCH_NODE_SERVER;
 
   memset(settings->search_space, 0, NP_FINGERPRINT_BYTES);
 
   settings->minhash_mode      = SEARCH_MH_FIX256;
   settings->analytic_mode     = SEARCH_ANALYTICS_OFF;
-  settings->shingle_mode      = SEARCH_1_SHINGLE;
+  settings->shingle_mode      = SEARCH_3_SHINGLE;
   settings->target_similarity = 0.75;
   // add more file specific settings
 
@@ -1471,14 +1567,21 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
     if (settings) {
       np_module(search)->searchnode.local_table_count =
           settings->local_table_count;
+      np_module(search)->searchnode.prime_shift =
+          __get_next_prime(256 / settings->local_table_count);
       memcpy(&np_module(search)->searchcfg,
              settings,
              sizeof(np_search_settings_t));
+
     } else {
       settings = np_default_searchsettings();
       memcpy(&np_module(search)->searchcfg,
              settings,
              sizeof(np_search_settings_t));
+      np_module(search)->searchnode.local_table_count =
+          settings->local_table_count;
+      np_module(search)->searchnode.prime_shift =
+          __get_next_prime(256 / settings->local_table_count);
       free(settings);
     }
     randombytes_buf(&np_module(search)->searchnode.node_id,
@@ -1506,11 +1609,8 @@ void np_searchnode_init(np_context *ac, np_search_settings_t *settings) {
 
     for (uint16_t i = 0; i < np_module(search)->searchcfg.local_table_count;
          i++) {
-      np_dhkey_t seed = {0};
-      randombytes_buf(&seed, sizeof(np_dhkey_t));
-      np_module(search)->searchnode.tree[i] = malloc(sizeof(np_bktree_t));
-      np_bktree_init(np_module(search)->searchnode.tree[i], seed, 10);
-      // np_bktree_init(__my_searchresults.entries[i], seed, 10);
+      np_module(search)->searchnode.tree[i].alloc_key_memory = false;
+      np_module(search)->searchnode.tree[i].key_length = NP_FINGERPRINT_BYTES;
     }
     memset(np_module(search)->searchnode.results,
            0,
@@ -1735,7 +1835,7 @@ void np_searchnode_destroy(np_context *ac) {
 
   for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
        i++) {
-    np_bktree_destroy(np_module(search)->searchnode.tree[i]);
+    np_cupidtrie_free(&np_module(search)->searchnode.tree[i]);
     np_spinlock_destroy(&np_module(search)->table_lock[i]);
   }
 
@@ -1832,7 +1932,7 @@ bool __decode_search_intent(np_tree_t *tree, struct np_token *data) {
          attributes_signature.value.bin,
          NP_SIGNATURE_BYTES);
 
-__np_cleanup__: {}
+__np_cleanup__:
 
   return true;
 }
@@ -1865,7 +1965,7 @@ bool __decode_search_index(np_tree_t *tree, struct np_index_s *index) {
   index->_cbl_index         = NULL;
   index->_cbl_index_counter = NULL;
 
-__np_cleanup__: {}
+__np_cleanup__:
 
   return true;
 }
@@ -1921,7 +2021,7 @@ np_searchentry_t *__decode_search_entry(np_tree_t *data) {
     return NULL;
   }
 
-__np_cleanup__: {}
+__np_cleanup__:
 
   return new_entry;
 }
@@ -1980,7 +2080,7 @@ np_searchquery_t *__decode_search_query(np_tree_t *data) {
     return NULL;
   }
 
-__np_cleanup__: {}
+__np_cleanup__:
 
   return new_query;
 }
@@ -2182,6 +2282,9 @@ bool np_create_searchentry(np_context       *ac,
 
     if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode, SEARCH_1_SHINGLE)) {
       np_minhash_push_tree(&minhash, text_as_array, 1, false);
+    } else if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode,
+                        SEARCH_3_SHINGLE)) {
+      np_minhash_push_tree(&minhash, text_as_array, 3, false);
     } else {
       log_error(NULL,
                 "%s",
@@ -2291,6 +2394,9 @@ bool np_create_searchquery(np_context       *ac,
 
   if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode, SEARCH_1_SHINGLE)) {
     np_minhash_push_tree(&minhash, text_as_array, 1, false);
+  } else if (FLAG_CMP(np_module(search)->searchcfg.shingle_mode,
+                      SEARCH_3_SHINGLE)) {
+    np_minhash_push_tree(&minhash, text_as_array, 3, false);
   } else {
     log_error(NULL, "%s", "additional shingle modes currently not implemented");
     free(copied_text);
@@ -2747,7 +2853,8 @@ bool _np_searchresult_receive_cb(np_context                    *ac,
       return false;
     };
 
-    np_map_reduce_t mr = {.map    = _map_np_searchentry,
+    np_map_reduce_t mr = {.cmp    = _cmp_all_searchentries,
+                          .map    = _map_np_searchentry,
                           .reduce = _reduce_np_searchentry};
 
     mr.reduce_result =

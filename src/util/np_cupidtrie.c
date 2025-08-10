@@ -584,9 +584,114 @@ enum np_return np_cupidtrie_intersect(struct np_cupidtrie   *result,
   return ret;
 }
 
+enum np_return __compare_qpe();
+
+enum np_return __iterate_qpe_key(const union _qp_union       **qpe,
+                                 const size_t                  key_length,
+                                 const struct np_map_reduce_s *mr,
+                                 int8_t                       *shift) {
+
+  const union _qp_union *tmp = *qpe;
+
+  if (__idx_branch(__use_branch_key(tmp->branch)) == 1UL) {
+    __builtin_prefetch((void *)tmp->branch.data);
+
+    uint32_t *new_key  = mr->map_args.io;
+    uint16_t  __x0     = __extract_nibble(new_key,
+                                     __idx_shift(__use_branch_key(tmp->branch)),
+                                     length);
+    uint32_t  idx_mask = __mask_table[__x0];
+
+    uint8_t s = __builtin_ctz(__use_branch_mask(tmp->branch));
+    if (__idx_has_next(tmp->branch, idx_mask)) {
+      s = __x0;
+    }
+    tmp = &((union _qp_union *)tmp->branch.data)[s];
+
+    __iterate_qpe_key(&tmp, key_length, mr, shift);
+
+    uint32_t bm = __use_branch_mask(tmp->branch);
+    while (bm > 0) {
+      uint16_t pos     = __builtin_ctz(bm);
+      uint32_t elem_bm = __mask_table[pos];
+      if (__idx_has_next(tmp->branch, elem_bm) == 1UL) {
+        const union _qp_union *_next = __idx_next(tmp, elem_bm);
+        __iterate_qpe_key(&_next, key_length, mr, shift);
+        bm ^= elem_bm;
+        if (*shift < 0) {
+          // step back one level, cmp returned not start of selection
+          (*shift)++;
+          return (np_ok);
+        }
+        if (*shift > __idx_shift(_next->branch.key)) {
+          // stop iterating, cmp returned end of selection
+          return (np_ok);
+        }
+      }
+    }
+  } else {
+    int8_t cmp_result = mr->cmp(mr, __use_leaf_aux(tmp->leaf));
+    if (cmp_result == 0) {
+      mr->map(mr, (void *)__use_leaf_data(tmp->leaf));
+    } else {
+      *shift = cmp_result;
+    }
+  }
+
+  return (np_ok);
+}
+
+enum np_return __iterate_qpe_data(union _qp_union       **qpe,
+                                  const size_t            key_length,
+                                  struct np_map_reduce_s *mr) {
+
+  union _qp_union *tmp = *qpe;
+
+  if (__idx_branch(__use_branch_key(tmp->branch)) == 1UL) {
+    __builtin_prefetch((void *)tmp->branch.data);
+
+    uint32_t bm = __use_branch_mask(tmp->branch);
+    while (bm > 0) {
+      uint16_t pos     = __builtin_ctz(bm);
+      uint32_t elem_bm = __mask_table[pos];
+      if (__idx_has_next(tmp->branch, elem_bm) == 1UL) {
+        union _qp_union *_next = __idx_next(tmp, elem_bm);
+        __iterate_qpe_data(&_next, key_length, mr);
+        bm ^= elem_bm;
+      }
+    }
+  } else {
+    struct _qp_leaf *_elememt = (struct _qp_leaf *)__use_leaf_data(tmp->leaf);
+    if (mr->cmp(mr, _elememt) == 0) {
+      mr->map(mr, _elememt);
+    }
+  }
+
+  return (np_ok);
+}
+
 enum np_return np_cupidtrie_map_reduce(struct np_cupidtrie    *trie,
                                        struct np_map_reduce_s *mr) {
-  return np_not_implemented;
+  if (trie->tree == NULL) return (np_operation_failed);
+
+  bool mode = true;
+  if (mr->map_args.kv_pairs != NULL)
+    mode = (np_tree_find_str(mr->map_args.kv_pairs, "by_key") != NULL) ? false
+                                                                       : true;
+
+  if (mode == true) {
+    __iterate_qpe_data(&trie->tree, trie->key_length, mr);
+
+  } else {
+    int8_t shift = 0;
+    __iterate_qpe_key(&trie->tree, trie->key_length, mr, &shift);
+  }
+
+  sll_iterator(void_ptr) iter = sll_first(mr->map_result);
+  while (iter != NULL) {
+    mr->reduce(mr, iter->val);
+    sll_next(iter);
+  }
 }
 
 enum np_return np_cupidtrie_free(struct np_cupidtrie *trie) {
