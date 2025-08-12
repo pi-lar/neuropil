@@ -12,7 +12,7 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 #
-# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 #
 

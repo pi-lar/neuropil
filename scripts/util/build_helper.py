@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 
 import os
@@ -246,12 +246,12 @@ if __name__ == "__main__":
             ),
         )
 
-        for (dirpath, dirnames, filenames) in os.walk(
+        for dirpath, dirnames, filenames in os.walk(
             os.path.join("build", "package", "lib")
         ):
             for filename in filenames:
                 sign_file(os.path.join(dirpath, filename), args.sign_file, args.pw)
-        for (dirpath, dirnames, filenames) in os.walk(
+        for dirpath, dirnames, filenames in os.walk(
             os.path.join("build", "package", "bin")
         ):
             for filename in filenames:

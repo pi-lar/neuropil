@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 
 import unittest
@@ -66,10 +66,14 @@ class StarSetupTest(unittest.TestCase):
             return False
 
         if str(np_id(_id)) == StarSetupTest.np_0_fp.decode():
-            print (f"{float(time.time()):.3f} / {node.get_fingerprint()}: S authentication granted to {np_id(_id)}")
+            print(
+                f"{float(time.time()):.3f} / {node.get_fingerprint()}: S authentication granted to {np_id(_id)}"
+            )
             return True
         else:
-            print (f"{float(time.time()):.3f} / {node.get_fingerprint()}: S authentication reject  to {np_id(_id)}")
+            print(
+                f"{float(time.time()):.3f} / {node.get_fingerprint()}: S authentication reject  to {np_id(_id)}"
+            )
             return False
 
     @staticmethod

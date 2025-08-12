@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #ifndef _NP_MESSAGE_H_
@@ -63,7 +63,6 @@ struct np_e2e_message_s {
   // ... will be transformed into chunks of 1024bit size
   struct np_n2n_messagepart_s **msg_chunks;
 };
-
 
 _NP_GENERATE_MEMORY_PROTOTYPES(np_message_t)
 

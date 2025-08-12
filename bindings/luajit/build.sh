@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 #
 work_dir=$(dirname "$0")

@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -105,7 +105,9 @@ bool _np_bootstrap_init(np_state_t *context) {
 
     TSP_INIT(_module->bootstrap_points);
     np_spinlock_lock(&np_module(bootstrap)->bootstrap_points_lock);
-    { _module->bootstrap_points = np_tree_create(); }
+    {
+      _module->bootstrap_points = np_tree_create();
+    }
     np_spinlock_unlock(&np_module(bootstrap)->bootstrap_points_lock);
 
     np_jobqueue_submit_event_periodic(context,

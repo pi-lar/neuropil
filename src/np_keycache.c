@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 // original version is based on the chimera project
@@ -204,7 +204,7 @@ _np_keycache_find_by_details(np_state_t         *context,
       np_node_t *node = NULL;
       if (iter->type == np_key_type_node || iter->type == np_key_type_interface)
         node = _np_key_get_node(iter);
-      
+
       if ((!require_handshake_status ||
            (NULL != node && node->_handshake_status == search_handshake_status)
 

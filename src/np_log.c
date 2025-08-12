@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include "np_log.h"
@@ -229,7 +229,9 @@ void _np_log_evrotate(struct ev_loop *loop, ev_timer *timer, int event_type) {
   size_t log_size = 0;
 
   np_spinlock_lock(&np_module(log)->__log_lock);
-  { log_size = np_module(log)->__logger->log_size; }
+  {
+    log_size = np_module(log)->__logger->log_size;
+  }
   np_spinlock_unlock(&np_module(log)->__log_lock);
 
   if (log_size >= LOG_ROTATE_AFTER_BYTES) {

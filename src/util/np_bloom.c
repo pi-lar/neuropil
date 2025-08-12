@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include "util/np_bloom.h"
@@ -1121,12 +1121,12 @@ bool _np_neuropil_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
     if (0 == (*_current_age) || 0 == (*_current_count)) ret = false;
 
 #ifdef DEBUG
-      /*char test_string[65];
-      for (uint16_t i = (block_index-1)*block_size; i < block_index*block_size;
-      i+=32 ) { np_id_str(test_string, &bloom->_bitset[i]); fprintf(stdout,
-      "%3d: check: %s --> pos=%3d (%02x%02x)\n", i, test_string, _local_pos,
-      bloom->_bitset[_local_pos*2], bloom->_bitset[_local_pos*2+1]);
-      }*/
+    /*char test_string[65];
+    for (uint16_t i = (block_index-1)*block_size; i < block_index*block_size;
+    i+=32 ) { np_id_str(test_string, &bloom->_bitset[i]); fprintf(stdout,
+    "%3d: check: %s --> pos=%3d (%02x%02x)\n", i, test_string, _local_pos,
+    bloom->_bitset[_local_pos*2], bloom->_bitset[_local_pos*2+1]);
+    }*/
 #endif
     if ((k + 1) % 2 == 0) block_index++;
   }

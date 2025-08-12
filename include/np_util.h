@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #ifndef _NP_UTIL_H_
@@ -23,13 +23,13 @@ extern "C" {
 
 #ifndef _np_debug_log_bin
 #ifdef DEBUG
-#define _np_debug_log_bin0(bin, bin_size, log_category, uuid, log_msg)               \
+#define _np_debug_log_bin0(bin, bin_size, log_category, uuid, log_msg)         \
   {                                                                            \
     char hex[bin_size * 2 + 1];                                                \
     sodium_bin2hex(hex, bin_size * 2 + 1, bin, bin_size);                      \
     log_debug(log_category, uuid, log_msg, hex);                               \
   }
-#define _np_debug_log_bin(bin, bin_size, log_category, uuid, log_msg, ...)           \
+#define _np_debug_log_bin(bin, bin_size, log_category, uuid, log_msg, ...)     \
   {                                                                            \
     char hex[bin_size * 2 + 1];                                                \
     sodium_bin2hex(hex, bin_size * 2 + 1, bin, bin_size);                      \

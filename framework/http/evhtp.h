@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #ifndef __EVHTP__H__
@@ -9,7 +9,7 @@
 
 #ifndef EVHTP_EXPORT
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER ||         \
-    defined                                        __clang__
+    defined __clang__
 #define EVHTP_EXPORT __attribute__((visibility("default")))
 #else
 #define EVHTP_EXPORT
@@ -32,12 +32,12 @@
 // #include <event2/buffer.h>
 // #include <event2/bufferevent.h>
 
-//#define BEV_EVENT_READING   0x01
-//#define BEV_EVENT_WRITING   0x02
-//#define BEV_EVENT_EOF   0x10
-//#define BEV_EVENT_ERROR   0x20
-//#define BEV_EVENT_TIMEOUT   0x40
-//#define BEV_EVENT_CONNECTED   0x80
+// #define BEV_EVENT_READING   0x01
+// #define BEV_EVENT_WRITING   0x02
+// #define BEV_EVENT_EOF   0x10
+// #define BEV_EVENT_ERROR   0x20
+// #define BEV_EVENT_TIMEOUT   0x40
+// #define BEV_EVENT_CONNECTED   0x80
 
 struct sock_ev_client {
   ev_io               *io;

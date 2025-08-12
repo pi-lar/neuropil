@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include "neuropil_attributes.h"
@@ -110,7 +110,7 @@ enum np_data_return np_get_msg_attr_bin(struct np_message    *msg,
                                         char                  key[255],
                                         struct np_data_conf **out_data_config,
                                         unsigned char       **out_data) {
-    assert (*out_data != NULL);
+  assert(*out_data != NULL);
   enum np_data_return ret;
 
   struct np_data_conf *conf = NULL;

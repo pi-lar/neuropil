@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #define _GNU_SOURCE
@@ -1445,7 +1445,9 @@ _evhtp_request_parser_path(htparser *p, const char *data, size_t len) {
   c->request->method      = htparser_get_method(p);
 
   _evhtp_lock(c->htp);
-  { _evhtp_request_set_callbacks(c->request); }
+  {
+    _evhtp_request_set_callbacks(c->request);
+  }
   _evhtp_unlock(c->htp);
 
   if ((c->request->status = _evhtp_path_hook(c->request, path)) !=

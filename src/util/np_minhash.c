@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -97,8 +97,8 @@ void np_minhash_push_dd_fix(np_minhash_t        *minhash,
   // minhash->_minimums[minhash->_dd_pos], minhash->_minimums[minhash->_dd_pos +
   // half]);
 
-  uint32_t hash_1 = (uint32_t)((v1)&0xFFFFFFFF);
-  uint32_t hash_2 = (uint32_t)((v2)&0xFFFFFFFF);
+  uint32_t hash_1 = (uint32_t)((v1) & 0xFFFFFFFF);
+  uint32_t hash_2 = (uint32_t)((v2) & 0xFFFFFFFF);
 
   // bool increase_counter = false;
   // if ((minhash->_minimums[minhash->_dd_pos] - hash) > old_hash_l)

@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -82,7 +82,6 @@ int _np_tuntap_add_itf(NP_UNUSED const char *iface_name,
       return -1;
     }
   }
-
 
   return tuntap_fd;
 }
@@ -298,7 +297,6 @@ void np_tuntap_route_delete(NP_UNUSED struct np_tuntap *tt,
 void np_tuntap_dns_add(NP_UNUSED struct np_tuntap *tt,
                        const char                 *domain,
 int _np_tuntap_if_up(const struct np_tuntap *tt) {
-
   // Create socket for interface configuration
   int cfg_sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (cfg_sock < 0) {
@@ -336,7 +334,6 @@ int _np_tuntap_if_up(const struct np_tuntap *tt) {
 }
 
 int _np_tuntap_if_down(const struct np_tuntap *tt) {
-
   // Create socket for interface configuration
   int cfg_sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (cfg_sock < 0) {

@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include "np_shutdown.h"
@@ -78,7 +78,9 @@ void np_shutdown_add_callback(np_context *ac, np_destroycallback_t clb) {
   if (np_module_not_initiated(shutdown)) return;
 
   np_spinlock_lock(&np_module(shutdown)->on_destroy_lock);
-  { sll_append(np_destroycallback_t, np_module(shutdown)->on_destroy, clb); }
+  {
+    sll_append(np_destroycallback_t, np_module(shutdown)->on_destroy, clb);
+  }
   np_spinlock_unlock(&np_module(shutdown)->on_destroy_lock);
 }
 

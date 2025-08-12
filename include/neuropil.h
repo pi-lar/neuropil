@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -23,12 +23,12 @@
 extern "C" {
 #endif
 
-#define NEUROPIL_RELEASE "neuropil_0.13.0"
+#define NEUROPIL_RELEASE "neuropil_1.0.0"
 
 #define NEUROPIL_COPYRIGHT                                                     \
-  "copyright (C) 2016-2024 neuropil.org, Cologne, Germany"
+  "copyright (C) 2016-2025 neuropil.org, Cologne, Germany"
 #define NEUROPIL_TRADEMARK                                                     \
-  "trademark (TM) 2016-2024 pi-lar GmbH, Cologne, Germany"
+  "trademark (TM) 2016-2025 pi-lar GmbH, Cologne, Germany"
 
 /* just in case NULL is not defined */
 #ifndef NULL

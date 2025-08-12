@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -270,8 +270,7 @@ int main(void) {
                                robot_passphrase_id,
                                &robot_identity);
 
-    assert(np_ok ==
-           np_listen(controller_context, "udp4", "localhost", 3456));
+    assert(np_ok == np_listen(controller_context, "udp4", "localhost", 3456));
 
     np_get_id(&controller_authnz_keystore_id, "np:authnz:keystore", 18);
     np_keystore_init(controller_context,

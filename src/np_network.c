@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 // original version is based on the chimera project
@@ -1054,8 +1054,8 @@ void __set_tcp_nodelay(int socket) {
 
 /** _np_network_init:
  ** initiates the networking layer structures required for a target_node
- ** if the port number is bigger than zero, it will create a socket and bind it
- *to #port#
+ ** if the port number is bigger than zero, it will create a socket and bind
+ *it to #port#
  ** the type defines the protocol which is used by the target_node (@see
  *socket_type)
  *
@@ -1364,8 +1364,8 @@ bool _np_network_init(np_network_t *ng,
     /*      }
           else
           {
-              log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "don't know how to setup
-       client network of type %"PRIu8, type);
+              log_debug(LOG_NETWORK | LOG_DEBUG, NULL, "don't know how to
+       setup client network of type %"PRIu8, type);
           }*/
     ((_np_network_data_t *)ng->watcher_out.data)->network = ng;
 
@@ -1441,7 +1441,8 @@ uint8_t _np_network_count_common_tuples(NP_UNUSED const np_network_t *ng,
     struct in6_addr ipv6_remote, ipv6_local;
     if (inet_pton(AF_INET6, remote_ip, &ipv6_remote) == 1 &&
         inet_pton(AF_INET6, local_ip, &ipv6_local) == 1) {
-      // Compare each byte pair and increment common_tuples for matching blocks
+      // Compare each byte pair and increment common_tuples for matching
+      // blocks
       for (int i = 0; i < 16; i += 2) {
         if (ipv6_remote.s6_addr[i] == ipv6_local.s6_addr[i] &&
             ipv6_remote.s6_addr[i + 1] == ipv6_local.s6_addr[i + 1]) {
@@ -1471,7 +1472,10 @@ enum np_return _np_network_get_outgoing_ip(NP_UNUSED const np_network_t *ng,
   hints.ai_family = (type & IPv4) ? AF_INET : AF_INET6;
   // hints.ai_socktype = (type & TCP) ? SOCK_STREAM : SOCK_DGRAM;
   hints.ai_socktype = SOCK_DGRAM;
-  snprintf(service, sizeof(service), "%d", /* FLAG_CMP(type, TCP) ? 80 :*/ 53);
+  snprintf(service,
+           sizeof(service),
+           "%d",
+           /* FLAG_CMP(type, TCP) ? 80 :*/ 53);
 
   if (getaddrinfo(ip, service, &hints, &res) != 0) {
     return np_invalid_argument;

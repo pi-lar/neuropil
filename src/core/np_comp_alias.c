@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 // original version is based on the chimera project
@@ -677,7 +677,6 @@ void __np_alias_decrypt(
     np_unref_obj(np_messagepart_t, part, ref_obj_creation);
     return;
   }
-
 
   log_debug(LOG_SERIALIZATION,
             part->e2e_msg_part.uuid,
@@ -1365,9 +1364,9 @@ void __np_alias_destroy(np_util_statemachine_t         *statemachine,
            _np_key_as_str(alias_key));
 
   if (FLAG_CMP(alias_key->type, np_key_type_alias)) {
-      // unreffing here should leave object in place (ref count > 1)
-      np_unref_obj(np_key_t, alias_key, "__np_alias_set");
-      assert(alias_key != NULL);
+    // unreffing here should leave object in place (ref count > 1)
+    np_unref_obj(np_key_t, alias_key, "__np_alias_set");
+    assert(alias_key != NULL);
   }
 
   if (alias_key->entity_array[e_handshake_token] != NULL)

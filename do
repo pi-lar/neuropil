@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+# SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 
 # colorcodes https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
@@ -322,7 +322,7 @@ task_helgrind() {
 
     date > helgrind.log
     set +e
-    valgrind --gen-suppressions=all --tool=helgrind --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" |& tee helgrind.log;
+    valgrind --gen-suppressions=all --tool=helgrind --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" | tee helgrind.log;
     ret=${PIPESTATUS[0]}
     set -e
     return $ret
@@ -338,7 +338,7 @@ task_callgrind() {
 
     date > callgrind.log
     set +e
-    valgrind --tool=callgrind  --callgrind-out-file=callgrind.out --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg test_pub_sub "$@" |& tee callgrind.log;
+    valgrind --tool=callgrind  --callgrind-out-file=callgrind.out --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg test_pub_sub "$@" | tee callgrind.log;
     ret=${PIPESTATUS[0]}
     gprof2dot --format=callgrind --output=callgrind.dot callgrind.out
     dot -Tpng callgrind.dot -o callgrind.png
@@ -357,7 +357,7 @@ task_valgrind() {
 
     date > valgrind.log
     set +e
-    valgrind  --gen-suppressions=all --leak-check=full --show-leak-kinds=all --track-origins=yes --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" |& tee valgrind.log;
+    valgrind  --gen-suppressions=all --leak-check=full --show-leak-kinds=all --track-origins=yes --suppressions=../configs/valgrind.supp ../.venv/bin/nose2 --config ../configs/nose2.cfg "$@" | tee valgrind.log;
     ret=${PIPESTATUS[0]}
     set -e
     return $ret

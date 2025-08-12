@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include "np_threads.h"
@@ -458,7 +458,9 @@ int _np_threads_mutex_lock(np_state_t *context,
     // recusion
 
     pthread_mutex_lock(&self_thread->locklists_lock.lock);
-    { sll_prepend(char_ptr, self_thread->want_lock, tmp_mutex_id); }
+    {
+      sll_prepend(char_ptr, self_thread->want_lock, tmp_mutex_id);
+    }
     pthread_mutex_unlock(&self_thread->locklists_lock.lock);
 
     log_info(LOG_MUTEX,
@@ -914,7 +916,9 @@ char *np_threads_print_locks(np_state_t *context, bool asOneLine, bool force) {
   }
 
   np_spinlock_lock(&np_module(threads)->threads_lock);
-  { ret = __np_threads_print_locks(context, ret, new_line); }
+  {
+    ret = __np_threads_print_locks(context, ret, new_line);
+  }
   np_spinlock_unlock(&np_module(threads)->threads_lock);
 
   if (force && ret == NULL) {
@@ -992,7 +996,9 @@ np_thread_t *__np_createThread(NP_UNUSED np_state_t *context,
   new_thread->max_job_priority = NP_PRIORITY_LOWEST;
 
   np_spinlock_lock(&np_module(threads)->threads_lock);
-  { sll_append(np_thread_ptr, np_module(threads)->threads, new_thread); }
+  {
+    sll_append(np_thread_ptr, np_module(threads)->threads, new_thread);
+  }
   np_spinlock_unlock(&np_module(threads)->threads_lock);
 
   if (auto_run) {

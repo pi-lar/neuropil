@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 #include "util/np_treeval.h"
@@ -62,7 +62,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
   case np_treeval_type_char_ptr:
     to.type    = np_treeval_type_char_ptr;
     to.value.s = strndup(from.value.s, from.size);
-    to.size    = from.size; 
+    to.size    = from.size;
     // log_debug(LOG_DEBUG, NULL, "copy str %s %hd", to.value.s, to.size);
     break;
   case np_treeval_type_special_char_ptr:

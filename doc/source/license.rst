@@ -1,5 +1,5 @@
 ..
-  SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+  SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 ..
   SPDX-License-Identifier: OSL-3.0
 
@@ -9,7 +9,7 @@ License
 
 .. _neuropil_license:
 
-copyright 2016-2024 pi-lar GmbH - all rights reserved
+copyright 2016-2025 pi-lar GmbH - all rights reserved
 
 Licensed under the Open Software License (OSL 3.0), please see LICENSE file for details
 

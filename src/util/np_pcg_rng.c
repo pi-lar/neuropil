@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
+// SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 // SPDX-License-Identifier: OSL-3.0
 //
 
@@ -24,8 +24,7 @@
 #include "sodium.h"
 
 #define PCG_DEFAULT_MULTIPLIER_32 6364136223846793005ULL
-#define PCG32_INITIALIZER                                                      \
-  { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
+#define PCG32_INITIALIZER         {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL}
 
 /** a global pcg state, protected by spinlocks */
 struct pcg_global_state_32 {
