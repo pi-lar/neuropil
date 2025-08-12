@@ -237,7 +237,7 @@ extern "C" {
 #define MISC_SEND_PINGS_SEC (NP_PI * 10)
 #endif
 #ifndef MISC_SEND_PINGS_MAX_EVERY_X_SEC
-#define MISC_SEND_PINGS_MAX_EVERY_X_SEC (MISC_SEND_PINGS_SEC * 3)
+#define MISC_SEND_PINGS_MAX_EVERY_X_SEC (MISC_SEND_PINGS_SEC * 3.0)
 #endif
 
 #ifndef GOOD_LINK
@@ -349,7 +349,10 @@ extern "C" {
 #define NP_MSG_FORWARD_FILTER_SIZE 2048
 #endif
 #ifndef NP_MSG_FORWARD_FILTER_PRUNE_RATE
-#define NP_MSG_FORWARD_FILTER_PRUNE_RATE 3
+// see also: https://webdocs.cs.ualberta.ca/~drafiei/papers/DupDet06Sigmod.pdf
+// equation 17 shows the calculation of the prune rate
+// for our solution the prune rate is 64 -> (8 * 8 hash function)
+#define NP_MSG_FORWARD_FILTER_PRUNE_RATE 8
 #endif
 
 #ifdef __cplusplus

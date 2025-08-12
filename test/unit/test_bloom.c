@@ -1068,3 +1068,90 @@ Test(np_bloom_t,
 
 //   _np_bloom_free(new_bloom);
 // }
+
+Test(np_bloom_t,
+     _bloom_counting_simple,
+     .description = "test the counting bloom filter implementation") {
+  np_bloom_t *bloom = _np_counting_bloom_create(1024, 8, 1);
+  cr_expect(bloom != NULL);
+
+  // Test adding elements
+  np_dhkey_t test1 = np_dhkey_create_from_hostport("test1", "0");
+  _np_counting_bloom_add(bloom, test1);
+  np_dhkey_t test2 = np_dhkey_create_from_hostport("test2", "0");
+  _np_counting_bloom_add(bloom, test2);
+  np_dhkey_t test3 = np_dhkey_create_from_hostport("test3", "0");
+  _np_counting_bloom_add(bloom, test3);
+
+  // Test checking elements
+  cr_expect(_np_counting_bloom_check(bloom, test1) == true);
+  cr_expect(_np_counting_bloom_check(bloom, test2) == true);
+  cr_expect(_np_counting_bloom_check(bloom, test3) == true);
+  np_dhkey_t nonexistent = np_dhkey_create_from_hostport("nonexistent", "0");
+  cr_expect(_np_counting_bloom_check(bloom, nonexistent) == false);
+
+  // Test double inserting elements
+  uint32_t counter = 0;
+  _np_counting_bloom_add(bloom, test1);
+  cr_expect(_np_counting_bloom_check(bloom, test1) == true);
+  _np_counting_bloom_check_r(bloom, test1, &counter);
+  cr_expect(counter == 2, "counter should be set to 2");
+  _np_counting_bloom_remove(bloom, test1);
+  counter = 0;
+  _np_counting_bloom_check_r(bloom, test1, &counter);
+  cr_expect(counter == 1, "counter should be set to 1");
+  cr_expect(_np_counting_bloom_check(bloom, test2) == true);
+
+  // Test removing elements
+  _np_counting_bloom_remove(bloom, test1);
+  cr_expect(_np_counting_bloom_check(bloom, test1) == false);
+  cr_expect(_np_counting_bloom_check(bloom, test2) == true);
+
+  // Test clearing
+  _np_counting_bloom_clear(bloom);
+  cr_expect(_np_counting_bloom_check(bloom, test2) == false);
+  cr_expect(_np_counting_bloom_check(bloom, test3) == false);
+
+  _np_bloom_free(bloom);
+}
+
+Test(np_bloom_t,
+     _bloom_counting_stream,
+     .description = "test the counting bloom filter streaming implementation") {
+  np_bloom_t *bloom = _np_counting_bloom_create(1024, 8, 1);
+  cr_expect(bloom != NULL, "expect that the bloom filter has been created");
+
+  // Simulate streaming events
+  for (int i = 0; i < 1000000; i++) {
+    char event_id[20];
+    snprintf(event_id, sizeof(event_id), "%06d-%12d", i, ev_time());
+    np_dhkey_t event_dhkey = np_dhkey_create_from_hostport("event", event_id);
+
+    // add event
+    _np_counting_bloom_add(bloom, event_dhkey);
+
+    // check if event exists
+    cr_expect(_np_counting_bloom_check(bloom, event_dhkey) == true,
+              "expect that the new event can be found");
+
+    // clear every 256th element to simulate rate limiting
+    if ((i + 1) % 256 == 0) {
+      uint32_t counter_1 = 0, counter_2 = 0;
+      _np_counting_bloom_clear_r(bloom, &counter_1);
+      cr_expect(counter_1 > 0, "expect that the counter is bigger than zero");
+      _np_counting_bloom_clear_r(bloom, &counter_2);
+      cr_expect(counter_2 < counter_1,
+                "expect that the counter is lower than before");
+
+      // Verify that events from previous window are cleared
+      // for (int j = i - 255; j <= i; j++) {
+      //   snprintf(event_id, sizeof(event_id), "%06d", j);
+      //   np_dhkey_t event_dhkey =
+      //       np_dhkey_create_from_hostport("event", event_id);
+      //   // cr_expect(_np_counting_bloom_check(bloom, event_dhkey) == false);
+      // }
+    }
+  }
+
+  _np_bloom_free(bloom);
+}

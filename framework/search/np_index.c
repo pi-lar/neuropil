@@ -64,11 +64,11 @@ void np_index_init(np_index_t *index) {
   // _np_dhkey_assign(&index->upper_dhkey, &_null);
   _np_dhkey_assign(&index->lower_dhkey, &_null);
 
-  index->_cbl_index = _np_counting_bloom_create((5 * 17), 8, 0);
+  index->_cbl_index = _np_counting_bloom_create((5 * 17), 8, 1);
   index->_cbl_index->_free_items =
-      (5 * 17) * 8 / 2; // the filter is not used as a bloom filter, bu rather a
-                        // countmin sketch
-  index->_cbl_index_counter = _np_counting_bloom_create((5 * 17), 8, 0);
+      (5 * 17) * 8 / 2; // the filter is not used as a bloom filter, but rather
+                        // a countmin sketch
+  index->_cbl_index_counter = _np_counting_bloom_create((5 * 17), 8, 1);
   index->_cbl_index_counter->_free_items =
       (5 * 17) * 8 / 2; // the filter is not used as a bloom filter, but rather
                         // a countmin sketch

@@ -1039,9 +1039,15 @@ void __set_non_blocking(int socket) {
 }
 
 void __set_keepalive(int socket) {
-  int optval = 1;
-  if (setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) <
-      0) {
+  int yes = 1;
+  if (setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) < 0) {
+    //
+  }
+}
+
+void __set_tcp_nodelay(int socket) {
+  int yes = 1;
+  if (setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) < 0) {
     //
   }
 }
@@ -1160,7 +1166,7 @@ bool _np_network_init(np_network_t *ng,
       __set_v6_only_false(ng->socket);
     }
     if (FLAG_CMP(type, TCP)) {
-      // __set_keepalive(ng->socket);
+      __set_tcp_nodelay(ng->socket);
     }
     __set_non_blocking(ng->socket);
 
@@ -1322,7 +1328,7 @@ bool _np_network_init(np_network_t *ng,
       __set_v6_only_false(ng->socket);
     }
     if (FLAG_CMP(type, TCP)) {
-      // __set_keepalive(ng->socket);
+      __set_tcp_nodelay(ng->socket);
     }
     __set_non_blocking(ng->socket);
 

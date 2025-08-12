@@ -527,31 +527,41 @@ np_bloom_t *_np_stable_bloom_create(size_t size, uint8_t d, uint8_t p) {
 
 void _np_stable_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
 
+  // see also: https://webdocs.cs.ualberta.ca/~drafiei/papers/DupDet06Sigmod.pdf
+  // equation 17 shows the correlation of Max (max value in each cell), p (prune
+  // rate) and k (hash functions) and FPS (false positive rate)
+  // In our implementation we set max to 4 (d/2), k is set to 8
+  // using a prune rate of 60 (see NP_MSG_FORWARD_FILTER_PRUNE_RATE) will give
+  // approx. a false positive rate of 0,0006
+
   uint32_t _killed_bits = 0;
 
-  for (uint8_t p = 0; p < bloom->_p * bloom->_d; ++p) {
-
+  // let's prune (p * hash-functions) entries from the filter
+  for (uint8_t p = 0; p < bloom->_p; ++p) {
     uint32_t _as_number = np_rng_next(&bloom->_rng);
-
-    uint32_t _bit_array_pos = _as_number & (bloom->_size - 1);
-    uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
-    uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-    if (*_current_val > 0) {
+    for (uint8_t q = 0; q < 8; ++q) {
+      uint32_t _bit_array_pos = (_as_number + q) & (bloom->_size - 1);
+      uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
+      uint8_t *_current_val   = &bloom->_bitset[_local_pos];
+      if (*_current_val == 1) {
+        _killed_bits++;
+      }
       (*_current_val) = (*_current_val) >> 1;
-      _killed_bits++;
     }
   }
   _killed_bits = _killed_bits >> 3;
   while (_killed_bits > 0) {
     bloom->_free_items++;
-    _killed_bits = _killed_bits >> 3;
+    _killed_bits--;
   }
 
+  // set the new entry to max
   for (uint8_t k = 0; k < 8; ++k) {
     uint32_t _bit_array_pos = id.t[k] & (bloom->_size - 1);
     uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-    (*_current_val) |= ((1 << bloom->_d) - 1);
+    // (*_current_val)         = ((1 << (bloom->_d >> 1)) - 1);
+    (*_current_val) = 0x0f;
 
     // #ifdef DEBUG
     // char test_string[65];
@@ -572,7 +582,10 @@ bool _np_stable_bloom_check(np_bloom_t *bloom, np_dhkey_t id) {
     uint32_t _bit_array_pos = id.t[k] & (bloom->_size - 1);
     uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-    if (0 == (*_current_val)) ret = false;
+    if (0 == (*_current_val)) {
+      ret = false;
+      break;
+    }
     // #ifdef DEBUG
     // char test_string[65];
     // for (uint16_t i = 0; i < bloom->_size/8*bloom->_d; i+=32 ) {
@@ -813,6 +826,9 @@ float _np_decaying_bloom_get_heuristic(np_bloom_t *bloom, np_dhkey_t id) {
 // a simple counting bloom filter
 np_bloom_t *_np_counting_bloom_create(size_t size, uint8_t d, uint8_t p) {
 
+  assert(d >= 8 && (d % 2 == 0));
+  assert(p >= 1);
+
   np_bloom_t *res = (np_bloom_t *)calloc(1, sizeof(np_bloom_t));
   res->_type      = counting_bf;
   res->_size      = size;
@@ -820,30 +836,31 @@ np_bloom_t *_np_counting_bloom_create(size_t size, uint8_t d, uint8_t p) {
   res->_d = d;
   res->_p = p;
 
+  res->_num_blocks = 1;
+
   res->_bitset = calloc(size, res->_d >> 3);
   // simplified max elements calculation
-  res->_free_items = size * res->_d >> 4;
-  res->_num_blocks = 1;
+  res->_free_items = (size * res->_d) >> 4;
 
   return res;
 }
 
 void _np_counting_bloom_clear(np_bloom_t *res) {
-  memset(res->_bitset, 0, (res->_num_blocks * res->_size * res->_d) >> 3);
+  memset(res->_bitset, 0, (res->_size * res->_d) >> 3);
   res->_free_items = (res->_size * res->_d) >> 4;
 }
 
 void _np_counting_bloom_clear_r(np_bloom_t *res, uint32_t *item_count) {
   uint32_t zeroed_blocks = 1;
-  for (size_t k = 0; k < (res->_num_blocks * res->_size * res->_d) >> 3; k++) {
+  for (size_t k = 0; k < (res->_size * res->_d) >> 3; k++) {
     if (res->_bitset[k] == 1) zeroed_blocks++;
     res->_bitset[k] >>= res->_p;
     *item_count = res->_bitset[k] > *item_count ? res->_bitset[k] : *item_count;
   }
 
   res->_free_items += (*item_count * zeroed_blocks) << res->_p;
-  if (res->_free_items > ((res->_size * res->_d) >> 4))
-    res->_free_items = ((res->_size * res->_d) >> 4);
+  if (res->_free_items > (res->_size * res->_d) >> 4)
+    res->_free_items = (res->_size * res->_d) >> 4;
 }
 
 void _np_counting_bloom_add(np_bloom_t *bloom, np_dhkey_t id) {
@@ -878,7 +895,7 @@ void _np_counting_bloom_remove(np_bloom_t *bloom, np_dhkey_t id) {
     uint32_t _bit_array_pos = id.t[k] % bloom->_size;
     uint32_t _local_pos     = _bit_array_pos * bloom->_d >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
-    (*_current_val)--;
+    if (*_current_val > 0) (*_current_val)--;
 
     // #ifdef DEBUG
     // char test_string[65];
@@ -918,7 +935,7 @@ void _np_counting_bloom_check_r(np_bloom_t *bloom,
 
   for (uint8_t k = 0; k < 8; ++k) {
     uint32_t _bit_array_pos = id.t[k] & (bloom->_size - 1);
-    uint32_t _local_pos     = _bit_array_pos * bloom->_d >> 3;
+    uint32_t _local_pos     = (_bit_array_pos * bloom->_d) >> 3;
     uint8_t *_current_val   = &bloom->_bitset[_local_pos];
     if (0 == (*_current_val) || UINT8_MAX == (*_current_val)) return;
 
@@ -937,13 +954,14 @@ void _np_counting_bloom_check_r(np_bloom_t *bloom,
 void _np_counting_bloom_containment(np_bloom_t *first,
                                     np_bloom_t *second,
                                     float      *result) {
+  assert(first->_size == second->_size);
+  assert(first->_d == second->_d);
   // containment only uses the number of query elements (of first) for the
   // union count
   uint16_t union_count        = 0;
   uint16_t intersection_count = 0; // prevent division by zero in line 773
 
-  for (size_t k = 0; k < first->_num_blocks * first->_size * first->_d / 8;
-       k++) {
+  for (size_t k = 0; k < (first->_size * first->_d) >> 3; k++) {
     union_count += (first->_bitset[k] > 0) ? 1 : 0;
 
     intersection_count += ((first->_bitset[k] > 0 && second->_bitset[k] > 0) &&

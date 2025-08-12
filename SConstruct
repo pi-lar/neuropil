@@ -298,6 +298,7 @@ SOURCES += [
     "../framework/http/np_http.c",
     "../framework/http/urldecode.c",
     "../framework/files/file.c",
+    "../framework/tuntap/np_tuntap.c",
 ]
 SOURCES += [
     "../framework/search/np_index.c",
@@ -547,6 +548,7 @@ programs = [
     (True, "receiver", ["neuropil"]),
     (True, "privacy_relay", ["neuropil"]),
     (True, "sender", ["neuropil"]),
+    (True, "vpn", ["neuropil"]),
     (True, "bloom", ["neuropil"]),
     (True, "enhanced_bloom", ["neuropil"]),
     (True, "test", ["neuropil"]),

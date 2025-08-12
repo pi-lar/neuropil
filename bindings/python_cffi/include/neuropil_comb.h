@@ -314,6 +314,7 @@ struct np_search_settings {
   enum np_search_node_type     node_type;
   uint8_t                      local_peer_count;
   uint16_t                     local_table_count;
+  uint8_t                      prime_shift;
   enum np_search_analytic_mode analytic_mode;
   enum np_search_minhash_mode  minhash_mode;
   enum np_search_shingle_mode  shingle_mode;

@@ -807,14 +807,14 @@ void __np_node_update(np_util_statemachine_t *statemachine,
   np_node_t *node  = _np_key_get_node(node_key);
   float      total = 0.0;
 
-  // TODO: find good metric/calculation for _size_modifier
-  uint8_t _size_modifier = 1;
-  if (_size_modifier > 1) {
-    node->msg_forward_filter->_p = _size_modifier;
+  // TODO: find good metric/calculation for _prune_modifier
+  uint8_t _prune_modifier = NP_MSG_FORWARD_FILTER_PRUNE_RATE;
+  if (node->msg_forward_filter->_p != _prune_modifier) {
+    node->msg_forward_filter->_p = _prune_modifier;
     log_debug(LOG_MISC | LOG_NETWORK,
               NULL,
               "FORWARD duplicate check adjusted, now using bit-pruning: %d)",
-              _size_modifier);
+              _prune_modifier);
   }
 
   // calculate average ping success value

@@ -1,6 +1,7 @@
 #
 # SPDX-FileCopyrightText: 2016-2024 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
+#
 # WIP DRAFT
 #
 # TODO:
@@ -72,6 +73,7 @@ add_library(neuropil SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/np_cupidbloom.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/np_cupidtrie.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/np_minhash.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/np_pcg_rng.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/np_scache.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/np_serialization.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/np_skiplist.c
@@ -87,6 +89,7 @@ add_library(neuropil SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/framework/search/np_index.c
     ${CMAKE_CURRENT_SOURCE_DIR}/framework/search/np_search.c
     ${CMAKE_CURRENT_SOURCE_DIR}/framework/sysinfo/np_sysinfo.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/framework/tuntap/np_tuntap.c
     ${CMAKE_CURRENT_SOURCE_DIR}/ext_tools/event/ev.c
     ${CMAKE_CURRENT_SOURCE_DIR}/ext_tools/gpio/bcm2835.c
     ${CMAKE_CURRENT_SOURCE_DIR}/ext_tools/msgpack/cmp.c
@@ -110,6 +113,7 @@ add_executable(neuropil_search_node examples/neuropil_search_node.c)
 add_executable(neuropil_search_nlnet examples/neuropil_search_nlnet.c)
 add_executable(neuropil_search_nlnet_2 examples/neuropil_search_nlnet_2.c)
 add_executable(neuropil_sender examples/neuropil_sender.c)
+add_executable(neuropil_vpn examples/neuropil_vpn.c)
 add_executable(neuropil_test examples/neuropil_test.c)
 
 target_link_libraries(neuropil sodium pthread m)
@@ -125,6 +129,7 @@ target_link_libraries(neuropil_identity neuropil sodium)
 target_link_libraries(neuropil_receiver neuropil sodium)
 target_link_libraries(neuropil_search_node neuropil sodium)
 target_link_libraries(neuropil_sender neuropil sodium)
+target_link_libraries(neuropil_vpn neuropil sodium)
 target_link_libraries(neuropil_test neuropil criterion sodium)
 
 

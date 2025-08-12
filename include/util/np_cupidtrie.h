@@ -86,7 +86,7 @@ np_cupidtrie_insert(struct np_cupidtrie *trie, uint8_t *key, uintptr_t **data);
  * @param trie the cupidtrie data structure to operate on
  * @param key a pointer to the key array (uint8_t[...])
  * @param data a pointer to the data block which has been stored
- * @return enum np_return when the key did not exists and was inserted
+ * @return enum np_ok when the key did exists and was fetched
  */
 enum np_return
 np_cupidtrie_find(struct np_cupidtrie *trie, uint8_t *key, uintptr_t **data);

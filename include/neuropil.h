@@ -145,8 +145,9 @@ typedef np_id np_subject;
 // char* is the appropriate type because it is the type of a string
 // and can also describe an array of bytes. (sizeof char == 1)
 void np_get_id(np_id(*id), const char *string, size_t length);
-// reentrant version fo np_get_id. the subject_id will not be overwrittem, but
-// will ba used as a base hash value otherwise the same as np_get_id
+
+// reentrant version for np_get_id. the subject_id will be overwritten, but
+// will be used as a base hash value. otherwise the same as np_get_id
 enum np_return np_generate_subject(np_subject(*subject_id),
                                    const char *subject,
                                    size_t      length);

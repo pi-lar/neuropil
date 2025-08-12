@@ -44,6 +44,7 @@ struct np_search_settings {
   enum np_search_node_type node_type;
   uint8_t                  local_peer_count;
   uint16_t                 local_table_count; // set BKTREE_ARRAY_SIZE
+  uint8_t                  prime_shift;
 
   // settings that affect how text is pre-processed
   enum np_search_analytic_mode analytic_mode;
