@@ -18,6 +18,6 @@ int main(int argc, char **argv) {
 
   for (int i = 0; i < 100; i++) {
     char *uuid = np_create_uuid(subject, i);
-    log_msg(LOG_DEBUG, NULL, "uuid size is %u", strlen(uuid));
+    log_msg(LOG_DEBUG, NULL, "uuid size is %u", strnlen(uuid, 40));
   }
 }

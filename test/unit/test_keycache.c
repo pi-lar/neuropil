@@ -279,7 +279,7 @@ Test(np_keycache_t,
 
     for (int i = 0; i < 9; i++) {
       char *test_string = _np_key_as_str(new_keys[i]);
-      cr_expect(64 == strlen(test_string),
+      cr_expect(64 == strnlen(test_string, 65),
                 "expect the length of the dh string to be 65 (without null "
                 "terminating character)");
 

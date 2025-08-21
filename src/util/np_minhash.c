@@ -288,6 +288,7 @@ void np_minhash_push_tree(np_minhash_t    *minhash,
     RB_FOREACH (tmp, np_tree_s, ctree) {
       key_part[_local_shingle_size - 1].str =
           np_treeval_to_str(tmp->key,
+                            NULL,
                             &key_part[_local_shingle_size - 1].freeable);
 
       // fprintf(stdout, "%s:xx ", key_part[_local_shingle_size-1].str);
@@ -321,6 +322,7 @@ void np_minhash_push_tree(np_minhash_t    *minhash,
   RB_FOREACH (tmp, np_tree_s, (tree)) {
     val_part[_local_shingle_size - 1].str =
         np_treeval_to_str(tmp->val,
+                          NULL,
                           &val_part[_local_shingle_size - 1].freeable);
 
     if (i >= (_local_shingle_size - 1)) {

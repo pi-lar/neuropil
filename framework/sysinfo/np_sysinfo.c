@@ -234,8 +234,10 @@ bool _np_in_sysinfo(void *ac, struct np_message *msg) {
              "received sysinfo request w/o source key information.");
     return false;
   }
-  bool  source_str_free = false;
-  char *source_val      = np_treeval_to_str(source->val, &source_str_free);
+  bool   source_str_free = false;
+  size_t source_val_len  = 0;
+  char  *source_val =
+      np_treeval_to_str(source->val, &source_val_len, &source_str_free);
 
   log_debug(LOG_SYSINFO,
             NULL,
@@ -513,7 +515,7 @@ int _np_http_handle_sysinfo_hash(ht_request_t  *request,
               tmp_target_hash);
 
     if (NULL != tmp_target_hash) {
-      if (strlen(tmp_target_hash) == 64) {
+      if (strnlen(tmp_target_hash, 65) == 64) {
         snprintf(target_hash, 65, "%s", tmp_target_hash);
       } else {
         json_obj = _np_generate_error_json("provided key invalid.",
@@ -565,11 +567,8 @@ __json_return__:
     http_status = HTTP_CODE_INTERNAL_SERVER_ERROR;
     json_obj = _np_generate_error_json("Unknown Error", "no response defined");
   }
-  response = np_json2char(json_obj, false);
-  log_debug(LOG_SYSINFO,
-            NULL,
-            "sysinfo response should be (strlen: %lu):",
-            strlen(response));
+  response       = np_json2char(json_obj, false);
+  ret->ht_length = json_serialization_size_pretty(json_obj);
   json_value_free(json_obj);
 
   log_debug(LOG_SYSINFO, NULL, "write to body");
@@ -605,7 +604,7 @@ int _np_http_handle_sysinfo_all(ht_request_t  *request,
     np_tree_elem_t *new_join =
         np_tree_find_str(request->ht_query_args, _NP_SYSINFO_CONNECT);
     if (new_join != NULL) {
-      char *url = urlDecode(new_join->val.value.s);
+      char *url = urlDecode(new_join->val.value.s, new_join->val.size);
       log_msg(LOG_INFO, NULL, "user requested to join: %s", url);
       np_join(context, url);
       free(url);
@@ -641,7 +640,6 @@ int _np_http_handle_sysinfo_all(ht_request_t  *request,
 
     log_debug(LOG_SYSINFO, NULL, "Convert sysinfo to json");
     json_obj = np_tree2json(context, sysinfo);
-    log_debug(LOG_SYSINFO, NULL, "cleanup");
 
     http_status = HTTP_CODE_OK;
   }
@@ -656,11 +654,9 @@ __json_return__:
     json_obj = _np_generate_error_json("Unknown Error", "no response defined");
   }
 
-  response = np_json2char(json_obj, false);
-  log_debug(LOG_SYSINFO,
-            NULL,
-            "sysinfo response should be (strlen: %lu):",
-            strlen(response));
+  response       = np_json2char(json_obj, false);
+  ret->ht_length = json_serialization_size_pretty(json_obj);
+
   json_value_free(json_obj);
 
   log_debug(LOG_SYSINFO, NULL, "write to body");

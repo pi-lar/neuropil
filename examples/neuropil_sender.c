@@ -132,9 +132,10 @@ int main(void) {
     snprintf(message, 100, "msg %" PRIu64, _i++);
     sleep(0.01);
     // Remove trailing newline
-    if ((strlen(message) > 0) && (message[strlen(message) - 1] == '\n'))
-      message[strlen(message) - 1] = '\0';
-    size_t message_len = strlen(message);
+    if ((strnlen(message, 100) > 0) &&
+        (message[strnlen(message, 100) - 1] == '\n'))
+      message[strnlen(message, 100) - 1] = '\0';
+    size_t message_len = strnlen(message, 100);
     np_send(ac, subject_id, message, message_len);
     printf("Sent: %s\n", message);
   } while (np_ok == status);

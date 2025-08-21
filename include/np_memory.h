@@ -183,10 +183,10 @@ bool np_memory_log(np_state_t *context, NP_UNUSED np_util_event_t event);
 
 #ifdef NP_MEMORY_CHECK_MEMORY_REFFING
 #define _NP_REF_REASON(reason, reason_desc, new_reason)                        \
-  char                                                                         \
-      new_reason[strlen(reason) + 255]; /*255 chars for additional desc data*/ \
+  char new_reason[strnlen(reason, 64) +                                        \
+                  255]; /*255 chars for additional desc data*/                 \
   snprintf(new_reason,                                                         \
-           strlen(reason) + 255,                                               \
+           strnlen(reason, 64) + 255,                                          \
            "%s%sline:%d_%s",                                                   \
            reason,                                                             \
            _NP_REF_REASON_SEPERATOR_CHAR,                                      \

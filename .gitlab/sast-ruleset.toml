@@ -1,0 +1,43 @@
+[semgrep]
+  description = "ruleset modifications for the C99 standard"
+
+  [[semgrep.ruleset]]
+    [semgrep.ruleset.identifier]
+      type = "flawfinder_func_name"
+      value = "strncpy"
+    [semgrep.ruleset.override]
+      severity = "Info"
+      description = "secure version of strncpy like strncpy_s only available in the C11 standard"
+
+  [[semgrep.ruleset]]
+    [semgrep.ruleset.identifier]
+      type = "flawfinder_func_name"
+      value = "strncat"
+    [semgrep.ruleset.override]
+      severity = "Info"
+      description = "secure version of strncat like strncat_s only available in the C11 standard"
+
+  [[semgrep.ruleset]]
+    [semgrep.ruleset.identifier]
+      type = "flawfinder_func_name"
+      value = "snprintf"
+    [semgrep.ruleset.override]
+      severity = "Info"
+      description = "secure version of snprintf like snprintf_s only available in the C11 standard"
+
+  [[semgrep.ruleset]]
+    [semgrep.ruleset.identifier]
+      type = "flawfinder_func_name"
+      value = "memcpy"
+    [semgrep.ruleset.override]
+      severity = "Info"
+      description = "secure version of memcpy like memcpy_s only available in the C11 standard"
+
+  [[semgrep.ruleset]]
+    [semgrep.ruleset.identifier]
+      type = "semgrep_id"
+      value = "gosec.G103-1"
+    [semgrep.ruleset.override]
+      severity = "Info"
+      description = "Use of (unsafe) Go - package cannot be prevented in ffi bindings (afaik), please open an issue of you have a different solution"
+

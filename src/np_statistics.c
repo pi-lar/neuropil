@@ -129,16 +129,21 @@ bool __np_statistics_gather_data_clb(np_state_t               *context,
 
   return true;
 }
+
 int _np_http_handle_metrics(ht_request_t  *request,
                             ht_response_t *ret,
-                            void          *context) {
-  ret->ht_body   = np_statistics_prometheus_export(context);
+                            void          *ac) {
+  np_ctx_cast(ac);
+  ret->ht_body = np_statistics_prometheus_export(ac);
+  ret->ht_length =
+      prometheus_format_size(np_module(statistics)->_prometheus_context);
   ret->ht_status = HTTP_CODE_OK;
   np_tree_insert_str(ret->ht_header,
                      "Content-Type",
                      np_treeval_new_s("text/plain; version=0.0.4"));
   return ret->ht_status;
 }
+
 bool _np_statistics_init(np_state_t *context) {
 
   if (!np_module_initiated(statistics)) {
@@ -492,7 +497,6 @@ void np_statistics_add_watch(np_state_t *context, np_subject subject) {
   // const char* key = (char*) subject;
   np_statistics_element_t *value = NULL;
   if (addtolist == true) {
-    // char* key_dup = strndup(subject, strlen(subject) );
     sll_append(np_dhkey_t,
                np_module(statistics)->__watched_subjects,
                subject_dhkey);
@@ -750,7 +754,7 @@ char *np_statistics_print(np_state_t *context, bool asOneLine) {
 
   for (uint32_t i = 0; i < (sizeof(minimize) / sizeof(uint32_t)); i++) {
     snprintf(s, 32, "%d", minimize[i]);
-    tenth = fmax(tenth, strlen(s));
+    tenth = fmax(tenth, strnlen(s, 32));
   }
 
   snprintf(tmp_format,

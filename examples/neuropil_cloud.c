@@ -25,7 +25,7 @@
 void make_wildcard(char *s) {
   s[0] = '*';
 
-  for (size_t i = 64; i <= strlen(s); i++) {
+  for (size_t i = 64; i <= strnlen(s, 256); i++) {
     s[i - 63] = s[i];
   }
 }

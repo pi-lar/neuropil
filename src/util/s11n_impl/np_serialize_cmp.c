@@ -136,7 +136,6 @@ void __np_tree_serialize_write_type(np_state_t  *context,
     // characters
   case np_treeval_type_char_ptr:
     // log_debug(LOG_DEBUG, NULL, "string size %u/%lu -> %s", val.size,
-    // strlen(val.value.s), val.value.s);
     cmp_write_str32(cmp,
                     val.value.s,
                     val.size + sizeof(char) /*include terminator*/);
@@ -616,7 +615,7 @@ void np_serializer_read_map(np_state_t              *context,
 
 #ifdef DEBUG
     bool  free_tmp_key_str = false;
-    char *tmp_key_str      = np_treeval_to_str(tmp_key, &free_tmp_key_str);
+    char *tmp_key_str = np_treeval_to_str(tmp_key, NULL, &free_tmp_key_str);
     __np_tree_deserialize_read_type(context,
                                     buffer->_target_tree,
                                     &obj_val,

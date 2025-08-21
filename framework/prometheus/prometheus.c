@@ -260,6 +260,47 @@ float prometheus_metric_get(prometheus_metric *self) {
   return ret;
 }
 
+size_t prometheus_format_size(prometheus_context *c) {
+
+  size_t size = 1; /*NULL TERMINATOR*/
+
+  // Calculate size of return string
+  if (pthread_mutex_lock(&c->w_lock) == 0) {
+    prometheus_item   *metric_iterator, *label_iterator;
+    prometheus_metric *metric;
+    prometheus_label  *label;
+    metric_iterator = c->metrics;
+
+    while (metric_iterator != NULL) {
+      metric = (prometheus_metric *)metric_iterator->data;
+
+      size += strnlen(metric->name, 255);
+      size += 21; // value size + space
+
+      if (metric->time_ms != 0) size += 14; // timestamp size
+
+      label_iterator = metric->labels;
+      if (label_iterator != NULL) {
+        size += 2; // {}
+      }
+      while (label_iterator != NULL) {
+        label = (prometheus_label *)label_iterator->data;
+
+        size += strnlen(label->name, 255);
+        size += 3; // =""
+        size += strnlen(label->value, 255);
+
+        label_iterator = label_iterator->next;
+        if (label_iterator != NULL) size += 1; // ,
+      }
+      size += 1; // newline
+      metric_iterator = metric_iterator->next;
+    }
+    pthread_mutex_unlock(&metric->rw_lock);
+  }
+  return size;
+}
+
 char *prometheus_format(prometheus_context *c) {
   char *ret = NULL;
   if (pthread_mutex_lock(&c->w_lock) == 0) {
@@ -269,6 +310,7 @@ char *prometheus_format(prometheus_context *c) {
         metric_name[{label_name="label_value",...}] metric_value [timestamp]
     */
     // Calculate size of return string
+
     uint32_t           size = 1; /*NULL TERMINATOR*/
     prometheus_item   *metric_iterator, *label_iterator;
     prometheus_metric *metric;
@@ -308,34 +350,49 @@ char *prometheus_format(prometheus_context *c) {
     while (metric_iterator != NULL) {
       metric = (prometheus_metric *)metric_iterator->data;
 
-      ret_pointer += sprintf(ret + ret_pointer, "%s", metric->name);
+      ret_pointer += snprintf(ret + ret_pointer, size, "%s", metric->name);
+      size -= ret_pointer;
 
       label_iterator = metric->labels;
       bool has_label = label_iterator != NULL;
       if (has_label) {
-        ret_pointer += sprintf(ret + ret_pointer, "%c", '{');
+        ret_pointer += snprintf(ret + ret_pointer, size, "%c", '{');
+        size -= ret_pointer;
       }
       while (label_iterator != NULL) {
         label = (prometheus_label *)label_iterator->data;
 
-        ret_pointer +=
-            sprintf(ret + ret_pointer, "%s=\"%s\"", label->name, label->value);
+        ret_pointer += snprintf(ret + ret_pointer,
+                                size,
+                                "%s=\"%s\"",
+                                label->name,
+                                label->value);
+        size -= ret_pointer;
 
         label_iterator = label_iterator->next;
-        if (label_iterator != NULL)
-          ret_pointer += sprintf(ret + ret_pointer, "%c", ',');
+        if (label_iterator != NULL) {
+          ret_pointer += snprintf(ret + ret_pointer, size, "%c", ',');
+          size -= ret_pointer;
+        }
       }
       if (has_label) {
-        ret_pointer += sprintf(ret + ret_pointer, "%s", "}");
+        ret_pointer += snprintf(ret + ret_pointer, size, "%s", "}");
+        size -= ret_pointer;
       }
 
       pthread_mutex_lock(&metric->rw_lock);
-      ret_pointer += sprintf(ret + ret_pointer, " %f", metric->value);
-      if (metric->time_ms != 0)
-        ret_pointer += sprintf(ret + ret_pointer, " %" PRIu64, metric->time_ms);
+      ret_pointer += snprintf(ret + ret_pointer, size, " %f", metric->value);
+      size -= ret_pointer;
+
+      if (metric->time_ms != 0) {
+        ret_pointer +=
+            snprintf(ret + ret_pointer, size, " %" PRIu64, metric->time_ms);
+        size -= ret_pointer;
+      }
       pthread_mutex_unlock(&metric->rw_lock);
 
-      ret_pointer += sprintf(ret + ret_pointer, "%c", '\n');
+      ret_pointer += snprintf(ret + ret_pointer, size, "%c", '\n');
+      size -= ret_pointer;
       metric_iterator = metric_iterator->next;
     }
     ret[size - 1] = 0; // for sanity

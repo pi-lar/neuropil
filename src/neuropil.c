@@ -530,7 +530,7 @@ enum np_return np_get_address(np_context *ac, char *address, uint32_t max) {
 
   char *str = np_get_connection_string_from(main_itf_key, true);
   log_msg(LOG_DEBUG, NULL, "str: %s", str);
-  if (strlen(str) > max) {
+  if (strnlen(str, max + 1) > max) {
     ret = np_invalid_argument;
   } else {
     strncpy(address, str, max);

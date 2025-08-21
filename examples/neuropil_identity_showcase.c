@@ -237,7 +237,8 @@ int main(void) {
 
     // creation of robot identity
 
-    int controller_identity_fp_str_len = strlen(controller_identity_fp_str);
+    int controller_identity_fp_str_len =
+        strnlen(controller_identity_fp_str, 65);
     robot_identity =
         np_new_identity(robot_context, np_time_now() + 86400, NULL);
     memset(robot_identity.subject, 0, 255);

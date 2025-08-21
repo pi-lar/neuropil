@@ -236,22 +236,26 @@ bool _np_msgproperty_init(np_state_t *context) {
     property->is_internal           = true;
     property->audience_type         = NP_MX_AUD_PUBLIC;
 
-    if (strlen(property->msg_subject) > 0) {
-      // np_dhkey_t subject_dhkey = {0};
-      np_generate_subject((np_subject *)&property->subject_dhkey,
-                          property->msg_subject,
-                          strnlen(property->msg_subject, 256));
-#ifdef DEBUG
-      char hex[65];
-      log_debug(LOG_MSGPROPERTY,
-                NULL,
-                "register handler: %s (%" PRIsizet ") hex: %s",
-                property->msg_subject,
-                strnlen(property->msg_subject, 256),
-                sodium_bin2hex(hex, 65, &property->subject_dhkey, 32));
-#endif
-      np_msgproperty_register(property);
+    if (strnlen(property->msg_subject, 255) == 0 ||
+        strnlen(property->msg_subject, 255) >= 242) {
+      ABORT("internal message property with invalid length subject detected")
     }
+
+    // np_dhkey_t subject_dhkey = {0};
+    np_generate_subject((np_subject *)&property->subject_dhkey,
+                        property->msg_subject,
+                        strnlen(property->msg_subject, 256));
+#ifdef DEBUG
+    char hex[65];
+    log_debug(LOG_MSGPROPERTY,
+              NULL,
+              "register handler: %s (%" PRIsizet ") hex: %s",
+              property->msg_subject,
+              strnlen(property->msg_subject, 256),
+              sodium_bin2hex(hex, 65, &property->subject_dhkey, 32));
+#endif
+    np_msgproperty_register(property);
+
     sll_next(__np_internal_messages);
   }
   sll_free(np_msgproperty_conf_ptr, msgproperties);
@@ -1014,7 +1018,7 @@ static int8_t _np_aaatoken_cmp(np_aaatoken_ptr first, np_aaatoken_ptr second) {
     return (ret_check);
   }
 
-  ret_check = strncmp(first->realm, second->realm, strlen(first->realm));
+  ret_check = strncmp(first->realm, second->realm, strnlen(first->realm, 255));
   if (0 != ret_check) {
     return (ret_check);
   }

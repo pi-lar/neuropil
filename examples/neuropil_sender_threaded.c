@@ -168,11 +168,12 @@ void handle_input(struct input_thread_args *thread_args) {
   do {
     char message[100];
     printf("Enter message (max 100 chars): ");
-    fgets(message, 200, stdin);
+    fgets(message, 100, stdin);
     // Remove trailing newline
-    if ((strlen(message) > 0) && (message[strlen(message) - 1] == '\n'))
-      message[strlen(message) - 1] = '\0';
-    size_t message_len = strlen(message);
+    if ((strnlen(message, 100) > 0) &&
+        (message[strnlen(message, 100) - 1] == '\n'))
+      message[strnlen(message, 100) - 1] = '\0';
+    size_t message_len = strnlen(message, 100);
     np_send(thread_args->ac, thread_args->subject, message, message_len);
     printf("Sent: %s\n", message);
   } while (thread_args->isRunning);

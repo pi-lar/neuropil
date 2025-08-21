@@ -26,7 +26,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
              ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __default_properties);
 
-  __default_properties->msg_subject        = strdup(_DEFAULT);
+  __default_properties->msg_subject        = strndup(_DEFAULT, 13);
   __default_properties->msg_ttl            = 20.0;
   __default_properties->rep_subject        = NULL;
   __default_properties->mode_type          = INBOUND | OUTBOUND;
@@ -49,7 +49,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
              ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __forward_properties);
 
-  __forward_properties->msg_subject        = strdup(_FORWARD);
+  __forward_properties->msg_subject        = strndup(_FORWARD, 13);
   __forward_properties->rep_subject        = NULL;
   __forward_properties->mode_type          = OUTBOUND;
   __forward_properties->mep_type           = DEFAULT_TYPE;
@@ -72,7 +72,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
              ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __handshake_properties);
 
-  __handshake_properties->msg_subject        = strdup(_NP_MSG_HANDSHAKE);
+  __handshake_properties->msg_subject        = strndup(_NP_MSG_HANDSHAKE, 15);
   __handshake_properties->rep_subject        = NULL;
   __handshake_properties->mode_type          = INBOUND | OUTBOUND;
   __handshake_properties->mep_type           = ONE_WAY;
@@ -95,7 +95,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __ack_properties, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __ack_properties);
 
-  __ack_properties->msg_subject        = strdup(_NP_MSG_ACK);
+  __ack_properties->msg_subject        = strndup(_NP_MSG_ACK, 9);
   __ack_properties->rep_subject        = NULL;
   __ack_properties->mode_type          = OUTBOUND | INBOUND;
   __ack_properties->mep_type           = ONE_WAY;
@@ -118,7 +118,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __join_req, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __join_req);
 
-  __join_req->msg_subject        = strdup(_NP_MSG_JOIN_REQUEST);
+  __join_req->msg_subject        = strndup(_NP_MSG_JOIN_REQUEST, 18);
   __join_req->rep_subject        = NULL;
   __join_req->mode_type          = INBOUND | OUTBOUND;
   __join_req->mep_type           = REQ_REP;
@@ -140,7 +140,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __leave_properties, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __leave_properties);
 
-  __leave_properties->msg_subject        = strdup(_NP_MSG_LEAVE_REQUEST);
+  __leave_properties->msg_subject        = strndup(_NP_MSG_LEAVE_REQUEST, 19);
   __leave_properties->rep_subject        = NULL;
   __leave_properties->mode_type          = INBOUND | OUTBOUND;
   __leave_properties->mep_type           = ONE_WAY;
@@ -162,7 +162,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __ping, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __ping);
 
-  __ping->msg_subject        = strdup(_NP_MSG_PING_REQUEST);
+  __ping->msg_subject        = strndup(_NP_MSG_PING_REQUEST, 17);
   __ping->rep_subject        = NULL;
   __ping->mode_type          = INBOUND | OUTBOUND;
   __ping->mep_type           = ONE_WAY;
@@ -185,8 +185,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __piggy, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __piggy);
 
-  __piggy->msg_subject =
-      strndup(_NP_MSG_PIGGY_REQUEST, strlen(_NP_MSG_PIGGY_REQUEST));
+  __piggy->msg_subject        = strndup(_NP_MSG_PIGGY_REQUEST, 17);
   __piggy->rep_subject        = NULL;
   __piggy->mode_type          = INBOUND | OUTBOUND;
   __piggy->mep_type           = ONE_WAY;
@@ -207,7 +206,7 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __update, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __update);
 
-  __update->msg_subject        = strdup(_NP_MSG_UPDATE_REQUEST);
+  __update->msg_subject        = strndup(_NP_MSG_UPDATE_REQUEST, 18);
   __update->rep_subject        = NULL;
   __update->mode_type          = INBOUND | OUTBOUND;
   __update->mep_type           = ONE_WAY;
@@ -230,13 +229,13 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
              ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __available_receiver);
 
-  __available_receiver->msg_subject        = strdup(_NP_MSG_AVAILABLE_RECEIVER);
-  __available_receiver->rep_subject        = NULL;
-  __available_receiver->mode_type          = INBOUND | OUTBOUND;
-  __available_receiver->mep_type           = ONE_WAY;
-  __available_receiver->priority           = 0;
-  __available_receiver->ack_mode           = ACK_NONE;
-  __available_receiver->retry              = 0;
+  __available_receiver->msg_subject = strndup(_NP_MSG_AVAILABLE_RECEIVER, 28);
+  __available_receiver->rep_subject = NULL;
+  __available_receiver->mode_type   = INBOUND | OUTBOUND;
+  __available_receiver->mep_type    = ONE_WAY;
+  __available_receiver->priority    = 0;
+  __available_receiver->ack_mode    = ACK_NONE;
+  __available_receiver->retry       = 0;
   __available_receiver->unique_uuids_check = true;
   __available_receiver->msg_ttl            = 10.0;
   __available_receiver->cache_size         = 8;
@@ -252,13 +251,13 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __available_sender, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __available_sender);
 
-  __available_sender->msg_subject        = strdup(_NP_MSG_AVAILABLE_SENDER);
-  __available_sender->rep_subject        = NULL;
-  __available_sender->mode_type          = INBOUND | OUTBOUND;
-  __available_sender->mep_type           = ONE_WAY;
-  __available_sender->priority           = 0;
-  __available_sender->ack_mode           = ACK_NONE;
-  __available_sender->retry              = 0;
+  __available_sender->msg_subject = strndup(_NP_MSG_AVAILABLE_SENDER, 26);
+  __available_sender->rep_subject = NULL;
+  __available_sender->mode_type   = INBOUND | OUTBOUND;
+  __available_sender->mep_type    = ONE_WAY;
+  __available_sender->priority    = 0;
+  __available_sender->ack_mode    = ACK_NONE;
+  __available_sender->retry       = 0;
   __available_sender->unique_uuids_check = true;
   __available_sender->msg_ttl            = 10.0;
   __available_sender->cache_size         = 8;
@@ -274,13 +273,13 @@ sll_return(np_msgproperty_conf_ptr) default_msgproperties(np_state_t *context) {
   np_new_obj(np_msgproperty_conf_t, __pheromone_update, ref_system_msgproperty);
   sll_append(np_msgproperty_conf_ptr, ret, __pheromone_update);
 
-  __pheromone_update->msg_subject        = strdup(_NP_MSG_PHEROMONE_UPDATE);
-  __pheromone_update->rep_subject        = NULL;
-  __pheromone_update->mode_type          = INBOUND | OUTBOUND;
-  __pheromone_update->mep_type           = ONE_TO_ANY;
-  __pheromone_update->priority           = 0;
-  __pheromone_update->ack_mode           = ACK_NONE;
-  __pheromone_update->retry              = 1;
+  __pheromone_update->msg_subject = strndup(_NP_MSG_PHEROMONE_UPDATE, 22);
+  __pheromone_update->rep_subject = NULL;
+  __pheromone_update->mode_type   = INBOUND | OUTBOUND;
+  __pheromone_update->mep_type    = ONE_TO_ANY;
+  __pheromone_update->priority    = 0;
+  __pheromone_update->ack_mode    = ACK_NONE;
+  __pheromone_update->retry       = 1;
   __pheromone_update->unique_uuids_check = false;
   __pheromone_update->cache_policy       = FIFO | OVERFLOW_PURGE;
   __pheromone_update->msg_ttl            = 10.0;

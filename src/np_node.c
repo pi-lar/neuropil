@@ -228,7 +228,7 @@ np_node_t *_np_node_decode_from_str(np_state_t *context, const char *key) {
             "## now decoding node from key string: %s",
             key);
 
-  uint16_t iLen = strlen(key);
+  uint16_t iLen = strnlen(key, 255);
   ASSERT(iLen > 0, "Cannot decode from empty string");
 
   struct __node_from_string_s details =
@@ -304,19 +304,19 @@ np_node_t *_np_node_decode_from_jrb(np_state_t *context, np_tree_t *data) {
   }
 
   if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_DNS_NAME))) {
-    s_host_name = np_treeval_to_str(ele->val, NULL);
+    s_host_name = np_treeval_to_str(ele->val, NULL, NULL);
   } else {
     return NULL;
   }
 
   if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_PORT))) {
-    s_host_port = np_treeval_to_str(ele->val, NULL);
+    s_host_port = np_treeval_to_str(ele->val, NULL, NULL);
   } else {
     return NULL;
   }
 
   if (NULL != (ele = np_tree_find_str(data, NP_SERIALISATION_NODE_KEY))) {
-    s_host_key = np_treeval_to_str(ele->val, NULL);
+    s_host_key = np_treeval_to_str(ele->val, NULL, NULL);
   } else {
     s_host_key = "*";
   }
@@ -365,7 +365,7 @@ np_node_t *_np_node_from_token(np_handshake_token_t *token,
   }
 
   char *to_free = NULL, *to_parse = NULL;
-  char *key = &token->subject[strlen(_NP_URN_NODE_PREFIX) - 1];
+  char *key = &token->subject[strnlen(_NP_URN_NODE_PREFIX, 12) - 1];
   to_free = to_parse = strndup(key, 255);
 
   log_debug(LOG_SERIALIZATION,
@@ -502,7 +502,6 @@ sll_return(np_node_ptr)
 
     // bool free_s_key = false;
     // char* s_key =
-    // np_treeval_to_str(np_tree_find_str(node_data->val.value.tree,
     // NP_SERIALISATION_NODE_KEY)->val, &free_s_key);
     np_node_t *node =
         _np_node_decode_from_jrb(context, node_data->val.value.tree);

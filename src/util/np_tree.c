@@ -63,7 +63,10 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t *j1, const np_tree_elem_t *j2) {
 
   if (jv1.type == jv2.type) {
     if (jv1.type == np_treeval_type_char_ptr) {
-      return strncmp(jv1.value.s, jv2.value.s, strlen(jv1.value.s) + 1);
+      if (jv1.size > jv2.size)
+        return strncmp(jv1.value.s, jv2.value.s, jv1.size + 1);
+      else return strncmp(jv1.value.s, jv2.value.s, jv2.size + 1);
+
     } else if (jv1.type == np_treeval_type_double) {
       // log_debug(LOG_DEBUG, NULL, "comparing %f - %f = %d",
       // 		jv1.value.d, jv2.value.d, (int16_t)
@@ -72,12 +75,16 @@ int16_t _np_tree_elem_cmp(const np_tree_elem_t *j1, const np_tree_elem_t *j2) {
       if (res < 0) return -1;
       if (res > 0) return 1;
       return 0;
+
     } else if (jv1.type == np_treeval_type_unsigned_long) {
       return (int16_t)(jv1.value.ul - jv2.value.ul);
+
     } else if (jv1.type == np_treeval_type_int) {
       return (int16_t)(jv1.value.i - jv2.value.i);
+
     } else if (jv1.type == np_treeval_type_dhkey) {
       return (int16_t)_np_dhkey_cmp(&jv1.value.dhkey, &jv2.value.dhkey);
+
     } else if (jv1.type == np_treeval_type_uuid) {
       return (int16_t)memcmp(jv1.value.uuid, jv2.value.uuid, NP_UUID_BYTES);
     }
@@ -97,7 +104,8 @@ np_tree_find_gte_str(np_tree_t *n, const char *key, uint8_t *fnd) {
   np_tree_elem_t search_elem = {.key = search_key};
 
   result = RB_NFIND(np_tree_s, n, &search_elem);
-  if (NULL != result && 0 == strncmp(result->key.value.s, key, strlen(key))) {
+  if (NULL != result &&
+      0 == strncmp(result->key.value.s, key, result->key.size)) {
     *fnd = 1;
   } else {
     *fnd = 0;
@@ -607,8 +615,9 @@ unsigned char *np_tree_get_hash(np_tree_t *self) {
     bool            free_tmp;
     unsigned char  *ptr;
     RB_FOREACH (iter_tree, np_tree_s, self) {
-      tmp = np_treeval_to_str(iter_tree->key, &free_tmp);
-      crypto_generichash_update(&gh_state, (unsigned char *)tmp, strlen(tmp));
+      size_t tmp_len = 0;
+      tmp            = np_treeval_to_str(iter_tree->key, &tmp_len, &free_tmp);
+      crypto_generichash_update(&gh_state, (unsigned char *)tmp, tmp_len);
       if (free_tmp) free(tmp);
 
       if (iter_tree->val.type == np_treeval_type_jrb_tree) {
@@ -652,7 +661,7 @@ bool np_tree_check_field(np_state_t      *context,
               NULL,
               "Missing field \"%s\" in message for \"%s\"",
               field_name,
-              np_treeval_to_str(tmp->val, NULL));
+              np_treeval_to_str(tmp->val, NULL, NULL));
     } else {
       log_msg(LOG_WARNING, NULL, "Missing field \"%s\" in tree", field_name);
     }

@@ -213,7 +213,7 @@ void np_jobqueue_submit_event_callbacks(np_state_t     *context,
   new_job.__del_processorFuncs   = false;
 
 #ifdef DEBUG_CALLBACKS
-  ASSERT(ident != NULL && strlen(ident) > 0 && strlen(ident) < 255,
+  ASSERT(ident != NULL && strnlen(ident, 256) > 0 && strnlen(ident, 256) < 255,
          "You need to define a valid identificator for this job");
   strncpy(new_job.ident, ident, strnlen(ident, 254));
   log_debug(LOG_JOBS, NULL, "Created Job %s", new_job.ident);
@@ -247,7 +247,7 @@ void np_jobqueue_submit_event_periodic(np_state_t       *context,
   new_job.__del_processorFuncs = true;
 
 #ifdef DEBUG_CALLBACKS
-  ASSERT(ident != NULL && strlen(ident) > 0 && strlen(ident) < 255,
+  ASSERT(ident != NULL && strnlen(ident, 256) > 0 && strnlen(ident, 256) < 255,
          "You need to define a valid identificator for this job");
   memcpy(new_job.ident, ident, strnlen(ident, 254));
   log_debug(LOG_JOBS, NULL, "Created Job %s", new_job.ident);
@@ -296,7 +296,7 @@ bool np_jobqueue_submit_event_with_prio(np_state_t     *context,
   new_job.__del_processorFuncs   = false;
 
 #ifdef DEBUG_CALLBACKS
-  ASSERT(ident != NULL && strlen(ident) > 0 && strlen(ident) < 255,
+  ASSERT(ident != NULL && strnlen(ident, 256) > 0 && strnlen(ident, 256) < 255,
          "You need to define a valid identificator for this job");
   strncpy(new_job.ident, ident, 255);
   log_debug(LOG_JOBS, NULL, "Created Job %s", new_job.ident);
@@ -888,7 +888,7 @@ char *np_jobqueue_print(np_state_t *context, bool asOneLine) {
               tmp_job.is_periodic ? "true" : "false",
               tmp_job.priority,
               np_job_t_binheap_get_priority(tmp_job),
-              np_util_string_trim_left(tmp_job.ident),
+              np_util_string_trim_left(tmp_job.ident, 255),
               new_line);
         }
         limiter++;

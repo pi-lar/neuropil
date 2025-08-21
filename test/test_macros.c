@@ -77,7 +77,7 @@ np_state_t *_np_test_ctx(char *name, char *desc, char *porttype, int port) {
   np_state_t         *ret;
   struct np_settings *settings = np_default_settings(NULL);
 
-  if (desc != NULL && strlen(desc) > 0)
+  if (desc != NULL && strnlen(desc, 255) > 0)
     snprintf(settings->log_file,
              256,
              "logs/neuropil_test_%s_%s.log",

@@ -398,7 +398,8 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
     np_tree_elem_t *new_file_or_dir =
         np_tree_find_str(ht_request->ht_query_args, SHARE_FILES);
     if (new_file_or_dir != NULL) {
-      char *file_or_dir = urlDecode(new_file_or_dir->val.value.s);
+      char *file_or_dir =
+          urlDecode(new_file_or_dir->val.value.s, new_file_or_dir->val.size);
       log_msg(LOG_INFO, NULL, "user requested to share file: %s", file_or_dir);
       np_id _zero = {0};
       np_files_open(context, _zero, file_or_dir, false);
@@ -662,9 +663,7 @@ bool __file_open(np_state_t *context,
           char *search_text = strndup(text_start, text_end - text_start);
 
           np_searchentry_t *se = calloc(1, sizeof(np_searchentry_t));
-          if (/*0 == strncmp(search_text, "theme funds", strlen("theme funds"))
-                 &&*/
-              np_create_searchentry(context, se, search_text, &attr)) {
+          if (np_create_searchentry(context, se, search_text, &attr)) {
             // fprintf(stdout, "--- adding search indices: %5u %c \r", i,
             // rotator[i%4]); fflush(stdout);
             np_search_add_entry(context, se);

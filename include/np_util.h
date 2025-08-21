@@ -1879,7 +1879,7 @@ char *np_util_stringify_pretty(enum np_util_stringify_e type,
                                char                     buffer[255]);
 
 NP_API_EXPORT
-char *np_util_string_trim_left(char *target);
+char *np_util_string_trim_left(char *target, size_t len);
 
 NP_API_EXPORT
 void np_tree2buffer(np_state_t *context, np_tree_t *tree, void *buffer);

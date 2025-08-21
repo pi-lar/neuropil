@@ -192,20 +192,20 @@ bool np_aaatoken_decode(np_tree_t *data, np_aaatoken_t *token) {
   }
 
   if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.r"))) {
-    strncpy(token->realm, np_treeval_to_str(tmp->val, NULL), 255);
+    strncpy(token->realm, np_treeval_to_str(tmp->val, NULL, NULL), 255);
   }
   if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.i"))) {
-    strncpy(token->issuer, np_treeval_to_str(tmp->val, NULL), 65);
+    strncpy(token->issuer, np_treeval_to_str(tmp->val, NULL, NULL), 65);
   } else {
     ret = false; /*Mandatory field*/
   }
   if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.s"))) {
-    strncpy(token->subject, np_treeval_to_str(tmp->val, NULL), 255);
+    strncpy(token->subject, np_treeval_to_str(tmp->val, NULL, NULL), 255);
   } else {
     ret = false; /*Mandatory field*/
   }
   if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.a"))) {
-    strncpy(token->audience, np_treeval_to_str(tmp->val, NULL), 255);
+    strncpy(token->audience, np_treeval_to_str(tmp->val, NULL, NULL), 255);
   }
   if (ret && NULL != (tmp = np_tree_find_str(data, "np.t.p"))) {
     if (NULL == np_cryptofactory_by_public(context,
@@ -1042,8 +1042,8 @@ void _np_aaatoken_trace_info(char *desc, np_aaatoken_t *self) {
   info_str =
       np_str_concatAndFree(info_str, " fingerprint: %s ; TREE: (", tmp_c);
   RB_FOREACH (tmp, np_tree_s, (data)) {
-    key      = np_treeval_to_str(tmp->key, &free_key);
-    value    = np_treeval_to_str(tmp->val, &free_value);
+    key      = np_treeval_to_str(tmp->key, NULL, &free_key);
+    value    = np_treeval_to_str(tmp->val, NULL, &free_value);
     info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
     if (free_value) free(value);
     if (free_key) free(key);

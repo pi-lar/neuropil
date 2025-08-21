@@ -199,7 +199,7 @@ case np_treeval_type_dhkey:
     break;
     */
   default:
-    tmp_str = np_treeval_to_str(val, &free_string);
+    tmp_str = np_treeval_to_str(val, NULL, &free_string);
     ret     = json_value_init_string(tmp_str);
     if (free_string == true) {
       free(tmp_str);
@@ -266,15 +266,19 @@ JSON_Value *np_tree2json(np_state_t *context, np_tree_t *tree) {
           CHECK_MALLOC(name);
 
           snprintf(name, size + 1, "%f", tmp->key.value.d);
+
         } else if (np_treeval_type_unsigned_long == tmp->key.type) {
           int size = snprintf(NULL, 0, "%u", tmp->key.value.ul);
           name     = malloc(size + 1);
           CHECK_MALLOC(name);
 
           snprintf(name, size + 1, "%u", tmp->key.value.ul);
+
         } else if (np_treeval_type_char_ptr == tmp->key.type) {
-          name = strndup(np_treeval_to_str(tmp->key, NULL),
-                         strlen(np_treeval_to_str(tmp->key, NULL)));
+          name = malloc(tmp->key.size + 1);
+          CHECK_MALLOC(name);
+          snprintf(name, tmp->key.size + 1, "%s", tmp->key.value.s);
+
         } else {
           log_msg(LOG_WARNING,
                   NULL,
@@ -545,10 +549,10 @@ sll_return(char_ptr)
   return ret;
 }
 
-char *np_util_string_trim_left(char *target) {
+char *np_util_string_trim_left(char *target, size_t len) {
   char *ret = target;
 
-  for (size_t i = 0; i < strlen(target); i++) {
+  for (size_t i = 0; i < strnlen(target, len + 1); i++) {
     if (!(target[i] == ' ' || target[i] == '\t' || target[i] == '\r' ||
           target[i] == '\n')) {
       ret = &target[i];

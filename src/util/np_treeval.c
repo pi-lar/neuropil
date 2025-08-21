@@ -163,7 +163,7 @@ np_treeval_t np_treeval_copy_of_val(np_treeval_t from) {
 /*
     @param:freeable: returns the information to free or not to free the result
 */
-char *np_treeval_to_str(np_treeval_t val, bool *freeable) {
+char *np_treeval_to_str(np_treeval_t val, size_t *out_len, bool *freeable) {
 
   int   len    = 0;
   char *result = NULL;
@@ -228,10 +228,12 @@ char *np_treeval_to_str(np_treeval_t val, bool *freeable) {
     }
     break;
   case np_treeval_type_char_ptr:
+    len = val.size;
     return val.value.s;
     break;
   case np_treeval_type_char:
   case np_treeval_type_unsigned_char:
+    len = 1;
     return &val.value.c;
     break;
   case np_treeval_type_unsigned_short:
@@ -291,54 +293,62 @@ char *np_treeval_to_str(np_treeval_t val, bool *freeable) {
     // np_treeval_type_unsigned_char_array_8: byte_size += 1 +8*sizeof(unsigned
     // char); break;
   case np_treeval_type_void:
+    len = 12;
     return "--> pointer";
     break;
   case np_treeval_type_hash:
   case np_treeval_type_bin:
-    hex_len       = val.size * 2 + 1;
-    char *hex_str = malloc(hex_len + 2);
+    len           = val.size * 2 + 1;
+    char *hex_str = malloc(len + 2);
     hex_str[0]    = '0';
     hex_str[1]    = 'x';
     if (freeable != NULL) *freeable = true;
-    sodium_bin2hex(hex_str + 2, hex_len, val.value.bin, val.size);
+    sodium_bin2hex(hex_str + 2, len, val.value.bin, val.size);
     return hex_str;
     break;
   case np_treeval_type_jrb_tree:
     if (freeable != NULL) *freeable = true;
+    len                      = 14;
     char           *info_str = NULL;
     np_tree_elem_t *tmp      = NULL;
     bool            free_key, free_value;
     char           *key, *value;
     info_str = np_str_concatAndFree(info_str, "--> SUBTREE: (");
     RB_FOREACH (tmp, np_tree_s, (val.value.tree)) {
-      key      = np_treeval_to_str(tmp->key, &free_key);
-      value    = np_treeval_to_str(tmp->val, &free_value);
+      size_t sub_len = 0;
+      key            = np_treeval_to_str(tmp->key, &sub_len, &free_key);
+      len += sub_len;
+      value = np_treeval_to_str(tmp->val, &sub_len, &free_value);
+      len += sub_len;
       info_str = np_str_concatAndFree(info_str, "%s:%s |", key, value);
+      len += 3;
       if (free_value) free(value);
       if (free_key) free(key);
     }
     info_str = np_str_concatAndFree(info_str, ") ");
+    len += 2;
     return info_str;
     break;
   case np_treeval_type_dhkey:
-    result = malloc(65);
+    len    = 65;
+    result = malloc(len);
     CHECK_MALLOC(result);
     if (freeable != NULL) *freeable = true;
     _np_dhkey_str(&val.value.dhkey, result);
     break;
   case np_treeval_type_uuid:
-    result = malloc((2 * NP_UUID_BYTES) + 1);
+    len    = 2 * NP_UUID_BYTES + 1;
+    result = malloc(len);
     CHECK_MALLOC(result);
     if (freeable != NULL) *freeable = true;
-    sodium_bin2hex(result,
-                   (2 * NP_UUID_BYTES) + 1,
-                   val.value.uuid,
-                   NP_UUID_BYTES);
+    sodium_bin2hex(result, len, val.value.uuid, NP_UUID_BYTES);
     break;
   default:
+    len = 12;
     return "--> unknown";
     break;
   }
+  if (out_len != NULL) *out_len = len;
   return result;
 }
 
@@ -562,8 +572,8 @@ np_treeval_t np_treeval_new_hash(char *s) {
                      NULL,
                      0);
 
-  j.size      = crypto_generichash_BYTES; // strlen(hex_hash);
-  j.value.bin = hash;                     // strndup(hex_hash, j.size);
+  j.size      = crypto_generichash_BYTES;
+  j.value.bin = hash;
   j.type      = np_treeval_type_hash;
 
   return j;

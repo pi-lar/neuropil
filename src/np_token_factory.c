@@ -497,7 +497,7 @@ np_aaatoken_t *np_token_factory_read_from_tree(np_state_t *context,
               tree);
 
     if (_np_aaatoken_is_valid(context, ret, np_aaatoken_type_undefined)) {
-      ASSERT(strlen(ret->subject) > 1,
+      ASSERT(strnlen(ret->subject, 255) > 1,
              "tokens (%s) subject string (\"%s\") has incorrect size",
              ret->uuid,
              ret->subject);

@@ -51,8 +51,7 @@ static char *HTML_NOT_IMPLEMENTED =
 #define MODULE_NOT_READY(MODULE)                                               \
   "<html><head><title>neuropil</title></head><body>module " TO_STRING(         \
       MODULE) " not ready. Please initiate module first</body></html>"
-#define CHECK_PATH(prefix)                                                     \
-  (strncmp("/" prefix, client->ht_request.ht_path, strlen(prefix)) == 0)
+
 #define HTTP_CRLF "\r\n"
 
 typedef enum np_http_status_e {
@@ -155,15 +154,19 @@ int _np_http_query_args(htparser *parser, const char *data, size_t in_len) {
     np_tree_clear(client->ht_request.ht_query_args);
   if (NULL == client->ht_request.ht_query_args)
     client->ht_request.ht_query_args = np_tree_create();
+
   char *query_string = NULL, *to_parse = NULL;
   query_string = to_parse = strndup(data, in_len);
-  char *kv_pair           = strsep(&to_parse, "&=");
+  size_t remaining_len    = in_len;
+  char  *kv_pair          = strsep(&to_parse, "&=");
 
   while (NULL != kv_pair) {
     if (NULL == key) {
-      key = strndup(kv_pair, strlen(kv_pair));
+      key = strndup(kv_pair, remaining_len);
+      remaining_len -= strnlen(key, remaining_len);
     } else {
-      val = strndup(kv_pair, strlen(kv_pair));
+      val = strndup(kv_pair, remaining_len);
+      remaining_len -= strnlen(val, remaining_len);
       np_tree_insert_str(client->ht_request.ht_query_args,
                          key,
                          np_treeval_new_s(val));
@@ -225,7 +228,8 @@ int _np_http_body(htparser *parser, const char *data, size_t in_len) {
   np_http_client_t *client = (np_http_client_t *)parser->userdata;
 
   if (NULL != client->ht_request.ht_body) free(client->ht_request.ht_body);
-  client->ht_request.ht_body = strndup(data, in_len);
+  client->ht_request.ht_body   = strndup(data, in_len);
+  client->ht_request.ht_length = in_len;
 
   return 0;
 }
@@ -296,6 +300,7 @@ void _np_http_dispatch(np_state_t *context, np_http_client_t *client) {
       snprintf(buffer + len, buf_max - len, "]}");
 
       client->ht_response.ht_body   = strndup(buffer, buf_max);
+      client->ht_response.ht_length = strnlen(buffer, buf_max);
       client->ht_response.ht_status = HTTP_CODE_NOT_FOUND;
       np_tree_insert_str(client->ht_response.ht_header,
                          "X-Content-Type-Options",
@@ -309,7 +314,8 @@ void _np_http_dispatch(np_state_t *context, np_http_client_t *client) {
       break;
     }
     default: {
-      client->ht_response.ht_body      = strdup(HTML_NOT_IMPLEMENTED);
+      client->ht_response.ht_body      = strndup(HTML_NOT_IMPLEMENTED, 78);
+      client->ht_response.ht_length    = 78;
       client->ht_response.ht_header    = np_tree_create();
       client->ht_response.ht_status    = HTTP_CODE_NOT_IMPLEMENTED;
       client->ht_response.cleanup_body = false;
@@ -341,7 +347,7 @@ void _np_http_write_callback(struct ev_loop  *loop,
                  http_return_codes[client->ht_response.ht_status].http_code,
                  http_return_codes[client->ht_response.ht_status].text);
     // add content length header
-    uint32_t s_contentlength = strlen(ht_body);
+    uint32_t s_contentlength = client->ht_response.ht_length;
     char     body_length[255];
     snprintf(body_length, 254, "%" PRIu32, s_contentlength);
     np_tree_insert_str(client->ht_response.ht_header,
@@ -365,12 +371,12 @@ void _np_http_write_callback(struct ev_loop  *loop,
                       snprintf(NULL,
                                0,
                                "%s: %s" HTTP_CRLF,
-                               np_treeval_to_str(iter->key, NULL),
-                               np_treeval_to_str(iter->val, NULL)) +
+                               np_treeval_to_str(iter->key, NULL, NULL),
+                               np_treeval_to_str(iter->val, NULL, NULL)) +
                           1,
                       "%s: %s" HTTP_CRLF,
-                      np_treeval_to_str(iter->key, NULL),
-                      np_treeval_to_str(iter->val, NULL));
+                      np_treeval_to_str(iter->key, NULL, NULL),
+                      np_treeval_to_str(iter->val, NULL, NULL));
       iter = RB_NEXT(np_tree_s, np_module(http)->ht_response.ht_header, iter);
     }
     pos +=
@@ -480,6 +486,7 @@ void _np_http_read_callback(struct ev_loop  *loop,
       client->ht_response.ht_header = np_tree_create();
       client->ht_response.ht_body =
           strndup("error parsing http request ...", 255);
+      client->ht_response.ht_length = 31;
     }
 
     if (PROCESSING == client->status) {

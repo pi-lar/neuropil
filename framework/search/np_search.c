@@ -779,7 +779,8 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
       goto __json_return__;
     }
 
-    char *search_string = urlDecode(query_elem->val.value.s);
+    char *search_string =
+        urlDecode(query_elem->val.value.s, query_elem->val.size);
     log_msg(LOG_DEBUG, NULL, "searching for: ## %s ##\n", search_string);
 
     clock_t start_time;

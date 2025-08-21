@@ -175,8 +175,8 @@ bool _np_memory_remove_reason(sll_return(char_ptr) sll, const char *cmp_obj) {
   sll_iterator(char_ptr) iter_reason = sll_first(sll);
 
   while (ret == false && iter_reason != NULL) {
-    ret = (0 == strncmp(iter_reason->val, cmp_obj, strlen(cmp_obj)) &&
-           0 == strncmp(iter_reason->val + strlen(cmp_obj),
+    ret = (0 == strncmp(iter_reason->val, cmp_obj, strnlen(cmp_obj, 64)) &&
+           0 == strncmp(iter_reason->val + strnlen(cmp_obj, 64),
                         _NP_REF_REASON_SEPERATOR_CHAR,
                         _NP_REF_REASON_SEPERATOR_CHAR_LEN))
               ? true
@@ -1258,11 +1258,12 @@ void np_memory_ref_replace_reason(void       *item,
       sll_iterator(char_ptr) iter_reasons = sll_first(config->reasons);
       bool foundReason                    = false;
       while (foundReason == false && iter_reasons != NULL) {
-        if (strlen(iter_reasons->val) >=
-            strlen(old_reason) + _NP_REF_REASON_SEPERATOR_CHAR_LEN) {
+        if (strnlen(iter_reasons->val, 64) >=
+            strnlen(old_reason, 64) + _NP_REF_REASON_SEPERATOR_CHAR_LEN) {
           foundReason =
-              0 == strncmp(iter_reasons->val, old_reason, strlen(old_reason));
-          char *tmp = iter_reasons->val + strlen(old_reason);
+              0 ==
+              strncmp(iter_reasons->val, old_reason, strnlen(old_reason, 64));
+          char *tmp = iter_reasons->val + strnlen(old_reason, 64);
           foundReason &= 0 == strncmp(tmp,
                                       _NP_REF_REASON_SEPERATOR_CHAR,
                                       _NP_REF_REASON_SEPERATOR_CHAR_LEN);
@@ -1300,7 +1301,7 @@ void np_memory_ref_replace_reason(void       *item,
         _NP_REF_REASON(new_reason, "", reason2)
         sll_prepend(char_ptr,
                     config->reasons,
-                    strndup(reason2, strlen(reason2)));
+                    strndup(reason2, strnlen(reason2, 64)));
       }
     }
     np_spinlock_unlock(&config->access_lock);

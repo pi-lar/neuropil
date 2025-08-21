@@ -10,19 +10,19 @@
 #include <string.h>
 
 /* Function: urlDecode */
-char *urlDecode(const char *str) {
+char *urlDecode(const char *str, size_t len) {
   int d = 0; /* whether or not the string is decoded */
 
-  char *dStr   = malloc(strlen(str) + 1);
+  char *dStr   = malloc(len + 1);
   char  eStr[] = "00"; /* for a hex code */
 
-  strcpy(dStr, str);
+  strncpy(dStr, str, len);
 
   while (!d) {
     d = 1;
     int i; /* the counter for the string */
 
-    for (i = 0; i < strlen(dStr); ++i) {
+    for (i = 0; i < len; ++i) {
 
       if (dStr[i] == '%') {
         if (dStr[i + 1] == 0) return dStr;
@@ -39,7 +39,7 @@ char *urlDecode(const char *str) {
           long int x = strtol(eStr, NULL, 16);
 
           /* remove the hex */
-          memmove(&dStr[i + 1], &dStr[i + 3], strlen(&dStr[i + 3]) + 1);
+          memmove(&dStr[i + 1], &dStr[i + 3], strnlen(&dStr[i + 3], len) + 1);
 
           dStr[i] = x;
         }

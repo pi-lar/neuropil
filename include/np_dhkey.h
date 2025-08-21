@@ -133,7 +133,7 @@ uint8_t _np_dhkey_hexalpha_at(np_state_t       *context,
                               const int8_t      c) NP_CONST;
 
 NP_API_INTERN
-void _dhkey_print(np_dhkey_t *k) NP_CONST;
+void _dhkey_print(np_dhkey_t *k);
 
 /* key_assign: k1, k2
  * copies value of #k2# to #k1#

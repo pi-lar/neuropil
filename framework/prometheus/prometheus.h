@@ -6,6 +6,7 @@
 #define _NP_PROMETHEUS_H_
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,8 +39,11 @@ void prometheus_metric_inc(prometheus_metric *self, float value);
 
 void  prometheus_metric_set(prometheus_metric *self, float value);
 float prometheus_metric_get(prometheus_metric *self);
-char *prometheus_format(prometheus_context *self);
-void  prometheus_disable_value_output(prometheus_metric *self);
+
+char  *prometheus_format(prometheus_context *self);
+size_t prometheus_format_size(prometheus_context *c);
+
+void prometheus_disable_value_output(prometheus_metric *self);
 
 #ifdef __cplusplus
 }

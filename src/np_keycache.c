@@ -165,9 +165,12 @@ np_key_t *_np_keycache_find_interface(np_state_t *context,
       if (FLAG_CMP(iter->type, np_key_type_interface)) {
         np_node_t *node = _np_key_get_node(iter);
         if (node != NULL && node->ip_string != NULL &&
-            strncmp(node->ip_string, ip_string, strlen(ip_string)) == 0 &&
-            (port == NULL || (node->port != NULL &&
-                              strncmp(node->port, port, strlen(port)) == 0))) {
+            strncmp(node->ip_string,
+                    ip_string,
+                    strnlen(ip_string, INET6_ADDRSTRLEN)) == 0 &&
+            (port == NULL ||
+             (node->port != NULL &&
+              strncmp(node->port, port, strnlen(port, 7)) == 0))) {
           np_ref_obj(np_key_t, iter);
           ret = iter;
           break;

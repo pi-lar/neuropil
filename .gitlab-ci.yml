@@ -1,12 +1,16 @@
 # SPDX-FileCopyrightText: 2016-2025 by pi-lar GmbH
 # SPDX-License-Identifier: OSL-3.0
 
+include:
+- template: Jobs/SAST.gitlab-ci.yml
 
 default:
   image: $CI_REGISTRY_IMAGE/ci-environment:$CI_COMMIT_BRANCH$CI_COMMIT_TAG$CI_MERGE_REQUEST_ID
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  
+  SAST_EXCLUDED_PATHS: ext_tools, doc, configs, test, bindings/python_cffi/pycparser
+  SEARCH_MAX_DEPTH: 10
+
 cache:
   key: "${CI_PIPELINE_IID}${CI_COMMIT_SHA}${CI_RUNNER_TAGS}"
   paths:
@@ -375,3 +379,15 @@ python_docker:
 #      when: always
 #  needs:
 #    - docker_production_environment
+
+
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure
+# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
+# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
+
+semgrep-sast:
+  stage: test

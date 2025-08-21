@@ -42,11 +42,13 @@ Test(np_tree_t,
     np_tree_elem_t *tmp = test_tree_1->rbh_root;
     cr_expect(np_treeval_type_char_ptr == tmp->key.type,
               "expect the key to be of the type char_ptr");
-    cr_expect(0 == strncmp("halli", np_treeval_to_str(tmp->key, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("halli", np_treeval_to_str(tmp->key, NULL, NULL), 10),
               "expect the key to be the string 'halli'");
     cr_expect(np_treeval_type_char_ptr == tmp->val.type,
               "expect the value to be of the type char_ptr");
-    cr_expect(0 == strncmp("galli", np_treeval_to_str(tmp->val, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("galli", np_treeval_to_str(tmp->val, NULL, NULL), 10),
               "expect the value to be the string 'galli'");
 
     // try to add a key value pair without success
@@ -55,11 +57,13 @@ Test(np_tree_t,
               "expect the key to not change (insert will not replace");
     cr_expect(np_treeval_type_char_ptr == tmp->key.type,
               "expect the key to be of the type char_ptr");
-    cr_expect(0 == strncmp("halli", np_treeval_to_str(tmp->key, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("halli", np_treeval_to_str(tmp->key, NULL, NULL), 10),
               "expect the key to be the string 'halli'");
     cr_expect(np_treeval_type_char_ptr == tmp->val.type,
               "expect the value to be of the type char_ptr");
-    cr_expect(0 == strncmp("galli", np_treeval_to_str(tmp->val, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("galli", np_treeval_to_str(tmp->val, NULL, NULL), 10),
               "expect the value to be the string 'galli'");
     // cr_expect_np_tree_bytesize(test_tree_1, test_tree_1->rbh_root, 22, 27);
 
@@ -71,12 +75,14 @@ Test(np_tree_t,
     // cr_expect_np_tree_bytesize(test_tree_1, test_tree_1->rbh_root, 27, 32);
     cr_expect(np_treeval_type_char_ptr == tmp->key.type,
               "expect the key to be of the type char_ptr");
-    cr_expect(0 == strncmp("halli", np_treeval_to_str(tmp->key, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("halli", np_treeval_to_str(tmp->key, NULL, NULL), 10),
               "expect the key to be the string 'halli'");
     cr_expect(np_treeval_type_char_ptr == tmp->val.type,
               "expect the value to be of the type char_ptr");
-    cr_expect(0 == strncmp("gallogalli", np_treeval_to_str(tmp->val, NULL), 12),
-              "expect the value to be the string 'galli'");
+    cr_expect(
+        0 == strncmp("gallogalli", np_treeval_to_str(tmp->val, NULL, NULL), 12),
+        "expect the value to be the string 'galli'");
 
     // add an additional key value pair
     np_tree_insert_str(test_tree_1, "hallo", np_treeval_new_s("gulli"));
@@ -87,23 +93,27 @@ Test(np_tree_t,
     // cr_expect_np_tree_bytesize(test_tree_1, tmp, 22, 54);
     cr_expect(np_treeval_type_char_ptr == tmp->key.type,
               "expect the key to be of the type char_ptr");
-    cr_expect(0 == strncmp("hallo", np_treeval_to_str(tmp->key, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("hallo", np_treeval_to_str(tmp->key, NULL, NULL), 10),
               "expect the key to be the string 'hallo'");
     cr_expect(np_treeval_type_char_ptr == tmp->val.type,
               "expect the value to be of the type char_ptr");
-    cr_expect(0 == strncmp("gulli", np_treeval_to_str(tmp->val, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("gulli", np_treeval_to_str(tmp->val, NULL, NULL), 10),
               "expect the value to be the string 'gulli'");
     // verify old key value
     tmp = np_tree_find_str(test_tree_1, "halli");
     cr_assert(tmp != NULL, "require key \"halli\" to be present");
     cr_expect(np_treeval_type_char_ptr == tmp->key.type,
               "expect the key to be of the type char_ptr");
-    cr_expect(0 == strncmp("halli", np_treeval_to_str(tmp->key, NULL), 10),
+    cr_expect(0 ==
+                  strncmp("halli", np_treeval_to_str(tmp->key, NULL, NULL), 10),
               "expect the key to be the string 'halli'");
     cr_expect(np_treeval_type_char_ptr == tmp->val.type,
               "expect the value to be of the type char_ptr");
-    cr_expect(0 == strncmp("gallogalli", np_treeval_to_str(tmp->val, NULL), 10),
-              "expect the value to be the string 'gallogalli'");
+    cr_expect(
+        0 == strncmp("gallogalli", np_treeval_to_str(tmp->val, NULL, NULL), 10),
+        "expect the value to be the string 'gallogalli'");
 
     // remove all entries
     np_tree_clear(test_tree_1);

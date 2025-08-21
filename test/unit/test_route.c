@@ -29,7 +29,7 @@ Test(np_route_t,
 
     for (int i = 0; i < 128; i++) {
       char str[15];
-      sprintf(str, "%0d", i + 1);
+      snprintf(str, 15, "%0d", i + 1);
       np_dhkey_t my_dhkey   = np_dhkey_create_from_hostport("pi-lar", str);
       np_key_t  *insert_key = NULL;
       np_new_obj(np_key_t, insert_key);
@@ -102,13 +102,12 @@ Test(np_route_t,
 
     for (; i < 4000 /*000*/; i++) {
       char tmp_1[33];
-      sprintf(tmp_1, "%d", i);
+      snprintf(tmp_1, 33, "%d", i);
 
       char tmp_2[33];
       randombytes_buf(tmp_2, 16);
       sodium_bin2hex(tmp_2, 33, (unsigned char *)tmp_2, 16);
 
-      // sprintf(str, "%0d", i);
       np_dhkey_t my_dhkey = np_dhkey_create_from_hostport(tmp_2, tmp_1);
 
       np_key_t *insert_key = _np_keycache_find(context, my_dhkey);
