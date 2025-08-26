@@ -20,7 +20,7 @@ RUN apt-get install -y \
         python3 python3-dev python3-venv python3-pip \
         libxml2-dev libxslt-dev \
         ninja-build libgit2-dev pkg-config automake libffi8 libffi-dev libtool \
-        libcriterion-dev libncurses5 libncurses5-dev libnanomsg-dev libsodium-dev nanopb \
+        libcriterion-dev libncurses6 libncurses-dev libnanomsg-dev libsodium-dev nanopb \
         graphviz
 
 ENV LANG C.UTF-8
