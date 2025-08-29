@@ -49,6 +49,7 @@ enum mime_types {
   image_png,
   text_css,
   text_csv,
+  text_markdown,
   text_html,
   text_plain,
   mime_type_MAX
@@ -140,8 +141,8 @@ struct np_files {
 
   np_tree_t    *_file_tree;
   np_spinlock_t _lock;
-
-  size_t bytes_in_memory;
+  bool          searchable;
+  size_t        bytes_in_memory;
 };
 /*
 urn:files:filename => HF1
@@ -334,13 +335,10 @@ int __np_file_handle_http_get_file(ht_request_t  *ht_request,
 
       __create_file_info(_info, file_tree, include_content);
 
-      JSON_Value *file_in_json = np_tree2json(context, file_tree);
-      ht_response->ht_body     = np_json2char(file_in_json, true);
-      ht_response->ht_length = strnlen(ht_response->ht_body, UINT16_MAX + 4096);
-      http_status            = HTTP_CODE_OK;
+      json_obj    = np_tree2json(context, file_tree);
+      http_status = HTTP_CODE_OK;
 
       np_tree_free(file_tree);
-      json_value_free(file_in_json);
 
       ht_response->cleanup_body = true;
 
@@ -355,20 +353,15 @@ int __np_file_handle_http_get_file(ht_request_t  *ht_request,
     }
   }
 
-  // by now there should be a response
-  if (http_status == HTTP_CODE_INTERNAL_SERVER_ERROR) {
-    log_msg(LOG_ERROR, NULL, "HTTP return is not defined for this code path");
-  }
-
   if (json_obj != NULL) {
-    log_debug(LOG_MISC, NULL, "serialise json response");
+    log_debug(LOG_MISC, NULL, "serialize json response");
 
     np_tree_insert_str(ht_response->ht_header,
                        "Content-Type",
                        np_treeval_new_s(mime_type_str[application_json]));
 
     ht_response->ht_body   = np_json2char(json_obj, false);
-    ht_response->ht_length = strnlen(ht_response->ht_body, 1024);
+    ht_response->ht_length = json_serialization_size(json_obj) - 1;
 
     json_value_free(json_obj);
   }
@@ -402,7 +395,7 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
           urlDecode(new_file_or_dir->val.value.s, new_file_or_dir->val.size);
       log_msg(LOG_INFO, NULL, "user requested to share file: %s", file_or_dir);
       np_id _zero = {0};
-      np_files_open(context, _zero, file_or_dir, false);
+      np_files_open(context, _zero, file_or_dir, __files.searchable);
       free(file_or_dir);
     }
   }
@@ -423,13 +416,10 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
 
       __create_dir_info(_info, dir_tree);
 
-      JSON_Value *dir_in_json = np_tree2json(context, dir_tree);
-      ht_response->ht_body    = np_json2char(dir_in_json, true);
-      ht_response->ht_length  = strnlen(ht_response->ht_body, 4096);
-      http_status             = HTTP_CODE_OK;
+      json_obj    = np_tree2json(context, dir_tree);
+      http_status = HTTP_CODE_OK;
 
       np_tree_free(dir_tree);
-      json_value_free(dir_in_json);
     } else {
       log_msg(LOG_DEBUG, NULL, "not in tree");
 
@@ -444,14 +434,14 @@ int __np_file_handle_http_get_dir(ht_request_t  *ht_request,
 __json_return__:
 
   if (json_obj != NULL) {
-    log_debug(LOG_MISC, NULL, "serialise json response");
+    log_debug(LOG_MISC, NULL, "serialize json response");
 
     np_tree_insert_str(ht_response->ht_header,
                        "Content-Type",
                        np_treeval_new_s(mime_type_str[application_json]));
 
     ht_response->ht_body   = np_json2char(json_obj, false);
-    ht_response->ht_length = strnlen(ht_response->ht_body, 1024);
+    ht_response->ht_length = json_serialization_size(json_obj) - 1;
 
     json_value_free(json_obj);
   }
@@ -918,6 +908,8 @@ void np_files_open(np_context *ac,
             errno,
             strerror(errno));
   }
+
+  __files.searchable = searchable;
 
   chdir(cwd);
 }

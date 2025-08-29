@@ -52,7 +52,7 @@ void np_files_send_authorized(np_context *ac, struct np_token *token);
 // TODO: hash value calculation based on filename and attributes
 // TODO: hash value calculation of directories based on directory name and hash
 // list of contained files
-// TODO: store additional attributes as fiel attributes (see xattr)
+// TODO: store additional attributes as file attributes (see xattr)
 void np_files_open(np_context *context,
                    np_id       identifier_seed,
                    const char *dir_or_filename,

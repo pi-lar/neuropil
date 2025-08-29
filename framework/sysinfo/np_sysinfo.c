@@ -568,7 +568,7 @@ __json_return__:
     json_obj = _np_generate_error_json("Unknown Error", "no response defined");
   }
   response       = np_json2char(json_obj, false);
-  ret->ht_length = json_serialization_size_pretty(json_obj);
+  ret->ht_length = json_serialization_size(json_obj) - 1; // -1 --> no newline
   json_value_free(json_obj);
 
   log_debug(LOG_SYSINFO, NULL, "write to body");
@@ -655,7 +655,7 @@ __json_return__:
   }
 
   response       = np_json2char(json_obj, false);
-  ret->ht_length = json_serialization_size_pretty(json_obj);
+  ret->ht_length = json_serialization_size(json_obj) - 1; // -1 --> no newline
 
   json_value_free(json_obj);
 

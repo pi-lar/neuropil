@@ -30,8 +30,8 @@ bool authenticate(np_context *ac, struct np_token *id);
 int main(int argc, char **argv) {
   int ret = 0;
 
-  char *realm = NULL;
-  char *code  = NULL;
+  char *realm      = NULL;
+  char *searchpath = NULL;
 
   int   no_threads = 9;
   char *j_key      = NULL;
@@ -53,9 +53,10 @@ int main(int argc, char **argv) {
                                          &level,
                                          &logpath,
                                          "[-r realmname]",
-                                         "r:",
+                                         "[-sp searchpath]",
+                                         "r:sp:",
                                          &realm,
-                                         &code)) == NULL) {
+                                         &searchpath)) == NULL) {
     exit(EXIT_FAILURE);
   }
 
@@ -69,15 +70,15 @@ int main(int argc, char **argv) {
            logpath,
            "/neuropil_search_node",
            port);
-  settings.log_level = -2;
+  settings.log_level = level;
 
   np_context *ac = np_new_context(&settings);
   np_set_userdata(ac, user_context);
   np_ctx_cast(ac);
 
-  np_example_print(context, stdout, "logpath: %s\n", settings.log_file);
+  fprintf(stdout, "%-40s: %s\n", "logpath", settings.log_file);
 
-  np_example_save_and_load_identity(context);
+  // np_example_save_and_load_identity(context);
 
   if (NULL != realm) {
     np_set_realm_name(context, realm);
@@ -88,40 +89,48 @@ int main(int argc, char **argv) {
   np_set_authenticate_cb(context, authenticate);
 
   if (np_ok != np_listen(context, proto, "localhost", atoi(port))) {
-    np_example_print(context,
-                     stderr,
-                     "ERROR: Node could not listen to %s:%s:%s",
-                     proto,
-                     hostname,
-                     port);
+    fprintf(stderr,
+            "%-40s: %s:%s:%s\n",
+            "neuropil node could not listen to ",
+            proto,
+            hostname,
+            port);
   } else {
-    // __np_example_helper_loop(context); // for the fancy ncurse display
     fprintf(stdout,
-            "INFO : node is listening on %s\n",
+            "%-40s: %s\n",
+            "node is listening on",
             np_get_connection_string(context));
 
-    log_debug(LOG_DEBUG, NULL, "starting http module");
+    fprintf(stdout, "%-40s: ", "starting http module ... ");
     _np_http_init(context, "localhost", "31415");
+    fprintf(stdout, "ok\n");
+
+    fprintf(stdout, "%-40s: ", "starting local sysinfo server ...");
+    np_sysinfo_enable_local(context);
+    fprintf(stdout, "ok\n");
 
     np_id file_seed;
     memset(file_seed, 0, NP_FINGERPRINT_BYTES);
 
-    log_msg(LOG_INFO, NULL, "starting file server");
-    np_files_open(context, file_seed, "", false);
-
-    np_sysinfo_enable_server(context);
+    fprintf(stdout, "%-40s: ", "starting search server ...");
     np_searchnode_init(context, NULL);
+    fprintf(stdout, "ok\n");
 
-    log_debug(LOG_DEBUG, NULL, "starting job queue");
+    fprintf(stdout, "%-40s: ", "starting file server ...");
+    // empty filename ("") only initializes the file server
+    np_files_open(context, file_seed, "", true);
+    fprintf(stdout, "ok\n");
+
     if (np_ok != np_run(context, 0.001)) {
-      np_example_print(context, stderr, "ERROR: Node could not run");
+      fprintf(stderr, "%-40s\n", "neuropil node could not run\n");
+      ret = -1;
     } else {
 
       if (NULL != j_key) {
-        np_example_print(context, stdout, "try to join %s\n", j_key);
+        fprintf(stdout, "%-40s: %s\n", "joining network", j_key);
         // join previous node
         if (np_ok != np_join(context, j_key)) {
-          np_example_print(context, stderr, "ERROR: Node could not join");
+          fprintf(stderr, "%-40s\n", "neuropil node could not join");
         }
       }
 
@@ -132,22 +141,37 @@ int main(int argc, char **argv) {
         // __np_example_helper_loop(context);
       }
     }
-    np_example_print(context, stderr, "Closing Node");
+    // fprintfstderr, "Closing Node");
 
     //////////////////////////////
     // t3821
-    char search_text[] =
-        "Japan's trade surplus grew 5.3 percent from a year earlier to 11.46 "
-        "billion dollars in February and well up from 2.88 billion dollars in "
-        "January, the finance ministry said Tuesday."; //
-    // "Lawyers for the Major League Baseball players' union and the commissioner's office are discussing ways to bring about a meeting between slugger Jason Giambi and doping investigator George Mitchell." \
-		// "Many voters hope efforts to reunify Cyprus will carry on whoever wins Sunday's presidential election in the Turkish-held north, despite \"pro-settlement\" leader Mehmet Ali Talat trailing in the polls."  \
-		// "President Bush's effort to limit public access to presidential records, already the subject of a federal lawsuit, came under attack from Congress Thursday when a California Republican announced he will fight it." \
-		// "A severe water shortage in Beijing has prompted the city to again hike prices, possibly by up to 20 percent, a top water official said Tuesday." \
-		// "John Edwards' decision this week to pull campaign resources in Nevada -- the same week that Barack Obama launched radio ads in the state -- reflects two difficulties for the Edwards candidacy: his lack of money and strong union backing." \
-		// "Christl Haas, the Austrian skier who won the women's downhill at the 1964 Olympics, drowned while swimming at a Mediterranean resort, the Austrian Embassy said. She was 57." \
-		// "Soccer Australia officials on Tuesday announced an Australian team to play Scotland in an international friendly match on November 15 at Glasgow, Scotland.";
+    // char search_text[] =
+    //     "Japan's trade surplus grew 5.3 percent from a year earlier to 11.46
+    //     " "billion dollars in February and well up from 2.88 billion dollars
+    //     in " "January, the finance ministry said Tuesday."; //
+    // "Lawyers for the Major League Baseball players' union and the
+    // commissioner's office are discussing ways to bring about a meeting
+    // between slugger Jason Giambi and doping investigator George Mitchell." \
+		// "Many voters hope efforts to reunify Cyprus will carry on whoever wins
+    // Sunday's presidential election in the Turkish-held north, despite
+    // \"pro-settlement\" leader Mehmet Ali Talat trailing in the polls."  \
+		// "President Bush's effort to limit public access to presidential records,
+    // already the subject of a federal lawsuit, came under attack from Congress
+    // Thursday when a California Republican announced he will fight it." \
+		// "A severe water shortage in Beijing has prompted the city to again hike
+    // prices, possibly by up to 20 percent, a top water official said Tuesday."
+    // \
+		// "John Edwards' decision this week to pull campaign resources in Nevada --
+    // the same week that Barack Obama launched radio ads in the state --
+    // reflects two difficulties for the Edwards candidacy: his lack of money
+    // and strong union backing." \
+		// "Christl Haas, the Austrian skier who won the women's downhill at the
+    // 1964 Olympics, drowned while swimming at a Mediterranean resort, the
+    // Austrian Embassy said. She was 57." \ "Soccer Australia officials on
+    // Tuesday announced an Australian team to play Scotland in an international
+    // friendly match on November 15 at Glasgow, Scotland.";
 
+    /*
     np_attributes_t  attr = {0};
     np_searchquery_t sq   = {0};
 
@@ -183,14 +207,15 @@ int main(int argc, char **argv) {
                 val_title.str);
       }
     }
-    while (np_run(context, 0.5) == np_running) {
-      // np_files_open(context, file_seed, "./test_data/articles", true);
+    */
+
+    while (np_run(context, 5.0) == np_ok) {
+      if (searchpath) np_files_open(context, file_seed, searchpath, true);
       // np_files_open(context, file_seed, "examples", true);
       // __np_example_helper_loop(context);
     }
 
     //////////////////////
-    // np_searchnode_destroy(context);
     np_files_close(context, file_seed);
     np_destroy(context, false);
   }
@@ -201,10 +226,16 @@ int main(int argc, char **argv) {
 bool authorize(np_context *ac, struct np_token *id) {
   // TODO: Make sure that id->public_key is an authenticated peer!
   fprintf(stdout,
-          "authz %s from %02X%02X%02X%02X%02X%02X%02X: "
-          "%02X%02X%02X%02X%02X%02X%02X...\n",
+          "authorization of '%s' issuer: %02X%02X%02X%02X%02X%02X%02X: "
+          " public key: %02X%02X%02X%02X%02X%02X%02X...\n",
           id->subject,
-          id->issuer,
+          id->issuer[0],
+          id->issuer[1],
+          id->issuer[2],
+          id->issuer[3],
+          id->issuer[4],
+          id->issuer[5],
+          id->issuer[6],
           id->public_key[0],
           id->public_key[1],
           id->public_key[2],
@@ -223,10 +254,16 @@ bool authorize(np_context *ac, struct np_token *id) {
 bool authenticate(np_context *ac, struct np_token *id) {
   // TODO: Make sure that id->public_key is an authenticated peer!
   fprintf(stdout,
-          "authn %s from %02X%02X%02X%02X%02X%02X%02X: "
-          "%02X%02X%02X%02X%02X%02X%02X...\n",
+          "authentication of '%s' issuer: %02X%02X%02X%02X%02X%02X%02X: "
+          "public key: %02X%02X%02X%02X%02X%02X%02X...\n",
           id->subject,
-          id->issuer,
+          id->issuer[0],
+          id->issuer[1],
+          id->issuer[2],
+          id->issuer[3],
+          id->issuer[4],
+          id->issuer[5],
+          id->issuer[6],
           id->public_key[0],
           id->public_key[1],
           id->public_key[2],

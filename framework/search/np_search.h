@@ -41,6 +41,8 @@ struct np_searchentry_s {
   // what will be there locally
   struct np_token intent;
   np_map_reduce_t map;
+
+  uint32_t insert_count;
 };
 typedef struct np_searchentry_s np_searchentry_t;
 

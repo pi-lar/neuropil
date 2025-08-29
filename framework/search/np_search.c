@@ -149,6 +149,7 @@ bool __np_search_cleanup_pipeline(np_state_t               *context,
 
 // map reduce algorithms or parts of those
 bool _deprecate_map_func(np_map_reduce_t *mr_struct, const void *element) {
+
   np_searchentry_t *it_1              = (np_searchentry_t *)element;
   np_dhkey_t       *_deprecate_target = (np_dhkey_t *)mr_struct->map_args.io;
   if (it_1 == NULL) return false;
@@ -165,22 +166,17 @@ bool _deprecate_map_func(np_map_reduce_t *mr_struct, const void *element) {
   _np_dhkey_hamming_distance(&_dist_diff,
                              &dhkey_zero,
                              &_diff); // sum of 1 in either np_index
-
-  float _jc = (float)_dist_common / _dist_diff; // jaccard index
-  if (_jc > 0.9) {
-    // log_msg(LOG_DEBUG, NULL, "deprecating entry %p (%f)\n", it_1, _jc);
-    _np_neuropil_bloom_age_decrement(it_1->search_index._clk_hash);
-    float _age = _np_neuropil_bloom_intersect_age(it_1->search_index._clk_hash,
-                                                  it_1->search_index._clk_hash);
-    if (_age == 0.0) {
-      // log_msg(LOG_DEBUG, NULL, "identified entry for deletion %p \n", it_1);
-      // log_msg(LOG_DEBUG, NULL,  "R COLLISION: %f <-> %p (%s)", _similarity,
-      // it_2->search_index._clk_hash, it_2->intent.subject);
-      sll_append(void_ptr, mr_struct->map_result, it_1);
+  if (_dist_diff > 0) {
+    float _jc = (float)_dist_common / _dist_diff; // jaccard index
+    if (_jc > 0.9) {
+      _np_neuropil_bloom_age_decrement(it_1->search_index._clk_hash);
+      float _age =
+          _np_neuropil_bloom_intersect_age(it_1->search_index._clk_hash,
+                                           it_1->search_index._clk_hash);
+      if (_age == 0.0) {
+        sll_append(void_ptr, mr_struct->map_result, it_1);
+      }
     }
-  } else {
-    // log_msg(LOG_DEBUG, NULL, "similarity not close enough (%f), deprecation
-    // of entry skipped \n", _jc);
   }
   return true;
 }
@@ -192,14 +188,20 @@ bool _deprecate_reduce_func(np_map_reduce_t *mr_struct, const void *element) {
   np_searchentry_t    *search_elem = (np_searchentry_t *)element;
   struct np_cupidtrie *trie = (struct np_cupidtrie *)mr_struct->reduce_args.io;
 
-  np_cupidtrie_delete(trie,
-                      &search_elem->search_index.lower_dhkey,
-                      &search_elem);
+  uintptr_t *deleted = NULL;
+  if (np_ok != np_cupidtrie_delete(trie,
+                                   &search_elem->search_index.lower_dhkey,
+                                   &deleted)) {
+    return true;
+  };
 
-  np_tree_insert_str(mr_struct->reduce_result,
-                     search_elem->intent.uuid,
-                     np_treeval_new_v(search_elem));
+  search_elem->insert_count--;
 
+  if (search_elem->insert_count == 0) {
+    np_tree_insert_uuid(mr_struct->reduce_result,
+                        search_elem->intent.uuid,
+                        np_treeval_new_v(search_elem));
+  }
   return true;
 }
 
@@ -229,7 +231,7 @@ int8_t _cmp_all_searchentries(np_map_reduce_t *mr_struct, const void *element) {
   //         _dist_common / _dist_diff);
 
   float _jc = (float)_dist_common / _dist_diff; // jaccard index
-  if (_jc > 0.80) return 0;
+  if (_dist_diff > 0 && _jc > 0.90) return 0;
 
   // if (_dist_diff == 0) {
   //   return 0;
@@ -257,35 +259,25 @@ bool __np_search_deprecate_entries(np_state_t               *context,
   mr.reduce_args.io = NULL;
   mr.reduce_result  = np_tree_create();
 
-  for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
-       i++) {
-    np_spinlock_lock(&np_module(search)->table_lock[i]);
-    np_cupidtrie_map_reduce(&np_module(search)->searchnode.tree[i], &mr);
-    np_spinlock_unlock(&np_module(search)->table_lock[i]);
+  uint32_t next_table = np_global_rng_next_bounded(
+      np_module(search)->searchnode.local_table_count);
 
-    sll_iterator(void_ptr) iterator = sll_first(mr.map_result);
-    while (iterator != NULL) {
-      np_spinlock_lock(&np_module(search)->table_lock[i]);
-      mr.reduce_args.io = &np_module(search)->searchnode.tree[i];
-      mr.reduce(&mr, iterator->val);
-      np_spinlock_unlock(&np_module(search)->table_lock[i]);
+  np_spinlock_lock(&np_module(search)->table_lock[next_table]);
 
-      sll_next(iterator);
-    }
-    sll_clear(void_ptr, mr.map_result);
-  }
+  mr.reduce_args.io = &np_module(search)->searchnode.tree[next_table];
+  np_cupidtrie_map_reduce(&np_module(search)->searchnode.tree[next_table], &mr);
+
+  np_spinlock_unlock(&np_module(search)->table_lock[next_table]);
 
   np_tree_elem_t *tmp = NULL;
   RB_FOREACH (tmp, np_tree_s, mr.reduce_result) {
     np_searchentry_t *elem = (np_searchentry_t *)tmp->val.value.v;
-
     np_index_destroy(&elem->search_index);
     free(elem);
   }
+  sll_free(void_ptr, mr.map_result);
   np_tree_free(mr.reduce_result);
 
-  // static uint16_t i = 0;
-  // log_msg(LOG_DEBUG, NULL, "__np_search_deprecate_entries \n");
   fflush(stdout);
 
   return true;
@@ -759,8 +751,6 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
   np_context *ac = user_arg;
   np_ctx_cast(ac);
 
-  // log_msg(LOG_DEBUG, NULL, "searching for ...");
-
   uint16_t    length;
   int         http_status = HTTP_CODE_INTERNAL_SERVER_ERROR; // HTTP_CODE_OK
   JSON_Value *json_obj    = NULL;
@@ -796,7 +786,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
 
       query_stop_time = clock();
       // wait for external replies
-      np_time_sleep(0.500);
+      np_time_sleep(1.500);
       struct search_pipeline_result *pipeline = NULL;
       np_spinlock_lock(&np_module(search)->pipeline_lock);
       {
@@ -893,7 +883,7 @@ int __np_search_handle_http_get(ht_request_t  *ht_request,
 
       JSON_Value *search_result_in_json = np_tree2json(context, srs_tree);
       ht_response->ht_body   = np_json2char(search_result_in_json, true);
-      ht_response->ht_length = strnlen(ht_response->ht_body, UINT16_MAX + 4096);
+      ht_response->ht_length = strnlen(ht_response->ht_body, UINT32_MAX + 4096);
       http_status            = HTTP_CODE_OK;
 
       np_tree_free(srs_tree);
@@ -930,7 +920,7 @@ __json_return__:
                        np_treeval_new_s("application/json"));
 
     ht_response->ht_body   = np_json2char(json_obj, false);
-    ht_response->ht_length = strnlen(ht_response->ht_body, UINT16_MAX);
+    ht_response->ht_length = strnlen(ht_response->ht_body, UINT32_MAX);
 
     json_value_free(json_obj);
   }
@@ -1234,6 +1224,9 @@ bool __np_search_add_entry(np_context                          *ac,
   */
 
   if (pipeline->remote_distribution_count <= 6) {
+
+    pipeline->obj.entry->insert_count = 0;
+
     uint8_t dh_diff = {0};
     struct __search_table_bucket
             buckets[np_module(search)->searchnode.local_table_count];
@@ -1317,6 +1310,7 @@ bool __np_search_add_entry(np_context                          *ac,
         np_spinlock_unlock(&np_module(search)->table_lock[j]);
         return (false);
       }
+      pipeline->obj.entry->insert_count++;
       *search_storage = (uintptr_t)pipeline->obj.entry;
 
       np_spinlock_unlock(&np_module(search)->table_lock[j]);

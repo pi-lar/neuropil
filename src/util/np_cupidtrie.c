@@ -160,36 +160,50 @@ enum np_return __find_qpe(const union _qp_union *qpe,
   return (np_ok);
 }
 
-enum np_return __delete_qpe(union _qp_union *qpe,
-                            const uint8_t   *key,
-                            const size_t     len,
-                            uintptr_t      **out) {
-  if (qpe == NULL) return (np_invalid_argument);
+enum np_return __delete_qpe(union _qp_union **qpe,
+                            const uint8_t    *key,
+                            const size_t      len,
+                            uintptr_t       **out) {
+  if (qpe == NULL || *qpe == NULL) return (np_invalid_argument);
 
+  union _qp_union  *curr          = *qpe;
   union _qp_union **del_qp_branch = NULL; // branch before the element to delete
   uint32_t          del_bm        = 0;
   uint32_t          del_count     = 0;
-  while (__idx_branch(__use_branch_key(qpe->branch)) == 1UL) {
-    __builtin_prefetch(qpe->branch.data);
+  while (__idx_branch(__use_branch_key(curr->branch)) == 1UL) {
+    __builtin_prefetch(curr->branch.data);
 
     del_count++;
-    del_qp_branch =
+    union _qp_union **new_del_qp_branch =
         realloc(del_qp_branch, del_count * sizeof(union _qp_union *));
+    if (new_del_qp_branch == NULL) {
+      free(del_qp_branch);
+      return (np_out_of_memory);
+    }
+    del_qp_branch = new_del_qp_branch;
 
-    del_bm = __key_bitmask(qpe->branch, key, len);
+    del_bm = __key_bitmask(curr->branch, key, len);
     if (del_bm == 0) return (np_operation_failed);
 
-    if (!(__idx_has_next(qpe->branch, del_bm))) return (np_operation_failed);
+    if (!(__idx_has_next(curr->branch, del_bm))) return (np_operation_failed);
     else {
-      del_qp_branch[del_count - 1] = qpe;
-      qpe                          = __idx_next(qpe, del_bm);
+      del_qp_branch[del_count - 1] = curr;
+      curr                         = __idx_next(curr, del_bm);
     }
   }
 
-  if (memcmp(__use_leaf_aux(qpe->leaf), key, len) != 0)
+  if (memcmp(__use_leaf_aux(curr->leaf), key, len) != 0)
     return (np_operation_failed);
 
-  *out = &__use_leaf_data(qpe->leaf);
+  *out = &__use_leaf_data(curr->leaf);
+
+  // If we never traversed a branch, we are deleting the root leaf
+  if (del_count == 0) {
+    __free_qpe(curr);
+    *qpe = NULL;
+    free(del_qp_branch);
+    return (np_ok);
+  }
 
   __set_branch_mask(del_qp_branch[del_count - 1]->branch,
                     __use_branch_mask(del_qp_branch[del_count - 1]->branch) ^
@@ -559,7 +573,7 @@ enum np_return np_cupidtrie_update(struct np_cupidtrie   *trie,
 
 enum np_return
 np_cupidtrie_delete(struct np_cupidtrie *trie, uint8_t *key, uintptr_t **data) {
-  return __delete_qpe(trie->tree, key, trie->key_length, data);
+  return __delete_qpe(&trie->tree, key, trie->key_length, data);
 }
 
 enum np_return np_cupidtrie_union(struct np_cupidtrie   *result,
@@ -681,7 +695,6 @@ enum np_return np_cupidtrie_map_reduce(struct np_cupidtrie    *trie,
 
   if (mode == true) {
     __iterate_qpe_data(&trie->tree, trie->key_length, mr);
-
   } else {
     int8_t shift = 0;
     __iterate_qpe_key(&trie->tree, trie->key_length, mr, &shift);

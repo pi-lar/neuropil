@@ -109,6 +109,18 @@ Test(np_cupidtrie,
   CALC_AND_PRINT_STATISTICS("[ 10k ] check clear cupidtrie",
                             ct_clear_func,
                             num_elements);
+
+  for (uint16_t i = 0; i < num_elements; i++) {
+    uintptr_t *data_ptr = NULL;
+    MEASURE_TIME(
+        ct_check_func_invalid,
+        i,
+        cr_expect(np_ok !=
+                  np_cupidtrie_find(&new_trie, data[i]._as_us, &data_ptr)));
+  }
+  CALC_AND_PRINT_STATISTICS("[ 10k ] check deleted cupidtrie",
+                            ct_check_func_invalid,
+                            num_elements);
 }
 
 Test(np_cupidtrie,

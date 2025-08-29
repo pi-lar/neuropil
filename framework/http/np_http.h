@@ -51,7 +51,7 @@ struct ht_request_s {
   htp_method ht_method;
   np_tree_t *ht_query_args;
   np_tree_t *ht_header;
-  uint16_t   ht_length;
+  uint32_t   ht_length;
   char      *ht_body;
 };
 typedef struct ht_request_s ht_request_t;
@@ -61,7 +61,7 @@ struct ht_response_s {
   int        ht_status;
   char      *ht_reason;
   np_tree_t *ht_header;
-  uint16_t   ht_length;
+  uint32_t   ht_length;
   char      *ht_body;
   bool       cleanup_body;
 };
