@@ -355,7 +355,9 @@ void __np_alias_set(np_util_statemachine_t *statemachine,
                               local_ip);
   np_key_t *my_interface_key =
       _np_keycache_find_interface(context, local_ip, NULL);
-  np_node_t *my_interface_node = _np_key_get_node(my_interface_key);
+  np_node_t *my_interface_node = NULL;
+  if (my_interface_key != NULL)
+    my_interface_node = _np_key_get_node(my_interface_key);
 
   // check node key for passive network connection (partner or own node is
   // passive)

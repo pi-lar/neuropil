@@ -1257,10 +1257,10 @@ bool _np_network_init(np_network_t *ng,
                      connection_status);
           } else if (FLAG_CMP(type, IPv6)) {
             struct sockaddr_in6 my_addr1 = {0};
-            my_addr1.sin6_family         = AF_INET;
-            // my_addr1.sin6_addr.s_addr = INADDR_ANY;
-            my_addr1.sin6_port = htons(0);
-            connection_status  = bind(ng->socket,
+            my_addr1.sin6_family         = AF_INET6;
+            my_addr1.sin6_port           = htons(0);
+            memcpy(my_addr1.sin6_addr.s6_addr, &in6addr_any, INET6_ADDRSTRLEN);
+            connection_status = bind(ng->socket,
                                      (struct sockaddr *)&my_addr1,
                                      sizeof(struct sockaddr_in6));
             log_info(LOG_NETWORK,

@@ -189,6 +189,8 @@ bool _np_glia_node_can_be_reached(const np_state_t *context,
 
   if (local_is_localhost && remote_is_localhost &&
       FLAG_CMP(protocol, (node_info->protocol & MASK_IP))) {
+    // note: we do not "forward" localhost addresses, so the only way when this
+    // check is needed is when the user requested it
     ret = true;
     goto _np_return;
   }

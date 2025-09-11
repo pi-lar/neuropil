@@ -564,6 +564,24 @@ void np_send_join(np_context *ac, const char *node_string) {
   np_node_t *new_node = _np_node_decode_from_str(context, node_string);
   if (new_node == NULL) return;
 
+  if (FLAG_CMP(new_node->protocol, PASSIVE)) {
+    log_msg(LOG_WARNING,
+            NULL,
+            "user requests to join passive node at %u:%s:%s!",
+            new_node->protocol,
+            new_node->ip_string,
+            new_node->port);
+    np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");
+    return;
+  } else {
+    log_msg(LOG_INFO,
+            NULL,
+            "user request to join %u:%s:%s",
+            new_node->protocol,
+            new_node->ip_string,
+            new_node->port);
+  }
+
   // node_string could not contain a valid ip address, so we need to resolve it
   char ip_buffer[64] = {0};
   _np_network_get_remote_ip(ac,
@@ -594,25 +612,31 @@ void np_send_join(np_context *ac, const char *node_string) {
     return;
   }
 
-  // check whether we have already an interface setup for the remote address
-  char local_ip[64] = {0};
-  if (np_ok != _np_network_get_outgoing_ip(NULL,
-                                           new_node->ip_string,
-                                           new_node->protocol,
-                                           local_ip)) {
-    log_msg(LOG_INFO,
-            NULL,
-            "no outgoing connectivity to join node %s found\n",
-            ip_buffer);
-    np_unref_obj(np_key_t, existing_connection, "_np_keycache_find_by_details");
-    return; // np_invalid_operation;
-  }
+  np_key_t *interface_key = NULL;
+  // check whether we have already an interface setup for the remote address and
+  // if it can be used to contact the new node
+  bool node_is_reachable = _np_glia_node_can_be_reached(context,
+                                                        new_node->ip_string,
+                                                        new_node->protocol,
+                                                        &interface_key);
 
-  np_key_t *interface_key =
-      _np_keycache_find_interface(context, local_ip, NULL);
-  // if no interface exists, try to setup a new passive interface because the
-  // user explicitly requested this np_join() command
-  if (interface_key == NULL) {
+  char local_ip[64] = {0};
+  if (!node_is_reachable) {
+    if (np_ok != _np_network_get_outgoing_ip(NULL,
+                                             new_node->ip_string,
+                                             new_node->protocol,
+                                             local_ip)) {
+      log_msg(LOG_INFO,
+              NULL,
+              "no outgoing connectivity to join node %s found\n",
+              ip_buffer);
+      np_unref_obj(np_key_t,
+                   existing_connection,
+                   "_np_keycache_find_by_details");
+      return; // np_invalid_operation;
+    }
+    // if no interface exists, try to setup a new passive interface because
+    // the user explicitly requested this np_join() command
     if (np_ok != _np_listen_safe(context,
                                  _np_network_get_protocol_string(
                                      context,
@@ -629,15 +653,19 @@ void np_send_join(np_context *ac, const char *node_string) {
                    "_np_keycache_find_by_details");
       return; // np_invalid_operation;
     } else {
-      interface_key = _np_keycache_find_interface(context, local_ip, NULL);
+      if (interface_key != NULL)
+        np_unref_obj(np_key_t, interface_key, "_np_keycache_find_interface");
+      // check again with new interface
+      node_is_reachable = _np_glia_node_can_be_reached(context,
+                                                       new_node->ip_string,
+                                                       new_node->protocol,
+                                                       &interface_key);
     }
   }
 
-  // final check whether we can reach the new node
-  if (!_np_glia_node_can_be_reached(context,
-                                    new_node->ip_string,
-                                    new_node->protocol,
-                                    NULL)) {
+  // if node is still not reachable, exit the join process. Cleanup of
+  // additional node will happen automatically by state machine logic
+  if (!node_is_reachable) {
     log_warn(LOG_NETWORK,
              NULL,
              "network setups do not match %s <-> %s",
@@ -666,24 +694,6 @@ void np_send_join(np_context *ac, const char *node_string) {
   } else {
     np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");
     return;
-  }
-
-  if (FLAG_CMP(new_node->protocol, PASSIVE)) {
-    log_msg(LOG_WARNING,
-            NULL,
-            "user requests to join passive node at %u:%s:%s!",
-            new_node->protocol,
-            new_node->ip_string,
-            new_node->port);
-    np_unref_obj(np_node_t, new_node, "_np_node_decode_from_str");
-    return;
-  } else {
-    log_msg(LOG_INFO,
-            NULL,
-            "user request to join %u:%s:%s",
-            new_node->protocol,
-            new_node->ip_string,
-            new_node->port);
   }
 
   np_key_t *node_key = _np_keycache_find_or_create(context, search_key);
