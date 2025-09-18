@@ -111,10 +111,6 @@ struct np_thread_s {
   enum np_thread_type_e thread_type;
   np_threads_worker_run run_fn;
 
-  np_mutex_t        job_lock;
-  volatile np_job_t job;
-  volatile bool     has_job;
-
 #ifdef NP_THREADS_CHECK_THREADING
   np_mutex_t locklists_lock;
   np_sll_t(char_ptr, want_lock);
@@ -356,12 +352,18 @@ void np_threads_busyness(np_state_t *context, np_thread_t *self, bool is_busy);
 #ifdef NP_STATISTICS_THREADS
 void np_threads_busyness_statistics(np_state_t  *context,
                                     np_thread_t *self,
+                                    double       now,
                                     double      *perc_1,
                                     double      *perc_5,
                                     double      *perc_15);
 void np_threads_busyness_stat(np_state_t *context, np_thread_t *self);
 #else
-#define np_threads_busyness_statistics(context, self, perc_1, perc_5, perc_15)
+#define np_threads_busyness_statistics(context,                                \
+                                       self,                                   \
+                                       now,                                    \
+                                       perc_1,                                 \
+                                       perc_5,                                 \
+                                       perc_15)
 #define np_threads_busyness_stat(context, self)
 #endif
 

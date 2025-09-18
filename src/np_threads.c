@@ -158,10 +158,9 @@ void _np_threads_destroy(np_state_t *context) {
 
     sll_iterator(np_thread_ptr) iter_threads =
         sll_first(np_module(threads)->threads);
-    uint32_t iterated_threads = 0;
+
     while (iter_threads != NULL) {
       np_unref_obj(np_thread_t, iter_threads->val, ref_obj_creation);
-      iterated_threads++;
       sll_next(iter_threads);
     }
 
@@ -573,18 +572,18 @@ int _np_threads_mutex_unlock(np_state_t *context, np_mutex_t *mutex) {
 #endif
   np_thread_t *me = _np_threads_get_self(context);
   if (me != NULL)
-    log_info(LOG_MUTEX,
-             NULL,
-             "Thread %" PRIsizet " unlocks mutex %s(%p)",
-             _np_threads_get_self(context)->id,
-             mutex->desc,
-             mutex);
+    log_debug(LOG_MUTEX,
+              NULL,
+              "Thread %" PRIsizet " unlocks mutex %s(%p)",
+              _np_threads_get_self(context)->id,
+              mutex->desc,
+              mutex);
   else
-    log_info(LOG_MUTEX,
-             NULL,
-             "Thread <in thread init> unlocks mutex %s(%p)",
-             mutex->desc,
-             mutex);
+    log_debug(LOG_MUTEX,
+              NULL,
+              "Thread <in thread init> unlocks mutex %s(%p)",
+              mutex->desc,
+              mutex);
   return pthread_mutex_unlock(&mutex->lock);
 }
 
@@ -798,11 +797,11 @@ void _np_thread_t_del(NP_UNUSED np_state_t *context,
 
   log_debug(LOG_THREADS | LOG_MEMORY,
             NULL,
-            "Destroy thread %" PRIsizet " / %p type: %" PRIu8 " job_lock: %p",
+            "Destroy thread %" PRIsizet " / %p type: %" PRIu8,
             thread->id,
             thread,
-            thread->thread_type,
-            &thread->job_lock);
+            thread->thread_type);
+
 #ifdef NP_THREADS_CHECK_THREADING
   assert(thread->has_lock != NULL);
   //_LOCK_ACCESS(&thread->locklists_lock)
@@ -827,8 +826,6 @@ void _np_thread_t_del(NP_UNUSED np_state_t *context,
 #ifdef NP_STATISTICS_THREADS
   if (thread->stats) free(thread->stats);
 #endif
-
-  _np_threads_mutex_destroy(context, &thread->job_lock);
 }
 
 void _np_thread_t_new(NP_UNUSED np_state_t *context,
@@ -846,9 +843,7 @@ void _np_thread_t_new(NP_UNUSED np_state_t *context,
 
   char mutex_str[164];
   snprintf(mutex_str, 63, "urn:np:thread:%p:%" PRIsizet, thread, thread->id);
-  _np_threads_mutex_init(context, &thread->job_lock, mutex_str);
-  thread->run_fn = NULL;
-  // thread->job = { 0 };
+  thread->run_fn      = NULL;
   thread->thread_type = np_thread_type_other;
 
 #ifdef NP_THREADS_CHECK_THREADING
@@ -859,6 +854,7 @@ void _np_thread_t_new(NP_UNUSED np_state_t *context,
   sll_init(char_ptr, thread->want_lock);
 #endif
 }
+
 #ifdef NP_THREADS_CHECK_THREADING
 
 char *__np_threads_print_locks(np_state_t *context, char *ret, char *new_line) {
@@ -945,13 +941,7 @@ void *__np_thread_status_wrapper(void *self) {
 
   while (tmp_status > np_uninitialized && tmp_status < np_shutdown) {
     if (tmp_status == np_running) {
-      _LOCK_ACCESS(&thread->job_lock) {
-        np_threads_busyness(context, thread, true);
-
-        thread->run_fn(context, thread);
-
-        np_threads_busyness(context, thread, false);
-      }
+      thread->run_fn(context, thread);
     } else {
       log_debug(LOG_THREADS,
                 NULL,
@@ -1009,10 +999,9 @@ np_thread_t *__np_createThread(NP_UNUSED np_state_t *context,
 }
 
 void np_threads_shutdown_workers(np_state_t *context) {
-  bool shutdown_complete;
-  sll_iterator(np_thread_ptr) iter_threads;
 
-  iter_threads = sll_first(np_module(threads)->threads);
+  sll_iterator(np_thread_ptr) iter_threads =
+      sll_first(np_module(threads)->threads);
 
   // wakeup jobqueue for cancellation of manager thread
   _np_threads_module_condition_broadcast(context, np_jobqueue_t_lock);
@@ -1036,11 +1025,12 @@ void np_threads_shutdown_workers(np_state_t *context) {
     // wakeup worker for cancellation of thread
     if (thread->thread_type == np_thread_type_worker ||
         thread->thread_type == np_thread_type_managed) {
-      _np_threads_mutex_condition_signal(context, &thread->job_lock);
+      _np_jobqueue_check(context);
     }
     // force cancel of eventloop (probably on wait cancellation point)
     else if (thread->thread_type == np_thread_type_eventloop ||
-             thread->thread_type == np_thread_type_other) {
+             thread->thread_type == np_thread_type_other ||
+             thread->thread_type == np_thread_type_worker) {
       int cancel_res = pthread_cancel(thread->thread_id);
     }
     sll_next(iter_threads);
@@ -1111,18 +1101,15 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
   uint8_t worker_threads = ((int)pool_size / 2) + 1;
 
   // start jobs
-  np_thread_t *special_thread;
+  np_thread_t *new_thread = NULL;
 
+  // network input
   if (pool_size > worker_threads) {
+    new_thread = __np_createThread(context,
+                                   _np_event_in_run,
+                                   true,
+                                   np_thread_type_eventloop);
     pool_size--;
-    special_thread = __np_createThread(context,
-                                       _np_event_in_run,
-                                       true,
-                                       np_thread_type_eventloop);
-
-#ifdef DEBUG_CALLBACKS
-    strncpy(special_thread->job.ident, "_np_event_in_run", 255);
-#endif
   } else {
     np_jobqueue_submit_event_periodic(context,
                                       NP_PRIORITY_HIGHEST,
@@ -1132,15 +1119,13 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
                                       "_np_events_read_in");
   }
 
+  // network out
   if (pool_size > worker_threads) {
+    new_thread = __np_createThread(context,
+                                   _np_event_out_run_triggered,
+                                   true,
+                                   np_thread_type_eventloop);
     pool_size--;
-    special_thread = __np_createThread(context,
-                                       _np_event_out_run_triggered,
-                                       true,
-                                       np_thread_type_eventloop);
-#ifdef DEBUG_CALLBACKS
-    strncpy(special_thread->job.ident, "_np_event_out_run", 255);
-#endif
   } else {
     np_jobqueue_submit_event_periodic(context,
                                       NP_PRIORITY_HIGHEST,
@@ -1150,15 +1135,14 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
                                       "_np_events_read_out");
   }
 
+  // file io in/out
   if (pool_size > worker_threads) {
+    new_thread = __np_createThread(context,
+                                   _np_event_file_run_triggered,
+                                   true,
+                                   np_thread_type_eventloop);
     pool_size--;
-    special_thread = __np_createThread(context,
-                                       _np_event_file_run_triggered,
-                                       true,
-                                       np_thread_type_eventloop);
-#ifdef DEBUG_CALLBACKS
-    strncpy(special_thread->job.ident, "_np_event_file_run", 255);
-#endif
+
   } else {
     np_jobqueue_submit_event_periodic(context,
                                       NP_PRIORITY_HIGH,
@@ -1168,25 +1152,15 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
                                       "_np_events_read_file");
   }
 
-  // just a bunch of threads trying to get the first element from a priority
-  // queue
+  // worker threads
   for (int8_t i = 0; i < pool_size; i++) {
-    if (i == 0) {
-      special_thread = __np_createThread(context,
-                                         __np_jobqueue_run_jobs,
-                                         true,
-                                         np_thread_type_manager);
-    } else {
-      special_thread = __np_createThread(context,
-                                         __np_jobqueue_run_jobs,
-                                         true,
-                                         np_thread_type_worker);
-      if (i > 1) {
-        special_thread->max_job_priority =
-            MAX(i % NP_PRIORITY_LOWEST, NP_PRIORITY_HIGH);
-      }
-    }
-    _np_jobqueue_add_worker_thread(special_thread);
+    // just a bunch of threads trying to get the first element from a priority
+    // queue
+    enum np_thread_type_e thread_type =
+        i == 0 ? np_thread_type_manager : np_thread_type_worker;
+    new_thread =
+        __np_createThread(context, __np_jobqueue_run_jobs, true, thread_type);
+    _np_jobqueue_add_worker_thread(new_thread);
   }
 
   log_debug(LOG_THREADS,
@@ -1201,8 +1175,10 @@ void np_threads_start_workers(NP_UNUSED np_state_t *context,
 }
 
 char *np_threads_print(np_state_t *context, bool asOneLine) {
-  char *ret      = NULL;
-  char *new_line = "\n";
+  char  *ret      = NULL;
+  double now      = _np_time_now(context);
+  char  *new_line = "\n";
+
   if (asOneLine == true) {
     new_line = "    ";
   }
@@ -1222,45 +1198,34 @@ char *np_threads_print(np_state_t *context, bool asOneLine) {
                            new_line);
 
   TSP_SCOPE(np_module(threads)->threads) {
+
     sll_iterator(np_thread_ptr) thread_iter =
         sll_first(np_module(threads)->threads);
     while (thread_iter != NULL) {
       np_thread_t *thread = thread_iter->val;
       assert(thread != NULL);
-      //_TRYLOCK_ACCESS(&thread->job_lock)
       {
         double perc_0 = 0, perc_1 = 0, perc_2 = 0;
         np_threads_busyness_statistics(context,
                                        thread,
+                                       now,
                                        &perc_0,
                                        &perc_1,
                                        &perc_2);
 
-        void *_first_processorFunc = NULL;
-        if (thread->_busy)
-          if (thread->job.processorFuncs != NULL)
-            if (sll_size(thread->job.processorFuncs) > 0)
-              _first_processorFunc = sll_first(thread->job.processorFuncs)->val;
-
-        ret = np_str_concatAndFree(
-            ret,
-            "%15" PRIu32
-            " | %7s | 0 - %-6.0f | %3.0f%%%% %3.0f%%%% %3.0f%%%% | %11" PRIsizet
-            " | %8.3" PRIsizet
-            " | %15p / %11s %-254s"
-            "%s",
-            thread->id,
-            np_thread_type_str[thread->thread_type],
-            MIN(99999., thread->max_job_priority),
-            perc_0,
-            perc_1,
-            perc_2,
-            thread->run_iterations,
-            thread->job.priority,
-            _first_processorFunc,
-            thread->has_job ? "(working on )" : "(completed)",
-            thread->job.ident,
-            new_line);
+        ret = np_str_concatAndFree(ret,
+                                   "%15" PRIu32
+                                   " | %7s | 0 - %-6.0f | %3.0f%%%% "
+                                   "%3.0f%%%% %3.0f%%%% | %11" PRIsizet
+                                   " | %8.3" PRIsizet "%s",
+                                   thread->id,
+                                   np_thread_type_str[thread->thread_type],
+                                   MIN(99999., thread->max_job_priority),
+                                   perc_0,
+                                   perc_1,
+                                   perc_2,
+                                   thread->run_iterations,
+                                   new_line);
       }
       sll_next(thread_iter);
     }
@@ -1293,7 +1258,8 @@ void _np_threads_busyness_stat(np_state_t  *context,
   double now = np_time_now();
   for (int i = 0; i < ARRAY_SIZE(self->stats->items); i++) {
     if (now >= self->stats->items[i].interval_end) {
-      self->stats->items[i].usage          = self->stats->items[i].last_usage;
+      // self->stats->items[i].usage          =
+      // self->stats->items[i].last_usage;
       self->stats->items[i].usage          = 0;
       self->stats->items[i].interval_start = now;
       self->stats->items[i].interval_end = now + self->stats->items[i].interval;
@@ -1334,15 +1300,16 @@ void np_threads_busyness(np_state_t *context, np_thread_t *self, bool is_busy) {
 }
 
 #ifdef NP_STATISTICS_THREADS
-void np_threads_busyness_statistics(np_state_t  *context,
-                                    np_thread_t *self,
-                                    double      *perc_0,
-                                    double      *perc_1,
-                                    double      *perc_2) {
+void np_threads_busyness_statistics(NP_UNUSED np_state_t *context,
+                                    np_thread_t          *self,
+                                    double                now,
+                                    double               *perc_0,
+                                    double               *perc_1,
+                                    double               *perc_2) {
   if (self->stats) {
 #define code(i)                                                                \
   *perc_##i = self->stats->items[i].usage /                                    \
-              (np_time_now() - self->stats->items[i].interval_start);          \
+              (now - self->stats->items[i].interval_start);                    \
   if (self->stats->items[i].last_usage != 0) {                                 \
     *perc_##i =                                                                \
         (self->stats->items[i].last_usage / self->stats->items[i].interval +   \

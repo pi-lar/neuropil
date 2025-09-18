@@ -995,6 +995,9 @@ enum np_return np_mx_properties_disable(np_context      *ac,
 }
 
 enum np_return np_run(np_context *ac, double duration) {
+
+  assert(duration >= 0.0);
+
   np_ctx_cast(ac);
   enum np_return ret    = np_ok;
   np_thread_t   *thread = _np_threads_get_self(context);
@@ -1035,14 +1038,7 @@ enum np_return np_run(np_context *ac, double duration) {
 
   if (ret == np_ok) {
     TSP_SET(context->status, np_running);
-
-    if (duration <= 0) {
-      np_threads_busyness(context, thread, true);
-      __np_jobqueue_run_jobs_once(context, thread);
-      np_threads_busyness(context, thread, false);
-    } else {
-      np_jobqueue_run_jobs_for(context, thread, duration);
-    }
+    np_jobqueue_run_jobs_for(context, thread, duration);
   }
   return ret;
 }

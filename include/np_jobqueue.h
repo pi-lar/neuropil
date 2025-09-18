@@ -16,32 +16,6 @@
 extern "C" {
 #endif
 
-/* jobargs structure used to pass type safe structs into the thread context */
-typedef np_job_t *np_job_ptr;
-
-/* job_queue np_job_t structure */
-struct np_job_s {
-  uint8_t         type; // 1=msg handler, 2=internal handler, 4=unknown yet
-  double          exec_not_before_tstamp;
-  double          interval;
-  bool            is_periodic;
-  np_util_event_t evt;
-  np_dhkey_t      next;
-
-  size_t priority;
-  double search_min_priority;
-  double search_max_priority;
-
-  double search_max_exec_not_before_tstamp;
-
-  bool __del_processorFuncs;
-  sll_return(np_evt_callback_t) processorFuncs;
-
-#ifdef DEBUG_CALLBACKS
-  char ident[255];
-#endif
-};
-
 /** _np_jobqueue_init
  *  initiate the queue and thread pool of size "pool_size" returns a pointer
  *  to the initiated queue
@@ -50,9 +24,6 @@ NP_API_INTERN
 bool _np_jobqueue_init(np_state_t *context);
 NP_API_INTERN
 void _np_jobqueue_destroy(np_state_t *context);
-
-NP_API_INTERN
-bool _np_jobqueue_insert(np_state_t *context, np_job_t new_job, bool exec_asap);
 
 NP_API_INTERN
 bool np_jobqueue_submit_event(np_state_t     *context,
@@ -88,11 +59,6 @@ NP_API_EXPORT
 void np_jobqueue_run_jobs_for(np_state_t  *context,
                               np_thread_t *my_thread,
                               double       duration);
-NP_API_EXPORT
-double __np_jobqueue_run_jobs_once(np_state_t *context, np_thread_t *my_thread);
-
-NP_API_INTERN
-void __np_jobqueue_run_once(np_state_t *context, np_job_t job_to_execute);
 
 NP_API_INTERN
 void _np_jobqueue_check(np_state_t *context);

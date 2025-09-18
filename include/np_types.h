@@ -36,8 +36,6 @@ typedef enum np_aaatoken_type np_aaatoken_type_e;
 
 typedef struct np_dhkey_s np_dhkey_t;
 
-typedef struct np_job_s np_job_t;
-
 typedef struct np_key_s    np_key_t;
 typedef struct np_key_ro_s np_key_ro_t;
 typedef np_key_t          *np_key_ptr;
