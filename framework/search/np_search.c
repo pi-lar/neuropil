@@ -213,6 +213,7 @@ int8_t _cmp_all_searchentries(np_map_reduce_t *mr_struct, const void *element) {
 
   np_dhkey_t _common = {0}, _diff = {0};
 
+  // triangulate search index entries
   _np_dhkey_and(&_common,
                 &_1->search_index.lower_dhkey,
                 &_2->search_index.lower_dhkey);
@@ -230,15 +231,12 @@ int8_t _cmp_all_searchentries(np_map_reduce_t *mr_struct, const void *element) {
   //         _dist_diff,
   //         _dist_common / _dist_diff);
 
-  float _jc = (float)_dist_common / _dist_diff; // jaccard index
-  if (_dist_diff > 0 && _jc > 0.90) return 0;
-
-  // if (_dist_diff == 0) {
-  //   return 0;
-  // } else if (_dist_diff > _dist_common) return -1;
-  else return 1;
-
-  return 0;
+  if (_dist_common > 0) {
+    if (_dist_diff == 0) return 0;                // perfect match
+    float _jc = (float)_dist_common / _dist_diff; // jaccard index
+    if (_dist_diff > 0 && _jc > 0.66) return 0;   // very good match
+  }
+  return -1;
 }
 
 bool __np_search_deprecate_entries(np_state_t               *context,
@@ -291,9 +289,10 @@ struct __search_table_bucket {
 static int __search_table_bucket_cmp(const void *a, const void *b) {
   const struct __search_table_bucket *da = a, *db = b;
 
-  return da->hamming_distance < db->hamming_distance
-             ? -1
-             : da->hamming_distance > db->hamming_distance;
+  int result = 0;
+  result     = da->hamming_distance < db->hamming_distance ? -1 : result;
+  result     = da->hamming_distance > db->hamming_distance ? 1 : result;
+  return result;
 }
 
 static JSON_Value *__np_generate_error_json(const char *error,
@@ -1009,35 +1008,35 @@ bool __np_search_query(np_context                          *ac,
         }
         */
     uint8_t dh_diff = {0};
-    struct __search_table_bucket
-        buckets[np_module(search)->searchnode.local_table_count];
-    memset(&buckets,
-           0,
-           np_module(search)->searchnode.local_table_count *
-               sizeof(struct __search_table_bucket));
 
     uint8_t max_query_count =
         (np_module(search)->searchnode.local_table_count < 16)
             ? np_module(search)->searchnode.local_table_count
-            : 8;
+            : 16;
+
+    struct __search_table_bucket buckets[max_query_count];
+    memset(&buckets, 0, max_query_count * sizeof(struct __search_table_bucket));
+
     for (uint8_t j = 0; j < max_query_count; j++) {
 
       np_dhkey_t rotated = {0};
       _np_dhkey_assign(&rotated, &np_module(search)->searchnode.node_id);
       // #pragma omp parallel for shared(query)
-      for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
-           i++) {
+      for (uint16_t i = 0; i < max_query_count; i++) {
         _np_dhkey_rotate_left(&rotated,
                               (np_module(search)->searchnode.prime_shift));
         _np_dhkey_hamming_distance(&dh_diff,
                                    &query->query_entry.search_index.lower_dhkey,
                                    &rotated);
-        buckets[i].hamming_distance = dh_diff;
-        buckets[i].index            = i;
+        if (dh_diff < buckets[i].hamming_distance ||
+            buckets[i].hamming_distance == 0) {
+          buckets[i].hamming_distance = dh_diff;
+          buckets[i].index            = i;
+        }
       }
     }
     qsort(buckets,
-          np_module(search)->searchnode.local_table_count,
+          max_query_count,
           sizeof(struct __search_table_bucket),
           __search_table_bucket_cmp);
     // log_msg(LOG_DEBUG, NULL,  "         into table: ");
@@ -1052,11 +1051,9 @@ bool __np_search_query(np_context                          *ac,
 
     uint16_t j          = 0;
     uint16_t initial_hd = buckets[0].hamming_distance;
-    while (buckets[j].hamming_distance <= (initial_hd + 1)) {
+    while (/* buckets[j].hamming_distance <= (initial_hd + 1) &&*/
+           j < max_query_count) {
 
-      // for (uint16_t j = 0;
-      //      (j < max_query_count) && (mr.reduce_result->size == 0);
-      //      j++) {
       log_msg(LOG_INFO,
               msg->uuid,
               "distribution factor was %2d, querying locally in %3d | "
@@ -1074,17 +1071,14 @@ bool __np_search_query(np_context                          *ac,
           &mr);
       np_spinlock_unlock(&np_module(search)->table_lock[j]);
 
-      np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
-      sll_iterator(void_ptr) iterator = sll_first(mr.map_result);
-      while (iterator != NULL) {
-        mr.reduce(&mr, iterator->val);
-        sll_next(iterator);
-      }
-      np_spinlock_unlock(&np_module(search)->results_lock[query->query_id]);
+      // np_spinlock_lock(&np_module(search)->results_lock[query->query_id]);
+      // sll_iterator(void_ptr) iterator = sll_first(mr.map_result);
+      // while (iterator != NULL) {
+      //   mr.reduce(&mr, iterator->val);
+      //   sll_next(iterator);
+      // }
+      // np_spinlock_unlock(&np_module(search)->results_lock[query->query_id]);
 
-      // np_bktree_query(np_module(search)->searchnode.tree[ min_index[j] ],
-      // entry->query_entry.search_index.upper_dhkey, &entry->query_entry,
-      // &mr);
       sll_clear(void_ptr, mr.map_result);
       j++;
     }
@@ -1228,32 +1222,37 @@ bool __np_search_add_entry(np_context                          *ac,
     pipeline->obj.entry->insert_count = 0;
 
     uint8_t dh_diff = {0};
-    struct __search_table_bucket
-            buckets[np_module(search)->searchnode.local_table_count];
     uint8_t max_create_count =
-        (np_module(search)->searchnode.local_table_count < 8)
+        (np_module(search)->searchnode.local_table_count < 16)
             ? np_module(search)->searchnode.local_table_count
-            : 8;
+            : 16;
+    struct __search_table_bucket buckets[max_create_count];
+    memset(&buckets,
+           0,
+           max_create_count * sizeof(struct __search_table_bucket));
+
     for (uint8_t j = 0; j < max_create_count; j++) {
       // #pragma omp parallel for shared(entry)
       np_dhkey_t rotated = {0};
       _np_dhkey_assign(&rotated, &np_module(search)->searchnode.node_id);
 
-      for (uint16_t i = 0; i < np_module(search)->searchnode.local_table_count;
-           i++) {
+      for (uint16_t i = 0; i < max_create_count; i++) {
         _np_dhkey_rotate_left(&rotated,
                               (np_module(search)->searchnode.prime_shift));
         _np_dhkey_hamming_distance(
             &dh_diff,
             &pipeline->obj.entry->search_index.lower_dhkey,
             &rotated);
-        buckets[i].hamming_distance = dh_diff;
-        buckets[i].index            = i;
+        if (dh_diff < buckets[i].hamming_distance ||
+            buckets[i].hamming_distance == 0) {
+          buckets[i].hamming_distance = dh_diff;
+          buckets[i].index            = i;
+        }
       }
     }
 
     qsort(buckets,
-          np_module(search)->searchnode.local_table_count,
+          max_create_count,
           sizeof(struct __search_table_bucket),
           __search_table_bucket_cmp);
 
@@ -1274,7 +1273,7 @@ bool __np_search_add_entry(np_context                          *ac,
     // #pragma omp parallel for shared(entry)
     uint16_t j          = 0;
     uint16_t initial_hd = buckets[0].hamming_distance;
-    while (buckets[j].hamming_distance == initial_hd) {
+    while (buckets[j].hamming_distance == initial_hd && j < max_create_count) {
       // for (uint16_t j = 0; j < max_create_count; j++) {
       log_msg(LOG_INFO,
               msg->uuid,
@@ -2266,10 +2265,10 @@ bool np_create_searchentry(np_context       *ac,
                         SEARCH_MH_FIX512)) {
       np_minhash_init(&minhash, 512, MIXHASH_MULTI, minhash_seed);
     } else {
-      log_error(
-          NULL,
-          "%s",
-          "only fixed minhash sizes available, data dependant not implemented");
+      log_error(NULL,
+                "%s",
+                "only fixed minhash sizes available, data dependant not "
+                "implemented");
       free(copied_text);
 
       return false;
