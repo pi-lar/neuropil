@@ -16,7 +16,7 @@ if PATH:
 
 setup(
     name="neuropil",
-    version="0.13.0",
+    version="1.0.1",
     author="pi-lar GmbH",
     description="""neuropil python bindings""",
     packages=find_packages(exclude=["_cffi_build", "_cffi_build.*"]),
